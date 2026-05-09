@@ -32,7 +32,11 @@ function parseDateInput(isoDate: string): Date {
   const [y, m, d] = isoDate.split("-").map(Number);
   return new Date(y, (m ?? 1) - 1, d ?? 1);
 }
-
+const formatNumber = (value: string) => {
+  const num = value.replace(/,/g, "");
+  if (!num) return "";
+  return Number(num).toLocaleString();
+};
 type AccountFormProps = {
   borrowerId: string;
   onSuccess?: () => void;
@@ -47,7 +51,9 @@ export default function AccountForm({
   const {
     register,
     handleSubmit,
+    setValue,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<AccountFormValues>({
     resolver: zodResolver(accountSchema),
@@ -57,7 +63,7 @@ export default function AccountForm({
       payment_frequency: "bimonthly",
     },
   });
-
+  const value = watch("principal_amount");
   const onSubmit = async (values: AccountFormValues) => {
     const totalWithInterest =
       values.principal_amount *
@@ -177,11 +183,23 @@ export default function AccountForm({
         </label>
         <input
           id="principal_amount"
-          type="number"
+          type="text"
           inputMode="decimal"
-          step="0.01"
-          min={0}
-          {...register("principal_amount", { valueAsNumber: true })}
+          {...register("principal_amount", {
+            setValueAs: (v) =>
+              Number(String(v).replace(/,/g, "")),
+          })}
+          value={
+            value
+              ? Number(value).toLocaleString()
+              : ""
+          }
+          onChange={(e) => {
+            const raw = e.target.value.replace(/,/g, "");
+            if (!isNaN(Number(raw))) {
+              setValue("principal_amount", raw);
+            }
+          }}
           className={formFieldInputClassName}
         />
         {errors.principal_amount?.message ? (
@@ -233,19 +251,21 @@ export default function AccountForm({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div>
+        <div className="min-w-0">
           <label
             className={formFieldLabelClassName}
             htmlFor="release_date"
           >
             Release date
           </label>
+
           <input
             id="release_date"
             type="date"
             {...register("release_date")}
-            className={formFieldInputClassName}
+            className={`${formFieldInputClassName} w-full min-w-0`}
           />
+
           {errors.release_date?.message ? (
             <p className={formFieldErrorClassName}>
               {errors.release_date.message}
@@ -253,19 +273,21 @@ export default function AccountForm({
           ) : null}
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label
             className={formFieldLabelClassName}
             htmlFor="first_payment_date"
           >
             First payment date
           </label>
+
           <input
             id="first_payment_date"
             type="date"
             {...register("first_payment_date")}
-            className={formFieldInputClassName}
+            className={`${formFieldInputClassName} w-full min-w-0`}
           />
+
           {errors.first_payment_date?.message ? (
             <p className={formFieldErrorClassName}>
               {errors.first_payment_date.message}

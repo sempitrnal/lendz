@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import Modal from "@/components/modal";
 import AccountForm from "@/components/forms/account-form";
 import AccountCardMenu from "@/components/borrower/account-card-menu";
+import { NextRouter } from "next/router";
+import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 export type AccountRow = {
   id: string;
@@ -19,7 +21,47 @@ type BorrowerAccountsSectionProps = {
   borrowerId: string;
   accounts: AccountRow[] | null;
 };
+function AccountCard({ account, router }: { account: AccountRow, router: AppRouterInstance }) {
+  return <div
+    key={account.id}
+    className="flex gap-2 rounded-xl border p-4 transition hover:border-black/20 hover:shadow-sm"
+  >
+    <button
+      type="button"
+      onClick={() =>
+        router.push(`/accounts/${account.id}`)
+      }
+      className="min-w-0 flex-1 cursor-pointer text-left"
+      aria-label={`Open account for ${account.type.replace("_", " ")}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="font-medium capitalize">
+            {account.type.replace("_", " ")}
+          </p>
 
+          <p className="mt-1 text-sm text-gray-500">
+            Status: {account.status}
+          </p>
+        </div>
+
+        <div className="text-right">
+          <p className="font-semibold">
+            ₱
+            {Number(
+              account.principal_amount
+            ).toLocaleString()}
+          </p>
+
+          <p className="text-sm text-gray-500">
+            {account.interest_rate}% interest
+          </p>
+        </div>
+      </div>
+    </button>
+    <AccountCardMenu accountId={account.id} />
+  </div>
+}
 export default function BorrowerAccountsSection({
   borrowerId,
   accounts,
@@ -54,45 +96,7 @@ export default function BorrowerAccountsSection({
       ) : (
         <div className="space-y-4">
           {accounts.map((account) => (
-            <div
-              key={account.id}
-              className="flex gap-2 rounded-xl border p-4 transition hover:border-black/20 hover:shadow-sm"
-            >
-              <button
-                type="button"
-                onClick={() =>
-                  router.push(`/accounts/${account.id}`)
-                }
-                className="min-w-0 flex-1 cursor-pointer text-left"
-                aria-label={`Open account for ${account.type.replace("_", " ")}`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium capitalize">
-                      {account.type.replace("_", " ")}
-                    </p>
-
-                    <p className="mt-1 text-sm text-gray-500">
-                      Status: {account.status}
-                    </p>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="font-semibold">
-                      ₱
-                      {Number(
-                        account.principal_amount
-                      ).toLocaleString()}
-                    </p>
-
-                    <p className="text-sm text-gray-500">
-                      {account.interest_rate}% interest
-                    </p>
-                  </div>
-                </div>
-              </button>
-              <AccountCardMenu accountId={account.id} />
-            </div>
+            <AccountCard account={account} router={router} />
           ))}
         </div>
       )}

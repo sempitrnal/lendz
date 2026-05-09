@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Modal from "../modal";
 import BorrowerForm from "../forms/borrower-form";
+import NeobrutButton from "../neobrut-button";
 
 interface AddBorrowerModalProps {
     isOpen: boolean;
@@ -14,7 +15,7 @@ export default function AddBorrowerModal({
 
     return (
         <div className="mb-10">
-            <button onClick={openModal} className="bg-green-400 hover:opacity-90 transition duration-300 cursor-pointer  border-indigo-950 border-[1.5px] rounded-md p-2">add borrower</button>
+            <NeobrutButton onClick={openModal} color="green">add</NeobrutButton>
             <Modal isOpen={isOpen} closeOnEscape closeOnOverlayClick title="add borrower" size="lg" onClose={onClose} >
                 <BorrowerForm onSuccess={() => {
                     onClose()
