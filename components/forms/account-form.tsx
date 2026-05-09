@@ -196,8 +196,16 @@ export default function AccountForm({
           }
           onChange={(e) => {
             const raw = e.target.value.replace(/,/g, "");
-            if (!isNaN(Number(raw))) {
-              setValue("principal_amount", raw);
+
+            if (raw === "") {
+              setValue("principal_amount", 0);
+              return;
+            }
+
+            const num = Number(raw);
+
+            if (!isNaN(num)) {
+              setValue("principal_amount", num);
             }
           }}
           className={formFieldInputClassName}
