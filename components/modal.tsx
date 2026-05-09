@@ -81,7 +81,7 @@ export default function Modal({
 
     return (
         <div
-            className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-200 ${isVisible ? "bg-black/50 opacity-100" : "bg-black/0 opacity-0"
+            className={`fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-6 transition-opacity duration-200 sm:items-center ${isVisible ? "bg-black/50 opacity-100" : "bg-black/0 opacity-0"
                 }`}
             onClick={closeOnOverlayClick ? onClose : undefined}
             aria-hidden="true"
@@ -91,7 +91,7 @@ export default function Modal({
                 aria-modal="true"
                 aria-labelledby={title ? titleId : undefined}
                 onClick={(event) => event.stopPropagation()}
-                className={`w-full rounded-xl bg-white shadow-xl transition-all duration-200 ${isVisible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+                className={`flex max-h-[calc(100dvh-3rem)] w-full flex-col rounded-xl bg-white shadow-xl transition-all duration-200 ${isVisible ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
                     } ${sizeClassMap[size]} ${className}`}
             >
                 <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
@@ -112,7 +112,7 @@ export default function Modal({
                     </button>
                 </div>
 
-                <div className="px-5 py-4">{children}</div>
+                <div className="overflow-y-auto px-5 py-4">{children}</div>
 
                 {footer ? (
                     <div className="border-t border-slate-200 px-5 py-4">{footer}</div>

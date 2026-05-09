@@ -15,6 +15,23 @@ import {
 } from "@/lib/form-field-classes";
 import { supabase } from "@/lib/supabase/client";
 import NeobrutButton from "@/components/neobrut-button";
+import {
+  bimonthlyLegacyInstallmentAmount,
+  generateLegacyBimonthlyDueDates,
+} from "@/lib/payment-schedule/bimonthly-legacy";
+
+function formatLocalISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Avoid UTC vs local ambiguity from `new Date("YYYY-MM-DD")`. */
+function parseDateInput(isoDate: string): Date {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+}
 
 type AccountFormProps = {
   borrowerId: string;
@@ -37,11 +54,11 @@ export default function AccountForm({
     defaultValues: {
       borrower_id: borrowerId,
       type: "loan",
-      payment_frequency: "monthly",
+      payment_frequency: "bimonthly",
     },
   });
+
   const onSubmit = async (values: AccountFormValues) => {
-    // 1. Calculate totals
     const totalWithInterest =
       values.principal_amount *
       (1 + values.interest_rate / 100);
@@ -61,39 +78,51 @@ export default function AccountForm({
       return;
     }
 
-    // 3. Generate payment schedules
-    const schedules = [];
+    const schedules: Array<{
+      account_id: string;
+      due_date: string;
+      amount_due: number;
+      status: string;
+    }> = [];
 
-    let currentDate = new Date(
-      values.first_payment_date
-    );
+    if (values.payment_frequency === "bimonthly") {
+      const start = parseDateInput(values.first_payment_date);
+      const dueDates = generateLegacyBimonthlyDueDates(
+        start,
+        values.term_months
+      );
+      const pay = bimonthlyLegacyInstallmentAmount(
+        values.principal_amount,
+        values.interest_rate,
+        values.term_months
+      );
 
-    for (let i = 0; i < values.term_months; i++) {
-      schedules.push({
-        account_id: account.id,
-
-        due_date: currentDate
-          .toISOString()
-          .split("T")[0],
-
-        amount_due: Number(
-          installmentAmount.toFixed(2)
-        ),
-
-        status: "pending",
-      });
-
-      // Increment date based on frequency
-      if (values.payment_frequency === "monthly") {
-        currentDate.setMonth(
-          currentDate.getMonth() + 1
-        );
+      for (const d of dueDates) {
+        schedules.push({
+          account_id: account.id,
+          due_date: formatLocalISODate(d),
+          amount_due: pay,
+          status: "pending",
+        });
       }
+    } else {
+      let currentDate = parseDateInput(values.first_payment_date);
 
-      if (values.payment_frequency === "weekly") {
-        currentDate.setDate(
-          currentDate.getDate() + 7
-        );
+      for (let i = 0; i < values.term_months; i++) {
+        schedules.push({
+          account_id: account.id,
+          due_date: formatLocalISODate(currentDate),
+          amount_due: Number(installmentAmount.toFixed(2)),
+          status: "pending",
+        });
+
+        if (values.payment_frequency === "monthly") {
+          currentDate.setMonth(currentDate.getMonth() + 1);
+        } else if (values.payment_frequency === "weekly") {
+          currentDate.setDate(currentDate.getDate() + 7);
+        } else {
+          currentDate.setMonth(currentDate.getMonth() + 1);
+        }
       }
     }
 
@@ -111,7 +140,7 @@ export default function AccountForm({
     reset({
       borrower_id: borrowerId,
       type: "loan",
-      payment_frequency: "monthly",
+      payment_frequency: "bimonthly",
     });
 
     router.refresh();
@@ -253,11 +282,15 @@ export default function AccountForm({
           Payment frequency
         </label>
         <select
+          defaultValue="bimonthly"
           id="payment_frequency"
           {...register("payment_frequency")}
           className={formFieldInputClassName}
         >
           <option value="weekly">weekly</option>
+          <option value="bimonthly">
+            bimonthly
+          </option>
           <option value="monthly">monthly</option>
           <option value="custom">custom</option>
         </select>

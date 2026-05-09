@@ -36,7 +36,7 @@ export default function SiteHeader({
       <nav className="relative mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
         <div className="flex items-center gap-5">
           <Link href="/" className="text-lg font-semibold tracking-tight">
-            Lendz
+            Utangz
           </Link>
           <div className="hidden items-center gap-5 text-sm font-medium text-stone-900 sm:flex">
             <Link
@@ -113,11 +113,11 @@ export default function SiteHeader({
         title=""
         closeOnOverlayClick
       >
-        <div className="flex flex-col gap-2 pb-6">
-          <p className="text-center py-4">are you sure you want to logout?</p>
+        <div className="flex flex-col gap-2 ">
+          <p className="text-center mb-1">are you sure you want to logout?</p>
           <div className="flex gap-2 justify-center">
             <button
-              onClick={()=>{
+              onClick={() => {
                 logoutAction();
                 closeModal();
               }}

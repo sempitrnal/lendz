@@ -31,16 +31,16 @@ export default function LoginPage() {
         alert(error.message);
       }
     } finally {
-        setTimeout(() => {  
-          setIsLoading(false);
-        }, 1000);
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 1000);
     }
   };
 
   return (
     <div className="grid min-h-[70vh] place-items-center w-full">
       <div className="flex w-full max-w-md flex-col gap-4 rounded-md p-4 py-8 shadow-md">
-        <h1 className="mb-4 text-center">Lendz</h1>
+        <h1 className="mb-4 text-center">Utangz</h1>
 
         <div>
           <label htmlFor="login-email" className={formFieldLabelClassName}>

@@ -16,7 +16,9 @@ import { formatContactNumber } from "@/lib/format-contact-number";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-export default function BorrowerForm() {
+export default function BorrowerForm({ onSuccess }: {
+  onSuccess: any
+}) {
   const router = useRouter();
 
   const {
@@ -42,16 +44,13 @@ export default function BorrowerForm() {
       alert(error.message);
       return;
     }
+    console.log("hello")
+    router.refresh()
+    reset();
 
-    const shouldAddAccount = confirm(
-      "Borrower created. Add account now?"
-    );
+    onSuccess?.()
+    router.refresh()
 
-    if (shouldAddAccount) {
-      router.push(`/dashboard/accounts/new?borrower=${data.id}`);
-    } else {
-      reset();
-    }
   };
 
   return (

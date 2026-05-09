@@ -1,9 +1,11 @@
- "use client";
+"use client";
 
 import { FaPlus } from "react-icons/fa6";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Modal from "@/components/modal";
 import AccountForm from "@/components/forms/account-form";
+import AccountCardMenu from "@/components/borrower/account-card-menu";
 
 export type AccountRow = {
   id: string;
@@ -23,6 +25,7 @@ export default function BorrowerAccountsSection({
   accounts,
 }: BorrowerAccountsSectionProps) {
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+  const router = useRouter();
 
   return (
     <div className="rounded-lg border bg-white p-6 shadow-sm">
@@ -53,32 +56,42 @@ export default function BorrowerAccountsSection({
           {accounts.map((account) => (
             <div
               key={account.id}
-              className="rounded-xl border p-4"
+              className="flex gap-2 rounded-xl border p-4 transition hover:border-black/20 hover:shadow-sm"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium capitalize">
-                    {account.type.replace("_", " ")}
-                  </p>
+              <button
+                type="button"
+                onClick={() =>
+                  router.push(`/accounts/${account.id}`)
+                }
+                className="min-w-0 flex-1 cursor-pointer text-left"
+                aria-label={`Open account for ${account.type.replace("_", " ")}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium capitalize">
+                      {account.type.replace("_", " ")}
+                    </p>
 
-                  <p className="mt-1 text-sm text-gray-500">
-                    Status: {account.status}
-                  </p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Status: {account.status}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="font-semibold">
+                      ₱
+                      {Number(
+                        account.principal_amount
+                      ).toLocaleString()}
+                    </p>
+
+                    <p className="text-sm text-gray-500">
+                      {account.interest_rate}% interest
+                    </p>
+                  </div>
                 </div>
-
-                <div className="text-right">
-                  <p className="font-semibold">
-                    ₱
-                    {Number(
-                      account.principal_amount
-                    ).toLocaleString()}
-                  </p>
-
-                  <p className="text-sm text-gray-500">
-                    {account.interest_rate}% interest
-                  </p>
-                </div>
-              </div>
+              </button>
+              <AccountCardMenu accountId={account.id} />
             </div>
           ))}
         </div>

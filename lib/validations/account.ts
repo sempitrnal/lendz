@@ -28,7 +28,7 @@ export const accountSchema = z.object({
         .min(1, "First payment date is required"),
 
     payment_frequency: z.enum(
-        ["weekly", "monthly", "custom"] as const,
+        ["weekly", "monthly", "bimonthly", "custom"] as const,
         {
             error: "Payment frequency is required",
         }
