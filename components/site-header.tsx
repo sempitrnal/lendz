@@ -51,6 +51,12 @@ export default function SiteHeader({
             >
               borrowers
             </Link>
+            <Link
+              href="/categories"
+              className="transition-colors hover:text-stone-700"
+            >
+              categories
+            </Link>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -91,6 +97,12 @@ export default function SiteHeader({
               className="transition-colors hover:text-stone-700"
             >
               borrowers
+            </Link>
+            <Link
+              href="/categories"
+              className="transition-colors hover:text-stone-700"
+            >
+              categories
             </Link>
             {isLoggedIn ? (
               <form action={openModal}>

@@ -11,10 +11,15 @@ type BorrowerEditViewProps = BorrowerEditFormProps;
 export default function BorrowerEditView({
   borrowerId,
   initial,
+  initialCategoryIds,
 }: BorrowerEditViewProps) {
   return (
     <div className="flex w-full flex-col gap-6">
-      <BorrowerEditForm borrowerId={borrowerId} initial={initial} />
+      <BorrowerEditForm
+        borrowerId={borrowerId}
+        initial={initial}
+        initialCategoryIds={initialCategoryIds}
+      />
 
       <Suspense fallback={<BorrowerAccountsSectionSkeleton />}>
         <BorrowerAccountsAsync borrowerId={borrowerId} />

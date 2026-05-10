@@ -18,6 +18,11 @@ export default async function EditBorrowerPage({
     .eq("id", id)
     .single();
 
+  const { data: categoryLinks } = await supabase
+    .from("borrower_categories")
+    .select("category_id")
+    .eq("borrower_id", id);
+
   if (error || !borrower) {
     notFound();
   }
@@ -30,6 +35,7 @@ export default async function EditBorrowerPage({
         last_name: borrower.last_name,
         contact: borrower.contact,
       }}
+      initialCategoryIds={(categoryLinks ?? []).map((row) => row.category_id)}
     />
   );
 }

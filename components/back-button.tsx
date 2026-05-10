@@ -17,10 +17,10 @@ export default function BackButton({
   const router = useRouter();
 
   const handleBack = () => {
-    if (window.history.length > 1) {
-      router.back();
-      return;
-    }
+    // if (window.history.length > 1) {
+    //   router.back();
+    //   return;
+    // }
 
     router.push(fallbackHref);
   };

@@ -144,8 +144,8 @@ export default async function AccountDetailPage({
         </p>
       </div>
 
-      <article className={`rounded-lg border p-5 shadow-sm ${accountStatusClasses.card}`}>
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <article className={`rounded-lg  ${accountStatusClasses.card}`}>
+        <div className="mb-4 flex flex-wrap md:flex-row flex-col items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold capitalize">
               {accountRow.type.replace("_", " ")}
@@ -165,16 +165,14 @@ export default async function AccountDetailPage({
               </span>
             </p>
           </div>
-          <div className="text-right text-sm">
-            <p className="flex items-center justify-end gap-2">
+          <div className="text-sm ">
 
-              <span
-                className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${accountStatusClasses.badge}`}
-              >
-                {accountRow.status}
-              </span>
-            </p>
-            <p className="text-lg">
+            <span
+              className={` rounded-full border px-2 py-1 text-xs  font-semibold capitalize ${accountStatusClasses.badge}`}
+            >
+              {accountRow.status}
+            </span>
+            <p className="text-lg mt-2">
               Principal:{" "}
               <span className="font-medium">
                 ₱{Number(accountRow.principal_amount ?? 0).toLocaleString()}
