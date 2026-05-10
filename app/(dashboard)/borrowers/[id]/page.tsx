@@ -24,13 +24,7 @@ export default async function BorrowerPage({
     notFound();
   }
 
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("*")
-    .eq("borrower_id", borrower.id)
-    .order("created_at", { ascending: false });
-
   return (
-    <BorrowerDetailView borrower={borrower} accounts={accounts} />
+    <BorrowerDetailView borrower={borrower} />
   );
 }

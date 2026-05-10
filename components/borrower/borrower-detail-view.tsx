@@ -1,6 +1,7 @@
-import BorrowerAccountsSection, {
-  type AccountRow,
-} from "@/components/borrower/borrower-accounts-section";
+import { Suspense } from "react";
+
+import BorrowerAccountsAsync from "@/components/borrower/borrower-accounts-async";
+import BorrowerAccountsSectionSkeleton from "@/components/borrower/borrower-accounts-section-skeleton";
 import BorrowerDetailMenu from "@/components/borrower/borrower-detail-menu";
 import BackButton from "../back-button";
 
@@ -13,12 +14,10 @@ type BorrowerSummary = {
 
 type BorrowerDetailViewProps = {
   borrower: BorrowerSummary;
-  accounts: AccountRow[] | null;
 };
 
 export default function BorrowerDetailView({
   borrower,
-  accounts,
 }: BorrowerDetailViewProps) {
   return (
     <> <BackButton
@@ -40,10 +39,9 @@ export default function BorrowerDetailView({
           </div>
         </div>
 
-        <BorrowerAccountsSection
-          borrowerId={borrower.id}
-          accounts={accounts}
-        />
+        <Suspense fallback={<BorrowerAccountsSectionSkeleton />}>
+          <BorrowerAccountsAsync borrowerId={borrower.id} />
+        </Suspense>
       </div></>
 
   );

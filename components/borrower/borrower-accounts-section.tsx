@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import Modal from "@/components/modal";
 import AccountForm from "@/components/forms/account-form";
 import AccountCardMenu from "@/components/borrower/account-card-menu";
-import { NextRouter } from "next/router";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 export type AccountRow = {
@@ -21,18 +20,28 @@ type BorrowerAccountsSectionProps = {
   borrowerId: string;
   accounts: AccountRow[] | null;
 };
-function AccountCard({ account, router }: { account: AccountRow, router: AppRouterInstance }) {
+function AccountCard({
+  account,
+  router,
+  isOpening,
+  onOpen,
+}: {
+  account: AccountRow;
+  router: AppRouterInstance;
+  isOpening: boolean;
+  onOpen: (id: string) => void;
+}) {
   return <div
-    key={account.id}
-    className="flex gap-2 rounded-xl border p-4 transition hover:border-black/20 hover:shadow-sm"
+    className={`flex gap-2 rounded-xl border p-4 transition ${isOpening ? "opacity-70" : "hover:border-black/20 hover:shadow-sm"
+      }`}
   >
     <button
       type="button"
-      onClick={() =>
-        router.push(`/accounts/${account.id}`)
-      }
+      onClick={() => onOpen(account.id)}
+      disabled={isOpening}
       className="min-w-0 flex-1 cursor-pointer text-left"
       aria-label={`Open account for ${account.type.replace("_", " ")}`}
+      aria-busy={isOpening}
     >
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -56,6 +65,11 @@ function AccountCard({ account, router }: { account: AccountRow, router: AppRout
           <p className="text-sm text-gray-500">
             {account.interest_rate}% interest
           </p>
+          {isOpening ? (
+            <p className="mt-1 text-xs font-medium text-slate-600">
+              Opening account...
+            </p>
+          ) : null}
         </div>
       </div>
     </button>
@@ -67,7 +81,13 @@ export default function BorrowerAccountsSection({
   accounts,
 }: BorrowerAccountsSectionProps) {
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+  const [openingAccountId, setOpeningAccountId] = useState<string | null>(null);
   const router = useRouter();
+
+  const handleOpenAccount = (id: string) => {
+    setOpeningAccountId(id);
+    router.push(`/accounts/${id}`);
+  };
 
   return (
     <div className="rounded-lg border bg-white p-6 shadow-sm">
@@ -96,7 +116,13 @@ export default function BorrowerAccountsSection({
       ) : (
         <div className="space-y-4">
           {accounts.map((account) => (
-            <AccountCard account={account} router={router} />
+            <AccountCard
+              key={account.id}
+              account={account}
+              router={router}
+              isOpening={openingAccountId === account.id}
+              onOpen={handleOpenAccount}
+            />
           ))}
         </div>
       )}

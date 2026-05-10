@@ -22,12 +22,6 @@ export default async function EditBorrowerPage({
     notFound();
   }
 
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("*")
-    .eq("borrower_id", borrower.id)
-    .order("created_at", { ascending: false });
-
   return (
     <BorrowerEditView
       borrowerId={borrower.id}
@@ -36,7 +30,6 @@ export default async function EditBorrowerPage({
         last_name: borrower.last_name,
         contact: borrower.contact,
       }}
-      accounts={accounts}
     />
   );
 }
