@@ -328,7 +328,7 @@ export default async function Dashboard() {
 
   return (
     <main className="mx-auto w-full max-w-5xl  py-2 ">
-      <section className="mb-4 rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:mb-6 sm:p-6">
+      <section className="mb-4 rounded-xl border-2 border-slate-900 bg-linear-to-r from-indigo-50 via-white to-sky-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:mb-6 sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">
           {formattedToday}
         </p>
@@ -344,7 +344,7 @@ export default async function Dashboard() {
         {summaryCards.map((card) => (
           <article
             key={card.label}
-            className="rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a]"
+            className="rounded-xl border-2 border-slate-900 bg-linear-to-br from-white via-slate-50 to-slate-100 p-4 shadow-[4px_4px_0px_0px_#0f172a]"
           >
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-600">
@@ -363,7 +363,7 @@ export default async function Dashboard() {
       </section>
 
       <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1.3fr_1fr]">
-        <article className="rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+        <article className="rounded-xl border-2 border-slate-900 bg-linear-to-br from-cyan-50 via-white to-blue-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-black lowercase text-slate-900">due today</h2>
             <Link
@@ -406,7 +406,7 @@ export default async function Dashboard() {
         </article>
 
         <div className="space-y-4">
-          <article className="rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+          <article className="rounded-xl border-2 border-slate-900 bg-linear-to-br from-emerald-50 via-white to-lime-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
             <h2 className="mb-3 text-base font-black lowercase text-slate-900">
               next collection
             </h2>
@@ -451,7 +451,7 @@ export default async function Dashboard() {
             </ul>
           </article>
 
-          <article className="rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+          <article className="rounded-xl border-2 border-slate-900 bg-linear-to-br from-amber-50 via-white to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
             <h2 className="mb-3 text-base font-black lowercase text-slate-900">
               quick actions
             </h2>
@@ -473,7 +473,7 @@ export default async function Dashboard() {
             </div>
           </article>
 
-          <article className="rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+          <article className="rounded-xl border-2 border-slate-900 bg-linear-to-br from-violet-50 via-white to-fuchsia-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
             <h2 className="mb-3 text-base font-black lowercase text-slate-900">
               operation notes
             </h2>

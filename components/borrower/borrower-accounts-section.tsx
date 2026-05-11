@@ -6,17 +6,30 @@ import { useRouter } from "next/navigation";
 import Modal from "@/components/modal";
 import AccountForm from "@/components/forms/account-form";
 import AccountCardMenu from "@/components/borrower/account-card-menu";
-import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { BorrowerSummary } from "./borrower-detail-view";
 import { supabase } from "@/lib/supabase/client";
 import NotesCanvas from "./notes-canvas";
+import NeobrutButton from "../neobrut-button";
 export type AccountRow = {
   id: string;
   type: string;
   status: string;
   principal_amount: number | string | null;
   interest_rate: number | string | null;
+};
+type PaymentScheduleLite = {
+  account_id: string;
+  due_date: string;
+  amount_due: number | null;
+  status: string;
+};
+
+type AccountComputedMetrics = {
+  amountLeftToPay: number;
+  profitToMake: number;
+  nextCollectionDate: string | null;
+  nextCollectionAmount: number;
 };
 
 type BorrowerAccountsSectionProps = {
@@ -26,61 +39,97 @@ type BorrowerAccountsSectionProps = {
 };
 function AccountCard({
   account,
-  router,
   isOpening,
   onOpen,
+  metrics,
 }: {
   account: AccountRow;
-  router: AppRouterInstance;
   isOpening: boolean;
   onOpen: (id: string) => void;
+  metrics?: AccountComputedMetrics;
 }) {
+  const amountLeftToPay = metrics?.amountLeftToPay ?? 0;
+  const profitToMake = metrics?.profitToMake ?? 0;
+  const nextCollectionDate = metrics?.nextCollectionDate;
+  const nextCollectionAmount = metrics?.nextCollectionAmount ?? 0;
 
-
-  return <div
-    className={`flex gap-2 rounded-xl border bg-white p-4 transition ${isOpening ? "opacity-70" : "hover:border-black/20 hover:shadow-sm"
-      }`}
-  >
-    <button
-      type="button"
-      onClick={() => onOpen(account.id)}
-      disabled={isOpening}
-      className="min-w-0 flex-1 cursor-pointer text-left"
-      aria-label={`Open account for ${account.type.replace("_", " ")}`}
-      aria-busy={isOpening}
+  return (
+    <div
+      className={`flex gap-2 rounded-xl border-2 border-slate-900 bg-linear-to-br from-violet-50 via-white to-fuchsia-50 p-4 shadow-[4px_4px_0px_0px_#0f172a] transition ${isOpening ? "opacity-70" : "hover:-translate-y-0.5 hover:from-violet-100 hover:to-fuchsia-100"
+        }`}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="font-medium capitalize">
-            {account.type.replace("_", " ")}
-          </p>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Status: {account.status}
-          </p>
-        </div>
-
-        <div className="text-right">
-          <p className="font-semibold">
-            ₱
-            {Number(
-              account.principal_amount
-            ).toLocaleString()}
-          </p>
-
-          <p className="text-sm text-gray-500">
-            {account.interest_rate}% interest
-          </p>
-          {isOpening ? (
-            <p className="mt-1 text-xs font-medium text-slate-600">
-              Opening account...
+      <button
+        type="button"
+        onClick={() => onOpen(account.id)}
+        disabled={isOpening}
+        className="min-w-0 flex-1 cursor-pointer text-left"
+        aria-label={`Open account for ${account.type.replace("_", " ")}`}
+        aria-busy={isOpening}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="font-black uppercase text-slate-900">
+              {account.type.replace("_", " ")}
             </p>
-          ) : null}
+
+            <p className="mt-1 text-xs font-semibold uppercase text-slate-500">
+              Status: {account.status}
+            </p>
+          </div>
+
+          <div className="text-right">
+            <p className="font-black text-slate-900">
+              ₱{Number(account.principal_amount ?? 0).toLocaleString()}
+            </p>
+
+            <p className="text-xs font-semibold text-slate-500">
+              {account.interest_rate}% interest
+            </p>
+            {isOpening ? (
+              <p className="mt-1 text-xs font-medium text-slate-600">
+                Opening account...
+              </p>
+            ) : null}
+          </div>
         </div>
-      </div>
-    </button>
-    <AccountCardMenu accountId={account.id} />
-  </div>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-lg border-2 border-slate-900 bg-emerald-100/70 p-2">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              bayranan
+            </p>
+            <p className="text-sm font-black text-slate-900">
+              ₱{amountLeftToPay.toLocaleString()}
+            </p>
+          </div>
+
+          <div className="rounded-lg border-2 border-slate-900 bg-amber-100/70 p-2">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              ginansya
+            </p>
+            <p className="text-sm font-black text-slate-900">
+              ₱{profitToMake.toLocaleString()}
+            </p>
+          </div>
+
+          <div className="rounded-lg border-2 border-slate-900 bg-sky-100/70 p-2">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              next collection
+            </p>
+            <p className="text-sm font-black text-slate-900">
+              {nextCollectionDate
+                ? new Date(nextCollectionDate).toLocaleDateString()
+                : "none"}
+            </p>
+            <p className="text-[11px] font-semibold text-slate-600">
+              ₱{nextCollectionAmount.toLocaleString()}
+            </p>
+          </div>
+        </div>
+      </button>
+      <AccountCardMenu accountId={account.id} />
+    </div>
+  );
 }
 export default function BorrowerAccountsSection({
   borrowerId,
@@ -92,6 +141,9 @@ export default function BorrowerAccountsSection({
   const editorRef = useRef<any>(null);
   const router = useRouter();
   const [notes, setNotes] = useState<any[]>([]);
+  const [accountMetricsById, setAccountMetricsById] = useState<
+    Record<string, AccountComputedMetrics>
+  >({});
   const fetchNotes = async () => {
     const { data, error } = await supabase
       .from("borrower_notes")
@@ -142,29 +194,73 @@ export default function BorrowerAccountsSection({
     router.push(`/accounts/${id}`);
   };
 
+  const fetchAccountMetrics = async () => {
+    if (!accounts || accounts.length === 0) {
+      setAccountMetricsById({});
+      return;
+    }
 
+    const accountIds = accounts.map((account) => account.id);
+    const { data: schedulesData, error } = await supabase
+      .from("payment_schedules")
+      .select("account_id, due_date, amount_due, status")
+      .in("account_id", accountIds)
+      .order("due_date", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const scheduleRows = (schedulesData ?? []) as PaymentScheduleLite[];
+    const byAccount = new Map<string, PaymentScheduleLite[]>();
+    scheduleRows.forEach((row) => {
+      const prev = byAccount.get(row.account_id) ?? [];
+      prev.push(row);
+      byAccount.set(row.account_id, prev);
+    });
+
+    const computed: Record<string, AccountComputedMetrics> = {};
+    accounts.forEach((account) => {
+      const rows = byAccount.get(account.id) ?? [];
+      const totalPayment = rows.reduce(
+        (sum, row) => sum + Number(row.amount_due ?? 0),
+        0
+      );
+      const amountPaid = rows
+        .filter((row) => row.status === "paid")
+        .reduce((sum, row) => sum + Number(row.amount_due ?? 0), 0);
+      const amountLeftToPay = Math.max(0, totalPayment - amountPaid);
+      const principal = Number(account.principal_amount ?? 0);
+      const profitToMake = Math.max(0, totalPayment - principal);
+      const nextUnpaid = rows.find((row) => row.status !== "paid");
+
+      computed[account.id] = {
+        amountLeftToPay,
+        profitToMake,
+        nextCollectionDate: nextUnpaid?.due_date ?? null,
+        nextCollectionAmount: Number(nextUnpaid?.amount_due ?? 0),
+      };
+    });
+
+    setAccountMetricsById(computed);
+  };
 
   useEffect(() => {
     fetchNotes();
+    fetchAccountMetrics();
   }, [borrowerId]);
   return (
     <div className="rounded-lg  ">
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Accounts</h2>
-
-          <p className="text-sm text-gray-500">
-            Loans and cash advances
-          </p>
-        </div>
-        <button
-          type="button"
+     <div className=""></div>
+        <NeobrutButton
           onClick={() => setIsAddAccountOpen(true)}
-          className="rounded-full"
-          aria-label="Add account"
+          aria-label="Add loan"
+          variant="green"
         >
-          <FaPlus className="bg-green-400 rounded-full text-indigo-950 hover:opacity-90 transition w-6 h-6 p-1 shadow-[2px_2px_0px_0px_#1e293b] cursor-pointer hover:-translate-y-0.5 hover:translate-x-0.5 hover:shadow-[4px_4px_0px_0px_#1e293b]" />
-        </button>
+          add loan
+        </NeobrutButton>
       </div>
 
       {!accounts || accounts.length === 0 ? (
@@ -177,9 +273,9 @@ export default function BorrowerAccountsSection({
             <AccountCard
               key={account.id}
               account={account}
-              router={router}
               isOpening={openingAccountId === account.id}
               onOpen={handleOpenAccount}
+              metrics={accountMetricsById[account.id]}
             />
           ))}
         </div>

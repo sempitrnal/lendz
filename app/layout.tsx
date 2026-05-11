@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import SiteHeader from "@/components/site-header";
 import "./globals.css";
-
+import { Toaster } from "@/components/ui/sonner"
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -48,7 +48,7 @@ export default async function RootLayout({
         <SiteHeader isLoggedIn={Boolean(user)} logoutAction={logout} />
 
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 md:px-6 py-10 ">{children}</main>
-
+        <Toaster />
         <footer className="border-t border-slate-200">
           <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4 text-sm text-slate-600">
             <p>© {new Date().getFullYear()} Lendz. All rights reserved.</p>

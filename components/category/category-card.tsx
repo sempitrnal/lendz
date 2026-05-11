@@ -30,7 +30,7 @@ export default function CategoryCard({ category, openEditModal, deleteCategory, 
         setIsLoading(true);
         router.push(`/categories/${category.id}`);
       }}
-      className="relative h-24 cursor-pointer rounded-xl border-2 border-slate-900 bg-white px-4 py-3 transition shadow-[4px_4px_0px_0px_#0f172a] hover:-translate-y-0.5 hover:bg-slate-50"
+      className="relative h-24 cursor-pointer rounded-xl border-2 border-slate-900 bg-linear-to-br from-amber-50 via-white to-orange-100 px-4 py-3 transition shadow-[4px_4px_0px_0px_#0f172a] hover:-translate-y-0.5 hover:from-amber-100 hover:to-orange-200"
     >
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm">
@@ -53,7 +53,7 @@ export default function CategoryCard({ category, openEditModal, deleteCategory, 
                 onClick={(e) => {
                   e.stopPropagation();
                 }}
-                className="flex h-8 w-8 items-center justify-center rounded-md border-2 border-slate-900 bg-slate-100 text-sm font-bold hover:bg-slate-200"
+                className="flex h-8 w-8 items-center justify-center rounded-md border-2 border-slate-900 bg-orange-100 text-sm font-bold hover:bg-orange-200"
               >
                 <BsThreeDotsVertical />
               </button>

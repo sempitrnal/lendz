@@ -130,10 +130,9 @@ export default function CategoryList() {
 
     loadCategories();
   };
-
   return (
     <div className="flex flex-col gap-6 relative" >
-      <div className="rounded-lg border bg-white p-6 shadow-sm">
+      <div className="rounded-lg border border-slate-200 bg-linear-to-r from-cyan-50 via-white to-blue-50 p-6 shadow-sm">
         <h1 className="text-2xl font-bold">Categories</h1>
         <p className="text-sm text-gray-500">Manage borrower categories</p>
 
