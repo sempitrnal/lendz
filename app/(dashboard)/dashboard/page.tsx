@@ -46,11 +46,11 @@ export default async function Dashboard() {
     .slice(0, 10);
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
-  const weekAgoIso = weekAgo.toISOString();
+  const weekAgoDate = weekAgo.toISOString().slice(0, 10);
 
   const [
     { count: borrowerCount },
-    { count: newBorrowersWeekCount },
+    { data: newBorrowerAccountsWeekData },
     { count: newLoansMonthCount },
     { count: overdueCount },
     { data: dueSchedulesData },
@@ -62,13 +62,14 @@ export default async function Dashboard() {
   ] = await Promise.all([
     supabase.from("borrowers").select("*", { count: "exact", head: true }),
     supabase
-      .from("borrowers")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", weekAgoIso),
+      .from("accounts")
+      .select("borrower_id")
+      .gte("release_date", weekAgoDate)
+      .lte("release_date", todayIso),
     supabase
       .from("accounts")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startOfMonthIso),
+      .select("*", { count: "exact", head: true })  
+      .gte("release_date", startOfMonthIso),
     supabase
       .from("payment_schedules")
       .select("*", { count: "exact", head: true })
@@ -103,6 +104,9 @@ export default async function Dashboard() {
   ]);
 
   const dueSchedules = (dueSchedulesData ?? []) as DueSchedule[];
+  const newBorrowerAccountsWeek = (newBorrowerAccountsWeekData ?? []) as Array<{
+    borrower_id: string | null;
+  }>;
   const accountTotals = (accountTotalsData ?? []) as Array<{
     id: string;
     principal_amount: number | null;
@@ -146,6 +150,11 @@ export default async function Dashboard() {
   );
   const totalContractValue = moneyCollected + moneyToCollect;
   const expectedProfit = totalContractValue - principalTotal;
+  const newBorrowersWeekCount = new Set(
+    newBorrowerAccountsWeek
+      .map((row) => row.borrower_id)
+      .filter((id): id is string => Boolean(id))
+  ).size;
   const netCashPosition = moneyCollected - principalTotal;
   const principalByAccount = new Map(
     accountTotals.map((row) => [row.id, Number(row.principal_amount ?? 0)])
@@ -318,7 +327,7 @@ export default async function Dashboard() {
   ] as const;
 
   return (
-    <main className="mx-auto w-full max-w-5xl  py-2 sm:px-6 sm:py-8">
+    <main className="mx-auto w-full max-w-5xl  py-2 ">
       <section className="mb-4 rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:mb-6 sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">
           {formattedToday}
@@ -331,7 +340,7 @@ export default async function Dashboard() {
         </p>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
         {summaryCards.map((card) => (
           <article
             key={card.label}
