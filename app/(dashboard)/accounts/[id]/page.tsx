@@ -110,7 +110,20 @@ export default async function AccountDetailPage({
   const schedules = (schedulesData ?? []) as PaymentScheduleRow[];
   const accountRow = account as AccountRow;
   const accountStatusClasses = getAccountStatusClasses(accountRow.status);
+  const totalPayment = schedules.reduce(
+    (sum, s) => sum + (s.amount_due ?? 0),
+    0
+  );
 
+  const amountPaid = schedules
+    .filter((s) => s.status === "paid")
+    .reduce((sum, s) => sum + (s.amount_due ?? 0), 0);
+
+  const amountLeft = totalPayment - amountPaid;
+
+  const principal = Number(accountRow.principal_amount ?? 0);
+
+  const profit = totalPayment - principal;
   async function updateScheduleStatus(formData: FormData) {
     "use server";
     const scheduleId = String(formData.get("scheduleId") ?? "");
@@ -183,13 +196,17 @@ export default async function AccountDetailPage({
               <span className="font-medium">{accountRow.interest_rate ?? 0}%</span>
             </p>
 
-            <p>
+            <p className="">
               Term/Frequency:{" "}
               <span className="font-medium">
                 {accountRow.term_months ?? 0} /{" "}
                 {accountRow.payment_frequency ?? "-"}
               </span>
             </p>
+            <p className="text-lg">Total payment: <span className="font-medium">₱{totalPayment.toLocaleString()}</span></p>
+            <p className="text-lg">nabayran: <span className="font-medium">₱{amountPaid.toLocaleString()}</span></p>
+            <p className="text-lg">bayranan: <span className="font-medium">₱{amountLeft.toLocaleString()}</span></p>
+            <p className="text-lg">profit: <span className="font-medium">₱{profit.toLocaleString()}</span></p>
           </div>
         </div>
 
@@ -204,12 +221,13 @@ export default async function AccountDetailPage({
           ) : (
             <>
               <div className="md:hidden">
-                {schedules.map((schedule) => (
+                {schedules.map((schedule, i) => (
                   <article
                     key={schedule.id}
                     className={`border-b border-slate-900 p-4 last:border-b-0 ${getScheduleStatusClasses(schedule.status).row
                       }`}
                   >
+                    <p className="font-bold text-sm text-stone-500">{i + 1}{")"}</p>
                     <p className="text-xs font-black lowercase tracking-wide text-slate-500">
                       Due date
                     </p>

@@ -11,12 +11,13 @@ type Category = {
   color: string;
   created_at: string
 }
-type BorrowerSummary = {
+export type BorrowerSummary = {
   id: string;
   first_name: string;
   last_name: string;
   contact: string | null;
   category: Category[]
+  notes_canvas: any
 };
 
 type BorrowerDetailViewProps = {
@@ -61,7 +62,8 @@ export default function BorrowerDetailView({
         </div>
 
         <Suspense fallback={<BorrowerAccountsSectionSkeleton />}>
-          <BorrowerAccountsAsync borrowerId={borrower.id} />
+          <BorrowerAccountsAsync borrower={borrower} borrowerId={borrower.id} />
+
         </Suspense>
       </div></>
 

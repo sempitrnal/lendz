@@ -3,13 +3,16 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import BorrowerAccountsSection, {
   type AccountRow,
 } from "@/components/borrower/borrower-accounts-section";
+import { BorrowerSummary } from "./borrower-detail-view";
 
 type BorrowerAccountsAsyncProps = {
   borrowerId: string;
+  borrower?: BorrowerSummary
 };
 
 export default async function BorrowerAccountsAsync({
   borrowerId,
+  borrower
 }: BorrowerAccountsAsyncProps) {
   const supabase = await createSupabaseServer();
   const { data: accounts } = await supabase
@@ -20,6 +23,7 @@ export default async function BorrowerAccountsAsync({
 
   return (
     <BorrowerAccountsSection
+      borrower={borrower}
       borrowerId={borrowerId}
       accounts={accounts as AccountRow[] | null}
     />
