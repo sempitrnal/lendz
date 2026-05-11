@@ -36,11 +36,11 @@ export default function BorrowerDetailView({
         <div className="">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 flex-col gap-2">
-              <h1 className="text-3xl font-semibold">
+              <h1 className="text-5xl font-black">
                 {borrower.first_name} {borrower.last_name}
               </h1>
               <p className="text-gray-500">
-                {borrower.contact || "No contact"}
+                {borrower.contact || ""}
               </p>
               <div className="flex flex-wrap gap-2">
                 {borrower.category?.map((e) => {

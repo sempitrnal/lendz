@@ -1,3 +1,4 @@
+import BackButton from "@/components/back-button";
 import AssignBorrower from "@/components/category/assign-borrower";
 import CategoryBorrowersGrid from "@/components/category/category-borrowers-grid";
 import { createSupabaseServer } from "@/lib/supabase/server";
@@ -87,6 +88,7 @@ export default async function CategoryDetailView({
 
   return (
     <div className="space-y-6">
+      <BackButton fallbackHref="/categories" />
       <div>
         <h1 className="text-2xl font-bold">{category?.name}</h1>
       </div>

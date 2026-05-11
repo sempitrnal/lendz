@@ -10,6 +10,7 @@ import {
 } from "@/lib/form-field-classes";
 import { supabase } from "@/lib/supabase/client";
 import CategoryCard from "./category-card";
+import BackButton from "../back-button";
 type Count = {
   count: number
 }

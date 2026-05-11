@@ -296,27 +296,19 @@ export default function BorrowerAccountsSection({
       {/* <NotesCanvas borrowerId={borrowerId} initialData={borrower?.notes_canvas} /> */}
       <div className="mt-10">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">
+          <h2 className="text-xl font-black uppercase">
             Notes
           </h2>
 
-          <button
+          <NeobrutButton
             onClick={() => {
               setSelectedNote(null);
               setIsNotesOpen(true);
             }}
-            className="
-        rounded-lg
-        border
-        bg-yellow-200
-        px-4
-        py-2
-        text-sm
-        shadow-sm
-      "
+            variant="yellow"
           >
             New note
-          </button>
+          </NeobrutButton>
         </div>
 
         <div
