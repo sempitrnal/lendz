@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect, useId, useState } from "react";
 
-type ModalSize = "sm" | "md" | "lg" | "xl";
+type ModalSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 type ModalProps = {
     isOpen: boolean;
@@ -17,6 +17,7 @@ type ModalProps = {
 };
 
 const sizeClassMap: Record<ModalSize, string> = {
+    xs: "max-w-sm",
     sm: "max-w-md",
     md: "max-w-xl",
     lg: "max-w-2xl",
@@ -81,7 +82,7 @@ export default function Modal({
 
     return (
         <div
-            className={`fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-6 transition-opacity duration-200 sm:items-center ${isVisible ? "bg-black/50 opacity-100" : "bg-black/0 opacity-0"
+            className={`fixed inset-0 z-50 flex  justify-center overflow-y-auto p-4 pt-6 transition-opacity duration-200 items-center ${isVisible ? "bg-black/50 opacity-100" : "bg-black/0 opacity-0"
                 }`}
             onClick={closeOnOverlayClick ? onClose : undefined}
             aria-hidden="true"

@@ -1,7 +1,13 @@
 import { useState } from "react";
-import Modal from "../modal";
 import BorrowerForm from "../forms/borrower-form";
 import NeobrutButton from "../neobrut-button";
+
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 interface AddBorrowerModalProps {
     isOpen: boolean;
@@ -16,12 +22,24 @@ export default function AddBorrowerModal({
     return (
         <div className="mb-10">
             <NeobrutButton onClick={openModal} color="green">add</NeobrutButton>
-            <Modal isOpen={isOpen} closeOnEscape closeOnOverlayClick title="add borrower" size="lg" onClose={onClose} >
-                <BorrowerForm onSuccess={() => {
-                    onClose()
-                    getBorrowers?.()
-                }} />
-            </Modal>
+            <Dialog open={isOpen} onOpenChange={(open) => {
+                if (!open) {
+                    onClose();
+                }
+            }}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>add borrower</DialogTitle>
+                    </DialogHeader>
+
+                    <BorrowerForm
+                        onSuccess={() => {
+                            onClose();
+                            getBorrowers?.();
+                        }}
+                    />
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

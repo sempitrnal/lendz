@@ -39,7 +39,13 @@ export default function LoginPage() {
 
   return (
     <div className="grid min-h-[70vh] place-items-center w-full">
-      <div className="flex w-full max-w-md flex-col gap-4 rounded-md p-4 py-8 shadow-md">
+      <form
+        className="flex w-full max-w-md flex-col gap-4 rounded-md p-4 py-8 shadow-md"
+        onSubmit={(e) => {
+          e.preventDefault();
+          login();
+        }}
+      >
         <h1 className="mb-4 text-center">Utangz</h1>
 
         <div>
@@ -76,8 +82,8 @@ export default function LoginPage() {
         </div>
 
         <button
+          type="submit"
           className="bg-stone-900 text-white rounded-md p-2 transition-colors disabled:opacity-70 enabled:cursor-pointer enabled:hover:bg-stone-800"
-          onClick={login}
           disabled={isLoading}
         >
           {isLoading ? (
@@ -108,7 +114,7 @@ export default function LoginPage() {
             "Login"
           )}
         </button>
-      </div>
+      </form>
     </div>
   );
 }

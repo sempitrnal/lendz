@@ -21,10 +21,12 @@ import {
 import { formatContactNumber } from "@/lib/format-contact-number";
 import { supabase } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
+import { isDarkColor } from "@/lib/utils";
 
 type CategoryOption = {
   id: string;
   name: string;
+  color: string
 };
 
 export type BorrowerEditFormProps = {
@@ -72,7 +74,7 @@ export default function BorrowerEditForm({
     const loadCategories = async () => {
       const { data, error } = await supabase
         .from("categories")
-        .select("id, name")
+        .select("id, name, color")
         .order("name", { ascending: true });
 
       if (!error) {
@@ -133,10 +135,16 @@ export default function BorrowerEditForm({
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(categorySearch.trim().toLowerCase())
   );
+  console.log(filteredCategories)
 
   const selectedCategoryNames = categories
     .filter((category) => selectedCategoryIds.includes(category.id))
-    .map((category) => category.name);
+    .map((category) => {
+      return {
+        name: category.name,
+        color: category.color
+      }
+    });
 
   const toggleCategory = (categoryId: string) => {
     setSelectedCategoryIds((prev) =>
@@ -234,11 +242,43 @@ export default function BorrowerEditForm({
                 }
                 className={`${formFieldInputClassName} flex w-full items-center justify-between`}
               >
-                <span className="truncate text-left">
+                <div className="flex flex-wrap gap-2">
                   {selectedCategoryNames.length > 0
-                    ? selectedCategoryNames.join(", ")
+                    ? selectedCategoryNames.map((e) => {
+                      return (
+                        <div
+                          key={e.name}
+                          style={{ backgroundColor: e.color }}
+                          className={`flex items-center gap-2 rounded px-2 py-1 text-sm font-medium shadow-[4px_4px_0px_#1e1a4d] ${isDarkColor(e.color)
+                            ? "text-white"
+                            : "text-indigo-950"
+                            }`}
+                        >
+                          <span>{e.name}</span>
+
+                          <span
+
+                            onClick={(b) => {
+                              b.stopPropagation()
+                              setSelectedCategoryIds((prev) =>
+                                prev.filter((id) => {
+                                  const category = categories.find(
+                                    (c) => c.id === id
+                                  );
+
+                                  return category?.name !== e.name;
+                                })
+                              );
+                            }}
+                            className="ml-1 text-xs font-black opacity-80 hover:opacity-100 cursor-pointer"
+                          >
+                            {"x"}
+                          </span>
+                        </div>
+                      );
+                    })
                     : "Select categories"}
-                </span>
+                </div>
                 <span className="ml-2 text-xs text-slate-500">
                   {isCategoryDropdownOpen ? "▲" : "▼"}
                 </span>
@@ -273,6 +313,10 @@ export default function BorrowerEditForm({
                               checked={checked}
                               onChange={() => toggleCategory(category.id)}
                               className="h-4 w-4"
+                            />
+                            <span
+                              className="h-3 w-3 rounded-full border"
+                              style={{ backgroundColor: category.color ?? "#cbd5e1" }}
                             />
                             <span className="text-sm">{category.name}</span>
                           </label>

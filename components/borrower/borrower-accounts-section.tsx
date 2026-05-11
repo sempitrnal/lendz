@@ -7,6 +7,7 @@ import Modal from "@/components/modal";
 import AccountForm from "@/components/forms/account-form";
 import AccountCardMenu from "@/components/borrower/account-card-menu";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 export type AccountRow = {
   id: string;
@@ -32,7 +33,7 @@ function AccountCard({
   onOpen: (id: string) => void;
 }) {
   return <div
-    className={`flex gap-2 rounded-xl border p-4 transition ${isOpening ? "opacity-70" : "hover:border-black/20 hover:shadow-sm"
+    className={`flex gap-2 rounded-xl border bg-white p-4 transition ${isOpening ? "opacity-70" : "hover:border-black/20 hover:shadow-sm"
       }`}
   >
     <button
@@ -90,7 +91,7 @@ export default function BorrowerAccountsSection({
   };
 
   return (
-    <div className="rounded-lg border bg-white p-6 shadow-sm">
+    <div className="rounded-lg  ">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Accounts</h2>
@@ -127,19 +128,18 @@ export default function BorrowerAccountsSection({
         </div>
       )}
 
-      <Modal
-        isOpen={isAddAccountOpen}
-        onClose={() => setIsAddAccountOpen(false)}
-        closeOnEscape
-        closeOnOverlayClick
-        title="add account"
-        size="lg"
-      >
-        <AccountForm
-          borrowerId={borrowerId}
-          onSuccess={() => setIsAddAccountOpen(false)}
-        />
-      </Modal>
+      <Dialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>add account</DialogTitle>
+          </DialogHeader>
+
+          <AccountForm
+            borrowerId={borrowerId}
+            onSuccess={() => setIsAddAccountOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

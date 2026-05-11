@@ -1,65 +1,35 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { formFieldInputClassName } from "@/lib/form-field-classes";
 import AddBorrowerModal from "./add-borrower-modal";
+import { BorrowerCard } from "./borrower-card";
+import { BsChevronDown } from "react-icons/bs";
 
-type Borrower = {
+export type Borrower = {
   id: string;
   first_name: string;
   last_name: string;
   contact: string | null;
   created_at: string;
+  borrower_categories: {
+    category: {
+      id: string;
+      name: string;
+      color: string | null;
+    };
+  }[];
 };
 
-function BorrowerCard({ borrower }: { borrower: Borrower }) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
 
-  return (
-    <button
-      type="button"
-      disabled={isPending}
-      onClick={() =>
-        startTransition(() => {
-          router.push(`/borrowers/${borrower.id}`);
-        })
-      }
-      className="w-full rounded-lg border bg-white p-4 text-left shadow-sm transition hover:border-black/20 hover:shadow-md cursor-pointer disabled:cursor-wait disabled:opacity-80"
-      aria-busy={isPending}
-      aria-label={`Open ${borrower.first_name} ${borrower.last_name}`}
-    >
-      <div className="rounded-lg">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">
-              {borrower.first_name} {borrower.last_name}
-            </h2>
-
-            <p className="text-sm text-gray-500 mt-1">
-              {borrower.contact || "No contact"}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
-          Created{" "}
-          {new Date(borrower.created_at).toLocaleDateString()}
-          {isPending ? (
-            <span className="text-gray-600">Opening...</span>
-          ) : null}
-        </div>
-      </div>
-    </button>
-  );
-}
 
 export default function BorrowersList() {
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isAddBorrowerModalOpen, setIsAddBorrowerModalOpen] = useState(false)
   function openAddBorrowerModal() {
     setIsAddBorrowerModalOpen(true)
@@ -70,7 +40,16 @@ export default function BorrowersList() {
   const getBorrowers = async () => {
     const { data, error } = await supabase
       .from("borrowers")
-      .select("*")
+      .select(`
+        *,
+        borrower_categories (
+          category:categories (
+            id,
+            name,
+            color
+          )
+        )
+      `)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -88,17 +67,18 @@ export default function BorrowersList() {
     getBorrowers();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="">
-        <AddBorrowerModal getBorrowers={getBorrowers} openModal={openAddBorrowerModal} isOpen={isAddBorrowerModalOpen} onClose={closeAddBorrowerModal} />
-        <p>Loading borrowers...</p>
-      </div>
-    );
-  }
-
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredBorrowers = borrowers.filter((borrower) => {
+    const matchesCategory =
+      selectedCategoryIds.length === 0 ||
+      borrower.borrower_categories?.some((bc) =>
+        selectedCategoryIds.includes(bc.category?.id)
+      );
+
+    if (!matchesCategory) {
+      return false;
+    }
+
     if (!normalizedQuery) {
       return true;
     }
@@ -114,6 +94,31 @@ export default function BorrowersList() {
       contact.includes(normalizedQuery)
     );
   });
+  const categories = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; color: string | null }>();
+
+    borrowers.forEach((borrower) => {
+      borrower.borrower_categories?.forEach((bc) => {
+        if (bc.category && !map.has(bc.category.id)) {
+          map.set(bc.category.id, bc.category);
+        }
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+  }, [borrowers]);
+
+  if (loading) {
+    return (
+      <div className="">
+        <AddBorrowerModal getBorrowers={getBorrowers} openModal={openAddBorrowerModal} isOpen={isAddBorrowerModalOpen} onClose={closeAddBorrowerModal} />
+        <p>Loading borrowers...</p>
+      </div>
+    );
+  }
+
 
   return (
     <div className="">
@@ -128,7 +133,7 @@ export default function BorrowersList() {
         </div>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-col gap-3">
         <input
           type="search"
           value={searchQuery}
@@ -137,6 +142,78 @@ export default function BorrowersList() {
           className={formFieldInputClassName}
           aria-label="Search borrowers"
         />
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() =>
+              setIsCategoryDropdownOpen((prev) => !prev)
+            }
+            className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-slate-50"
+          >
+            <span>
+              {selectedCategoryIds.length > 0
+                ? `${selectedCategoryIds.length} categor${selectedCategoryIds.length === 1 ? "y" : "ies"} selected`
+                : "Filter by categories"}
+            </span>
+
+            <BsChevronDown
+              className={`transition-transform ${isCategoryDropdownOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {isCategoryDropdownOpen ? (
+            <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+              <div className="flex flex-col gap-1">
+                {categories.map((category) => {
+                  const isSelected = selectedCategoryIds.includes(category.id);
+
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategoryIds((prev) =>
+                          isSelected
+                            ? prev.filter((id) => id !== category.id)
+                            : [...prev, category.id]
+                        );
+                      }}
+                      className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${isSelected
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-transparent hover:bg-slate-100"
+                        }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-3 w-3 rounded-full border"
+                          style={{
+                            backgroundColor:
+                              category.color ?? "#cbd5e1",
+                          }}
+                        />
+
+                        <span>{category.name}</span>
+                      </div>
+
+                      {isSelected ? <span>✓</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedCategoryIds.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategoryIds([])}
+                  className="mt-2 w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100"
+                >
+                  Clear filters
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {borrowers.length === 0 ? (
@@ -146,13 +223,14 @@ export default function BorrowersList() {
       ) : filteredBorrowers.length === 0 ? (
         <div className="rounded-2xl border border-dashed p-10 text-center">
           <p className="text-gray-500">
-            No borrowers found for &quot;{searchQuery.trim()}&quot;
+            No borrowers match the current search and category filters.
           </p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredBorrowers.map((borrower) => (
             <BorrowerCard
+
               key={borrower.id}
               borrower={borrower}
             />

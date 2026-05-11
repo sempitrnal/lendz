@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Modal from "@/components/modal";
 import NeobrutButton from "@/components/neobrut-button";
@@ -9,12 +9,16 @@ import {
   formFieldLabelClassName,
 } from "@/lib/form-field-classes";
 import { supabase } from "@/lib/supabase/client";
-
-type Category = {
+import CategoryCard from "./category-card";
+type Count = {
+  count: number
+}
+export type Category = {
   id: string;
   name: string;
   color: string | null;
   created_at: string;
+  borrower_categories: Count[]
 };
 
 export default function CategoryList() {
@@ -27,14 +31,17 @@ export default function CategoryList() {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
     null
   );
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("#22c55e");
   const [isUpdating, setIsUpdating] = useState(false);
-
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const loadCategories = async () => {
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name, color, created_at")
+      .select("id, name, color, created_at, borrower_categories(count)")
       .order("name", { ascending: true });
 
     if (error) {
@@ -108,9 +115,24 @@ export default function CategoryList() {
     closeEditModal();
     loadCategories();
   };
+  const deleteCategory = async (id: string) => {
+
+    const { error, data } = await supabase
+      .from("categories")
+      .delete()
+      .eq("id", id);
+    console.log("hello")
+    console.log(data)
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    loadCategories();
+  };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 relative" >
       <div className="rounded-lg border bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold">Categories</h1>
         <p className="text-sm text-gray-500">Manage borrower categories</p>
@@ -143,42 +165,20 @@ export default function CategoryList() {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-white p-6 shadow-sm">
+      <div className="">
         {loading ? (
           <p className="text-sm text-gray-500">Loading categories...</p>
         ) : categories.length === 0 ? (
           <p className="text-sm text-gray-500">No categories yet.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="grid-cols-1 md:grid-cols-3 grid gap-3">
             {categories.map((category) => (
-              <div
-                key={category.id}
-                className="flex items-center justify-between rounded-md border px-3 py-2"
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className="h-4 w-4 rounded-full border"
-                    style={{ backgroundColor: category.color ?? "#cbd5e1" }}
-                  />
-                  <p className="font-medium">{category.name}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <p className="text-xs text-gray-500">
-                    {new Date(category.created_at).toLocaleDateString()}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => openEditModal(category)}
-                    className="rounded-md border px-2 py-1 text-xs font-semibold hover:bg-slate-100"
-                  >
-                    Edit
-                  </button>
-                </div>
-              </div>
+              <CategoryCard deleteCategory={deleteCategory} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} key={category.id} category={category} openEditModal={openEditModal} />
             ))}
           </div>
-        )}
-      </div>
+        )
+        }
+      </div >
 
       <Modal
         isOpen={isEditModalOpen}
@@ -227,6 +227,6 @@ export default function CategoryList() {
           </div>
         </div>
       </Modal>
-    </div>
+    </div >
   );
 }

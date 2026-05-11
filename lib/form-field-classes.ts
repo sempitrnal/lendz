@@ -4,7 +4,7 @@ export const formFieldInputClassName =
 
 /** Shared label styling for app forms */
 export const formFieldLabelClassName =
-  "mb-2 block text-sm lowercase tracking-wide text-slate-900";
+  "mb-1 block text-sm lowercase tracking-wide text-slate-900";
 
 /** Error text under a field */
 export const formFieldErrorClassName =

@@ -16,14 +16,17 @@ export default async function BorrowerPage({
 
   const { data: borrower, error } = await supabase
     .from("borrowers")
-    .select("*")
+    .select(`
+    *,
+    category:categories(*)
+  `)
     .eq("id", id)
     .single();
 
   if (error || !borrower) {
     notFound();
   }
-
+  console.log(borrower)
   return (
     <BorrowerDetailView borrower={borrower} />
   );
