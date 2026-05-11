@@ -5,19 +5,29 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BsThreeDotsVertical } from "react-icons/bs";
 
-import Modal from "@/components/modal";
 import { supabase } from "@/lib/supabase/client";
 import NeobrutButton from "../neobrut-button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 
 type BorrowerDetailMenuProps = {
   borrowerId: string;
   /** Hide Edit when already on the edit screen */
   hideEditLink?: boolean;
+  /** After delete: refresh list without navigating (e.g. borrowers list) */
+  onDeleted?: () => void | Promise<void>;
 };
 
 export default function BorrowerDetailMenu({
   borrowerId,
   hideEditLink = false,
+  onDeleted,
 }: BorrowerDetailMenuProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -67,7 +77,11 @@ export default function BorrowerDetailMenu({
       }
 
       setDeleteModalOpen(false);
-      router.push("/borrowers");
+      if (onDeleted) {
+        await Promise.resolve(onDeleted());
+      } else {
+        router.push("/borrowers");
+      }
       router.refresh();
     } finally {
       setIsDeleting(false);
@@ -112,30 +126,25 @@ export default function BorrowerDetailMenu({
           </button>
         </div>
       ) : null}
-
-      <Modal
-        isOpen={deleteModalOpen}
-        onClose={closeDeleteModal}
-        title="Delete borrower"
-        size="sm"
-        closeOnOverlayClick={!isDeleting}
-        closeOnEscape={!isDeleting}
-        footer={
-          <div className="flex justify-end gap-4">
-
-            <NeobrutButton variant="white" disabled={isDeleting} onClick={closeDeleteModal} className="mt-5">cancel</NeobrutButton>
-            <NeobrutButton variant="red" disabled={isDeleting} onClick={confirmDelete} className="mt-5">
-              {isDeleting ? "deleting..." : "delete"}
-            </NeobrutButton>
-
-          </div>
-        }
-      >
-        <p className="text-stone-700">
-          This will permanently remove this borrower. This cannot be
-          undone.
-        </p>
-      </Modal>
+  <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Delete borrower</DialogTitle>      
+      </DialogHeader>
+      <DialogDescription>
+        This will permanently remove this borrower. This cannot be undone.
+      </DialogDescription>
+      <DialogFooter>
+       <div className="flex justify-end gap-4">
+        <NeobrutButton variant="white" disabled={isDeleting} onClick={closeDeleteModal} className="">cancel</NeobrutButton>
+        <NeobrutButton variant="red" disabled={isDeleting} onClick={confirmDelete} className="">
+          {isDeleting ? "deleting..." : "delete"}
+        </NeobrutButton>
+       </div>
+      </DialogFooter> 
+    </DialogContent>
+  </Dialog>
+   
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import BackButton from "@/components/back-button";
 import ScheduleStatusSubmitButton from "@/components/schedule-status-submit-button";
@@ -38,43 +39,107 @@ type AccountDetailPageProps = {
 const scheduleStatuses = ["pending", "paid", "overdue"] as const;
 type ScheduleStatus = (typeof scheduleStatuses)[number];
 
+const nb = {
+  card: "rounded-xl border-2 border-slate-900/90 bg-white shadow-[2px_2px_0px_0px_rgb(15_23_42/0.88)]",
+  cardSoft:
+    "rounded-xl border border-slate-900/25 bg-white shadow-[1px_1px_0px_0px_rgb(15_23_42/0.2)]",
+  inset: "rounded-lg border border-slate-200/80 bg-slate-50/80",
+  label:
+    "text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500",
+  /** Payment schedule block — full neobrut */
+  scheduleShell:
+    "overflow-hidden rounded-xl border-2 border-slate-900 bg-white shadow-[5px_5px_0px_0px_#0f172a]",
+  scheduleHead:
+    "border-b-2 border-slate-900 bg-green-300 px-4 py-3 sm:px-5 sm:py-4",
+  scheduleTh:
+    "border-r-2 border-slate-900 bg-slate-100 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide text-slate-900 last:border-r-0",
+  scheduleTd:
+    "border-r-2 border-slate-900 px-3 py-2.5 align-middle text-slate-900 last:border-r-0",
+};
+
+function formatMoney(value: number) {
+  return `₱${value.toLocaleString()}`;
+}
+
+function formatScheduleDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 function getAccountStatusClasses(status: string) {
   if (status === "paid") {
     return {
-      card: "border-emerald-300 bg-emerald-50/40",
-      badge: "border-emerald-600 bg-emerald-100 text-emerald-800",
+      badge:
+        "border-emerald-700/80 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600/15",
     };
   }
   if (status === "overdue") {
     return {
-      card: "border-rose-300 bg-rose-50/40",
-      badge: "border-rose-600 bg-rose-100 text-rose-800",
+      badge:
+        "border-rose-700/80 bg-rose-50 text-rose-900 ring-1 ring-rose-600/15",
     };
   }
-
   return {
-    card: "border-slate-200 bg-white",
-    badge: "border-slate-500 bg-slate-100 text-slate-700",
+    badge:
+      "border-slate-700/80 bg-slate-50 text-slate-900 ring-1 ring-slate-600/10",
   };
 }
 
 function getScheduleStatusClasses(status: string) {
   if (status === "paid") {
     return {
-      badge: "border-emerald-600 bg-emerald-100 text-emerald-800",
-      row: "bg-emerald-50/40",
+      badge: "border-emerald-600/80 bg-emerald-50 text-emerald-900",
+      row: "bg-emerald-50",
+      dot: "bg-emerald-500",
     };
   }
   if (status === "overdue") {
     return {
-      badge: "border-rose-600 bg-rose-100 text-rose-800",
-      row: "bg-rose-50/40",
+      badge: "border-rose-600/80 bg-rose-50 text-rose-900",
+      row: "bg-rose-50",
+      dot: "bg-rose-500",
     };
   }
   return {
-    badge: "border-amber-600 bg-amber-100 text-amber-800",
-    row: "bg-amber-50/40",
+    badge: "border-amber-600/80 bg-amber-50 text-amber-950",
+    row: "bg-amber-50/50",
+    dot: "bg-amber-500",
   };
+}
+
+function ScheduleStatusForm({
+  scheduleId,
+  currentStatus,
+  updateScheduleStatus,
+}: {
+  scheduleId: string;
+  currentStatus: string;
+  updateScheduleStatus: (formData: FormData) => Promise<void>;
+}) {
+  return (
+    <form
+      action={updateScheduleStatus}
+      className="inline-flex overflow-hidden rounded-lg border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
+    >
+      <input type="hidden" name="scheduleId" value={scheduleId} />
+      {scheduleStatuses.map((status, i) => {
+        const isActive = currentStatus === status;
+        const isFirst = i === 0;
+        const isLast = i === scheduleStatuses.length - 1;
+        return (
+          <ScheduleStatusSubmitButton
+            key={status}
+            status={status}
+            isActive={isActive}
+            className={`border-slate-900 ${!isFirst ? "border-l-2" : ""} ${isFirst ? "rounded-l-[5px]" : ""} ${isLast ? "rounded-r-[5px]" : ""}`}
+          />
+        );
+      })}
+    </form>
+  );
 }
 
 export default async function AccountDetailPage({
@@ -119,11 +184,26 @@ export default async function AccountDetailPage({
     .filter((s) => s.status === "paid")
     .reduce((sum, s) => sum + (s.amount_due ?? 0), 0);
 
-  const amountLeft = totalPayment - amountPaid;
+  const amountLeft = Math.max(0, totalPayment - amountPaid);
 
   const principal = Number(accountRow.principal_amount ?? 0);
 
   const profit = totalPayment - principal;
+  const paidInstallments = schedules.filter((s) => s.status === "paid").length;
+  const totalInstallments = schedules.length;
+  const progressPct =
+    totalInstallments > 0
+      ? Math.round((paidInstallments / totalInstallments) * 100)
+      : 0;
+
+  const firstPendingIndex = schedules.findIndex((s) => s.status === "pending");
+  const firstUnpaidIndex = schedules.findIndex((s) => s.status !== "paid");
+  /** Prefer next pending installment; if none, fall back to first unpaid (e.g. overdue only). */
+  const nextHighlightIndex =
+    firstPendingIndex !== -1 ? firstPendingIndex : firstUnpaidIndex;
+  const nextDue =
+    nextHighlightIndex >= 0 ? schedules[nextHighlightIndex] : null;
+
   async function updateScheduleStatus(formData: FormData) {
     "use server";
     const scheduleId = String(formData.get("scheduleId") ?? "");
@@ -140,199 +220,334 @@ export default async function AccountDetailPage({
       .eq("id", scheduleId)
       .select("*");
 
-
     revalidatePath(`/accounts/${accountRow.id}`);
   }
 
+  const borrowerName = borrower
+    ? `${borrower.first_name} ${borrower.last_name}`
+    : "Unknown borrower";
+
   return (
-    <div className="">
-      <div className="mb-6">
+    <div className="mx-auto max-w-5xl pb-16">
+      <div className="mb-8">
         <BackButton
           fallbackHref={`/borrowers/${accountRow.borrower_id}`}
-          className="mb-10"
+          className="mb-6"
         />
-        <h1 className="text-2xl font-bold">Account</h1>
-        <p className="text-sm text-gray-500">
-          View account details and payment schedules
-        </p>
       </div>
 
-      <article className={`rounded-lg  ${accountStatusClasses.card}`}>
-        <div className="mb-4 flex flex-wrap md:flex-row flex-col items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold capitalize">
-              {accountRow.type.replace("_", " ")}
-            </h2>
-            <p className="text-4xl font-bold uppercase">
-
-              {borrower
-                ? `${borrower.first_name} ${borrower.last_name}`
-                : "Unknown borrower"}
-            </p>
-            <p className="text-sm text-stone-500">
-              Released on {" "}
-              <span className="font-medium">
-                {accountRow.release_date
-                  ? new Date(accountRow.release_date).toLocaleDateString()
-                  : "-"}
+      <div className="space-y-6">
+        <header
+          className={`overflow-hidden `}
+        >
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <h1 className="mt-1 font-black uppercase tracking-tight text-slate-900 sm:text-xl">
+                {accountRow.type.replace("_", " ")}
+              </h1>
+              {borrower ? (
+                <p className="mt-3  text-4xl font-black uppercase leading-tight text-slate-900 sm:text-3xl">
+                  <Link
+                    href={`/borrowers/${borrower.id}`}
+                    className="transition hover:text-violet-800 hover:underline"
+                  >
+                    {borrowerName}
+                  </Link>
+                </p>
+              ) : (
+                <p className="mt-3 text-2xl font-black uppercase text-slate-900 sm:text-3xl">
+                  {borrowerName}
+                </p>
+              )}
+              <p className="mt-3 text-sm text-slate-600">
+                Released{" "}
+                <span className="font-semibold text-slate-900">
+                  {accountRow.release_date
+                    ? formatScheduleDate(accountRow.release_date)
+                    : "—"}
+                </span>
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-4 lg:flex-col lg:items-end">
+              <span
+                className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide ${accountStatusClasses.badge}`}
+              >
+                {accountRow.status}
               </span>
-            </p>
+              <dl className="grid gap-2 text-sm sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-1">
+                <div className={`${nb.cardSoft} px-3 py-2`}>
+                  <dt className={nb.label}>Interest</dt>
+                  <dd className="mt-0.5 text-lg font-black tabular-nums text-slate-900">
+                    {accountRow.interest_rate ?? 0}%
+                  </dd>
+                </div>
+                <div className={`${nb.cardSoft} px-3 py-2`}>
+                  <dt className={nb.label}>Term / frequency</dt>
+                  <dd className="mt-0.5 font-semibold leading-snug text-slate-900">
+                    {accountRow.term_months ?? 0}{" "}
+                    <span className="font-normal text-slate-500">mo</span>
+                    <span className="mx-1.5 text-slate-300">·</span>
+                    <span className="capitalize">
+                      {accountRow.payment_frequency ?? "—"}
+                    </span>
+                  </dd>
+                </div>
+              </dl>
+            </div>
           </div>
-          <div className="text-sm ">
+        </header>
 
-            <span
-              className={` rounded-full border px-2 py-1 text-xs  font-semibold capitalize ${accountStatusClasses.badge}`}
+        <section aria-labelledby="balances-heading">
+          <h2 id="balances-heading" className={`mb-3 ${nb.label}`}>
+            Balances
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div
+              className={`${nb.card} border-rose-900/20 bg-linear-to-br from-rose-50/90 to-white p-4`}
             >
-              {accountRow.status}
+              <p className={nb.label}>Remaining</p>
+              <p className="mt-1.5 text-2xl font-black tabular-nums tracking-tight text-slate-900">
+                {formatMoney(amountLeft)}
+              </p>
+              <p className="mt-1.5 text-xs text-slate-600">Still to collect</p>
+            </div>
+            <div
+              className={`${nb.card} border-emerald-900/20 bg-linear-to-br from-emerald-50/90 to-white p-4`}
+            >
+              <p className={nb.label}>Collected</p>
+              <p className="mt-1.5 text-2xl font-black tabular-nums tracking-tight text-slate-900">
+                {formatMoney(amountPaid)}
+              </p>
+              <p className="mt-1.5 text-xs text-slate-600">Nabayran</p>
+            </div>
+            <div
+              className={`${nb.card} border-sky-900/20 bg-linear-to-br from-sky-50/90 to-white p-4`}
+            >
+              <p className={nb.label}>Principal</p>
+              <p className="mt-1.5 text-2xl font-black tabular-nums tracking-tight text-slate-900">
+                {formatMoney(Number(accountRow.principal_amount ?? 0))}
+              </p>
+              <p className="mt-1.5 text-xs text-slate-600">Loan amount</p>
+            </div>
+            <div
+              className={`${nb.card} border-amber-900/20 bg-linear-to-br from-amber-50/90 to-white p-4`}
+            >
+              <p className={nb.label}>Projected profit</p>
+              <p className="mt-1.5 text-2xl font-black tabular-nums tracking-tight text-slate-900">
+                {formatMoney(Math.max(0, profit))}
+              </p>
+              <p className="mt-1.5 text-xs text-slate-600">Over principal</p>
+            </div>
+          </div>
+          <div className={`mt-3 ${nb.inset} px-4 py-3 text-sm text-slate-700`}>
+            <span className="font-semibold text-slate-900">Total contract</span>{" "}
+            <span className="tabular-nums">{formatMoney(totalPayment)}</span>
+            <span className="mx-2 text-slate-300">|</span>
+            <span className="text-slate-600">
+              {paidInstallments} of {totalInstallments} installments paid
             </span>
-            <p className="text-lg mt-2">
-              Principal:{" "}
-              <span className="font-medium">
-                ₱{Number(accountRow.principal_amount ?? 0).toLocaleString()}
-              </span>
-            </p>
-            <p className="text-lg">
-              Interest:{" "}
-              <span className="font-medium">{accountRow.interest_rate ?? 0}%</span>
-            </p>
-
-            <p className="">
-              Term/Frequency:{" "}
-              <span className="font-medium">
-                {accountRow.term_months ?? 0} /{" "}
-                {accountRow.payment_frequency ?? "-"}
-              </span>
-            </p>
-            <p className="text-lg">Total payment: <span className="font-medium">₱{totalPayment.toLocaleString()}</span></p>
-            <p className="text-lg">nabayran: <span className="font-medium">₱{amountPaid.toLocaleString()}</span></p>
-            <p className="text-lg">bayranan: <span className="font-medium">₱{amountLeft.toLocaleString()}</span></p>
-            <p className="text-lg">profit: <span className="font-medium">₱{profit.toLocaleString()}</span></p>
           </div>
-        </div>
+        </section>
 
-        <div className="overflow-hidden rounded-lg border border-slate-900 bg-white shadow-[6px_6px_0px_0px_#1e293b]">
-          <div className="border-b border-slate-900 bg-green-300 px-4 py-2 text-sm font-black lowercase tracking-wide text-slate-900">
-            Payment schedules
+        <section
+          className={nb.scheduleShell}
+          aria-labelledby="schedule-heading"
+        >
+          <div className={nb.scheduleHead}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2
+                  id="schedule-heading"
+                  className="text-sm font-black uppercase tracking-wide text-slate-900"
+                >
+                  Payment schedules
+                </h2>
+                {nextDue ? (
+                  <p className="mt-1.5 text-sm font-semibold text-slate-800">
+                    Next due{" "}
+                    <span className="font-black text-slate-900">
+                      {formatScheduleDate(nextDue.due_date)}
+                    </span>
+                    <span className="text-slate-600"> · </span>
+                    <span className="font-black tabular-nums text-slate-900">
+                      {formatMoney(Number(nextDue.amount_due ?? 0))}
+                    </span>
+                  </p>
+                ) : totalInstallments > 0 ? (
+                  <p className="mt-1.5 text-sm font-bold text-emerald-900">
+                    All installments settled.
+                  </p>
+                ) : null}
+              </div>
+              {totalInstallments > 0 ? (
+                <div className="w-full max-w-xs sm:w-48">
+                  <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-wide text-slate-800">
+                    <span>Progress</span>
+                    <span className="tabular-nums text-slate-900">
+                      {progressPct}%
+                    </span>
+                  </div>
+                  <div
+                    className="h-3 overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
+                    role="progressbar"
+                    aria-valuenow={progressPct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Installments marked paid"
+                  >
+                    <div
+                      className="h-full bg-emerald-400"
+                      style={{ width: `${progressPct}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
+
           {schedules.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-slate-600">
-              No payment schedules yet.
-            </p>
+            <div className="border-t-2 border-dashed border-slate-300 bg-slate-50/80 px-5 py-12 text-center">
+              <p className="text-sm font-black uppercase tracking-wide text-slate-600">
+                No payment schedules yet
+              </p>
+            </div>
           ) : (
             <>
-              <div className="md:hidden">
-                {schedules.map((schedule, i) => (
-                  <article
-                    key={schedule.id}
-                    className={`border-b border-slate-900 p-4 last:border-b-0 ${getScheduleStatusClasses(schedule.status).row
-                      }`}
-                  >
-                    <p className="font-bold text-sm text-stone-500">{i + 1}{")"}</p>
-                    <p className="text-xs font-black lowercase tracking-wide text-slate-500">
-                      Due date
-                    </p>
-                    <p className="font-medium">
-                      {new Date(schedule.due_date).toLocaleDateString()}
-                    </p>
-                    <p className="mt-3 text-xs font-black lowercase tracking-wide text-slate-500">
-                      Amount due
-                    </p>
-                    <p className="font-medium">
-                      ₱{Number(schedule.amount_due ?? 0).toLocaleString()}
-                    </p>
-                    {/* <p className="mt-3 text-xs font-black lowercase tracking-wide text-slate-500">
-                      Status
-                    </p> */}
-                    <p>
-                      <span
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${getScheduleStatusClasses(schedule.status).badge
-                          }`}
-                      >
-                        {schedule.status}
-                      </span>
-                    </p>
-                    <form action={updateScheduleStatus} className="mt-3 flex flex-wrap gap-2">
-                      <input type="hidden" name="scheduleId" value={schedule.id} />
-                      {scheduleStatuses.map((status) => {
-                        const isActive = schedule.status === status;
+              <ul className="md:hidden">
+                {schedules.map((schedule, i) => {
+                  const st = getScheduleStatusClasses(schedule.status);
+                  const isNext = i === nextHighlightIndex;
+                  return (
+                    <li
+                      key={schedule.id}
+                      className={`border-b-2 border-slate-900 p-4 last:border-b-0 ${st.row} ${isNext ? "" : ""}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-wide text-slate-600">
+                            #{i + 1}
+                            {isNext ? (
+                              <span className="ml-2 inline-block rounded border-2 border-slate-900 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a]">
+                                Next
+                              </span>
+                            ) : null}
+                          </p>
+                          <p className="mt-1 text-lg font-black tabular-nums text-slate-900">
+                            {formatMoney(Number(schedule.amount_due ?? 0))}
+                          </p>
+                          <p className="mt-0.5 text-sm font-semibold text-slate-700">
+                            {formatScheduleDate(schedule.due_date)}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full border-2 px-2.5 py-1 text-xs font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] ${st.badge}`}
+                        >
+                          {schedule.status}
+                        </span>
+                      </div>
+                      <div className="mt-4">
+                        <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-600">
+                          Update status
+                        </p>
+                        <ScheduleStatusForm
+                          scheduleId={schedule.id}
+                          currentStatus={schedule.status}
+                          updateScheduleStatus={updateScheduleStatus}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px] border-collapse border-t-2 border-slate-900 text-left text-sm">
+                    <thead>
+                      <tr className="border-b-2 border-slate-900">
+                        <th scope="col" className={nb.scheduleTh}>
+                          #
+                        </th>
+                        <th scope="col" className={nb.scheduleTh}>
+                          Due date
+                        </th>
+                        <th
+                          scope="col"
+                          className={`${nb.scheduleTh} text-right`}
+                        >
+                          Amount
+                        </th>
+                        <th scope="col" className={nb.scheduleTh}>
+                          Status
+                        </th>
+                        <th
+                          scope="col"
+                          className={`min-w-[200px] ${nb.scheduleTh}`}
+                        >
+                          Update
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {schedules.map((schedule, i) => {
+                        const st = getScheduleStatusClasses(schedule.status);
+                        const isNext = i === nextHighlightIndex;
                         return (
-                          <ScheduleStatusSubmitButton
-                            key={status}
-                            status={status}
-                            isActive={isActive}
-                          />
+                          <tr
+                            key={schedule.id}
+                            className={`border-b-2 border-slate-900 last:border-b-0 transition-colors hover:bg-slate-50/90 ${st.row} ${isNext ? "bg-sky-100/70" : ""}`}
+                          >
+                            <td className={`${nb.scheduleTd} whitespace-nowrap`}>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`inline-block size-2 shrink-0 rounded-full border border-slate-900 ${st.dot}`}
+                                  aria-hidden
+                                />
+                                <span className="font-black tabular-nums text-slate-900">
+                                  {i + 1}
+                                </span>
+                                {isNext ? (
+                                  <span className="rounded border-2 border-slate-900 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-900 shadow-[1px_1px_0px_0px_#0f172a]">
+                                    Next
+                                  </span>
+                                ) : null}
+                              </div>
+                            </td>
+                            <td
+                              className={`${nb.scheduleTd} whitespace-nowrap font-bold text-slate-900`}
+                            >
+                              {formatScheduleDate(schedule.due_date)}
+                            </td>
+                            <td
+                              className={`${nb.scheduleTd} whitespace-nowrap text-right font-black tabular-nums text-slate-900`}
+                            >
+                              {formatMoney(Number(schedule.amount_due ?? 0))}
+                            </td>
+                            <td className={`${nb.scheduleTd} whitespace-nowrap`}>
+                              <span
+                                className={`inline-flex rounded-full border-2 px-2.5 py-1 text-xs font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] ${st.badge}`}
+                              >
+                                {schedule.status}
+                              </span>
+                            </td>
+                            <td className={nb.scheduleTd}>
+                              <ScheduleStatusForm
+                                scheduleId={schedule.id}
+                                currentStatus={schedule.status}
+                                updateScheduleStatus={updateScheduleStatus}
+                              />
+                            </td>
+                          </tr>
                         );
                       })}
-                    </form>
-                  </article>
-                ))}
-              </div>
-
-              <div className="hidden overflow-x-auto md:block">
-                <table className="min-w-full text-left text-sm text-slate-900">
-                  <thead className="bg-slate-100">
-                    <tr className="border-b border-slate-900">
-                      <th className="border-r border-slate-900 px-4 py-2 font-black lowercase tracking-wide">
-                        Due date
-                      </th>
-                      <th className="border-r border-slate-900 px-4 py-2 font-black lowercase tracking-wide">
-                        Amount due
-                      </th>
-                      <th className="border-r border-slate-900 px-4 py-2 font-black lowercase tracking-wide">
-                        Status
-                      </th>
-                      <th className="px-4 py-2 font-black lowercase tracking-wide ">
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {schedules.map((schedule) => (
-                      <tr
-                        key={schedule.id}
-                        className={`border-b border-slate-900 last:border-b-0 ${getScheduleStatusClasses(schedule.status).row
-                          }`}
-                      >
-                        <td className="border-r border-slate-900 px-4 py-2">
-                          {new Date(schedule.due_date).toLocaleDateString()}
-                        </td>
-                        <td className="border-r border-slate-900 px-4 py-2">
-                          ₱{Number(schedule.amount_due ?? 0).toLocaleString()}
-                        </td>
-                        <td className="border-r border-slate-900 px-4 py-2">
-                          <p className="">
-                            <span
-                              className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${getScheduleStatusClasses(schedule.status).badge
-                                }`}
-                            >
-                              {schedule.status}
-                            </span>
-                          </p>
-
-                        </td>
-                        <td className="px-4 py-2">
-                          <form action={updateScheduleStatus} className="mt-2 flex flex-wrap gap-2 justify-center">
-                            <input type="hidden" name="scheduleId" value={schedule.id} />
-                            {scheduleStatuses.map((status) => {
-                              const isActive = schedule.status === status;
-                              return (
-                                <ScheduleStatusSubmitButton
-                                  key={status}
-                                  status={status}
-                                  isActive={isActive}
-                                />
-                              );
-                            })}
-                          </form>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </>
           )}
-        </div>
-      </article>
+        </section>
+      </div>
     </div>
   );
 }

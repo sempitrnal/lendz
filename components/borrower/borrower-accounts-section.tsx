@@ -1,8 +1,9 @@
 "use client";
 
 import { FaPlus } from "react-icons/fa6";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import Modal from "@/components/modal";
 import AccountForm from "@/components/forms/account-form";
 import AccountCardMenu from "@/components/borrower/account-card-menu";
@@ -19,6 +20,7 @@ export type AccountRow = {
   interest_rate: number | string | null;
 };
 type PaymentScheduleLite = {
+  id: string;
   account_id: string;
   due_date: string;
   amount_due: number | null;
@@ -30,6 +32,7 @@ type AccountComputedMetrics = {
   profitToMake: number;
   nextCollectionDate: string | null;
   nextCollectionAmount: number;
+  nextUnpaidScheduleId: string | null;
 };
 
 type BorrowerAccountsSectionProps = {
@@ -42,27 +45,54 @@ function AccountCard({
   isOpening,
   onOpen,
   metrics,
+  isMarkingNextPaid,
+  onMarkNextPaid,
 }: {
   account: AccountRow;
   isOpening: boolean;
   onOpen: (id: string) => void;
   metrics?: AccountComputedMetrics;
+  isMarkingNextPaid: boolean;
+  onMarkNextPaid: (accountId: string, scheduleId: string) => void;
 }) {
   const amountLeftToPay = metrics?.amountLeftToPay ?? 0;
   const profitToMake = metrics?.profitToMake ?? 0;
   const nextCollectionDate = metrics?.nextCollectionDate;
   const nextCollectionAmount = metrics?.nextCollectionAmount ?? 0;
+  const nextUnpaidScheduleId = metrics?.nextUnpaidScheduleId ?? null;
+
+  function tryOpenAccount(e: SyntheticEvent) {
+    if (isOpening) return;
+    if (
+      (e.target as HTMLElement).closest("[data-prevent-account-open]")
+    ) {
+      return;
+    }
+    onOpen(account.id);
+  }
 
   return (
     <div
-      className={`flex gap-2 rounded-xl border-2 border-slate-900 bg-linear-to-br from-violet-50 via-white to-fuchsia-50 p-4 shadow-[4px_4px_0px_0px_#0f172a] transition ${isOpening ? "opacity-70" : "hover:-translate-y-0.5 hover:from-violet-100 hover:to-fuchsia-100"
+      className={`flex relative gap-2 rounded-xl border-2 border-slate-900 bg-linear-to-br from-violet-50 via-white to-fuchsia-50 p-4 shadow-[4px_4px_0px_0px_#0f172a] transition ${isOpening ? "opacity-70" : "hover:-translate-y-0.5 hover:from-violet-100 hover:to-fuchsia-100"
         }`}
     >
-      <button
-        type="button"
-        onClick={() => onOpen(account.id)}
-        disabled={isOpening}
-        className="min-w-0 flex-1 cursor-pointer text-left"
+      <div
+        role="button"
+        tabIndex={isOpening ? -1 : 0}
+        onClick={tryOpenAccount}
+        onKeyDown={(e) => {
+          if (isOpening) return;
+          if (e.key !== "Enter" && e.key !== " ") return;
+          if (
+            (e.target as HTMLElement).closest("[data-prevent-account-open]")
+          ) {
+            return;
+          }
+          e.preventDefault();
+          onOpen(account.id);
+        }}
+        aria-disabled={isOpening}
+        className="min-w-0 flex-1 cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
         aria-label={`Open account for ${account.type.replace("_", " ")}`}
         aria-busy={isOpening}
       >
@@ -94,7 +124,8 @@ function AccountCard({
         </div>
 
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
-          <div className="rounded-lg border-2 border-slate-900 bg-emerald-100/70 p-2">
+       <div className="flex w-full gap-2">
+       <div className="rounded-lg w-full border-2 border-slate-900 bg-emerald-100/70 p-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
               bayranan
             </p>
@@ -103,7 +134,7 @@ function AccountCard({
             </p>
           </div>
 
-          <div className="rounded-lg border-2 border-slate-900 bg-amber-100/70 p-2">
+          <div className="rounded-lg w-full border-2 border-slate-900 bg-amber-100/70 p-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
               ginansya
             </p>
@@ -112,21 +143,40 @@ function AccountCard({
             </p>
           </div>
 
+       </div>
           <div className="rounded-lg border-2 border-slate-900 bg-sky-100/70 p-2">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-              next collection
-            </p>
-            <p className="text-sm font-black text-slate-900">
-              {nextCollectionDate
-                ? new Date(nextCollectionDate).toLocaleDateString()
-                : "none"}
-            </p>
-            <p className="text-[11px] font-semibold text-slate-600">
-              ₱{nextCollectionAmount.toLocaleString()}
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  next collection
+                </p>
+                <p className="text-sm font-black text-slate-900">
+                  {nextCollectionDate
+                    ? new Date(nextCollectionDate).toLocaleDateString()
+                    : "none"}
+                </p>
+                <p className="text-[11px] font-semibold text-slate-600">
+                  ₱{nextCollectionAmount.toLocaleString()}
+                </p>
+              </div>
+              {nextUnpaidScheduleId ? (
+                <button
+                  type="button"
+                  data-prevent-account-open
+                  disabled={isMarkingNextPaid || isOpening}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMarkNextPaid(account.id, nextUnpaidScheduleId);
+                  }}
+                  className="shrink-0 rounded-md border-2 border-slate-900 bg-emerald-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 disabled:cursor-wait disabled:opacity-70"
+                >
+                  {isMarkingNextPaid ? "..." : "Mark next paid"}
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
-      </button>
+      </div>
       <AccountCardMenu accountId={account.id} />
     </div>
   );
@@ -138,6 +188,9 @@ export default function BorrowerAccountsSection({
 }: BorrowerAccountsSectionProps) {
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
   const [openingAccountId, setOpeningAccountId] = useState<string | null>(null);
+  const [markingNextPaidScheduleId, setMarkingNextPaidScheduleId] = useState<
+    string | null
+  >(null);
   const editorRef = useRef<any>(null);
   const router = useRouter();
   const [notes, setNotes] = useState<any[]>([]);
@@ -194,6 +247,25 @@ export default function BorrowerAccountsSection({
     router.push(`/accounts/${id}`);
   };
 
+  const markNextSchedulePaid = async (
+    _accountId: string,
+    scheduleId: string
+  ) => {
+    setMarkingNextPaidScheduleId(scheduleId);
+    const { error } = await supabase
+      .from("payment_schedules")
+      .update({ status: "paid" })
+      .eq("id", scheduleId);
+    setMarkingNextPaidScheduleId(null);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Marked next schedule as paid.");
+    await fetchAccountMetrics();
+    router.refresh();
+  };
+
   const fetchAccountMetrics = async () => {
     if (!accounts || accounts.length === 0) {
       setAccountMetricsById({});
@@ -203,7 +275,7 @@ export default function BorrowerAccountsSection({
     const accountIds = accounts.map((account) => account.id);
     const { data: schedulesData, error } = await supabase
       .from("payment_schedules")
-      .select("account_id, due_date, amount_due, status")
+      .select("id, account_id, due_date, amount_due, status")
       .in("account_id", accountIds)
       .order("due_date", { ascending: true });
 
@@ -240,6 +312,7 @@ export default function BorrowerAccountsSection({
         profitToMake,
         nextCollectionDate: nextUnpaid?.due_date ?? null,
         nextCollectionAmount: Number(nextUnpaid?.amount_due ?? 0),
+        nextUnpaidScheduleId: nextUnpaid?.id ?? null,
       };
     });
 
@@ -250,6 +323,10 @@ export default function BorrowerAccountsSection({
     fetchNotes();
     fetchAccountMetrics();
   }, [borrowerId]);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   return (
     <div className="rounded-lg  ">
       <div className="mb-6 flex items-center justify-between">
@@ -276,6 +353,11 @@ export default function BorrowerAccountsSection({
               isOpening={openingAccountId === account.id}
               onOpen={handleOpenAccount}
               metrics={accountMetricsById[account.id]}
+              isMarkingNextPaid={
+                markingNextPaidScheduleId ===
+                accountMetricsById[account.id]?.nextUnpaidScheduleId
+              }
+              onMarkNextPaid={markNextSchedulePaid}
             />
           ))}
         </div>

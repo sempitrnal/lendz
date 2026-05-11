@@ -7,6 +7,9 @@ import { BsThreeDotsVertical } from "react-icons/bs";
 import Modal from "@/components/modal";
 import NeobrutButton from "@/components/neobrut-button";
 import { supabase } from "@/lib/supabase/client";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import Link from "next/link";
+import { DialogContent, DialogTitle, DialogHeader, Dialog } from "../ui/dialog";
 
 type AccountCardMenuProps = {
   accountId: string;
@@ -81,7 +84,20 @@ export default function AccountCardMenu({
 
   return (
     <div className="relative shrink-0" ref={rootRef}>
-      <button
+      <DropdownMenu >
+        <DropdownMenuTrigger asChild>
+          <BsThreeDotsVertical className="size-4 cursor-pointer absolute right-[-10px]" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-32">
+          {/* <DropdownMenuItem>
+            <Link href={`/accounts/${accountId}`}>Edit</Link>
+          </DropdownMenuItem> */}
+          <DropdownMenuItem className="cursor-pointer hover:bg-red-100">
+            <button type="button" className="w-full text-left text-red-400 hover:text-red-600" onClick={openDeleteModal}>Delete</button>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {/* <button
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"
@@ -113,41 +129,25 @@ export default function AccountCardMenu({
             delete
           </button>
         </div>
-      ) : null}
-
-      <Modal
-        isOpen={deleteModalOpen}
-        onClose={closeDeleteModal}
-        title="Delete account"
-        size="sm"
-        closeOnOverlayClick={!isDeleting}
-        closeOnEscape={!isDeleting}
-        footer={
-          <div className="flex justify-end gap-4">
-            <NeobrutButton
-              variant="white"
-              disabled={isDeleting}
-              onClick={closeDeleteModal}
-              className="mt-5"
-            >
-              cancel
-            </NeobrutButton>
-            <NeobrutButton
-              variant="red"
-              disabled={isDeleting}
-              onClick={confirmDelete}
-              className="mt-5"
-            >
-              {isDeleting ? "deleting..." : "delete"}
-            </NeobrutButton>
-          </div>
-        }
-      >
-        <p className="text-stone-700">
-          This will permanently remove this account and its payment
-          schedules. This cannot be undone.
-        </p>
-      </Modal>
+      ) : null} */}
+  <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}> 
+    <DialogContent className="sm:max-w-sm">
+      <DialogHeader>
+        <DialogTitle>Delete account</DialogTitle>
+      </DialogHeader>
+      <p className="text-stone-700">
+        This will permanently remove this account and its payment
+        schedules. This cannot be undone.
+      </p>
+      <div className="flex justify-end gap-4">
+        <NeobrutButton variant="white" disabled={isDeleting} onClick={closeDeleteModal} className="mt-5">cancel</NeobrutButton>
+        <NeobrutButton variant="red" disabled={isDeleting} onClick={confirmDelete} className="mt-5">
+          {isDeleting ? "deleting..." : "delete"}
+        </NeobrutButton>
+      </div>
+    </DialogContent>
+  </Dialog>
+ 
     </div>
   );
 }

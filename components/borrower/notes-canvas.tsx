@@ -28,7 +28,13 @@ export default function NotesCanvas({
             isDrawingMode: true,
             preserveObjectStacking: true,
         });
-
+        const upperCanvas =
+        canvas.upperCanvasEl;
+      
+      if (upperCanvas) {
+        upperCanvas.tabIndex = -1;
+      }
+      upperCanvas?.blur();
         fabricRef.current = canvas;
 
         // brush
@@ -238,10 +244,11 @@ export default function NotesCanvas({
 
             {/* Canvas */}
             <div className="w-full">
-                <canvas
-                    ref={canvasElRef}
-                    className="block h-[500px] w-full"
-                />
+            <canvas
+  ref={canvasElRef}
+  tabIndex={-1}
+  className="block h-[500px] w-full"
+/>
             </div>
         </div>
     );

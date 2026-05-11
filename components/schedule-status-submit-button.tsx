@@ -5,11 +5,13 @@ import { useFormStatus } from "react-dom";
 type ScheduleStatusSubmitButtonProps = {
   status: string;
   isActive: boolean;
+  className?: string;
 };
 
 export default function ScheduleStatusSubmitButton({
   status,
   isActive,
+  className,
 }: ScheduleStatusSubmitButtonProps) {
   const { pending } = useFormStatus();
   const isDisabled = isActive || pending;
@@ -21,10 +23,11 @@ export default function ScheduleStatusSubmitButton({
       value={status}
       disabled={isDisabled}
       aria-busy={pending}
-      className={`rounded border px-2 py-1 text-xs font-semibold lowercase transition ${isActive
-          ? "border-slate-900 bg-slate-900 text-white"
-          : "border-slate-900 bg-white text-slate-900"
-        } ${isDisabled ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:bg-slate-100"}`}
+      aria-pressed={isActive}
+      className={`min-h-9 min-w-17 px-2.5 py-1.5 text-xs font-semibold capitalize tracking-wide transition ${isActive
+          ? "bg-slate-900 text-white"
+          : "bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+        } ${isDisabled ? "cursor-not-allowed opacity-80" : "cursor-pointer"} ${className ?? ""}`}
     >
       {status}
     </button>

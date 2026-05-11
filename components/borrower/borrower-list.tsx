@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import { formFieldInputClassName } from "@/lib/form-field-classes";
 import AddBorrowerModal from "./add-borrower-modal";
@@ -20,23 +22,215 @@ export type Borrower = {
       color: string | null;
     };
   }[];
+  next_collection_date?: string | null;
+  next_collection_amount?: number;
+  has_accounts?: boolean;
 };
 
-
-
 export default function BorrowersList() {
+  const router = useRouter();
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
-  const [isAddBorrowerModalOpen, setIsAddBorrowerModalOpen] = useState(false)
+  const [isAddBorrowerModalOpen, setIsAddBorrowerModalOpen] = useState(false);
+  const [updatingBorrowerId, setUpdatingBorrowerId] = useState<string | null>(
+    null
+  );
+
   function openAddBorrowerModal() {
-    setIsAddBorrowerModalOpen(true)
+    setIsAddBorrowerModalOpen(true);
   }
   function closeAddBorrowerModal() {
-    setIsAddBorrowerModalOpen(false)
+    setIsAddBorrowerModalOpen(false);
   }
+
+  async function enrichBorrowersWithNextCollection(
+    rows: Borrower[]
+  ): Promise<Borrower[]> {
+    if (rows.length === 0) return rows;
+    const borrowerIds = rows.map((b) => b.id);
+
+    const { data: accountRows, error: accountsError } = await supabase
+      .from("accounts")
+      .select("id, borrower_id")
+      .in("borrower_id", borrowerIds);
+
+    if (accountsError) {
+      console.error(accountsError);
+      return rows.map((b) => ({
+        ...b,
+        has_accounts: false,
+        next_collection_date: null,
+        next_collection_amount: 0,
+      }));
+    }
+
+    const accounts = accountRows ?? [];
+    const accountIdsByBorrower = new Map<string, string[]>();
+    for (const a of accounts) {
+      const bid = a.borrower_id as string;
+      const list = accountIdsByBorrower.get(bid) ?? [];
+      list.push(a.id as string);
+      accountIdsByBorrower.set(bid, list);
+    }
+
+    const allAccountIds = accounts.map((a) => a.id as string);
+    if (allAccountIds.length === 0) {
+      return rows.map((b) => ({
+        ...b,
+        has_accounts: false,
+        next_collection_date: null,
+        next_collection_amount: 0,
+      }));
+    }
+
+    const { data: scheduleRows, error: scheduleError } = await supabase
+      .from("payment_schedules")
+      .select("id, account_id, due_date, amount_due, status")
+      .in("account_id", allAccountIds);
+
+    if (scheduleError) {
+      console.error(scheduleError);
+      return rows.map((b) => ({
+        ...b,
+        has_accounts: (accountIdsByBorrower.get(b.id)?.length ?? 0) > 0,
+        next_collection_date: null,
+        next_collection_amount: 0,
+      }));
+    }
+
+    type Sched = {
+      id: string;
+      account_id: string;
+      due_date: string;
+      amount_due: number | null;
+      status: string;
+    };
+    const byAccount = new Map<string, Sched[]>();
+    for (const s of (scheduleRows ?? []) as Sched[]) {
+      const list = byAccount.get(s.account_id) ?? [];
+      list.push(s);
+      byAccount.set(s.account_id, list);
+    }
+    for (const list of byAccount.values()) {
+      list.sort((a, b) => a.due_date.localeCompare(b.due_date));
+    }
+
+    const firstUnpaidByAccount = new Map<
+      string,
+      { due_date: string; amount_due: number }
+    >();
+    for (const [accountId, list] of byAccount) {
+      const u = list.find((row) => row.status !== "paid");
+      if (u) {
+        firstUnpaidByAccount.set(accountId, {
+          due_date: u.due_date,
+          amount_due: Number(u.amount_due ?? 0),
+        });
+      }
+    }
+
+    return rows.map((b) => {
+      const accIds = accountIdsByBorrower.get(b.id) ?? [];
+      let best: { due_date: string; amount_due: number } | null = null;
+      for (const accId of accIds) {
+        const nu = firstUnpaidByAccount.get(accId);
+        if (!nu) continue;
+        if (!best || nu.due_date < best.due_date) {
+          best = nu;
+        }
+      }
+      return {
+        ...b,
+        has_accounts: accIds.length > 0,
+        next_collection_date: best?.due_date ?? null,
+        next_collection_amount: best?.amount_due ?? 0,
+      };
+    });
+  }
+
+  const markNextPaymentPaid = async (borrower: Borrower) => {
+    setUpdatingBorrowerId(borrower.id);
+
+    const { data: accountRows, error: accountsError } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("borrower_id", borrower.id);
+    const accountIds = (accountRows ?? []).map((row) => row.id);
+
+    if (accountsError) {
+      setUpdatingBorrowerId(null);
+      toast.error(accountsError.message);
+      return;
+    }
+    if (accountIds.length === 0) {
+      setUpdatingBorrowerId(null);
+      toast.info("No accounts found for this borrower.");
+      return;
+    }
+
+    const { data: scheduleData, error: scheduleError } = await supabase
+      .from("payment_schedules")
+      .select("id, account_id, due_date, amount_due, status")
+      .in("account_id", accountIds)
+      .neq("status", "paid")
+      .order("due_date", { ascending: true })
+      .order("id", { ascending: true });
+
+    if (scheduleError) {
+      setUpdatingBorrowerId(null);
+      toast.error(scheduleError.message);
+      return;
+    }
+
+    const nextSchedulesByAccount = new Map<
+      string,
+      { id: string; due_date: string; amount_due: number | null }
+    >();
+    for (const schedule of scheduleData ?? []) {
+      if (!nextSchedulesByAccount.has(schedule.account_id)) {
+        nextSchedulesByAccount.set(schedule.account_id, {
+          id: schedule.id,
+          due_date: schedule.due_date,
+          amount_due: schedule.amount_due,
+        });
+      }
+    }
+
+    const nextSchedules = Array.from(nextSchedulesByAccount.values());
+    if (nextSchedules.length === 0) {
+      setUpdatingBorrowerId(null);
+      toast.info("No unpaid schedules found.");
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("payment_schedules")
+      .update({ status: "paid" })
+      .in(
+        "id",
+        nextSchedules.map((schedule) => schedule.id)
+      );
+
+    setUpdatingBorrowerId(null);
+    if (updateError) {
+      toast.error(updateError.message);
+      return;
+    }
+
+    const totalUpdatedAmount = nextSchedules.reduce(
+      (sum, schedule) => sum + Number(schedule.amount_due ?? 0),
+      0
+    );
+    toast.success(
+      `Marked ${nextSchedules.length} next schedule${nextSchedules.length === 1 ? "" : "s"} as paid across ${nextSchedulesByAccount.size} account${nextSchedulesByAccount.size === 1 ? "" : "s"} (PHP ${totalUpdatedAmount.toLocaleString()}) for ${borrower.first_name} ${borrower.last_name}.`
+    );
+    await getBorrowers();
+    router.refresh();
+  };
+
   const getBorrowers = async () => {
     const { data, error } = await supabase
       .from("borrowers")
@@ -58,12 +252,12 @@ export default function BorrowersList() {
       return;
     }
 
-    setBorrowers(data || []);
+    const enriched = await enrichBorrowersWithNextCollection(data || []);
+    setBorrowers(enriched);
     setLoading(false);
   };
+
   useEffect(() => {
-
-
     getBorrowers();
   }, []);
 
@@ -95,7 +289,10 @@ export default function BorrowersList() {
     );
   });
   const categories = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; color: string | null }>();
+    const map = new Map<
+      string,
+      { id: string; name: string; color: string | null }
+    >();
 
     borrowers.forEach((borrower) => {
       borrower.borrower_categories?.forEach((bc) => {
@@ -113,23 +310,29 @@ export default function BorrowersList() {
   if (loading) {
     return (
       <div className="">
-        <AddBorrowerModal getBorrowers={getBorrowers} openModal={openAddBorrowerModal} isOpen={isAddBorrowerModalOpen} onClose={closeAddBorrowerModal} />
+        <AddBorrowerModal
+          getBorrowers={getBorrowers}
+          openModal={openAddBorrowerModal}
+          isOpen={isAddBorrowerModalOpen}
+          onClose={closeAddBorrowerModal}
+        />
         <p>Loading borrowers...</p>
       </div>
     );
   }
 
-
   return (
     <div className="">
-      <AddBorrowerModal getBorrowers={getBorrowers} openModal={openAddBorrowerModal} isOpen={isAddBorrowerModalOpen} onClose={closeAddBorrowerModal} />
+      <AddBorrowerModal
+        getBorrowers={getBorrowers}
+        openModal={openAddBorrowerModal}
+        isOpen={isAddBorrowerModalOpen}
+        onClose={closeAddBorrowerModal}
+      />
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Borrowers</h1>
-          <p className="text-sm text-gray-500">
-            Manage borrower records
-          </p>
+          <h1 className="text-2xl font-black lowercase">Borrowers</h1>
         </div>
       </div>
 
@@ -144,27 +347,37 @@ export default function BorrowersList() {
         />
 
         <div className="relative">
+          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+            Categories
+          </p>
           <button
             type="button"
-            onClick={() =>
-              setIsCategoryDropdownOpen((prev) => !prev)
-            }
-            className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-slate-50"
+            aria-expanded={isCategoryDropdownOpen}
+            aria-haspopup="listbox"
+            onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
+            className="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-900/90 bg-white px-4 py-3 text-left shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition hover:bg-slate-50/90 active:translate-y-px active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)]"
           >
-            <span>
+            <span className="text-sm font-bold uppercase tracking-wide text-slate-900">
               {selectedCategoryIds.length > 0
-                ? `${selectedCategoryIds.length} categor${selectedCategoryIds.length === 1 ? "y" : "ies"} selected`
-                : "Filter by categories"}
+                ? `${selectedCategoryIds.length} selected`
+                : "All categories"}
             </span>
 
-            <BsChevronDown
-              className={`transition-transform ${isCategoryDropdownOpen ? "rotate-180" : ""}`}
-            />
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-900/20 bg-slate-50 text-slate-700">
+              <BsChevronDown
+                className={`size-3.5 transition-transform ${isCategoryDropdownOpen ? "rotate-180" : ""}`}
+                aria-hidden
+              />
+            </span>
           </button>
 
           {isCategoryDropdownOpen ? (
-            <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-              <div className="flex flex-col gap-1">
+            <div
+              role="listbox"
+              aria-multiselectable
+              className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border-2 border-slate-900/90 bg-white p-2 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.18)]"
+            >
+              <div className="flex flex-col gap-1.5">
                 {categories.map((category) => {
                   const isSelected = selectedCategoryIds.includes(category.id);
 
@@ -172,6 +385,8 @@ export default function BorrowersList() {
                     <button
                       key={category.id}
                       type="button"
+                      role="option"
+                      aria-selected={isSelected}
                       onClick={() => {
                         setSelectedCategoryIds((prev) =>
                           isSelected
@@ -179,24 +394,27 @@ export default function BorrowersList() {
                             : [...prev, category.id]
                         );
                       }}
-                      className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${isSelected
-                          ? "border-slate-900 bg-slate-900 text-white"
-                          : "border-transparent hover:bg-slate-100"
+                      className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition ${isSelected
+                          ? "border-2 border-slate-900 bg-slate-900 text-white shadow-[1px_1px_0px_0px_rgb(15_23_42/0.5)]"
+                          : "border border-slate-900/15 bg-slate-50/60 text-slate-800 shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] hover:border-slate-900/35 hover:bg-white"
                         }`}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2.5">
                         <span
-                          className="h-3 w-3 rounded-full border"
+                          className="size-3 shrink-0 rounded-full border-2 border-slate-900/25"
                           style={{
-                            backgroundColor:
-                              category.color ?? "#cbd5e1",
+                            backgroundColor: category.color ?? "#cbd5e1",
                           }}
                         />
 
-                        <span>{category.name}</span>
+                        <span className="truncate capitalize">{category.name}</span>
                       </div>
 
-                      {isSelected ? <span>✓</span> : null}
+                      {isSelected ? (
+                        <span className="shrink-0 text-xs font-black" aria-hidden>
+                          ✓
+                        </span>
+                      ) : null}
                     </button>
                   );
                 })}
@@ -206,7 +424,7 @@ export default function BorrowersList() {
                 <button
                   type="button"
                   onClick={() => setSelectedCategoryIds([])}
-                  className="mt-2 w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100"
+                  className="mt-2 w-full rounded-lg border-2 border-rose-800/35 bg-rose-50 px-3 py-2 text-center text-xs font-black uppercase tracking-wide text-rose-900 shadow-[1px_1px_0px_0px_rgb(190_18_60/0.25)] transition hover:bg-rose-100/90"
                 >
                   Clear filters
                 </button>
@@ -227,12 +445,17 @@ export default function BorrowersList() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 *:min-w-0">
           {filteredBorrowers.map((borrower) => (
             <BorrowerCard
-
               key={borrower.id}
               borrower={borrower}
+              showScheduleSummary
+              onBorrowerUpdated={getBorrowers}
+              isMarkingNextPaid={updatingBorrowerId === borrower.id}
+              onMarkNextPaid={() => {
+                void markNextPaymentPaid(borrower);
+              }}
             />
           ))}
         </div>
