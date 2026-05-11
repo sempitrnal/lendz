@@ -38,6 +38,12 @@ export default async function Dashboard() {
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   const startOfMonthIso = startOfMonth.toISOString();
+  const startOfMonthDate = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .slice(0, 10);
+  const endOfMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    .toISOString()
+    .slice(0, 10);
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
   const weekAgoIso = weekAgo.toISOString();
@@ -51,7 +57,8 @@ export default async function Dashboard() {
     { data: accountTotalsData },
     { data: paidSchedulesData },
     { data: unpaidSchedulesData },
-    { data: nextScheduleData },
+    { data: upcomingSchedulesData },
+    { data: unpaidThisMonthData },
   ] = await Promise.all([
     supabase.from("borrowers").select("*", { count: "exact", head: true }),
     supabase
@@ -75,7 +82,7 @@ export default async function Dashboard() {
     supabase.from("accounts").select("id, principal_amount"),
     supabase
       .from("payment_schedules")
-      .select("amount_due")
+      .select("account_id, amount_due")
       .eq("status", "paid"),
     supabase
       .from("payment_schedules")
@@ -83,11 +90,16 @@ export default async function Dashboard() {
       .neq("status", "paid"),
     supabase
       .from("payment_schedules")
-      .select("due_date, amount_due, status")
+      .select("account_id, due_date, amount_due, status")
       .neq("status", "paid")
       .gte("due_date", todayIso)
-      .order("due_date", { ascending: true })
-      .limit(1),
+      .order("due_date", { ascending: true }),
+    supabase
+      .from("payment_schedules")
+      .select("amount_due")
+      .neq("status", "paid")
+      .gte("due_date", startOfMonthDate)
+      .lte("due_date", endOfMonthDate),
   ]);
 
   const dueSchedules = (dueSchedulesData ?? []) as DueSchedule[];
@@ -96,9 +108,19 @@ export default async function Dashboard() {
     principal_amount: number | null;
   }>;
   const paidSchedules = (paidSchedulesData ?? []) as Array<{
+    account_id: string;
     amount_due: number | null;
   }>;
   const unpaidSchedules = (unpaidSchedulesData ?? []) as Array<{
+    amount_due: number | null;
+  }>;
+  const upcomingSchedules = (upcomingSchedulesData ?? []) as Array<{
+    account_id: string;
+    due_date: string;
+    amount_due: number | null;
+    status: string;
+  }>;
+  const unpaidThisMonth = (unpaidThisMonthData ?? []) as Array<{
     amount_due: number | null;
   }>;
 
@@ -118,25 +140,62 @@ export default async function Dashboard() {
     (sum, row) => sum + Number(row.amount_due ?? 0),
     0
   );
+  const moneyToCollectThisMonth = unpaidThisMonth.reduce(
+    (sum, row) => sum + Number(row.amount_due ?? 0),
+    0
+  );
   const totalContractValue = moneyCollected + moneyToCollect;
   const expectedProfit = totalContractValue - principalTotal;
-  const realizedProfit = moneyCollected - principalTotal;
-  const nextCollection = nextScheduleData?.[0] ?? null;
+  const netCashPosition = moneyCollected - principalTotal;
+  const principalByAccount = new Map(
+    accountTotals.map((row) => [row.id, Number(row.principal_amount ?? 0)])
+  );
+  const paidByAccount = paidSchedules.reduce((acc, row) => {
+    const accountId = row.account_id;
+    const current = acc.get(accountId) ?? 0;
+    acc.set(accountId, current + Number(row.amount_due ?? 0));
+    return acc;
+  }, new Map<string, number>());
+  const realizedProfit = Array.from(principalByAccount.entries()).reduce(
+    (sum, [accountId, principal]) => {
+      const paid = paidByAccount.get(accountId) ?? 0;
+      return sum + Math.max(0, paid - principal);
+    },
+    0
+  );
+  const nextCollectionDate = upcomingSchedules[0]?.due_date ?? null;
+  const nextCollectionTotal = nextCollectionDate
+    ? upcomingSchedules
+        .filter((row) => row.due_date === nextCollectionDate)
+        .reduce((sum, row) => sum + Number(row.amount_due ?? 0), 0)
+    : 0;
+  const nextCollectionCount = nextCollectionDate
+    ? upcomingSchedules.filter((row) => row.due_date === nextCollectionDate).length
+    : 0;
   const formattedToday = now.toLocaleDateString(undefined, {
     weekday: "long",
     month: "short",
     day: "numeric",
   });
+  const nextCollectionSchedules = nextCollectionDate
+    ? upcomingSchedules.filter((row) => row.due_date === nextCollectionDate)
+    : [];
   const dueAccountIds = [...new Set(dueSchedules.map((row) => row.account_id))];
+  const nextCollectionAccountIds = [
+    ...new Set(nextCollectionSchedules.map((row) => row.account_id)),
+  ];
+  const accountIdsForBorrowerLookup = [
+    ...new Set([...dueAccountIds, ...nextCollectionAccountIds]),
+  ];
 
   let accountsById = new Map<string, AccountRef>();
   let borrowersById = new Map<string, BorrowerRef>();
 
-  if (dueAccountIds.length > 0) {
+  if (accountIdsForBorrowerLookup.length > 0) {
     const { data: accountsData } = await supabase
       .from("accounts")
       .select("id, borrower_id, payment_frequency")
-      .in("id", dueAccountIds);
+      .in("id", accountIdsForBorrowerLookup);
 
     const accounts = (accountsData ?? []) as AccountRef[];
     accountsById = new Map(accounts.map((row) => [row.id, row]));
@@ -165,6 +224,19 @@ export default async function Dashboard() {
       status: schedule.status,
     };
   });
+  const nextCollectionRows = nextCollectionSchedules.map((schedule) => {
+    const account = accountsById.get(schedule.account_id);
+    const borrower = account ? borrowersById.get(account.borrower_id) : null;
+    return {
+      id: `${schedule.account_id}-${schedule.due_date}`,
+      borrowerId: borrower?.id ?? null,
+      name: borrower
+        ? `${borrower.first_name} ${borrower.last_name}`
+        : "Unknown borrower",
+      amount: Number(schedule.amount_due ?? 0),
+      category: account?.payment_frequency ?? "custom",
+    };
+  });
 
   const summaryCards = [
     {
@@ -175,11 +247,29 @@ export default async function Dashboard() {
       tone: "bg-emerald-100",
     },
     {
-      label: "money to collect",
-      value: `PHP ${moneyToCollect.toLocaleString()}`,
-      delta: `${overdueCount ?? 0} overdue schedule${overdueCount === 1 ? "" : "s"}`,
-      icon: Wallet,
-      tone: "bg-violet-100",
+      label: "next collection",
+      value: nextCollectionDate
+        ? new Date(nextCollectionDate).toLocaleDateString()
+        : "none",
+      delta: nextCollectionDate
+        ? `PHP ${nextCollectionTotal.toLocaleString()} • ${nextCollectionCount} schedule${nextCollectionCount === 1 ? "" : "s"}`
+        : "no upcoming unpaid schedule",
+      icon: CalendarClock,
+      tone: "bg-lime-100",
+    },
+    // {
+    //   label: "money to collect",
+    //   value: `PHP ${moneyToCollect.toLocaleString()}`,
+    //   delta: `${overdueCount ?? 0} overdue schedule${overdueCount === 1 ? "" : "s"}`,
+    //   icon: Wallet,
+    //   tone: "bg-violet-100",
+    // },
+    {
+      label: "collect this month",
+      value: `PHP ${moneyToCollectThisMonth.toLocaleString()}`,
+      delta: `${now.toLocaleString(undefined, { month: "long" })} unpaid dues`,
+      icon: Coins,
+      tone: "bg-cyan-100",
     },
     {
       label: "dues today",
@@ -196,10 +286,17 @@ export default async function Dashboard() {
       tone: "bg-amber-100",
     },
     {
+      label: "net cash position",
+      value: `PHP ${netCashPosition.toLocaleString()}`,
+      delta: `collected: PHP ${moneyCollected.toLocaleString()}`,
+      icon: Wallet,
+      tone: "bg-violet-100",
+    },
+    {
       label: "new loans this month",
       value: String(newLoansMonthCount ?? 0),
       delta: `principal out: PHP ${principalTotal.toLocaleString()}`,
-      icon: CalendarClock,
+      icon: Landmark,
       tone: "bg-rose-100",
     },
   ] as const;
@@ -208,8 +305,13 @@ export default async function Dashboard() {
     `Collected so far: PHP ${moneyCollected.toLocaleString()}.`,
     `Expected contract value: PHP ${totalContractValue.toLocaleString()}.`,
     `Next collection: ${
-      nextCollection
-        ? `${new Date(nextCollection.due_date).toLocaleDateString()} (PHP ${Number(nextCollection.amount_due ?? 0).toLocaleString()})`
+      nextCollectionDate
+        ? `${new Date(nextCollectionDate).toLocaleDateString()} (PHP ${nextCollectionTotal.toLocaleString()})`
+        : "No upcoming unpaid schedule"
+    }.`,
+    `Total to collect on next collection date: ${
+      nextCollectionDate
+        ? `PHP ${nextCollectionTotal.toLocaleString()}`
         : "No upcoming unpaid schedule"
     }.`,
     `${newBorrowersWeekCount ?? 0} borrower${newBorrowersWeekCount === 1 ? "" : "s"} added in the last 7 days.`,
@@ -222,14 +324,14 @@ export default async function Dashboard() {
           {formattedToday}
         </p>
         <h1 className="mt-1 text-2xl font-black lowercase text-slate-900 sm:text-3xl">
-          lending dashboard
+          utangz dashboard
         </h1>
         <p className="mt-2 text-sm text-slate-700 sm:max-w-xl">
           Quick glance on active collections, upcoming dues, and account movement.
         </p>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {summaryCards.map((card) => (
           <article
             key={card.label}
@@ -295,6 +397,51 @@ export default async function Dashboard() {
         </article>
 
         <div className="space-y-4">
+          <article className="rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+            <h2 className="mb-3 text-base font-black lowercase text-slate-900">
+              next collection
+            </h2>
+            {nextCollectionDate ? (
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                {new Date(nextCollectionDate).toLocaleDateString()} • PHP{" "}
+                {nextCollectionTotal.toLocaleString()}
+              </p>
+            ) : null}
+            <ul className="space-y-2">
+              {nextCollectionRows.length === 0 ? (
+                <li className="rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                  No upcoming unpaid schedule.
+                </li>
+              ) : (
+                nextCollectionRows.map((entry) => (
+                  <li key={entry.id}>
+                    <Link
+                      href={entry.borrowerId ? `/borrowers/${entry.borrowerId}` : "#"}
+                      className="block rounded-lg border-2 border-slate-900 bg-slate-50 px-3 py-2 transition hover:-translate-y-0.5 hover:bg-slate-100"
+                      aria-disabled={!entry.borrowerId}
+                      tabIndex={entry.borrowerId ? 0 : -1}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-bold lowercase text-slate-900">{entry.name}</p>
+                        <span className="rounded-md bg-white px-2 py-1 text-xs font-bold uppercase text-slate-600">
+                          {entry.category}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-slate-700">
+                        PHP {entry.amount.toLocaleString()}
+                      </p>
+                    </Link>
+                    {!entry.borrowerId ? (
+                      <p className="mt-1 px-1 text-xs text-slate-500">
+                        Borrower record unavailable.
+                      </p>
+                    ) : null}
+                  </li>
+                ))
+              )}
+            </ul>
+          </article>
+
           <article className="rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
             <h2 className="mb-3 text-base font-black lowercase text-slate-900">
               quick actions

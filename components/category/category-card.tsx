@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { Category } from "./category-list";
 import Modal from "../modal";
 import NeobrutButton from "../neobrut-button";
-import { BsThreeDots, BsThreeDotsVertical } from "react-icons/bs";
+import { BsThreeDotsVertical } from "react-icons/bs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 
 type CategoryCardProps = {
@@ -15,89 +15,93 @@ type CategoryCardProps = {
 }
 
 export default function CategoryCard({ category, openEditModal, deleteCategory, openMenuId, setOpenMenuId }: CategoryCardProps) {
-    const router = useRouter();
-    const [isLoading, setIsLoading] = useState(false);
-    const borrower_count = category.borrower_categories[0].count
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-    const openDeleteModal = () => setIsDeleteModalOpen(true)
-    const closeDeleteModal = () => setIsDeleteModalOpen(false)
-    return (
-        <div
-            key={category.id}
-            onClick={(e) => {
-                e.stopPropagation();
-                setIsLoading(true);
-                router.push(`/categories/${category.id}`);
-            }}
-            className="relative rounded-md border px-3 py-2 bg-white  cursor-pointer transition h-20"
-        >
-            {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm rounded-md">
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-stone-900 border-t-transparent" />
-                </div>
-            )}
-            <div className="flex justify-between">
-                <div className="flex items-center gap-3">
-                    <span
-                        className="h-4 w-4 rounded-full border translate-y-[0.6px]"
-                        style={{ backgroundColor: category.color ?? "#cbd5e1" }}
-                    />
-                    <p className="font-medium">{category.name}</p>
-                </div>
-                <div className="relative">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                }}
-                                className="text-sm font-bold hover:bg-slate-100 h-10 w-8 flex items-center justify-end"
-                            >
-                                <BsThreeDotsVertical />
-                            </button>
-                        </DropdownMenuTrigger>
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const borrower_count = category.borrower_categories[0].count;
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const openDeleteModal = () => setIsDeleteModalOpen(true);
+  const closeDeleteModal = () => setIsDeleteModalOpen(false);
 
-                        <DropdownMenuContent align="end" className="w-32">
-                            <DropdownMenuItem
-                                className="cursor-pointer"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    openEditModal(category);
-                                }}
-                            >
-                                edit
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    openDeleteModal();
-                                }}
-                                className="text-red-600 focus:text-red-600 cursor-pointer"
-                            >
-                                delete
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
-            <div className="flex items-center gap-3">
-                {/* <p className="text-xs text-gray-500">
-                    {new Date(category.created_at).toLocaleDateString()}
-                </p> */}
-                <p className="text-sm text-stone-500">    {borrower_count === 1 ? borrower_count + " borrower" : borrower_count > 1 ? borrower_count + " borrowers" : "no borrowers yet"}</p>
-            </div>
-            <Modal size="xs" isOpen={isDeleteModalOpen} closeOnEscape closeOnOverlayClick onClose={closeDeleteModal}>
-                <div className="mb-4 "><p>Are you sure you want to delete this category?</p></div>
-                <div className="flex justify-end gap-2">
-                    <NeobrutButton variant="white" onClick={() => {
-                        deleteCategory(category.id)
-                    }}>Yes</NeobrutButton>
-                    <NeobrutButton variant="red" onClick={closeDeleteModal}>No</NeobrutButton>
-
-                </div>
-            </Modal>
+  return (
+    <div
+      key={category.id}
+      onClick={(e) => {
+        e.stopPropagation();
+        setIsLoading(true);
+        router.push(`/categories/${category.id}`);
+      }}
+      className="relative h-24 cursor-pointer rounded-xl border-2 border-slate-900 bg-white px-4 py-3 transition shadow-[4px_4px_0px_0px_#0f172a] hover:-translate-y-0.5 hover:bg-slate-50"
+    >
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-stone-900 border-t-transparent" />
         </div>
-    );
+      )}
+      <div className="flex justify-between">
+        <div className="flex items-center gap-3">
+          <span
+            className="h-4 w-4 translate-y-[0.6px] rounded-full border-2 border-slate-900"
+            style={{ backgroundColor: category.color ?? "#cbd5e1" }}
+          />
+          <p className="font-black lowercase text-slate-900">{category.name}</p>
+        </div>
+        <div className="relative">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-md border-2 border-slate-900 bg-slate-100 text-sm font-bold hover:bg-slate-200"
+              >
+                <BsThreeDotsVertical />
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end" className="w-32">
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEditModal(category);
+                }}
+              >
+                edit
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openDeleteModal();
+                }}
+                className="cursor-pointer text-red-600 focus:text-red-600"
+              >
+                delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-3">
+        <p className="text-sm text-stone-500">
+          {borrower_count === 1
+            ? borrower_count + " borrower"
+            : borrower_count > 1
+              ? borrower_count + " borrowers"
+              : "no borrowers yet"}
+        </p>
+      </div>
+      <Modal size="xs" isOpen={isDeleteModalOpen} closeOnEscape closeOnOverlayClick onClose={closeDeleteModal}>
+        <div className="mb-4 "><p>Are you sure you want to delete this category?</p></div>
+        <div className="flex justify-end gap-2">
+          <NeobrutButton variant="white" onClick={() => {
+            deleteCategory(category.id);
+          }}>Yes</NeobrutButton>
+          <NeobrutButton variant="red" onClick={closeDeleteModal}>No</NeobrutButton>
+
+        </div>
+      </Modal>
+    </div>
+  );
 }

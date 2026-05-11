@@ -163,7 +163,7 @@ export default async function AccountDetailPage({
             <h2 className="text-lg font-semibold capitalize">
               {accountRow.type.replace("_", " ")}
             </h2>
-            <p className="text-2xl">
+            <p className="text-4xl font-bold uppercase">
 
               {borrower
                 ? `${borrower.first_name} ${borrower.last_name}`
