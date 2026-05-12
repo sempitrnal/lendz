@@ -2,10 +2,10 @@
 
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition, type SyntheticEvent } from "react";
+import { useMemo, useState, useTransition, type SyntheticEvent } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
-import { isDarkColor } from "@/lib/utils";
+
 
 type NextCollectionEntry = {
   id: string;
@@ -84,6 +84,25 @@ export default function NextCollectionPanel({
     router.refresh();
   };
 
+  const groupedByCategory = useMemo(() => {
+    const groups = new Map<string, { color: string | null; entries: NextCollectionEntry[] }>();
+    for (const entry of entries) {
+      const existing = groups.get(entry.category);
+      if (existing) {
+        existing.entries.push(entry);
+      } else {
+        groups.set(entry.category, { color: entry.categoryColor ?? null, entries: [entry] });
+      }
+    }
+    return Array.from(groups.entries()).map(([category, { color, entries: groupEntries }]) => ({
+      category,
+      color,
+      entries: groupEntries,
+      total: groupEntries.reduce((sum, e) => sum + e.amount, 0),
+      accountCount: groupEntries.reduce((sum, e) => sum + e.schedules.length, 0),
+    }));
+  }, [entries]);
+
   const markAllNextPaid = async () => {
     if (entries.length === 0) return;
 
@@ -148,109 +167,138 @@ export default function NextCollectionPanel({
           {nextCollectionTotal.toLocaleString()}
         </p>
       ) : null}
-      <ul className="min-w-0 space-y-2">
-        {entries.length === 0 ? (
-          <li className="rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-            No upcoming unpaid schedule.
-          </li>
-        ) : (
-          entries.map((entry) => {
-            const isOpening =
-              entry.borrowerId !== null &&
-              navigatingBorrowerId === entry.borrowerId;
+      {entries.length === 0 ? (
+        <div className="rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          No upcoming unpaid schedule.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {groupedByCategory.map((group) => (
+            <div key={group.category}>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="size-2.5 shrink-0 rounded-full border border-slate-900/25"
+                    style={{ backgroundColor: group.color ?? "#cbd5e1" }}
+                    aria-hidden
+                  />
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-700">
+                    {group.category}
+                  </span>
+                  <span className="rounded-md border border-slate-900/20 bg-white px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600">
+                    {group.accountCount} account{group.accountCount === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <span className="text-xs font-semibold text-slate-600">
+                  PHP {group.total.toLocaleString()}
+                </span>
+              </div>
+              <ul className="min-w-0 space-y-2">
+                {group.entries.map((entry) => {
+                  const isOpening =
+                    entry.borrowerId !== null &&
+                    navigatingBorrowerId === entry.borrowerId;
 
-            return (
-              <li
-                key={entry.id}
-                role={entry.borrowerId ? "button" : undefined}
-                tabIndex={
-                  entry.borrowerId && navigatingBorrowerId === null ? 0 : undefined
-                }
-                aria-busy={isOpening}
-                aria-disabled={!entry.borrowerId || isOpening}
-                onClick={(e) => {
-                  openBorrower(entry, e);
-                }}
-                onKeyDown={(e) => {
-                  if (!entry.borrowerId || isOpening || navigatingBorrowerId !== null)
-                    return;
-                  if (e.key !== "Enter" && e.key !== " ") return;
-                  if (
-                    (e.target as HTMLElement).closest(
-                      "[data-prevent-borrower-card-open]"
-                    )
-                  ) {
-                    return;
-                  }
-                  e.preventDefault();
-                  goToBorrower(entry.borrowerId);
-                }}
-                className={`rounded-lg border-2 border-slate-900 bg-slate-50 px-3 py-2 ${
-                  entry.borrowerId
-                    ? `cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${
-                        isOpening ? "cursor-wait opacity-80" : ""
-                      }`
-                    : ""
-                }`}
-              >
-            <div className="flex items-start mb-5 justify-between gap-2">
-              <p className="min-w-0 flex-1 text-xl font-black uppercase text-slate-900">
-                {entry.name}
-              </p>
-              <span style={{
-                backgroundColor: entry.categoryColor ?? "#cbd5e1",
-                opacity: 0.8,
-                color: isDarkColor(entry.categoryColor ?? "#cbd5e1") ? "white" : "#1e1a4d",
-              }} className="inline-flex items-center gap-1.5 rounded-full shadow-[2px_2px_0px_#1e1a4d] border-2 border-slate-900  px-2 py-1 text-[8px] font-black uppercase text-slate-600">
-                {entry.category}
-              </span>
+                  return (
+                    <li
+                      key={entry.id}
+                      role={entry.borrowerId ? "button" : undefined}
+                      tabIndex={
+                        entry.borrowerId && navigatingBorrowerId === null ? 0 : undefined
+                      }
+                      aria-busy={isOpening}
+                      aria-disabled={!entry.borrowerId || isOpening}
+                      onClick={(e) => {
+                        openBorrower(entry, e);
+                      }}
+                      onKeyDown={(e) => {
+                        if (!entry.borrowerId || isOpening || navigatingBorrowerId !== null)
+                          return;
+                        if (e.key !== "Enter" && e.key !== " ") return;
+                        if (
+                          (e.target as HTMLElement).closest(
+                            "[data-prevent-borrower-card-open]"
+                          )
+                        ) {
+                          return;
+                        }
+                        e.preventDefault();
+                        goToBorrower(entry.borrowerId);
+                      }}
+                      className={`rounded-lg border-2 border-slate-900 bg-slate-50 px-3 py-2 ${
+                        entry.borrowerId
+                          ? `cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${
+                              isOpening ? "cursor-wait opacity-80" : ""
+                            }`
+                          : ""
+                      }`}
+                    >
+                      <div className="flex items-start mb-5 justify-between gap-2">
+                        <p className="min-w-0 flex-1 text-xl font-black uppercase text-slate-900">
+                          {entry.name}
+                        </p>
+                        {entry.schedules.length > 1 ? (
+                          <span className="shrink-0 rounded-md border border-slate-900/20 bg-white px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600">
+                            {entry.schedules.length} accounts
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-700">
+                          {entry.amounts && entry.amounts.length > 1
+                            ? entry.amounts
+                                .map((amount) => `PHP ${amount.toLocaleString()}`)
+                                .join(" + ")
+                            : `PHP ${entry.amount.toLocaleString()}`}
+                        </p>
+                      </div>
+                      {!entry.borrowerId ? (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Borrower record unavailable.
+                        </p>
+                      ) : null}
+                      <button
+                        type="button"
+                        data-prevent-borrower-card-open
+                        disabled={
+                          isMarkingAll ||
+                          updatingScheduleId === entry.id ||
+                          (entry.borrowerId !== null &&
+                            navigatingBorrowerId === entry.borrowerId)
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void markSchedulePaid(entry);
+                        }}
+                        className="rounded-md mt-2 border-2 border-slate-900 bg-emerald-200 px-3 mb-2 py-.5 text-[14px] font-black uppercase text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 disabled:cursor-wait disabled:opacity-70"
+                      >
+                        {updatingScheduleId === entry.id ? "..." : "Mark next paid"}
+                      </button>
+                      {isOpening ? (
+                        <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                          <Loader2
+                            className="size-3.5 shrink-0 animate-spin"
+                            aria-hidden
+                          />
+                          Opening…
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-slate-700">
-                {entry.amounts && entry.amounts.length > 1
-                  ? entry.amounts
-                      .map((amount) => `PHP ${amount.toLocaleString()}`)
-                      .join(" + ")
-                  : `PHP ${entry.amount.toLocaleString()}`}
-              </p>
-           
-            </div>
-            {!entry.borrowerId ? (
-              <p className="mt-1 text-xs text-slate-500">
-                Borrower record unavailable.
-              </p>
-            ) : null}
-               <button
-                type="button"
-                data-prevent-borrower-card-open
-                disabled={
-                  isMarkingAll ||
-                  updatingScheduleId === entry.id ||
-                  (entry.borrowerId !== null &&
-                    navigatingBorrowerId === entry.borrowerId)
-                }
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void markSchedulePaid(entry);
-                }}
-                className="rounded-md mt-2 border-2 border-slate-900 bg-emerald-200 px-3 mb-2 py-.5 text-[14px] font-black uppercase text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 disabled:cursor-wait disabled:opacity-70"
-              >
-                {updatingScheduleId === entry.id ? "..." : "Mark next paid"}
-              </button>
-            {isOpening ? (
-              <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                <Loader2
-                  className="size-3.5 shrink-0 animate-spin"
-                  aria-hidden
-                />
-                Opening…
-              </p>
-            ) : null}
-          </li>
-            );
-          })
-        )}
-      </ul>
+          ))}
+          <div className="mt-3 flex items-center justify-between rounded-lg border-2 border-slate-900 bg-slate-900 px-3 py-2">
+            <span className="text-xs font-black uppercase tracking-wide text-white">
+              Total
+            </span>
+            <span className="text-xs font-black tabular-nums text-white">
+              {entries.reduce((sum, e) => sum + e.schedules.length, 0)} account{entries.reduce((sum, e) => sum + e.schedules.length, 0) === 1 ? "" : "s"} • PHP {nextCollectionTotal.toLocaleString()}
+            </span>
+          </div>
+        </div>
+      )}
     </article>
   );
 }

@@ -93,19 +93,17 @@ async function fetchSchedulesWhere(
 export default async function Dashboard() {
   const supabase = await createSupabaseServer();
   const now = new Date();
-  const todayIso = now.toISOString().slice(0, 10);
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  const startOfMonthIso = startOfMonth.toISOString();
-  const startOfMonthDate = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
-  const endOfMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    .toISOString()
-    .slice(0, 10);
-  const weekAgo = new Date();
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  const weekAgoDate = weekAgo.toISOString().slice(0, 10);
+  const TZ = "Asia/Manila";
+  const todayIso = now.toLocaleDateString("en-CA", { timeZone: TZ });
+  const [yearStr, monthStr] = todayIso.split("-");
+  const phtYear = Number(yearStr);
+  const phtMonth = Number(monthStr);
+  const startOfMonthDate = `${yearStr}-${monthStr}-01`;
+  const startOfMonthIso = `${startOfMonthDate}T00:00:00+08:00`;
+  const lastDay = new Date(phtYear, phtMonth, 0).getDate();
+  const endOfMonthDate = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
+  const weekAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    .toLocaleDateString("en-CA", { timeZone: TZ });
 
   const [
     { count: borrowerCount },
@@ -139,35 +137,36 @@ export default async function Dashboard() {
     .sort((a, b) => a.id.localeCompare(b.id))
     .slice(0, 8);
 
-  const schedulesByAccount = new Map<string, ScheduleAggRow[]>();
-  for (const row of unpaidSchedules) {
-    const list = schedulesByAccount.get(row.account_id) ?? [];
-    list.push(row);
-    schedulesByAccount.set(row.account_id, list);
-  }
-  for (const list of schedulesByAccount.values()) {
-    list.sort(
-      (a, b) =>
-        a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id)
-    );
-  }
+  const nextPerAccount = (rows: ScheduleAggRow[]) => {
+    const byAccount = new Map<string, ScheduleAggRow[]>();
+    for (const row of rows) {
+      const list = byAccount.get(row.account_id) ?? [];
+      list.push(row);
+      byAccount.set(row.account_id, list);
+    }
+    for (const list of byAccount.values()) {
+      list.sort(
+        (a, b) =>
+          a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id)
+      );
+    }
+    return [...byAccount.values()]
+      .map((list) => nextDueScheduleForCollection(list))
+      .filter((row): row is ScheduleAggRow => Boolean(row))
+      .sort(
+        (a, b) =>
+          a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id)
+      );
+  };
 
-  const nextCollectionCandidates = [...schedulesByAccount.values()]
-    .map((list) => nextDueScheduleForCollection(list))
-    .filter((row): row is ScheduleAggRow => Boolean(row))
-    .sort(
-      (a, b) =>
-        a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id)
-    );
-
-  const pastOverdueCandidates = nextCollectionCandidates.filter(
-    (row) => row.due_date < todayIso
+  const pastOverdueCandidates = nextPerAccount(
+    unpaidSchedules.filter((row) => row.due_date < todayIso)
   );
-  const futureCandidates = nextCollectionCandidates.filter(
-    (row) => row.due_date >= todayIso
+  const futureCandidates = nextPerAccount(
+    unpaidSchedules.filter((row) => row.due_date >= todayIso)
   );
 
-  /** Earliest due date among each account’s next pending unpaid installment (else next unpaid). */
+  /** Earliest due date among future unpaid schedules. */
   const nextCollectionDate = futureCandidates[0]?.due_date ?? null;
 
   const newBorrowerAccountsWeek = (newBorrowerAccountsWeekData ?? []) as Array<{
@@ -212,6 +211,7 @@ export default async function Dashboard() {
     weekday: "long",
     month: "short",
     day: "numeric",
+    timeZone: TZ,
   });
   const nextCollectionSchedules = nextCollectionDate
     ? futureCandidates.filter((row) => row.due_date === nextCollectionDate)
