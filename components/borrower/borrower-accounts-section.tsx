@@ -5,7 +5,10 @@ import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Modal from "@/components/modal";
-import AccountForm from "@/components/forms/account-form";
+import AccountForm, {
+  accountRowToFormInitial,
+  type AccountEditableRow,
+} from "@/components/forms/account-form";
 import AccountCardMenu from "@/components/borrower/account-card-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { BorrowerSummary } from "./borrower-detail-view";
@@ -18,12 +21,10 @@ import {
 } from "@/lib/payment-schedule/schedule-balances";
 import NotesCanvas from "./notes-canvas";
 import NeobrutButton from "../neobrut-button";
-export type AccountRow = {
+export type AccountRow = AccountEditableRow & {
   id: string;
-  type: string;
+  borrower_id: string;
   status: string;
-  principal_amount: number | string | null;
-  interest_rate: number | string | null;
 };
 type PaymentScheduleLite = {
   id: string;
@@ -52,6 +53,7 @@ function AccountCard({
   account,
   isOpening,
   onOpen,
+  onEdit,
   metrics,
   isMarkingNextPaid,
   onMarkNextPaid,
@@ -59,6 +61,7 @@ function AccountCard({
   account: AccountRow;
   isOpening: boolean;
   onOpen: (id: string) => void;
+  onEdit: (account: AccountRow) => void;
   metrics?: AccountComputedMetrics;
   isMarkingNextPaid: boolean;
   onMarkNextPaid: (accountId: string, scheduleId: string) => void;
@@ -185,7 +188,10 @@ function AccountCard({
           </div>
         </div>
       </div>
-      <AccountCardMenu accountId={account.id} />
+      <AccountCardMenu
+        accountId={account.id}
+        onEdit={() => onEdit(account)}
+      />
     </div>
   );
 }
@@ -194,7 +200,10 @@ export default function BorrowerAccountsSection({
   accounts,
   borrower
 }: BorrowerAccountsSectionProps) {
-  const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+  const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<AccountRow | null>(
+    null
+  );
   const [openingAccountId, setOpeningAccountId] = useState<string | null>(null);
   const [markingNextPaidScheduleId, setMarkingNextPaidScheduleId] = useState<
     string | null
@@ -363,7 +372,10 @@ export default function BorrowerAccountsSection({
       <div className="mb-6 flex items-center justify-between">
      <div className=""></div>
         <NeobrutButton
-          onClick={() => setIsAddAccountOpen(true)}
+          onClick={() => {
+            setEditingAccount(null);
+            setIsAccountDialogOpen(true);
+          }}
           aria-label="Add loan"
           variant="green"
         >
@@ -383,6 +395,10 @@ export default function BorrowerAccountsSection({
               account={account}
               isOpening={openingAccountId === account.id}
               onOpen={handleOpenAccount}
+              onEdit={(acc) => {
+                setEditingAccount(acc);
+                setIsAccountDialogOpen(true);
+              }}
               metrics={accountMetricsById[account.id]}
               isMarkingNextPaid={
                 markingNextPaidScheduleId ===
@@ -394,15 +410,33 @@ export default function BorrowerAccountsSection({
         </div>
       )}
 
-      <Dialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen}>
+      <Dialog
+        open={isAccountDialogOpen}
+        onOpenChange={(open) => {
+          setIsAccountDialogOpen(open);
+          if (!open) setEditingAccount(null);
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>add account</DialogTitle>
+            <DialogTitle>
+              {editingAccount ? "edit account" : "add account"}
+            </DialogTitle>
           </DialogHeader>
 
           <AccountForm
+            key={`${borrowerId}-${editingAccount?.id ?? "new"}`}
             borrowerId={borrowerId}
-            onSuccess={() => setIsAddAccountOpen(false)}
+            accountId={editingAccount?.id}
+            initialValues={
+              editingAccount
+                ? accountRowToFormInitial(editingAccount)
+                : undefined
+            }
+            onSuccess={() => {
+              setIsAccountDialogOpen(false);
+              setEditingAccount(null);
+            }}
           />
         </DialogContent>
       </Dialog>

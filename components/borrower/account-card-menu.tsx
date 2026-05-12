@@ -4,19 +4,19 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BsThreeDotsVertical } from "react-icons/bs";
 
-import Modal from "@/components/modal";
 import NeobrutButton from "@/components/neobrut-button";
 import { supabase } from "@/lib/supabase/client";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import Link from "next/link";
 import { DialogContent, DialogTitle, DialogHeader, Dialog } from "../ui/dialog";
 
 type AccountCardMenuProps = {
   accountId: string;
+  onEdit?: () => void;
 };
 
 export default function AccountCardMenu({
   accountId,
+  onEdit,
 }: AccountCardMenuProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -86,14 +86,40 @@ export default function AccountCardMenu({
     <div className="relative shrink-0" ref={rootRef}>
       <DropdownMenu >
         <DropdownMenuTrigger asChild>
-          <BsThreeDotsVertical className="size-5 cursor-pointer absolute right-[-10px]" />
+          <button
+            type="button"
+            data-prevent-account-open
+            aria-label="Account actions"
+            className="absolute right-[-10px] rounded p-0.5 outline-none hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-slate-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <BsThreeDotsVertical className="size-5 cursor-pointer" />
+          </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-32">
-          {/* <DropdownMenuItem>
-            <Link href={`/accounts/${accountId}`}>Edit</Link>
-          </DropdownMenuItem> */}
+          {onEdit ? (
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit();
+              }}
+            >
+              Edit
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem className="cursor-pointer hover:bg-red-100">
-            <button type="button" className="w-full text-left text-red-400 hover:text-red-600" onClick={openDeleteModal}>Delete</button>
+            <button
+              type="button"
+              className="w-full text-left text-red-400 hover:text-red-600"
+              onClick={(e) => {
+                e.stopPropagation();
+                openDeleteModal();
+              }}
+            >
+              Delete
+            </button>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

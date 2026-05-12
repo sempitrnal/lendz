@@ -32,6 +32,7 @@ type AccountRef = {
   id: string;
   borrower_id: string;
   payment_frequency: string | null;
+  principal_amount: number | null;
 };
 type AccountTotalRow = {
   id: string;
@@ -59,6 +60,36 @@ type BorrowerRef = {
   }>;
 };
 
+const SUPABASE_PAGE_SIZE = 1000;
+
+async function fetchSchedulesWhere(
+  supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  applyFilters?: (query: any) => any
+): Promise<ScheduleAggRow[]> {
+  const allRows: ScheduleAggRow[] = [];
+  let from = 0;
+
+  while (true) {
+    let query = supabase
+      .from("payment_schedules")
+      .select(
+        "id, account_id, amount_due, amount_paid, remaining_amount, status, due_date"
+      );
+
+    if (applyFilters) query = applyFilters(query);
+
+    const { data, error } = await query.range(from, from + SUPABASE_PAGE_SIZE - 1);
+
+    if (error || !data || data.length === 0) break;
+    allRows.push(...(data as ScheduleAggRow[]));
+    if (data.length < SUPABASE_PAGE_SIZE) break;
+    from += SUPABASE_PAGE_SIZE;
+  }
+
+  return allRows;
+}
+
 export default async function Dashboard() {
   const supabase = await createSupabaseServer();
   const now = new Date();
@@ -81,7 +112,8 @@ export default async function Dashboard() {
     { data: newBorrowerAccountsWeekData },
     { count: newLoansMonthCount },
     { data: accountTotalsData },
-    { data: allSchedulesData },
+    unpaidSchedules,
+    thisMonthSchedules,
   ] = await Promise.all([
     supabase.from("borrowers").select("*", { count: "exact", head: true }),
     supabase
@@ -94,16 +126,13 @@ export default async function Dashboard() {
       .select("*", { count: "exact", head: true })
       .gte("release_date", startOfMonthIso),
     supabase.from("accounts").select("id, principal_amount, release_date"),
-    supabase
-      .from("payment_schedules")
-      .select(
-        "id, account_id, amount_due, amount_paid, remaining_amount, status, due_date"
-      ),
+    fetchSchedulesWhere(supabase, (q) => q.neq("status", "paid")),
+    fetchSchedulesWhere(supabase, (q) =>
+      q.gte("due_date", startOfMonthDate).lte("due_date", endOfMonthDate)
+    ),
   ]);
 
-  const allSchedules = (allSchedulesData ?? []) as ScheduleAggRow[];
-
-  const dueSchedules = allSchedules
+  const dueSchedules = unpaidSchedules
     .filter(
       (row) => row.due_date === todayIso && !isInstallmentFullyPaid(row)
     )
@@ -111,7 +140,7 @@ export default async function Dashboard() {
     .slice(0, 8);
 
   const schedulesByAccount = new Map<string, ScheduleAggRow[]>();
-  for (const row of allSchedules) {
+  for (const row of unpaidSchedules) {
     const list = schedulesByAccount.get(row.account_id) ?? [];
     list.push(row);
     schedulesByAccount.set(row.account_id, list);
@@ -131,8 +160,15 @@ export default async function Dashboard() {
         a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id)
     );
 
+  const pastOverdueCandidates = nextCollectionCandidates.filter(
+    (row) => row.due_date < todayIso
+  );
+  const futureCandidates = nextCollectionCandidates.filter(
+    (row) => row.due_date >= todayIso
+  );
+
   /** Earliest due date among each account’s next pending unpaid installment (else next unpaid). */
-  const nextCollectionDate = nextCollectionCandidates[0]?.due_date ?? null;
+  const nextCollectionDate = futureCandidates[0]?.due_date ?? null;
 
   const newBorrowerAccountsWeek = (newBorrowerAccountsWeekData ?? []) as Array<{
     borrower_id: string | null;
@@ -147,16 +183,6 @@ export default async function Dashboard() {
     (sum, row) => sum + Number(row.principal_amount ?? 0),
     0
   );
-  const moneyCollected = allSchedules.reduce(
-    (sum, row) => sum + amountPaidOnInstallment(row),
-    0
-  );
-  const moneyToCollect = allSchedules.reduce(
-    (sum, row) =>
-      sum + (isInstallmentFullyPaid(row) ? 0 : remainingOnInstallment(row)),
-    0
-  );
-  const totalContractValue = moneyCollected + moneyToCollect;
   const newBorrowersWeekCount = new Set(
     newBorrowerAccountsWeek
       .map((row) => row.borrower_id)
@@ -169,18 +195,18 @@ export default async function Dashboard() {
     }
     return sum + Number(row.principal_amount ?? 0);
   }, 0);
-  const collectedThisMonth = allSchedules.reduce((sum, row) => {
-    if (row.due_date < startOfMonthDate || row.due_date > endOfMonthDate) return sum;
-    return sum + amountPaidOnInstallment(row);
-  }, 0);
+  const collectedThisMonth = thisMonthSchedules.reduce(
+    (sum, row) => sum + amountPaidOnInstallment(row),
+    0
+  );
   const profitThisMonth = collectedThisMonth - principalReleasedThisMonth;
   const nextCollectionTotal = nextCollectionDate
-    ? nextCollectionCandidates
+    ? futureCandidates
         .filter((row) => row.due_date === nextCollectionDate)
         .reduce((sum, row) => sum + remainingOnInstallment(row), 0)
     : 0;
   const nextCollectionCount = nextCollectionDate
-    ? nextCollectionCandidates.filter((row) => row.due_date === nextCollectionDate).length
+    ? futureCandidates.filter((row) => row.due_date === nextCollectionDate).length
     : 0;
   const formattedToday = now.toLocaleDateString(undefined, {
     weekday: "long",
@@ -188,14 +214,17 @@ export default async function Dashboard() {
     day: "numeric",
   });
   const nextCollectionSchedules = nextCollectionDate
-    ? nextCollectionCandidates.filter((row) => row.due_date === nextCollectionDate)
+    ? futureCandidates.filter((row) => row.due_date === nextCollectionDate)
     : [];
   const dueAccountIds = [...new Set(dueSchedules.map((row) => row.account_id))];
   const nextCollectionAccountIds = [
     ...new Set(nextCollectionSchedules.map((row) => row.account_id)),
   ];
+  const overdueAccountIds = [
+    ...new Set(pastOverdueCandidates.map((row) => row.account_id)),
+  ];
   const accountIdsForBorrowerLookup = [
-    ...new Set([...dueAccountIds, ...nextCollectionAccountIds]),
+    ...new Set([...dueAccountIds, ...nextCollectionAccountIds, ...overdueAccountIds]),
   ];
 
   let accountsById = new Map<string, AccountRef>();
@@ -204,7 +233,7 @@ export default async function Dashboard() {
   if (accountIdsForBorrowerLookup.length > 0) {
     const { data: accountsData } = await supabase
       .from("accounts")
-      .select("id, borrower_id, payment_frequency")
+      .select("id, borrower_id, payment_frequency, principal_amount")
       .in("id", accountIdsForBorrowerLookup);
 
     const accounts = (accountsData ?? []) as AccountRef[];
@@ -318,6 +347,49 @@ export default async function Dashboard() {
         schedules: row.schedules,
       };
     });
+  })();
+
+  const overdueRows = (() => {
+    const grouped = new Map<
+      string,
+      {
+        borrowerId: string | null;
+        name: string;
+        category: string;
+        categoryColor: string | null;
+        seenAccountIds: Set<string>;
+        totalPrincipal: number;
+      }
+    >();
+
+    for (const schedule of pastOverdueCandidates) {
+      const account = accountsById.get(schedule.account_id);
+      const borrower = account ? borrowersById.get(account.borrower_id) : null;
+      const borrowerId = borrower?.id ?? null;
+      const key = borrowerId ?? `unknown-${schedule.account_id}`;
+
+      if (!grouped.has(key)) {
+        const categoryMeta = borrowerCategoryMeta(borrower);
+        grouped.set(key, {
+          borrowerId,
+          name: borrower
+            ? `${borrower.first_name} ${borrower.last_name}`
+            : "Unknown borrower",
+          category: categoryMeta.label,
+          categoryColor: categoryMeta.color,
+          seenAccountIds: new Set(),
+          totalPrincipal: 0,
+        });
+      }
+
+      const entry = grouped.get(key)!;
+      if (account && !entry.seenAccountIds.has(account.id)) {
+        entry.seenAccountIds.add(account.id);
+        entry.totalPrincipal += Number(account.principal_amount ?? 0);
+      }
+    }
+
+    return Array.from(grouped.values()).map(({ seenAccountIds, ...rest }) => rest);
   })();
 
   const summaryCards = [
@@ -480,6 +552,44 @@ export default async function Dashboard() {
           <DailyNotesWidget />
         </div>
       </section>
+
+      {overdueRows.length > 0 ? (
+        <section className="mt-4 lg:mt-6">
+          <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br from-rose-50 via-white to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+            <h2 className="mb-3 text-base font-black lowercase text-slate-900">
+              past due
+            </h2>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+              {overdueRows.length} borrower{overdueRows.length === 1 ? "" : "s"} with overdue schedules
+            </p>
+            <ul className="space-y-2">
+              {overdueRows.map((entry) => (
+                <li
+                  key={entry.borrowerId ?? entry.name}
+                  className="rounded-lg border-2 border-slate-900 bg-slate-50 p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-bold lowercase text-slate-900">{entry.name}</p>
+                    <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-xs font-bold uppercase text-slate-600">
+                      <span
+                        className="size-2 shrink-0 rounded-full border border-slate-900/25"
+                        style={{ backgroundColor: entry.categoryColor ?? "#cbd5e1" }}
+                        aria-hidden
+                      />
+                      {entry.category}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-sm">
+                    <p className="font-semibold text-slate-700">
+                      Loaned: PHP {entry.totalPrincipal.toLocaleString()}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </article>
+        </section>
+      ) : null}
     </main>
   );
 }

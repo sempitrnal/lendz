@@ -18,29 +18,15 @@ export function remainingOnInstallment(row: ScheduleBalanceInput): number {
   const due = Math.max(0, Number(row.amount_due ?? 0));
   if (row.status === "paid") return 0;
 
-  const paidRaw = Math.min(due, Math.max(0, Number(row.amount_paid ?? 0)));
-  const remRaw = row.remaining_amount;
-
-  if (remRaw != null && !Number.isNaN(Number(remRaw))) {
-    const rem = Math.max(0, Math.min(due, Number(remRaw)));
-    /** DB default `remaining_amount = 0` makes every row look fully paid; ignore when still unpaid. */
-    if (rem === 0 && paidRaw < due) {
-      return Math.max(0, due - paidRaw);
-    }
-    return rem;
-  }
-
-  return Math.max(0, due - amountPaidOnInstallment(row));
+  const paid = amountPaidOnInstallment(row);
+  return Math.max(0, due - paid);
 }
+
 
 export function isInstallmentFullyPaid(row: ScheduleBalanceInput): boolean {
   return row.status === "paid" || remainingOnInstallment(row) <= 0;
 }
 
-/**
- * Next installment to collect for an account: earliest unpaid row with status `pending`;
- * if none (e.g. only partial/overdue), earliest unpaid. Pass rows sorted by due_date.
- */
 export function nextDueScheduleForCollection<
   T extends ScheduleBalanceInput & { due_date: string },
 >(schedulesSortedByDueDate: T[]): T | undefined {

@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import {
   accountSchema,
@@ -19,6 +20,7 @@ import {
   bimonthlyLegacyInstallmentAmount,
   generateLegacyBimonthlyDueDates,
 } from "@/lib/payment-schedule/bimonthly-legacy";
+import { addOneMonthAnchored } from "@/lib/payment-schedule/monthly-anchor";
 
 function formatLocalISODate(d: Date): string {
   const y = d.getFullYear();
@@ -32,6 +34,89 @@ function parseDateInput(isoDate: string): Date {
   const [y, m, d] = isoDate.split("-").map(Number);
   return new Date(y, (m ?? 1) - 1, d ?? 1);
 }
+
+export function isoDateOnlyForInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  return iso.slice(0, 10);
+}
+
+function buildSchedulesPayload(
+  accountId: string,
+  values: AccountFormValues
+): Array<{
+  account_id: string;
+  due_date: string;
+  amount_due: number;
+  amount_paid: number;
+  remaining_amount: number;
+  status: string;
+  note: null;
+}> {
+  const schedules: Array<{
+    account_id: string;
+    due_date: string;
+    amount_due: number;
+    amount_paid: number;
+    remaining_amount: number;
+    status: string;
+    note: null;
+  }> = [];
+
+  if (values.payment_frequency === "bimonthly") {
+    const totalWithInterest =
+      values.principal_amount * (1 + values.interest_rate / 100);
+    const start = parseDateInput(values.first_payment_date);
+    const dueDates = generateLegacyBimonthlyDueDates(start, values.term_months);
+    const pay = bimonthlyLegacyInstallmentAmount(
+      values.principal_amount,
+      values.interest_rate,
+      values.term_months
+    );
+
+    for (const d of dueDates) {
+      schedules.push({
+        account_id: accountId,
+        due_date: formatLocalISODate(d),
+        amount_due: pay,
+        amount_paid: 0,
+        remaining_amount: pay,
+        status: "pending",
+        note: null,
+      });
+    }
+  } else {
+    let currentDate = parseDateInput(values.first_payment_date);
+    const monthlyAnchorDay = currentDate.getDate();
+    const totalInterest =
+      values.principal_amount * (values.interest_rate / 100) * values.term_months;
+    const totalPayment = values.principal_amount + totalInterest;
+    const installmentAmount = totalPayment / values.term_months;
+
+    for (let i = 0; i < values.term_months; i++) {
+      const amt = Number(installmentAmount.toFixed(2));
+      schedules.push({
+        account_id: accountId,
+        due_date: formatLocalISODate(currentDate),
+        amount_due: amt,
+        amount_paid: 0,
+        remaining_amount: amt,
+        status: "pending",
+        note: null,
+      });
+
+      if (values.payment_frequency === "monthly") {
+        currentDate = addOneMonthAnchored(currentDate, monthlyAnchorDay);
+      } else if (values.payment_frequency === "weekly") {
+        currentDate.setDate(currentDate.getDate() + 7);
+      } else {
+        currentDate = addOneMonthAnchored(currentDate, monthlyAnchorDay);
+      }
+    }
+  }
+
+  return schedules;
+}
+
 const formatNumber = (value: string) => {
   const num = value.replace(/,/g, "");
   if (!num) return "";
@@ -39,14 +124,66 @@ const formatNumber = (value: string) => {
 };
 type AccountFormProps = {
   borrowerId: string;
+  /** When set, form updates this account instead of creating one. */
+  accountId?: string;
+  /** Prefill when editing (merged with borrower_id). */
+  initialValues?: Partial<AccountFormValues>;
   onSuccess?: () => void;
 };
 
+const emptyDefaults = (borrowerId: string): AccountFormValues => ({
+  borrower_id: borrowerId,
+  type: "loan",
+  principal_amount: 0,
+  interest_rate: 0,
+  term_months: 1,
+  release_date: "",
+  first_payment_date: "",
+  payment_frequency: "bimonthly",
+});
+
+export type AccountEditableRow = {
+  type: string;
+  principal_amount: number | string | null;
+  interest_rate: number | string | null;
+  term_months: number | string | null;
+  release_date: string | null;
+  first_payment_date: string | null;
+  payment_frequency: string | null;
+};
+
+export function accountRowToFormInitial(
+  account: AccountEditableRow
+): Partial<AccountFormValues> {
+  const frequencies = ["weekly", "monthly", "bimonthly", "custom"] as const;
+  const raw = account.payment_frequency ?? "";
+  const payment_frequency = frequencies.includes(
+    raw as (typeof frequencies)[number]
+  )
+    ? (raw as AccountFormValues["payment_frequency"])
+    : "bimonthly";
+
+  const t = account.type === "cash_advance" ? "cash_advance" : "loan";
+
+  return {
+    type: t,
+    principal_amount: Number(account.principal_amount ?? 0),
+    interest_rate: Number(account.interest_rate ?? 0),
+    term_months: Number(account.term_months ?? 1),
+    release_date: isoDateOnlyForInput(account.release_date),
+    first_payment_date: isoDateOnlyForInput(account.first_payment_date),
+    payment_frequency,
+  };
+}
+
 export default function AccountForm({
   borrowerId,
+  accountId,
+  initialValues,
   onSuccess,
 }: AccountFormProps) {
   const router = useRouter();
+  const isEdit = Boolean(accountId);
 
   const {
     register,
@@ -58,15 +195,61 @@ export default function AccountForm({
   } = useForm<AccountFormValues>({
     resolver: zodResolver(accountSchema),
     defaultValues: {
+      ...emptyDefaults(borrowerId),
+      ...initialValues,
       borrower_id: borrowerId,
-      type: "loan",
-      payment_frequency: "bimonthly",
     },
   });
+
   const value = watch("principal_amount");
   const onSubmit = async (values: AccountFormValues) => {
- 
-    // 2. Create account first
+    const schedulesPayload = (id: string) => buildSchedulesPayload(id, values);
+
+    if (isEdit && accountId) {
+      const { error: updateError } = await supabase
+        .from("accounts")
+        .update({
+          type: values.type,
+          principal_amount: values.principal_amount,
+          interest_rate: values.interest_rate,
+          term_months: values.term_months,
+          release_date: values.release_date,
+          first_payment_date: values.first_payment_date,
+          payment_frequency: values.payment_frequency,
+        })
+        .eq("id", accountId);
+
+      if (updateError) {
+        toast.error(updateError.message);
+        return;
+      }
+
+      const { data: delData, error: delError } = await supabase
+        .from("payment_schedules")
+        .delete()
+        .eq("account_id", accountId)
+        .select();
+      console.log(delError, delData)
+      if (delError) {
+        toast.error(delError.message);
+        return;
+      }
+
+      const schedules = schedulesPayload(accountId);
+      const { error: insertError } = await supabase
+        .from("payment_schedules")
+        .insert(schedules);
+      if (insertError) {
+        toast.error(insertError.message);
+        return;
+      }
+      toast.success("Account and payment schedules updated.");
+
+      router.refresh();
+      onSuccess?.();
+      return;
+    }
+
     const { data: account, error } = await supabase
       .from("accounts")
       .insert(values)
@@ -74,103 +257,23 @@ export default function AccountForm({
       .single();
 
     if (error || !account) {
-      alert(error?.message);
+      toast.error(error?.message ?? "Could not create account.");
       return;
     }
 
-    const schedules: Array<{
-      account_id: string;
-      due_date: string;
-      amount_due: number;
-      amount_paid: number;
-      remaining_amount: number;
-      status: string;
-      note: null;
-    }> = [];
+    const schedules = schedulesPayload(account.id);
 
-    if (values.payment_frequency === "bimonthly") {
-      const totalWithInterest =
-
-      values.principal_amount *
-  
-      (1 + values.interest_rate / 100);
-  
-      const installmentAmount = totalWithInterest / values.term_months;
-      const start = parseDateInput(values.first_payment_date);
-      const dueDates = generateLegacyBimonthlyDueDates(
-        start,
-        values.term_months
-      );
-      const pay = bimonthlyLegacyInstallmentAmount(
-        values.principal_amount,
-        values.interest_rate,
-        values.term_months
-      );
-
-      for (const d of dueDates) {
-        schedules.push({
-          account_id: account.id,
-          due_date: formatLocalISODate(d),
-          amount_due: pay,
-          amount_paid: 0,
-          remaining_amount: pay,
-          status: "pending",
-          note: null,
-        });
-      }
-    } else {
-      let currentDate = parseDateInput(values.first_payment_date);
-      const totalInterest =
-
-      values.principal_amount *
-  
-      (values.interest_rate / 100) *
-  
-      values.term_months;
-  
-    const totalPayment =
-  
-      values.principal_amount + totalInterest;
-  
-    const installmentAmount = totalPayment / values.term_months;
-      for (let i = 0; i < values.term_months; i++) {
-        const amt = Number(installmentAmount.toFixed(2));
-        schedules.push({
-          account_id: account.id,
-          due_date: formatLocalISODate(currentDate),
-          amount_due: amt,
-          amount_paid: 0,
-          remaining_amount: amt,
-          status: "pending",
-          note: null,
-        });
-        
-        if (values.payment_frequency === "monthly") {
-          currentDate.setMonth(currentDate.getMonth() + 1);
-        } else if (values.payment_frequency === "weekly") {
-          currentDate.setDate(currentDate.getDate() + 7);
-        } else {
-          currentDate.setMonth(currentDate.getMonth() + 1);
-        }
-      }
-    }
-
-    // 4. Insert payment schedules
     const { error: scheduleError } = await supabase
       .from("payment_schedules")
       .insert(schedules);
 
     if (scheduleError) {
-      alert(scheduleError.message);
+      toast.error(scheduleError.message);
       return;
     }
 
-    // 5. Reset form
-    reset({
-      borrower_id: borrowerId,
-      type: "loan",
-      payment_frequency: "bimonthly",
-    });
+    reset(emptyDefaults(borrowerId));
+    toast.success("Account created.");
 
     router.refresh();
     onSuccess?.();
@@ -335,7 +438,6 @@ export default function AccountForm({
           Payment frequency
         </label>
         <select
-          defaultValue="bimonthly"
           id="payment_frequency"
           {...register("payment_frequency")}
           className={formFieldInputClassName}
@@ -360,7 +462,13 @@ export default function AccountForm({
         disabled={isSubmitting}
         className="mt-2 w-full"
       >
-        {isSubmitting ? "Creating..." : "Create account"}
+        {isSubmitting
+          ? isEdit
+            ? "Saving..."
+            : "Creating..."
+          : isEdit
+            ? "Save changes"
+            : "Create account"}
       </NeobrutButton>
     </form>
   );
