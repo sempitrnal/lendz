@@ -15,7 +15,6 @@ import {
   nextDueScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
-import NextCollectionPanel from "@/components/dashboard/next-collection-panel";
 import DailyNotesWidget from "@/components/dashboard/daily-notes-widget";
 
 type ScheduleAggRow = {
@@ -521,11 +520,80 @@ export default async function Dashboard() {
         </article>
 
         <div className="min-w-0 space-y-4">
-          <NextCollectionPanel
-            nextCollectionDate={nextCollectionDate}
-            nextCollectionTotal={nextCollectionTotal}
-            entries={nextCollectionRows}
-          />
+          <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br from-emerald-50 via-white to-lime-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-black lowercase text-slate-900">
+                next collection
+              </h2>
+              {nextCollectionSchedules.length > 0 ? (
+                <Link
+                  href="/next-collection"
+                  className="inline-flex items-center gap-1 rounded-md border-2 border-slate-900 bg-emerald-200 px-2.5 py-1 text-xs font-bold text-slate-900 transition hover:bg-emerald-300"
+                >
+                  view all
+                  <ArrowUpRight className="size-3.5" />
+                </Link>
+              ) : null}
+            </div>
+            {nextCollectionDate ? (
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                {new Date(nextCollectionDate).toLocaleDateString()} • PHP{" "}
+                {nextCollectionTotal.toLocaleString()}
+              </p>
+            ) : null}
+            {nextCollectionRows.length === 0 ? (
+              <div className="rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                No upcoming unpaid schedule.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {(() => {
+                  const groups = new Map<string, { color: string | null; accountCount: number; total: number }>();
+                  for (const entry of nextCollectionRows) {
+                    const existing = groups.get(entry.category);
+                    if (existing) {
+                      existing.accountCount += entry.schedules.length;
+                      existing.total += entry.amount;
+                    } else {
+                      groups.set(entry.category, {
+                        color: entry.categoryColor ?? null,
+                        accountCount: entry.schedules.length,
+                        total: entry.amount,
+                      });
+                    }
+                  }
+                  return Array.from(groups.entries()).map(([category, g]) => (
+                    <div key={category} className="flex items-center justify-between gap-2 rounded-lg border-2 border-slate-900 bg-slate-50 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="size-2.5 shrink-0 rounded-full border border-slate-900/25"
+                          style={{ backgroundColor: g.color ?? "#cbd5e1" }}
+                          aria-hidden
+                        />
+                        <span className="text-xs font-black uppercase tracking-wide text-slate-700">
+                          {category}
+                        </span>
+                        <span className="rounded-md border border-slate-900/20 bg-white px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600">
+                          {g.accountCount}
+                        </span>
+                      </div>
+                      <span className="text-xs font-semibold text-slate-600">
+                        PHP {g.total.toLocaleString()}
+                      </span>
+                    </div>
+                  ));
+                })()}
+                <div className="flex items-center justify-between rounded-lg border-2 border-slate-900 bg-slate-900 px-3 py-2">
+                  <span className="text-xs font-black uppercase tracking-wide text-white">
+                    Total
+                  </span>
+                  <span className="text-xs font-black tabular-nums text-white">
+                    {nextCollectionCount} account{nextCollectionCount === 1 ? "" : "s"} • PHP {nextCollectionTotal.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            )}
+          </article>
 
           <article className="rounded-xl border-2 border-slate-900 bg-linear-to-br from-amber-50 via-white to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
             <h2 className="mb-3 text-base font-black lowercase text-slate-900">
