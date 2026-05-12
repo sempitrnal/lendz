@@ -57,7 +57,7 @@ export function BorrowerCard({
 
   return (
     <div
-      className={`relative w-full min-w-0 max-w-full rounded-xl border-2 border-slate-900 bg-linear-to-br from-sky-50 via-white to-indigo-50 text-left shadow-[4px_4px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:from-sky-100 hover:to-indigo-100 ${isPending ? "cursor-wait opacity-80" : ""}`}
+      className={`relative w-full  min-w-0 max-w-full rounded-xl border-2 border-slate-900 bg-linear-to-br from-sky-50 via-white to-indigo-50 text-left shadow-[4px_4px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:from-sky-100 hover:to-indigo-100 ${isPending ? "cursor-wait opacity-80" : ""}`}
       aria-busy={isPending}
     >
       <div
@@ -67,7 +67,7 @@ export function BorrowerCard({
         {borrower.contact ? (
           <Link
             href={`tel:${borrower.contact}`}
-            className="rounded-md border-2 border-slate-900 bg-indigo-100 p-2 text-indigo-700 transition hover:bg-indigo-200"
+            className="rounded-md border-2  border-slate-900 bg-indigo-100 p-2 text-indigo-700 transition hover:bg-indigo-200"
             aria-label={`Call ${borrower.first_name} ${borrower.last_name}`}
           >
             <Phone className="size-4" />
@@ -99,11 +99,11 @@ export function BorrowerCard({
           });
         }}
         aria-disabled={isPending}
-        className="box-border block w-full min-w-0 max-w-full cursor-pointer rounded-xl p-4  pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+        className="box-border  block w-full min-w-0 max-w-full cursor-pointer rounded-xl p-4  pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
         aria-label={`Open ${borrower.first_name} ${borrower.last_name}`}
       >
         <div className="flex w-full min-w-0 flex-col">
-          <h2 className="text-xl font-black uppercase text-slate-900">
+          <h2 className="text-xl pr-4 font-black uppercase text-slate-900">
             {borrower.first_name} {borrower.last_name}
           </h2>
           <div className="mt-2 flex flex-wrap gap-2">

@@ -7,7 +7,7 @@ import { computeBorrowerNextCollectionById } from "@/lib/compute-borrower-next-c
 import { supabase } from "@/lib/supabase/client";
 import { formFieldInputClassName } from "@/lib/form-field-classes";
 import {
-  isInstallmentFullyPaid,
+  mapAccountIdToNextDueSchedule,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
 import AddBorrowerModal from "./add-borrower-modal";
@@ -213,30 +213,18 @@ export default function BorrowersList() {
       return;
     }
 
-    const nextSchedulesByAccount = new Map<
-      string,
-      {
-        id: string;
-        due_date: string;
-        amount_due: number | null;
-        amount_paid: number | null;
-        remaining_amount: number | null;
-        status: string;
-      }
-    >();
-    for (const schedule of scheduleData ?? []) {
-      if (isInstallmentFullyPaid(schedule)) continue;
-      if (!nextSchedulesByAccount.has(schedule.account_id)) {
-        nextSchedulesByAccount.set(schedule.account_id, {
-          id: schedule.id,
-          due_date: schedule.due_date,
-          amount_due: schedule.amount_due,
-          amount_paid: schedule.amount_paid,
-          remaining_amount: schedule.remaining_amount,
-          status: schedule.status,
-        });
-      }
-    }
+    type ScheduleRow = {
+      id: string;
+      account_id: string;
+      due_date: string;
+      amount_due: number | null;
+      amount_paid: number | null;
+      remaining_amount: number | null;
+      status: string;
+    };
+    const nextSchedulesByAccount = mapAccountIdToNextDueSchedule(
+      (scheduleData ?? []) as ScheduleRow[]
+    );
 
     const nextSchedules = Array.from(nextSchedulesByAccount.values());
     if (nextSchedules.length === 0) {

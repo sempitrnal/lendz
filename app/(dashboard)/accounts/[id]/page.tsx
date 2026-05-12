@@ -101,7 +101,7 @@ function getScheduleStatusClasses(status: string) {
   if (status === "paid") {
     return {
       badge: "border-emerald-600/80 bg-emerald-50 text-emerald-900",
-      row: "bg-emerald-50",
+      row: "bg-emerald-100",
       dot: "bg-emerald-500",
     };
   }
@@ -385,7 +385,7 @@ export default async function AccountDetailPage({
                   <dt className={nb.label}>Term / frequency</dt>
                   <dd className="mt-0.5 font-semibold leading-snug text-slate-900">
                     {accountRow.term_months ?? 0}{" "}
-                    <span className="font-normal text-slate-500">mo</span>
+                    <span className="font-normal text-slate-500">months</span>
                     <span className="mx-1.5 text-slate-300">·</span>
                     <span className="capitalize">
                       {accountRow.payment_frequency ?? "—"}
@@ -401,12 +401,21 @@ export default async function AccountDetailPage({
           <h2 id="balances-heading" className={`mb-3 ${nb.label}`}>
             Balances
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-4xl">
+          <div
+              className={`${nb.card} border-sky-900/20 bg-linear-to-br from-sky-50/90 to-white p-4`}
+            >
+              <p className={nb.label}>Principal</p>
+              <p className="mt-1.5 text-4xl font-black tabular-nums tracking-tight text-slate-900">
+                {formatMoney(Number(accountRow.principal_amount ?? 0))}
+              </p>
+              <p className="mt-1.5 text-xs text-slate-600">Loan amount</p>
+            </div>
             <div
               className={`${nb.card} border-rose-900/20 bg-linear-to-br from-rose-50/90 to-white p-4`}
             >
               <p className={nb.label}>Remaining</p>
-              <p className="mt-1.5 text-2xl font-black tabular-nums tracking-tight text-slate-900">
+              <p className="mt-1.5 text-4xl font-black tabular-nums tracking-tight text-slate-900">
                 {formatMoney(amountLeft)}
               </p>
               <p className="mt-1.5 text-xs text-slate-600">Still to collect</p>
@@ -415,25 +424,17 @@ export default async function AccountDetailPage({
               className={`${nb.card} border-emerald-900/20 bg-linear-to-br from-emerald-50/90 to-white p-4`}
             >
               <p className={nb.label}>Collected</p>
-              <p className="mt-1.5 text-2xl font-black tabular-nums tracking-tight text-slate-900">
+              <p className="mt-1.5 text-4xl font-black tabular-nums tracking-tight text-slate-900">
                 {formatMoney(amountPaid)}
               </p>
               <p className="mt-1.5 text-xs text-slate-600">Nabayran</p>
             </div>
-            <div
-              className={`${nb.card} border-sky-900/20 bg-linear-to-br from-sky-50/90 to-white p-4`}
-            >
-              <p className={nb.label}>Principal</p>
-              <p className="mt-1.5 text-2xl font-black tabular-nums tracking-tight text-slate-900">
-                {formatMoney(Number(accountRow.principal_amount ?? 0))}
-              </p>
-              <p className="mt-1.5 text-xs text-slate-600">Loan amount</p>
-            </div>
+   
             <div
               className={`${nb.card} border-amber-900/20 bg-linear-to-br from-amber-50/90 to-white p-4`}
             >
               <p className={nb.label}>Projected profit</p>
-              <p className="mt-1.5 text-2xl font-black tabular-nums tracking-tight text-slate-900">
+              <p className="mt-1.5 text-4xl font-black tabular-nums tracking-tight text-slate-900">
                 {formatMoney(Math.max(0, profit))}
               </p>
               <p className="mt-1.5 text-xs text-slate-600">Over principal</p>

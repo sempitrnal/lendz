@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase/client";
 import {
   amountPaidOnInstallment,
   isInstallmentFullyPaid,
+  nextDueScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
 import NotesCanvas from "./notes-canvas";
@@ -333,7 +334,7 @@ export default function BorrowerAccountsSection({
       );
       const principal = Number(account.principal_amount ?? 0);
       const profitToMake = Math.max(0, totalPayment - principal);
-      const nextUnpaid = rows.find((row) => !isInstallmentFullyPaid(row));
+      const nextUnpaid = nextDueScheduleForCollection(rows);
 
       computed[account.id] = {
         amountLeftToPay,

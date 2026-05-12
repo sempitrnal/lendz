@@ -48,7 +48,7 @@ export default function BorrowerDetailView({
                     <div
                       key={e.id}
                       style={{ backgroundColor: e.color }}
-                      className={`rounded px-2 py-1 text-sm font-medium shadow-[4px_4px_0px_#1e1a4d] ${isDarkColor(e.color) ? "text-white" : "text-indigo-950"
+                      className={`rounded-lg border border-slate-900  px-3 py-1 text-xs font-black shadow-[4px_4px_0px_#1e1a4d] ${isDarkColor(e.color) ? "text-white" : "text-indigo-950"
                         }`}
                     >
                       {e.name}

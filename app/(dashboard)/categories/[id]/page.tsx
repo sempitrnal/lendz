@@ -4,6 +4,7 @@ import CategoryBorrowersGrid from "@/components/category/category-borrowers-grid
 import { computeBorrowerNextCollectionById } from "@/lib/compute-borrower-next-collection";
 import {
   isInstallmentFullyPaid,
+  mapAccountIdToNextDueSchedule,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
 import { createSupabaseServer } from "@/lib/supabase/server";
@@ -85,16 +86,20 @@ export default async function CategoryDetailView({
   const borrowersWithAccountsCount = Object.values(borrowerAccountCountById).filter(
     (count) => count > 0
   ).length;
-  const unpaidSchedules = scheduleRows.filter(
-    (schedule) => !isInstallmentFullyPaid(schedule)
-  );
+  const unpaidSchedules = scheduleRows
+    .filter((schedule) => !isInstallmentFullyPaid(schedule))
+    .sort((a, b) => a.due_date.localeCompare(b.due_date));
   const moneyToCollect = unpaidSchedules.reduce(
     (sum, schedule) => sum + remainingOnInstallment(schedule),
     0
   );
-  const nextCollectionDate = unpaidSchedules[0]?.due_date ?? null;
+
+  const nextCollectionCandidates = [
+    ...mapAccountIdToNextDueSchedule(scheduleRows).values(),
+  ].sort((a, b) => a.due_date.localeCompare(b.due_date));
+  const nextCollectionDate = nextCollectionCandidates[0]?.due_date ?? null;
   const nextCollectionTotal = nextCollectionDate
-    ? unpaidSchedules
+    ? nextCollectionCandidates
         .filter((schedule) => schedule.due_date === nextCollectionDate)
         .reduce((sum, schedule) => sum + remainingOnInstallment(schedule), 0)
     : 0;

@@ -12,6 +12,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import {
   amountPaidOnInstallment,
   isInstallmentFullyPaid,
+  nextDueScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
 import NextCollectionPanel from "@/components/dashboard/next-collection-panel";
@@ -109,12 +110,29 @@ export default async function Dashboard() {
     .sort((a, b) => a.id.localeCompare(b.id))
     .slice(0, 8);
 
-  const upcomingSchedules = allSchedules
-    .filter((row) => !isInstallmentFullyPaid(row) && row.due_date >= todayIso)
+  const schedulesByAccount = new Map<string, ScheduleAggRow[]>();
+  for (const row of allSchedules) {
+    const list = schedulesByAccount.get(row.account_id) ?? [];
+    list.push(row);
+    schedulesByAccount.set(row.account_id, list);
+  }
+  for (const list of schedulesByAccount.values()) {
+    list.sort(
+      (a, b) =>
+        a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id)
+    );
+  }
+
+  const nextCollectionCandidates = [...schedulesByAccount.values()]
+    .map((list) => nextDueScheduleForCollection(list))
+    .filter((row): row is ScheduleAggRow => Boolean(row))
     .sort(
       (a, b) =>
         a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id)
     );
+
+  /** Earliest due date among each account’s next pending unpaid installment (else next unpaid). */
+  const nextCollectionDate = nextCollectionCandidates[0]?.due_date ?? null;
 
   const newBorrowerAccountsWeek = (newBorrowerAccountsWeekData ?? []) as Array<{
     borrower_id: string | null;
@@ -156,14 +174,13 @@ export default async function Dashboard() {
     return sum + amountPaidOnInstallment(row);
   }, 0);
   const profitThisMonth = collectedThisMonth - principalReleasedThisMonth;
-  const nextCollectionDate = upcomingSchedules[0]?.due_date ?? null;
   const nextCollectionTotal = nextCollectionDate
-    ? upcomingSchedules
+    ? nextCollectionCandidates
         .filter((row) => row.due_date === nextCollectionDate)
         .reduce((sum, row) => sum + remainingOnInstallment(row), 0)
     : 0;
   const nextCollectionCount = nextCollectionDate
-    ? upcomingSchedules.filter((row) => row.due_date === nextCollectionDate).length
+    ? nextCollectionCandidates.filter((row) => row.due_date === nextCollectionDate).length
     : 0;
   const formattedToday = now.toLocaleDateString(undefined, {
     weekday: "long",
@@ -171,7 +188,7 @@ export default async function Dashboard() {
     day: "numeric",
   });
   const nextCollectionSchedules = nextCollectionDate
-    ? upcomingSchedules.filter((row) => row.due_date === nextCollectionDate)
+    ? nextCollectionCandidates.filter((row) => row.due_date === nextCollectionDate)
     : [];
   const dueAccountIds = [...new Set(dueSchedules.map((row) => row.account_id))];
   const nextCollectionAccountIds = [

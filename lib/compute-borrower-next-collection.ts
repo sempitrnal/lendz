@@ -1,12 +1,12 @@
 import {
-  isInstallmentFullyPaid,
+  nextDueScheduleForCollection,
   remainingOnInstallment,
   type ScheduleBalanceInput,
 } from "@/lib/payment-schedule/schedule-balances";
 
 /**
- * Earliest next unpaid installment per borrower across all of their accounts
- * (same rules as borrowers list enrichment).
+ * Next collection per borrower: per account, earliest pending unpaid installment (else earliest unpaid),
+ * then minimum due date across that borrower’s accounts.
  */
 export type BorrowerNextCollection = {
   next_collection_date: string | null;
@@ -55,7 +55,7 @@ export function computeBorrowerNextCollectionById(
     { due_date: string; remaining: number }
   >();
   for (const [accountId, list] of byAccount) {
-    const u = list.find((row) => !isInstallmentFullyPaid(row));
+    const u = nextDueScheduleForCollection(list);
     if (u) {
       firstUnpaidByAccount.set(accountId, {
         due_date: u.due_date,

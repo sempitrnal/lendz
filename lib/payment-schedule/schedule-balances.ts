@@ -36,3 +36,39 @@ export function remainingOnInstallment(row: ScheduleBalanceInput): number {
 export function isInstallmentFullyPaid(row: ScheduleBalanceInput): boolean {
   return row.status === "paid" || remainingOnInstallment(row) <= 0;
 }
+
+/**
+ * Next installment to collect for an account: earliest unpaid row with status `pending`;
+ * if none (e.g. only partial/overdue), earliest unpaid. Pass rows sorted by due_date.
+ */
+export function nextDueScheduleForCollection<
+  T extends ScheduleBalanceInput & { due_date: string },
+>(schedulesSortedByDueDate: T[]): T | undefined {
+  const unpaid = schedulesSortedByDueDate.filter((r) => !isInstallmentFullyPaid(r));
+  const pending = unpaid.find((r) => r.status === "pending");
+  if (pending) return pending;
+  return unpaid[0];
+}
+
+/** Groups rows by `account_id`, sorts by due_date (optional `id` tiebreak), then picks next due per account. */
+export function mapAccountIdToNextDueSchedule<
+  T extends ScheduleBalanceInput & { account_id: string; due_date: string; id?: string },
+>(rows: T[]): Map<string, T> {
+  const byAccount = new Map<string, T[]>();
+  for (const row of rows) {
+    const list = byAccount.get(row.account_id) ?? [];
+    list.push(row);
+    byAccount.set(row.account_id, list);
+  }
+  const out = new Map<string, T>();
+  for (const [accountId, list] of byAccount) {
+    list.sort((a, b) => {
+      const byDue = a.due_date.localeCompare(b.due_date);
+      if (byDue !== 0) return byDue;
+      return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+    });
+    const next = nextDueScheduleForCollection(list);
+    if (next) out.set(accountId, next);
+  }
+  return out;
+}
