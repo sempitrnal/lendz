@@ -547,15 +547,15 @@ export default async function AccountDetailPage({
                           </p>
                           <p className="mt-0.5 text-xs font-semibold tabular-nums text-slate-600">
                             Paid {formatMoney(amountPaidOnInstallment(schedule))}{" "}
-                            {schedule.amount_due  ==remainingOnInstallment(schedule) ? <span>
+                            {remainingOnInstallment(schedule) != 0 ? schedule.amount_due  ==remainingOnInstallment(schedule) ? <span>
 
-                              · Left{" "}
-                              <span className="">{formatMoney(remainingOnInstallment(schedule))}</span>
-                            </span>  : <span>
+· Left{" "}
+<span className="">{formatMoney(remainingOnInstallment(schedule))}</span>
+</span>  : <span>
 
-                              · Left{" "}
-                              <span className="text-red-400 font-black text-sm">-{formatMoney(remainingOnInstallment(schedule))}</span>
-                            </span> }
+· Left{" "}
+<span className="text-red-400 font-black text-sm">-{formatMoney(remainingOnInstallment(schedule))}</span>
+</span>  : ""}
 
                           </p>
                           {schedule.note ? (
