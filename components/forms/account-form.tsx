@@ -65,13 +65,7 @@ export default function AccountForm({
   });
   const value = watch("principal_amount");
   const onSubmit = async (values: AccountFormValues) => {
-    const totalWithInterest =
-      values.principal_amount *
-      (1 + values.interest_rate / 100);
-
-    const installmentAmount =
-      totalWithInterest / values.term_months;
-
+ 
     // 2. Create account first
     const { data: account, error } = await supabase
       .from("accounts")
@@ -88,10 +82,20 @@ export default function AccountForm({
       account_id: string;
       due_date: string;
       amount_due: number;
+      amount_paid: number;
+      remaining_amount: number;
       status: string;
+      note: null;
     }> = [];
 
     if (values.payment_frequency === "bimonthly") {
+      const totalWithInterest =
+
+      values.principal_amount *
+  
+      (1 + values.interest_rate / 100);
+  
+      const installmentAmount = totalWithInterest / values.term_months;
       const start = parseDateInput(values.first_payment_date);
       const dueDates = generateLegacyBimonthlyDueDates(
         start,
@@ -108,20 +112,39 @@ export default function AccountForm({
           account_id: account.id,
           due_date: formatLocalISODate(d),
           amount_due: pay,
+          amount_paid: 0,
+          remaining_amount: pay,
           status: "pending",
+          note: null,
         });
       }
     } else {
       let currentDate = parseDateInput(values.first_payment_date);
+      const totalInterest =
 
+      values.principal_amount *
+  
+      (values.interest_rate / 100) *
+  
+      values.term_months;
+  
+    const totalPayment =
+  
+      values.principal_amount + totalInterest;
+  
+    const installmentAmount = totalPayment / values.term_months;
       for (let i = 0; i < values.term_months; i++) {
+        const amt = Number(installmentAmount.toFixed(2));
         schedules.push({
           account_id: account.id,
           due_date: formatLocalISODate(currentDate),
-          amount_due: Number(installmentAmount.toFixed(2)),
+          amount_due: amt,
+          amount_paid: 0,
+          remaining_amount: amt,
           status: "pending",
+          note: null,
         });
-
+        
         if (values.payment_frequency === "monthly") {
           currentDate.setMonth(currentDate.getMonth() + 1);
         } else if (values.payment_frequency === "weekly") {

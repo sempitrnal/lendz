@@ -86,7 +86,7 @@ export default function AccountCardMenu({
     <div className="relative shrink-0" ref={rootRef}>
       <DropdownMenu >
         <DropdownMenuTrigger asChild>
-          <BsThreeDotsVertical className="size-4 cursor-pointer absolute right-[-10px]" />
+          <BsThreeDotsVertical className="size-5 cursor-pointer absolute right-[-10px]" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-32">
           {/* <DropdownMenuItem>

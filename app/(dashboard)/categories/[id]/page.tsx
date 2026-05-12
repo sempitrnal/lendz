@@ -1,6 +1,11 @@
 import BackButton from "@/components/back-button";
 import AssignBorrower from "@/components/category/assign-borrower";
 import CategoryBorrowersGrid from "@/components/category/category-borrowers-grid";
+import { computeBorrowerNextCollectionById } from "@/lib/compute-borrower-next-collection";
+import {
+  isInstallmentFullyPaid,
+  remainingOnInstallment,
+} from "@/lib/payment-schedule/schedule-balances";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
 export default async function CategoryDetailView({
@@ -38,6 +43,8 @@ export default async function CategoryDetailView({
     account_id: string;
     due_date: string;
     amount_due: number | null;
+    amount_paid: number | null;
+    remaining_amount: number | null;
     status: string;
   }> = [];
 
@@ -52,13 +59,17 @@ export default async function CategoryDetailView({
     if (accountIds.length > 0) {
       const { data: schedulesData } = await supabase
         .from("payment_schedules")
-        .select("account_id, due_date, amount_due, status")
+        .select(
+          "account_id, due_date, amount_due, amount_paid, remaining_amount, status"
+        )
         .in("account_id", accountIds)
         .order("due_date", { ascending: true });
       scheduleRows = (schedulesData ?? []) as Array<{
         account_id: string;
         due_date: string;
         amount_due: number | null;
+        amount_paid: number | null;
+        remaining_amount: number | null;
         status: string;
       }>;
     }
@@ -74,17 +85,25 @@ export default async function CategoryDetailView({
   const borrowersWithAccountsCount = Object.values(borrowerAccountCountById).filter(
     (count) => count > 0
   ).length;
-  const unpaidSchedules = scheduleRows.filter((schedule) => schedule.status !== "paid");
+  const unpaidSchedules = scheduleRows.filter(
+    (schedule) => !isInstallmentFullyPaid(schedule)
+  );
   const moneyToCollect = unpaidSchedules.reduce(
-    (sum, schedule) => sum + Number(schedule.amount_due ?? 0),
+    (sum, schedule) => sum + remainingOnInstallment(schedule),
     0
   );
   const nextCollectionDate = unpaidSchedules[0]?.due_date ?? null;
   const nextCollectionTotal = nextCollectionDate
     ? unpaidSchedules
         .filter((schedule) => schedule.due_date === nextCollectionDate)
-        .reduce((sum, schedule) => sum + Number(schedule.amount_due ?? 0), 0)
+        .reduce((sum, schedule) => sum + remainingOnInstallment(schedule), 0)
     : 0;
+
+  const borrowerNextCollectionById = computeBorrowerNextCollectionById(
+    borrowerIds,
+    accountRows,
+    scheduleRows
+  );
 
   return (
     <div className="space-y-6">
@@ -150,6 +169,7 @@ export default async function CategoryDetailView({
           <CategoryBorrowersGrid
             borrowers={borrowers}
             borrowerAccountCountById={borrowerAccountCountById}
+            borrowerNextCollectionById={borrowerNextCollectionById}
           />
         )}
       </div>

@@ -40,6 +40,7 @@ export function BorrowerCard({
   const hasAccounts = borrower.has_accounts === true;
   const nextDate = borrower.next_collection_date;
   const nextAmount = borrower.next_collection_amount ?? 0;
+  const nextAmounts = borrower.next_collection_amounts;
   const hasNextUnpaid = Boolean(nextDate);
 
   function openBorrower(e: SyntheticEvent) {
@@ -153,7 +154,11 @@ export function BorrowerCard({
                         Amount
                       </p>
                       <p className="text-sm font-black tabular-nums text-slate-900">
-                        ₱{nextAmount.toLocaleString()}
+                        {nextAmounts && nextAmounts.length > 1
+                          ? nextAmounts
+                              .map((amount) => `₱${amount.toLocaleString()}`)
+                              .join(" + ")
+                          : `₱${nextAmount.toLocaleString()}`}
                       </p>
                     </div>
                   </div>

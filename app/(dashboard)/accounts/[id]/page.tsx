@@ -3,7 +3,13 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import BackButton from "@/components/back-button";
+import PartialPaymentForm from "@/components/partial-payment-form";
 import ScheduleStatusSubmitButton from "@/components/schedule-status-submit-button";
+import {
+  amountPaidOnInstallment,
+  isInstallmentFullyPaid,
+  remainingOnInstallment,
+} from "@/lib/payment-schedule/schedule-balances";
 
 type AccountRow = {
   id: string;
@@ -29,6 +35,9 @@ type PaymentScheduleRow = {
   account_id: string;
   due_date: string;
   amount_due: number | null;
+  amount_paid: number | null;
+  remaining_amount: number | null;
+  note: string | null;
   status: string;
 };
 
@@ -36,7 +45,7 @@ type AccountDetailPageProps = {
   params: Promise<{ id: string }>;
 };
 
-const scheduleStatuses = ["pending", "paid", "overdue"] as const;
+const scheduleStatuses = ["pending", "paid", "overdue", "partial"] as const;
 type ScheduleStatus = (typeof scheduleStatuses)[number];
 
 const nb = {
@@ -94,6 +103,13 @@ function getScheduleStatusClasses(status: string) {
       badge: "border-emerald-600/80 bg-emerald-50 text-emerald-900",
       row: "bg-emerald-50",
       dot: "bg-emerald-500",
+    };
+  }
+  if (status === "partial") {
+    return {
+      badge: "border-violet-600/80 bg-violet-50 text-violet-950",
+      row: "bg-violet-50/60",
+      dot: "bg-violet-500",
     };
   }
   if (status === "overdue") {
@@ -166,11 +182,38 @@ export default async function AccountDetailPage({
     .eq("id", account.borrower_id)
     .single<BorrowerRow>();
 
-  const { data: schedulesData } = await supabase
-    .from("payment_schedules")
-    .select("id, account_id, due_date, amount_due, status")
-    .eq("account_id", account.id)
-    .order("due_date", { ascending: true });
+  let schedulesData: unknown[] | null = null;
+  {
+    const res = await supabase
+      .from("payment_schedules")
+      .select(
+        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, status"
+      )
+      .eq("account_id", account.id)
+      .order("due_date", { ascending: true });
+      console.log(res.data);
+    if (res.error) {
+      const fb1 = await supabase
+        .from("payment_schedules")
+        .select(
+          "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status"
+        )
+        .eq("account_id", account.id)
+        .order("due_date", { ascending: true });
+      if (fb1.error) {
+        const fb2 = await supabase
+          .from("payment_schedules")
+          .select("id, account_id, due_date, amount_due, status")
+          .eq("account_id", account.id)
+          .order("due_date", { ascending: true });
+        schedulesData = (fb2.data ?? []) as unknown[];
+      } else {
+        schedulesData = fb1.data ?? [];
+      }
+    } else {
+      schedulesData = res.data ?? [];
+    }
+  }
 
   const schedules = (schedulesData ?? []) as PaymentScheduleRow[];
   const accountRow = account as AccountRow;
@@ -180,27 +223,31 @@ export default async function AccountDetailPage({
     0
   );
 
-  const amountPaid = schedules
-    .filter((s) => s.status === "paid")
-    .reduce((sum, s) => sum + (s.amount_due ?? 0), 0);
+  const amountPaid = schedules.reduce(
+    (sum, s) => sum + amountPaidOnInstallment(s),
+    0
+  );
 
-  const amountLeft = Math.max(0, totalPayment - amountPaid);
+  const amountLeft = schedules.reduce(
+    (sum, s) => sum + remainingOnInstallment(s),
+    0
+  );
 
   const principal = Number(accountRow.principal_amount ?? 0);
 
   const profit = totalPayment - principal;
-  const paidInstallments = schedules.filter((s) => s.status === "paid").length;
+  const paidInstallments = schedules.filter((s) =>
+    isInstallmentFullyPaid(s)
+  ).length;
   const totalInstallments = schedules.length;
   const progressPct =
     totalInstallments > 0
       ? Math.round((paidInstallments / totalInstallments) * 100)
       : 0;
 
-  const firstPendingIndex = schedules.findIndex((s) => s.status === "pending");
-  const firstUnpaidIndex = schedules.findIndex((s) => s.status !== "paid");
-  /** Prefer next pending installment; if none, fall back to first unpaid (e.g. overdue only). */
-  const nextHighlightIndex =
-    firstPendingIndex !== -1 ? firstPendingIndex : firstUnpaidIndex;
+  const nextHighlightIndex = schedules.findIndex(
+    (s) => !isInstallmentFullyPaid(s)
+  );
   const nextDue =
     nextHighlightIndex >= 0 ? schedules[nextHighlightIndex] : null;
 
@@ -214,13 +261,66 @@ export default async function AccountDetailPage({
     }
 
     const updateSupabase = await createSupabaseServer();
+    const { data: row } = await updateSupabase
+      .from("payment_schedules")
+      .select("id, amount_due")
+      .eq("id", scheduleId)
+      .single();
+
+    if (!row) return;
+
+    const due = Math.max(0, Number(row.amount_due ?? 0));
+    const patch =
+      status === "paid"
+        ? { status, amount_paid: due, remaining_amount: 0 }
+        : { status, amount_paid: 0, remaining_amount: due };
+
     await updateSupabase
       .from("payment_schedules")
-      .update({ status })
-      .eq("id", scheduleId)
-      .select("*");
+      .update(patch)
+      .eq("id", scheduleId);
 
     revalidatePath(`/accounts/${accountRow.id}`);
+  }
+
+  async function applyPartialPayment(formData: FormData) {
+    "use server";
+    const scheduleId = String(formData.get("scheduleId") ?? "");
+    const rawAmt = String(formData.get("paymentAmount") ?? "").trim();
+    const noteRaw = String(formData.get("note") ?? "").trim();
+    const add = Number.parseFloat(rawAmt);
+    if (!scheduleId || !Number.isFinite(add) || add <= 0) {
+      return;
+    }
+
+    const sb = await createSupabaseServer();
+    const { data: row } = await sb
+      .from("payment_schedules")
+      .select("id, account_id, amount_due, amount_paid, status, note")
+      .eq("id", scheduleId)
+      .single();
+
+    if (!row) return;
+
+    const due = Math.max(0, Number(row.amount_due ?? 0));
+    const prevPaid = Math.max(0, Number(row.amount_paid ?? 0));
+    const newPaid = Math.min(due, prevPaid + add);
+    const remaining = Math.max(0, due - newPaid);
+    /** Any successful partial submit marks the row partial until fully paid. */
+    const nextStatus = newPaid >= due ? "paid" : "partial";
+
+    const updatePayload: Record<string, string | number | null> = {
+      amount_paid: newPaid,
+      remaining_amount: remaining,
+      status: nextStatus,
+    };
+    if (noteRaw.length > 0) {
+      updatePayload.note = noteRaw;
+    }
+
+    await sb.from("payment_schedules").update(updatePayload).eq("id", scheduleId);
+
+    revalidatePath(`/accounts/${row.account_id as string}`);
   }
 
   const borrowerName = borrower
@@ -370,8 +470,18 @@ export default async function AccountDetailPage({
                     </span>
                     <span className="text-slate-600"> · </span>
                     <span className="font-black tabular-nums text-slate-900">
-                      {formatMoney(Number(nextDue.amount_due ?? 0))}
+                      {formatMoney(remainingOnInstallment(nextDue))}
                     </span>
+                    {remainingOnInstallment(nextDue) <
+                    Number(nextDue.amount_due ?? 0) ? (
+                      <span className="text-slate-600">
+                        {" "}
+                        left of{" "}
+                        <span className="font-bold tabular-nums">
+                          {formatMoney(Number(nextDue.amount_due ?? 0))}
+                        </span>
+                      </span>
+                    ) : null}
                   </p>
                 ) : totalInstallments > 0 ? (
                   <p className="mt-1.5 text-sm font-bold text-emerald-900">
@@ -433,8 +543,26 @@ export default async function AccountDetailPage({
                             ) : null}
                           </p>
                           <p className="mt-1 text-lg font-black tabular-nums text-slate-900">
-                            {formatMoney(Number(schedule.amount_due ?? 0))}
+                            Due {formatMoney(Number(schedule.amount_due ?? 0))}
                           </p>
+                          <p className="mt-0.5 text-xs font-semibold tabular-nums text-slate-600">
+                            Paid {formatMoney(amountPaidOnInstallment(schedule))}{" "}
+                            {schedule.amount_due  ==remainingOnInstallment(schedule) ? <span>
+
+                              · Left{" "}
+                              <span className="">{formatMoney(remainingOnInstallment(schedule))}</span>
+                            </span>  : <span>
+
+                              · Left{" "}
+                              <span className="text-red-400 font-black text-sm">-{formatMoney(remainingOnInstallment(schedule))}</span>
+                            </span> }
+
+                          </p>
+                          {schedule.note ? (
+                            <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+                              {schedule.note}
+                            </p>
+                          ) : null}
                           <p className="mt-0.5 text-sm font-semibold text-slate-700">
                             {formatScheduleDate(schedule.due_date)}
                           </p>
@@ -445,7 +573,7 @@ export default async function AccountDetailPage({
                           {schedule.status}
                         </span>
                       </div>
-                      <div className="mt-4">
+                      <div className="mt-4 space-y-3">
                         <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-600">
                           Update status
                         </p>
@@ -454,6 +582,17 @@ export default async function AccountDetailPage({
                           currentStatus={schedule.status}
                           updateScheduleStatus={updateScheduleStatus}
                         />
+                        {!isInstallmentFullyPaid(schedule) ? (
+                          <div>
+                            <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-600">
+                              Partial payment
+                            </p>
+                            <PartialPaymentForm
+                              scheduleId={schedule.id}
+                              applyPartialPayment={applyPartialPayment}
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     </li>
                   );
@@ -462,7 +601,7 @@ export default async function AccountDetailPage({
 
               <div className="hidden md:block">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] border-collapse border-t-2 border-slate-900 text-left text-sm">
+                  <table className="w-full min-w-[900px] border-collapse border-t-2 border-slate-900 text-left text-sm">
                     <thead>
                       <tr className="border-b-2 border-slate-900">
                         <th scope="col" className={nb.scheduleTh}>
@@ -475,14 +614,26 @@ export default async function AccountDetailPage({
                           scope="col"
                           className={`${nb.scheduleTh} text-right`}
                         >
-                          Amount
+                          Due
+                        </th>
+                        <th
+                          scope="col"
+                          className={`${nb.scheduleTh} text-right`}
+                        >
+                          Paid
+                        </th>
+                        <th
+                          scope="col"
+                          className={`${nb.scheduleTh} text-right`}
+                        >
+                          Left
                         </th>
                         <th scope="col" className={nb.scheduleTh}>
                           Status
                         </th>
                         <th
                           scope="col"
-                          className={`min-w-[200px] ${nb.scheduleTh}`}
+                          className={`min-w-[280px] ${nb.scheduleTh}`}
                         >
                           Update
                         </th>
@@ -523,6 +674,16 @@ export default async function AccountDetailPage({
                             >
                               {formatMoney(Number(schedule.amount_due ?? 0))}
                             </td>
+                            <td
+                              className={`${nb.scheduleTd} whitespace-nowrap text-right font-bold tabular-nums text-slate-800`}
+                            >
+                              {formatMoney(amountPaidOnInstallment(schedule))}
+                            </td>
+                            <td
+                              className={`${nb.scheduleTd} whitespace-nowrap text-right font-black tabular-nums text-slate-900`}
+                            >
+                              {formatMoney(remainingOnInstallment(schedule))}
+                            </td>
                             <td className={`${nb.scheduleTd} whitespace-nowrap`}>
                               <span
                                 className={`inline-flex rounded-full border-2 px-2.5 py-1 text-xs font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] ${st.badge}`}
@@ -530,12 +691,30 @@ export default async function AccountDetailPage({
                                 {schedule.status}
                               </span>
                             </td>
-                            <td className={nb.scheduleTd}>
-                              <ScheduleStatusForm
-                                scheduleId={schedule.id}
-                                currentStatus={schedule.status}
-                                updateScheduleStatus={updateScheduleStatus}
-                              />
+                            <td className={`${nb.scheduleTd} align-top`}>
+                              <div className="flex flex-col gap-3">
+                                <ScheduleStatusForm
+                                  scheduleId={schedule.id}
+                                  currentStatus={schedule.status}
+                                  updateScheduleStatus={updateScheduleStatus}
+                                />
+                                {!isInstallmentFullyPaid(schedule) ? (
+                                  <div>
+                                    <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600">
+                                      Partial payment
+                                    </p>
+                                    <PartialPaymentForm
+                                      scheduleId={schedule.id}
+                                      applyPartialPayment={applyPartialPayment}
+                                    />
+                                  </div>
+                                ) : null}
+                                {schedule.note ? (
+                                  <p className="text-xs text-slate-500">
+                                    {schedule.note}
+                                  </p>
+                                ) : null}
+                              </div>
                             </td>
                           </tr>
                         );

@@ -3,8 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { computeBorrowerNextCollectionById } from "@/lib/compute-borrower-next-collection";
 import { supabase } from "@/lib/supabase/client";
 import { formFieldInputClassName } from "@/lib/form-field-classes";
+import {
+  isInstallmentFullyPaid,
+  remainingOnInstallment,
+} from "@/lib/payment-schedule/schedule-balances";
 import AddBorrowerModal from "./add-borrower-modal";
 import { BorrowerCard } from "./borrower-card";
 import { BsChevronDown } from "react-icons/bs";
@@ -24,10 +29,13 @@ export type Borrower = {
   }[];
   next_collection_date?: string | null;
   next_collection_amount?: number;
+  next_collection_amounts?: number[];
   has_accounts?: boolean;
 };
 
 export default function BorrowersList() {
+  const PAYMENT_SCHEDULE_PAGE_SIZE = 1000;
+  const ACCOUNT_ID_CHUNK_SIZE = 120;
   const router = useRouter();
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,13 +94,60 @@ export default function BorrowersList() {
       }));
     }
 
-    const { data: scheduleRows, error: scheduleError } = await supabase
-      .from("payment_schedules")
-      .select("id, account_id, due_date, amount_due, status")
-      .in("account_id", allAccountIds);
+    const schedules: Array<{
+      account_id: string;
+      due_date: string;
+      amount_due: number | null;
+      amount_paid: number | null;
+      remaining_amount: number | null;
+      status: string;
+    }> = [];
+    let hasScheduleError = false;
 
-    if (scheduleError) {
-      console.error(scheduleError);
+    for (let c = 0; c < allAccountIds.length; c += ACCOUNT_ID_CHUNK_SIZE) {
+      const accountChunk = allAccountIds.slice(c, c + ACCOUNT_ID_CHUNK_SIZE);
+      let from = 0;
+
+      for (;;) {
+        const { data: pageRows, error: scheduleError } = await supabase
+          .from("payment_schedules")
+          .select(
+            "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status"
+          )
+          .in("account_id", accountChunk)
+          .order("due_date", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, from + PAYMENT_SCHEDULE_PAGE_SIZE - 1);
+
+        if (scheduleError) {
+          console.error(scheduleError);
+          hasScheduleError = true;
+          break;
+        }
+
+        const rowsInPage = (pageRows ?? []) as Array<{
+          account_id: string;
+          due_date: string;
+          amount_due: number | null;
+          amount_paid: number | null;
+          remaining_amount: number | null;
+          status: string;
+        }>;
+        schedules.push(...rowsInPage);
+
+        if (rowsInPage.length < PAYMENT_SCHEDULE_PAGE_SIZE) {
+          break;
+        }
+
+        from += PAYMENT_SCHEDULE_PAGE_SIZE;
+      }
+
+      if (hasScheduleError) {
+        break;
+      }
+    }
+
+    if (hasScheduleError) {
       return rows.map((b) => ({
         ...b,
         has_accounts: (accountIdsByBorrower.get(b.id)?.length ?? 0) > 0,
@@ -101,52 +156,24 @@ export default function BorrowersList() {
       }));
     }
 
-    type Sched = {
-      id: string;
-      account_id: string;
-      due_date: string;
-      amount_due: number | null;
-      status: string;
-    };
-    const byAccount = new Map<string, Sched[]>();
-    for (const s of (scheduleRows ?? []) as Sched[]) {
-      const list = byAccount.get(s.account_id) ?? [];
-      list.push(s);
-      byAccount.set(s.account_id, list);
-    }
-    for (const list of byAccount.values()) {
-      list.sort((a, b) => a.due_date.localeCompare(b.due_date));
-    }
-
-    const firstUnpaidByAccount = new Map<
-      string,
-      { due_date: string; amount_due: number }
-    >();
-    for (const [accountId, list] of byAccount) {
-      const u = list.find((row) => row.status !== "paid");
-      if (u) {
-        firstUnpaidByAccount.set(accountId, {
-          due_date: u.due_date,
-          amount_due: Number(u.amount_due ?? 0),
-        });
-      }
-    }
+    const nextById = computeBorrowerNextCollectionById(
+      borrowerIds,
+      accounts as Array<{ id: string; borrower_id: string }>,
+      schedules
+    );
 
     return rows.map((b) => {
       const accIds = accountIdsByBorrower.get(b.id) ?? [];
-      let best: { due_date: string; amount_due: number } | null = null;
-      for (const accId of accIds) {
-        const nu = firstUnpaidByAccount.get(accId);
-        if (!nu) continue;
-        if (!best || nu.due_date < best.due_date) {
-          best = nu;
-        }
-      }
+      const n = nextById[b.id] ?? {
+        next_collection_date: null,
+        next_collection_amount: 0,
+      };
       return {
         ...b,
         has_accounts: accIds.length > 0,
-        next_collection_date: best?.due_date ?? null,
-        next_collection_amount: best?.amount_due ?? 0,
+        next_collection_date: n.next_collection_date,
+        next_collection_amount: n.next_collection_amount,
+        next_collection_amounts: n.next_collection_amounts,
       };
     });
   }
@@ -173,9 +200,10 @@ export default function BorrowersList() {
 
     const { data: scheduleData, error: scheduleError } = await supabase
       .from("payment_schedules")
-      .select("id, account_id, due_date, amount_due, status")
+      .select(
+        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status"
+      )
       .in("account_id", accountIds)
-      .neq("status", "paid")
       .order("due_date", { ascending: true })
       .order("id", { ascending: true });
 
@@ -187,14 +215,25 @@ export default function BorrowersList() {
 
     const nextSchedulesByAccount = new Map<
       string,
-      { id: string; due_date: string; amount_due: number | null }
+      {
+        id: string;
+        due_date: string;
+        amount_due: number | null;
+        amount_paid: number | null;
+        remaining_amount: number | null;
+        status: string;
+      }
     >();
     for (const schedule of scheduleData ?? []) {
+      if (isInstallmentFullyPaid(schedule)) continue;
       if (!nextSchedulesByAccount.has(schedule.account_id)) {
         nextSchedulesByAccount.set(schedule.account_id, {
           id: schedule.id,
           due_date: schedule.due_date,
           amount_due: schedule.amount_due,
+          amount_paid: schedule.amount_paid,
+          remaining_amount: schedule.remaining_amount,
+          status: schedule.status,
         });
       }
     }
@@ -206,22 +245,27 @@ export default function BorrowersList() {
       return;
     }
 
-    const { error: updateError } = await supabase
-      .from("payment_schedules")
-      .update({ status: "paid" })
-      .in(
-        "id",
-        nextSchedules.map((schedule) => schedule.id)
-      );
-
-    setUpdatingBorrowerId(null);
-    if (updateError) {
-      toast.error(updateError.message);
-      return;
+    for (const schedule of nextSchedules) {
+      const due = Number(schedule.amount_due ?? 0);
+      const { error: oneError } = await supabase
+        .from("payment_schedules")
+        .update({
+          status: "paid",
+          amount_paid: due,
+          remaining_amount: 0,
+        })
+        .eq("id", schedule.id);
+      if (oneError) {
+        setUpdatingBorrowerId(null);
+        toast.error(oneError.message);
+        return;
+      }
     }
 
+    setUpdatingBorrowerId(null);
+
     const totalUpdatedAmount = nextSchedules.reduce(
-      (sum, schedule) => sum + Number(schedule.amount_due ?? 0),
+      (sum, schedule) => sum + remainingOnInstallment(schedule),
       0
     );
     toast.success(

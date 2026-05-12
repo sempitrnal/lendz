@@ -10,6 +10,11 @@ import AccountCardMenu from "@/components/borrower/account-card-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { BorrowerSummary } from "./borrower-detail-view";
 import { supabase } from "@/lib/supabase/client";
+import {
+  amountPaidOnInstallment,
+  isInstallmentFullyPaid,
+  remainingOnInstallment,
+} from "@/lib/payment-schedule/schedule-balances";
 import NotesCanvas from "./notes-canvas";
 import NeobrutButton from "../neobrut-button";
 export type AccountRow = {
@@ -24,6 +29,8 @@ type PaymentScheduleLite = {
   account_id: string;
   due_date: string;
   amount_due: number | null;
+  amount_paid: number | null;
+  remaining_amount: number | null;
   status: string;
 };
 
@@ -92,7 +99,7 @@ function AccountCard({
           onOpen(account.id);
         }}
         aria-disabled={isOpening}
-        className="min-w-0 flex-1 cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+        className="min-w-0 flex-1 pr-2 cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
         aria-label={`Open account for ${account.type.replace("_", " ")}`}
         aria-busy={isOpening}
       >
@@ -252,9 +259,24 @@ export default function BorrowerAccountsSection({
     scheduleId: string
   ) => {
     setMarkingNextPaidScheduleId(scheduleId);
+    const { data: row, error: fetchError } = await supabase
+      .from("payment_schedules")
+      .select("amount_due")
+      .eq("id", scheduleId)
+      .single();
+    if (fetchError || !row) {
+      setMarkingNextPaidScheduleId(null);
+      toast.error(fetchError?.message ?? "Could not load schedule.");
+      return;
+    }
+    const due = Number(row.amount_due ?? 0);
     const { error } = await supabase
       .from("payment_schedules")
-      .update({ status: "paid" })
+      .update({
+        status: "paid",
+        amount_paid: due,
+        remaining_amount: 0,
+      })
       .eq("id", scheduleId);
     setMarkingNextPaidScheduleId(null);
     if (error) {
@@ -275,7 +297,9 @@ export default function BorrowerAccountsSection({
     const accountIds = accounts.map((account) => account.id);
     const { data: schedulesData, error } = await supabase
       .from("payment_schedules")
-      .select("id, account_id, due_date, amount_due, status")
+      .select(
+        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status"
+      )
       .in("account_id", accountIds)
       .order("due_date", { ascending: true });
 
@@ -299,19 +323,25 @@ export default function BorrowerAccountsSection({
         (sum, row) => sum + Number(row.amount_due ?? 0),
         0
       );
-      const amountPaid = rows
-        .filter((row) => row.status === "paid")
-        .reduce((sum, row) => sum + Number(row.amount_due ?? 0), 0);
-      const amountLeftToPay = Math.max(0, totalPayment - amountPaid);
+      const amountPaid = rows.reduce(
+        (sum, row) => sum + amountPaidOnInstallment(row),
+        0
+      );
+      const amountLeftToPay = rows.reduce(
+        (sum, row) => sum + remainingOnInstallment(row),
+        0
+      );
       const principal = Number(account.principal_amount ?? 0);
       const profitToMake = Math.max(0, totalPayment - principal);
-      const nextUnpaid = rows.find((row) => row.status !== "paid");
+      const nextUnpaid = rows.find((row) => !isInstallmentFullyPaid(row));
 
       computed[account.id] = {
         amountLeftToPay,
         profitToMake,
         nextCollectionDate: nextUnpaid?.due_date ?? null,
-        nextCollectionAmount: Number(nextUnpaid?.amount_due ?? 0),
+        nextCollectionAmount: nextUnpaid
+          ? remainingOnInstallment(nextUnpaid)
+          : 0,
         nextUnpaidScheduleId: nextUnpaid?.id ?? null,
       };
     });
@@ -322,7 +352,7 @@ export default function BorrowerAccountsSection({
   useEffect(() => {
     fetchNotes();
     fetchAccountMetrics();
-  }, [borrowerId]);
+  }, [borrowerId, accounts]);
 
   useEffect(() => {
     window.scrollTo(0, 0);

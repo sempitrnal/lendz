@@ -43,8 +43,8 @@ export default function SiteHeader({
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur">
       <nav className="relative mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
         <div className="flex items-center gap-5">
-          <Link href="/" className="text-lg font-semibold tracking-tight">
-            Utangz
+          <Link href="/" className="text-lg font-black tracking-tight">
+            *utangz
           </Link>
           <div className="hidden items-center gap-5 text-sm font-medium text-stone-900 sm:flex">
             <Link
@@ -58,6 +58,12 @@ export default function SiteHeader({
               className="transition-colors hover:text-stone-700"
             >
               borrowers
+            </Link>
+            <Link
+              href="/accounts"
+              className="transition-colors hover:text-stone-700"
+            >
+              accounts
             </Link>
             <Link
               href="/categories"
@@ -98,6 +104,10 @@ export default function SiteHeader({
 
             <DropdownMenuItem asChild className="text-xl">
               <Link href="/borrowers">borrowers</Link>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem asChild className="text-xl">
+              <Link href="/accounts">accounts</Link>
             </DropdownMenuItem>
 
             <DropdownMenuItem asChild className="text-xl">

@@ -1,0 +1,97 @@
+import {
+  isInstallmentFullyPaid,
+  remainingOnInstallment,
+  type ScheduleBalanceInput,
+} from "@/lib/payment-schedule/schedule-balances";
+
+/**
+ * Earliest next unpaid installment per borrower across all of their accounts
+ * (same rules as borrowers list enrichment).
+ */
+export type BorrowerNextCollection = {
+  next_collection_date: string | null;
+  next_collection_amount: number;
+  next_collection_amounts?: number[];
+};
+
+type AccountRow = { id: string; borrower_id: string };
+type ScheduleRow = ScheduleBalanceInput & {
+  account_id: string;
+  due_date: string;
+};
+
+export function computeBorrowerNextCollectionById(
+  borrowerIds: string[],
+  accountRows: AccountRow[],
+  scheduleRows: ScheduleRow[]
+): Record<string, BorrowerNextCollection> {
+  const out: Record<string, BorrowerNextCollection> = {};
+  for (const id of borrowerIds) {
+    out[id] = { next_collection_date: null, next_collection_amount: 0 };
+  }
+  if (borrowerIds.length === 0 || accountRows.length === 0) {
+    return out;
+  }
+
+  const accountIdsByBorrower = new Map<string, string[]>();
+  for (const row of accountRows) {
+    const list = accountIdsByBorrower.get(row.borrower_id) ?? [];
+    list.push(row.id);
+    accountIdsByBorrower.set(row.borrower_id, list);
+  }
+
+  const byAccount = new Map<string, ScheduleRow[]>();
+  for (const s of scheduleRows) {
+    const list = byAccount.get(s.account_id) ?? [];
+    list.push(s);
+    byAccount.set(s.account_id, list);
+  }
+  for (const list of byAccount.values()) {
+    list.sort((a, b) => a.due_date.localeCompare(b.due_date));
+  }
+
+  const firstUnpaidByAccount = new Map<
+    string,
+    { due_date: string; remaining: number }
+  >();
+  for (const [accountId, list] of byAccount) {
+    const u = list.find((row) => !isInstallmentFullyPaid(row));
+    if (u) {
+      firstUnpaidByAccount.set(accountId, {
+        due_date: u.due_date,
+        remaining: remainingOnInstallment(u),
+      });
+    }
+  }
+
+  for (const bid of borrowerIds) {
+    const accIds = accountIdsByBorrower.get(bid) ?? [];
+    let bestDate: string | null = null;
+    for (const accId of accIds) {
+      const nu = firstUnpaidByAccount.get(accId);
+      if (!nu) continue;
+      if (!bestDate || nu.due_date < bestDate) {
+        bestDate = nu.due_date;
+      }
+    }
+
+    const amounts: number[] = [];
+    if (bestDate) {
+      for (const accId of accIds) {
+        const nu = firstUnpaidByAccount.get(accId);
+        if (!nu) continue;
+        if (nu.due_date === bestDate) {
+          amounts.push(nu.remaining);
+        }
+      }
+    }
+
+    out[bid] = {
+      next_collection_date: bestDate,
+      // Keep aggregate for totals/sorting, but also expose per-account breakdown.
+      next_collection_amount: amounts.reduce((sum, value) => sum + value, 0),
+      next_collection_amounts: amounts.length > 1 ? amounts : undefined,
+    };
+  }
+  return out;
+}

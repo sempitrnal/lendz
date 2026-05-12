@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { BorrowerCard } from "@/components/borrower/borrower-card";
 import type { Borrower } from "@/components/borrower/borrower-list";
+import type { BorrowerNextCollection } from "@/lib/compute-borrower-next-collection";
 import { supabase } from "@/lib/supabase/client";
+import {
+  isInstallmentFullyPaid,
+  remainingOnInstallment,
+} from "@/lib/payment-schedule/schedule-balances";
 
 type CategoryBorrower = Pick<
   Borrower,
@@ -17,11 +22,13 @@ type CategoryBorrower = Pick<
 type CategoryBorrowersGridProps = {
   borrowers: CategoryBorrower[];
   borrowerAccountCountById: Record<string, number>;
+  borrowerNextCollectionById: Record<string, BorrowerNextCollection>;
 };
 
 export default function CategoryBorrowersGrid({
   borrowers,
   borrowerAccountCountById,
+  borrowerNextCollectionById,
 }: CategoryBorrowersGridProps) {
   const router = useRouter();
   const [updatingBorrowerId, setUpdatingBorrowerId] = useState<string | null>(
@@ -50,9 +57,10 @@ export default function CategoryBorrowersGrid({
 
     const { data: scheduleData, error: scheduleError } = await supabase
       .from("payment_schedules")
-      .select("id, account_id, due_date, amount_due, status")
+      .select(
+        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status"
+      )
       .in("account_id", accountIds)
-      .neq("status", "paid")
       .order("due_date", { ascending: true })
       .order("id", { ascending: true });
 
@@ -64,14 +72,25 @@ export default function CategoryBorrowersGrid({
 
     const nextSchedulesByAccount = new Map<
       string,
-      { id: string; due_date: string; amount_due: number | null }
+      {
+        id: string;
+        due_date: string;
+        amount_due: number | null;
+        amount_paid: number | null;
+        remaining_amount: number | null;
+        status: string;
+      }
     >();
     for (const schedule of scheduleData ?? []) {
+      if (isInstallmentFullyPaid(schedule)) continue;
       if (!nextSchedulesByAccount.has(schedule.account_id)) {
         nextSchedulesByAccount.set(schedule.account_id, {
           id: schedule.id,
           due_date: schedule.due_date,
           amount_due: schedule.amount_due,
+          amount_paid: schedule.amount_paid,
+          remaining_amount: schedule.remaining_amount,
+          status: schedule.status,
         });
       }
     }
@@ -83,22 +102,27 @@ export default function CategoryBorrowersGrid({
       return;
     }
 
-    const { error: updateError } = await supabase
-      .from("payment_schedules")
-      .update({ status: "paid" })
-      .in(
-        "id",
-        nextSchedules.map((schedule) => schedule.id)
-      );
-
-    setUpdatingBorrowerId(null);
-    if (updateError) {
-      toast.error(updateError.message);
-      return;
+    for (const schedule of nextSchedules) {
+      const due = Number(schedule.amount_due ?? 0);
+      const { error: oneError } = await supabase
+        .from("payment_schedules")
+        .update({
+          status: "paid",
+          amount_paid: due,
+          remaining_amount: 0,
+        })
+        .eq("id", schedule.id);
+      if (oneError) {
+        setUpdatingBorrowerId(null);
+        toast.error(oneError.message);
+        return;
+      }
     }
 
+    setUpdatingBorrowerId(null);
+
     const totalUpdatedAmount = nextSchedules.reduce(
-      (sum, schedule) => sum + Number(schedule.amount_due ?? 0),
+      (sum, schedule) => sum + remainingOnInstallment(schedule),
       0
     );
     toast.success(
@@ -108,29 +132,37 @@ export default function CategoryBorrowersGrid({
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {borrowers.map((borrower) => (
-        <BorrowerCard
-          key={borrower.id}
-          borrower={
-            {
-              ...borrower,
-              borrower_categories: borrower.borrower_categories ?? [],
-            } as Borrower
-          }
-          quickAction={
-            (borrowerAccountCountById[borrower.id] ?? 0) > 0
-              ? {
-                  label: "Mark next paid",
-                  onClick: () => {
+    <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 *:min-w-0">
+      {borrowers.map((borrower) => {
+        const nextMeta = borrowerNextCollectionById[borrower.id] ?? {
+          next_collection_date: null,
+          next_collection_amount: 0,
+        };
+        const hasAccounts = (borrowerAccountCountById[borrower.id] ?? 0) > 0;
+        return (
+          <BorrowerCard
+            key={borrower.id}
+            borrower={
+              {
+                ...borrower,
+                borrower_categories: borrower.borrower_categories ?? [],
+                has_accounts: hasAccounts,
+                next_collection_date: nextMeta.next_collection_date,
+                next_collection_amount: nextMeta.next_collection_amount,
+              } as Borrower
+            }
+            showScheduleSummary
+            isMarkingNextPaid={updatingBorrowerId === borrower.id}
+            onMarkNextPaid={
+              hasAccounts
+                ? () => {
                     void markNextPaymentPaid(borrower);
-                  },
-                  isLoading: updatingBorrowerId === borrower.id,
-                }
-              : undefined
-          }
-        />
-      ))}
+                  }
+                : undefined
+            }
+          />
+        );
+      })}
     </div>
   );
 }
