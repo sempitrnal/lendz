@@ -550,7 +550,7 @@ export default async function AccountDetailPage({
             </div>
           </div>
 
-          <AddSchedulesPanel accountId={account.id} addSchedules={addSchedules} />
+          {isManual ? <AddSchedulesPanel accountId={account.id} addSchedules={addSchedules} /> : null}
 
           {schedules.length === 0 ? (
             <div className="border-t-2 border-dashed border-slate-300 bg-slate-50/80 px-5 py-12 text-center">
