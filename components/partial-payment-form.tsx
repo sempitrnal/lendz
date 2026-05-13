@@ -28,7 +28,7 @@ export default function PartialPaymentForm({
   return (
     <form
       action={applyPartialPayment}
-      className="flex w-max flex-row flex-wrap items-end gap-2"
+      className="flex w-full flex-col gap-2 sm:w-max sm:flex-row sm:flex-wrap sm:items-end"
     >
       <input type="hidden" name="scheduleId" value={scheduleId} />
       <div className="flex flex-col gap-1">
@@ -48,7 +48,7 @@ export default function PartialPaymentForm({
           placeholder="0"
           required
           autoFocus={autoFocus}
-          className="w-28 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold tabular-nums text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+          className="w-full sm:w-28 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold tabular-nums text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
         />
       </div>
       <div className="flex flex-col gap-1">
@@ -64,7 +64,7 @@ export default function PartialPaymentForm({
           type="text"
           maxLength={500}
           placeholder="—"
-          className="w-32 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+          className="w-full sm:w-32 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
         />
       </div>
       <PartialSubmitButton />

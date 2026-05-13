@@ -149,7 +149,7 @@ function ScheduleStatusForm({
   return (
     <form
       action={updateScheduleStatus}
-      className="inline-flex w-max overflow-hidden mt-5 rounded-lg border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
+      className="inline-flex w-max overflow-hidden rounded-lg border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
     >
       <input type="hidden" name="scheduleId" value={scheduleId} />
       {scheduleStatuses.map((status, i) => {
@@ -588,7 +588,7 @@ export default async function AccountDetailPage({
                               </span>
                             ) : null}
                           </p>
-                          <p className={`mt-1  flex items-center text-5xl font-black tabular-nums tracking-tight text-slate-900 ${st.text}`}>
+                          <p className={`mt-1  flex items-center text-3xl md:text-5xl font-black tabular-nums tracking-tight text-slate-900 `}>
                             {formatMoney(Number(schedule.amount_due ?? 0))}
                             {schedule.status === "paid" ? <PaidCheck /> : null}
                             {schedule.status === "overdue" ? <OverdueSad /> : null}
@@ -625,11 +625,13 @@ export default async function AccountDetailPage({
                         <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-600">
                           Update status
                         </p>
-                        <ScheduleStatusForm
-                          scheduleId={schedule.id}
-                          currentStatus={schedule.status}
-                          updateScheduleStatus={updateScheduleStatus}
-                        />
+                        <div className="overflow-x-auto pb-1">
+                          <ScheduleStatusForm
+                            scheduleId={schedule.id}
+                            currentStatus={schedule.status}
+                            updateScheduleStatus={updateScheduleStatus}
+                          />
+                        </div>
                         {schedule.status === "partial" ? (
                           <div>
                             <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-600">

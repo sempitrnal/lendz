@@ -24,7 +24,7 @@ export default function ScheduleStatusSubmitButton({
       disabled={isDisabled}
       aria-busy={pending}
       aria-pressed={isActive}
-      className={`min-h-9 min-w-17 px-2.5 py-1.5 text-xs font-semibold capitalize tracking-wide transition ${isActive
+      className={`min-h-9 min-w-14 px-1.5 py-1.5 text-xs font-semibold capitalize tracking-wide transition sm:min-w-17 sm:px-2.5 ${isActive
           ? "bg-slate-900 text-white"
           : "bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
         } ${isDisabled ? "cursor-not-allowed opacity-80" : "cursor-pointer"} ${className ?? ""}`}
