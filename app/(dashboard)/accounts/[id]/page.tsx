@@ -385,7 +385,7 @@ export default async function AccountDetailPage({
                   <dt className={nb.label}>Term / frequency</dt>
                   <dd className="mt-0.5 font-semibold leading-snug text-slate-900">
                     {accountRow.term_months ?? 0}{" "}
-                    <span className="font-normal text-slate-500">months</span>
+                    <span className="font-normal text-slate-500">{accountRow.payment_frequency === "custom" ? accountRow.term_months === 1 ? "give" : "gives" : accountRow.term_months === 1 ? "month" : "months"}</span>
                     <span className="mx-1.5 text-slate-300">·</span>
                     <span className="capitalize">
                       {accountRow.payment_frequency ?? "—"}

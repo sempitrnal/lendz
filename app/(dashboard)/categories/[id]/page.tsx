@@ -39,7 +39,7 @@ export default async function CategoryDetailView({
   const borrowers = assigned?.map((row: any) => row.borrower).filter(Boolean) ?? [];
   const borrowerIds = borrowers.map((b: any) => b.id);
 
-  let accountRows: Array<{ id: string; borrower_id: string }> = [];
+  let accountRows: Array<{ id: string; borrower_id: string; principal_amount: number | null }> = [];
   let scheduleRows: Array<{
     account_id: string;
     due_date: string;
@@ -52,9 +52,9 @@ export default async function CategoryDetailView({
   if (borrowerIds.length > 0) {
     const { data: accountsData } = await supabase
       .from("accounts")
-      .select("id, borrower_id")
+      .select("id, borrower_id, principal_amount")
       .in("borrower_id", borrowerIds);
-    accountRows = (accountsData ?? []) as Array<{ id: string; borrower_id: string }>;
+    accountRows = (accountsData ?? []) as Array<{ id: string; borrower_id: string; principal_amount: number | null }>;
 
     const accountIds = accountRows.map((account) => account.id);
     if (accountIds.length > 0) {
@@ -89,8 +89,26 @@ export default async function CategoryDetailView({
   const unpaidSchedules = scheduleRows
     .filter((schedule) => !isInstallmentFullyPaid(schedule))
     .sort((a, b) => a.due_date.localeCompare(b.due_date));
-  const moneyToCollect = unpaidSchedules.reduce(
-    (sum, schedule) => sum + remainingOnInstallment(schedule),
+  const principalByAccountId = new Map(
+    accountRows.map((a) => [a.id, Number(a.principal_amount ?? 0)])
+  );
+  const paidByAccount = new Map<string, number>();
+  for (const s of scheduleRows) {
+    const prev = paidByAccount.get(s.account_id) ?? 0;
+    const paid = Math.min(
+      Math.max(0, Number(s.amount_due ?? 0)),
+      s.status === "paid"
+        ? Math.max(0, Number(s.amount_due ?? 0))
+        : Math.max(0, Number(s.amount_paid ?? 0))
+    );
+    paidByAccount.set(s.account_id, prev + paid);
+  }
+  const moneyToCollect = [...new Set(unpaidSchedules.map((s) => s.account_id))].reduce(
+    (sum, accountId) => {
+      const principal = principalByAccountId.get(accountId) ?? 0;
+      const paid = paidByAccount.get(accountId) ?? 0;
+      return sum + Math.max(0, principal - paid);
+    },
     0
   );
 
@@ -103,6 +121,15 @@ export default async function CategoryDetailView({
         .filter((schedule) => schedule.due_date === nextCollectionDate)
         .reduce((sum, schedule) => sum + remainingOnInstallment(schedule), 0)
     : 0;
+
+  const overdueSchedules = scheduleRows.filter(
+    (s) => s.status === "overdue" && !isInstallmentFullyPaid(s)
+  );
+  const overdueCount = overdueSchedules.length;
+  const overdueTotal = overdueSchedules.reduce(
+    (sum, s) => sum + remainingOnInstallment(s),
+    0
+  );
 
   const borrowerNextCollectionById = computeBorrowerNextCollectionById(
     borrowerIds,
@@ -163,6 +190,20 @@ export default async function CategoryDetailView({
             PHP {nextCollectionTotal.toLocaleString()}
           </p>
         </article>
+
+        {overdueCount > 0 ? (
+          <article className="rounded-xl border-2 border-red-900 bg-linear-to-br from-red-50 via-white to-rose-100 p-4 shadow-[4px_4px_0px_0px_#0f172a]">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
+              overdue
+            </p>
+            <p className="mt-1 text-2xl font-black text-red-700">
+              {overdueCount} due date{overdueCount === 1 ? "" : "s"}
+            </p>
+            <p className="mt-1 text-xs font-semibold text-slate-600">
+              PHP {overdueTotal.toLocaleString()}
+            </p>
+          </article>
+        ) : null}
       </section>
 
       <div>

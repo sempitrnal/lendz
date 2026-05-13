@@ -30,7 +30,10 @@ export type Borrower = {
   next_collection_date?: string | null;
   next_collection_amount?: number;
   next_collection_amounts?: number[];
+  next_collection_status?: string | null;
   has_accounts?: boolean;
+  overdue_total?: number;
+  overdue_count?: number;
 };
 
 type BorrowersListProps = {
@@ -99,89 +102,6 @@ export default function BorrowersList({
     router.refresh();
   }
 
-  const markNextPaymentPaid = async (borrower: Borrower) => {
-    setUpdatingBorrowerId(borrower.id);
-
-    const { data: accountRows, error: accountsError } = await supabase
-      .from("accounts")
-      .select("id")
-      .eq("borrower_id", borrower.id);
-    const accountIds = (accountRows ?? []).map((row) => row.id);
-
-    if (accountsError) {
-      setUpdatingBorrowerId(null);
-      toast.error(accountsError.message);
-      return;
-    }
-    if (accountIds.length === 0) {
-      setUpdatingBorrowerId(null);
-      toast.info("No accounts found for this borrower.");
-      return;
-    }
-
-    const { data: scheduleData, error: scheduleError } = await supabase
-      .from("payment_schedules")
-      .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status"
-      )
-      .in("account_id", accountIds)
-      .order("due_date", { ascending: true })
-      .order("id", { ascending: true });
-
-    if (scheduleError) {
-      setUpdatingBorrowerId(null);
-      toast.error(scheduleError.message);
-      return;
-    }
-
-    type ScheduleRow = {
-      id: string;
-      account_id: string;
-      due_date: string;
-      amount_due: number | null;
-      amount_paid: number | null;
-      remaining_amount: number | null;
-      status: string;
-    };
-    const nextSchedulesByAccount = mapAccountIdToNextDueSchedule(
-      (scheduleData ?? []) as ScheduleRow[]
-    );
-
-    const nextSchedules = Array.from(nextSchedulesByAccount.values());
-    if (nextSchedules.length === 0) {
-      setUpdatingBorrowerId(null);
-      toast.info("No unpaid schedules found.");
-      return;
-    }
-
-    for (const schedule of nextSchedules) {
-      const due = Number(schedule.amount_due ?? 0);
-      const { error: oneError } = await supabase
-        .from("payment_schedules")
-        .update({
-          status: "paid",
-          amount_paid: due,
-          remaining_amount: 0,
-        })
-        .eq("id", schedule.id);
-      if (oneError) {
-        setUpdatingBorrowerId(null);
-        toast.error(oneError.message);
-        return;
-      }
-    }
-
-    setUpdatingBorrowerId(null);
-
-    const totalUpdatedAmount = nextSchedules.reduce(
-      (sum, schedule) => sum + remainingOnInstallment(schedule),
-      0
-    );
-    toast.success(
-      `Marked ${nextSchedules.length} next schedule${nextSchedules.length === 1 ? "" : "s"} as paid across ${nextSchedulesByAccount.size} account${nextSchedulesByAccount.size === 1 ? "" : "s"} (PHP ${totalUpdatedAmount.toLocaleString()}) for ${borrower.first_name} ${borrower.last_name}.`
-    );
-    router.refresh();
-  };
 
   const navigateCategories = useCallback(
     (newCategoryIds: string[]) => {
@@ -291,8 +211,8 @@ export default function BorrowersList({
                         navigateCategories(next);
                       }}
                       className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition ${isSelected
-                          ? "border-2 border-slate-900 bg-slate-900 text-white shadow-[1px_1px_0px_0px_rgb(15_23_42/0.5)]"
-                          : "border border-slate-900/15 bg-slate-50/60 text-slate-800 shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] hover:border-slate-900/35 hover:bg-white"
+                        ? "border-2 border-slate-900 bg-slate-900 text-white shadow-[1px_1px_0px_0px_rgb(15_23_42/0.5)]"
+                        : "border border-slate-900/15 bg-slate-50/60 text-slate-800 shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] hover:border-slate-900/35 hover:bg-white"
                         }`}
                     >
                       <div className="flex min-w-0 items-center gap-2.5">
@@ -349,10 +269,7 @@ export default function BorrowersList({
               borrower={borrower}
               showScheduleSummary
               onBorrowerUpdated={refreshPage}
-              isMarkingNextPaid={updatingBorrowerId === borrower.id}
-              onMarkNextPaid={() => {
-                void markNextPaymentPaid(borrower);
-              }}
+
             />
           ))}
         </div>

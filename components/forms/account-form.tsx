@@ -87,12 +87,21 @@ function buildSchedulesPayload(
   } else {
     let currentDate = parseDateInput(values.first_payment_date);
     const monthlyAnchorDay = currentDate.getDate();
-    const totalInterest =
-      values.principal_amount * (values.interest_rate / 100) * values.term_months;
-    const totalPayment = values.principal_amount + totalInterest;
-    const installmentAmount = totalPayment / values.term_months;
 
-    for (let i = 0; i < values.term_months; i++) {
+    const isCustom = values.payment_frequency === "custom";
+    const numberOfSchedules = isCustom
+      ? Math.round(values.term_months)
+      : values.payment_frequency === "weekly"
+        ? Math.round(values.term_months * 4)
+        : Math.round(values.term_months);
+
+    const totalInterest = isCustom
+      ? values.principal_amount * (values.interest_rate / 100)
+      : values.principal_amount * (values.interest_rate / 100) * values.term_months;
+    const totalPayment = values.principal_amount + totalInterest;
+    const installmentAmount = totalPayment / numberOfSchedules;
+
+    for (let i = 0; i < numberOfSchedules; i++) {
       const amt = Number(installmentAmount.toFixed(2));
       schedules.push({
         account_id: accountId,
@@ -108,6 +117,16 @@ function buildSchedulesPayload(
         currentDate = addOneMonthAnchored(currentDate, monthlyAnchorDay);
       } else if (values.payment_frequency === "weekly") {
         currentDate.setDate(currentDate.getDate() + 7);
+      } else if (values.payment_frequency === "custom") {
+        const curDay = currentDate.getDate();
+        const curMonth = currentDate.getMonth();
+        const curYear = currentDate.getFullYear();
+        if (curDay <= 15) {
+          currentDate = new Date(curYear, curMonth, curDay + 15);
+        } else {
+          const nextMonth = curMonth + 1;
+          currentDate = new Date(curYear, nextMonth, monthlyAnchorDay);
+        }
       } else {
         currentDate = addOneMonthAnchored(currentDate, monthlyAnchorDay);
       }
@@ -202,6 +221,8 @@ export default function AccountForm({
   });
 
   const value = watch("principal_amount");
+  const frequency = watch("payment_frequency");
+  const isCustom = frequency === "custom";
   const onSubmit = async (values: AccountFormValues) => {
     const schedulesPayload = (id: string) => buildSchedulesPayload(id, values);
 
@@ -364,26 +385,6 @@ export default function AccountForm({
         ) : null}
       </div>
 
-      <div>
-        <label className={formFieldLabelClassName} htmlFor="term_months">
-          Term (months)
-        </label>
-        <input
-          id="term_months"
-          type="number"
-          inputMode="numeric"
-          step={1}
-          min={1}
-          {...register("term_months", { valueAsNumber: true })}
-          className={formFieldInputClassName}
-        />
-        {errors.term_months?.message ? (
-          <p className={formFieldErrorClassName}>
-            {errors.term_months.message}
-          </p>
-        ) : null}
-      </div>
-
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="min-w-0">
           <label
@@ -452,6 +453,26 @@ export default function AccountForm({
         {errors.payment_frequency?.message ? (
           <p className={formFieldErrorClassName}>
             {errors.payment_frequency.message}
+          </p>
+        ) : null}
+      </div>
+
+      <div>
+        <label className={formFieldLabelClassName} htmlFor="term_months">
+          {isCustom ? "Term installments (gives)" : "Term (months)"}
+        </label>
+        <input
+          id="term_months"
+          type="number"
+          inputMode={isCustom ? "numeric" : "decimal"}
+          step={isCustom ? 1 : 0.5}
+          min={isCustom ? 1 : 0.5}
+          {...register("term_months", { valueAsNumber: true })}
+          className={formFieldInputClassName}
+        />
+        {errors.term_months?.message ? (
+          <p className={formFieldErrorClassName}>
+            {errors.term_months.message}
           </p>
         ) : null}
       </div>

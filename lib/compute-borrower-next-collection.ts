@@ -1,4 +1,5 @@
 import {
+  isInstallmentFullyPaid,
   nextDueScheduleForCollection,
   remainingOnInstallment,
   type ScheduleBalanceInput,
@@ -12,6 +13,9 @@ export type BorrowerNextCollection = {
   next_collection_date: string | null;
   next_collection_amount: number;
   next_collection_amounts?: number[];
+  next_collection_status: string | null;
+  overdue_count: number;
+  overdue_total: number;
 };
 
 type AccountRow = { id: string; borrower_id: string };
@@ -27,7 +31,7 @@ export function computeBorrowerNextCollectionById(
 ): Record<string, BorrowerNextCollection> {
   const out: Record<string, BorrowerNextCollection> = {};
   for (const id of borrowerIds) {
-    out[id] = { next_collection_date: null, next_collection_amount: 0 };
+    out[id] = { next_collection_date: null, next_collection_amount: 0, next_collection_status: null, overdue_count: 0, overdue_total: 0 };
   }
   if (borrowerIds.length === 0 || accountRows.length === 0) {
     return out;
@@ -52,7 +56,7 @@ export function computeBorrowerNextCollectionById(
 
   const firstUnpaidByAccount = new Map<
     string,
-    { due_date: string; remaining: number }
+    { due_date: string; remaining: number; status: string }
   >();
   for (const [accountId, list] of byAccount) {
     const u = nextDueScheduleForCollection(list);
@@ -60,6 +64,7 @@ export function computeBorrowerNextCollectionById(
       firstUnpaidByAccount.set(accountId, {
         due_date: u.due_date,
         remaining: remainingOnInstallment(u),
+        status: u.status,
       });
     }
   }
@@ -76,12 +81,26 @@ export function computeBorrowerNextCollectionById(
     }
 
     const amounts: number[] = [];
+    const statuses = new Set<string>();
     if (bestDate) {
       for (const accId of accIds) {
         const nu = firstUnpaidByAccount.get(accId);
         if (!nu) continue;
         if (nu.due_date === bestDate) {
           amounts.push(nu.remaining);
+          statuses.add(nu.status);
+        }
+      }
+    }
+
+    let overdueCount = 0;
+    let overdueTotal = 0;
+    for (const accId of accIds) {
+      const rows = byAccount.get(accId) ?? [];
+      for (const row of rows) {
+        if (row.status === "overdue" && !isInstallmentFullyPaid(row)) {
+          overdueCount += 1;
+          overdueTotal += remainingOnInstallment(row);
         }
       }
     }
@@ -91,6 +110,9 @@ export function computeBorrowerNextCollectionById(
       // Keep aggregate for totals/sorting, but also expose per-account breakdown.
       next_collection_amount: amounts.reduce((sum, value) => sum + value, 0),
       next_collection_amounts: amounts.length > 1 ? amounts : undefined,
+      next_collection_status: statuses.has("overdue") ? "overdue" : (statuses.size > 0 ? [...statuses][0] : null),
+      overdue_count: overdueCount,
+      overdue_total: overdueTotal,
     };
   }
   return out;

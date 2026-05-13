@@ -19,8 +19,7 @@ type BorrowerCardProps = {
   /** Borrowers list: next collection, mark next paid, overflow menu */
   showScheduleSummary?: boolean;
   onBorrowerUpdated?: () => void;
-  isMarkingNextPaid?: boolean;
-  onMarkNextPaid?: () => void;
+
 };
 
 export function BorrowerCard({
@@ -28,19 +27,19 @@ export function BorrowerCard({
   quickAction,
   showScheduleSummary = false,
   onBorrowerUpdated,
-  isMarkingNextPaid = false,
-  onMarkNextPaid,
+
 }: BorrowerCardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const categories = [...(borrower.borrower_categories ?? [])].sort((a, b) =>
     a.category.name.localeCompare(b.category.name)
   );
-
+  console.log(borrower);
   const hasAccounts = borrower.has_accounts === true;
   const nextDate = borrower.next_collection_date;
   const nextAmount = borrower.next_collection_amount ?? 0;
   const nextAmounts = borrower.next_collection_amounts;
+  const nextStatus = borrower.next_collection_status;
   const hasNextUnpaid = Boolean(nextDate);
 
   function openBorrower(e: SyntheticEvent) {
@@ -130,7 +129,7 @@ export function BorrowerCard({
             className="mt-4 w-full min-w-0 self-stretch rounded-lg border-2 border-slate-900 bg-sky-100/70 p-3 shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)]"
             data-prevent-borrower-card-open
           >
-            <div className="flex w-full min-w-0 flex-wrap items-start justify-between gap-2 sm:flex-nowrap">
+            <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:flex-nowrap">
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                   Next collection
@@ -141,12 +140,17 @@ export function BorrowerCard({
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                         Date
                       </p>
-                      <p className="text-sm font-black text-slate-900">
+                      <p className="text-sm font-black text-slate-900 flex  items-center gap-2">
                         {new Date(nextDate!).toLocaleDateString(undefined, {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
                         })}
+                        {nextStatus ? (
+                          <span className={`ml-1 text-[10px]  font-black text-black px-1 shadow-[2px_2px_0px_0px_#333] rounded-xs border border-slate-900   uppercase ${nextStatus === "overdue" ? "bg-red-500/70" : nextStatus === "paid" ? "bg-green-500/70" : nextStatus === "pending" ? "bg-yellow-500/70" : nextStatus === "partial" ? "bg-purple-500/70" : "bg-blue-500/70"}`}>
+                             {nextStatus}
+                          </span>
+                        ) : null}
                       </p>
                     </div>
                     <div>
@@ -154,11 +158,7 @@ export function BorrowerCard({
                         Amount
                       </p>
                       <p className="text-sm font-black tabular-nums text-slate-900">
-                        {nextAmounts && nextAmounts.length > 1
-                          ? nextAmounts
-                              .map((amount) => `₱${amount.toLocaleString()}`)
-                              .join(" + ")
-                          : `₱${nextAmount.toLocaleString()}`}
+                        {`₱${nextAmount.toLocaleString()}`}
                       </p>
                     </div>
                   </div>
@@ -168,22 +168,25 @@ export function BorrowerCard({
                   </p>
                 )}
               </div>
-              {hasNextUnpaid && onMarkNextPaid ? (
-                <button
-                  type="button"
-                  disabled={isMarkingNextPaid || isPending}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onMarkNextPaid();
-                  }}
-                  className="shrink-0 self-start cursor-pointer rounded-md border-2 border-slate-900 bg-emerald-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 hover:shadow-[4px_4px_0px_0px_#0f172a] disabled:cursor-wait disabled:opacity-70"
-                >
-                  {isMarkingNextPaid ? "..." : "Mark next paid"}
-                </button>
-              ) : null}
+
+       
             </div>
           </div>
         ) : null}
+       {borrower.overdue_total && borrower.overdue_count ? (
+                <div className="min-w-0 mt-2 shadow-md p-2 border-2 border-red-900 bg-red-50 rounded-lg ">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    Overdue 
+                  </p>
+                  <p className="text-[12px] mt-2 font-black">
+                     {borrower.overdue_count ?? "0"} due dates
+                  </p>
+                  <p className="text-sm font-black text-slate-900">
+                    <span className="font-semibold">total:</span> ₱{borrower.overdue_total?.toLocaleString() ?? "0"}
+                  </p>
+               
+                </div>
+              ) : null}
 
         {!showScheduleSummary && quickAction ? (
           <div
@@ -208,6 +211,6 @@ export function BorrowerCard({
           <p className="mt-3 text-xs font-semibold text-slate-600">Opening…</p>
         ) : null}
       </div>
-    </div>
+    </div >
   );
 }

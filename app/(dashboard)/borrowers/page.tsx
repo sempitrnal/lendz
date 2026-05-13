@@ -113,7 +113,31 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
         remaining_amount: number | null;
         status: string;
       }>;
+      const overdueByBorrower = new Map<
+        string,
+        { total: number; count: number }
+      >();
+      const accountToBorrower = new Map<string, string>();
 
+      for (const a of accounts) {
+        accountToBorrower.set(a.id, a.borrower_id);
+      }
+      for (const s of schedules) {
+        if (s.status !== "overdue") continue;
+
+        const borrowerId = accountToBorrower.get(s.account_id);
+        if (!borrowerId) continue;
+
+        const prev = overdueByBorrower.get(borrowerId) ?? {
+          total: 0,
+          count: 0,
+        };
+
+        overdueByBorrower.set(borrowerId, {
+          total: prev.total + (s.amount_due ?? 0),
+          count: prev.count + 1,
+        });
+      }
       const nextById = computeBorrowerNextCollectionById(
         borrowerIds,
         accounts,
@@ -122,6 +146,15 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
 
       enrichedBorrowers = rawBorrowers.map((b) => {
         const accIds = accountIdsByBorrower.get(b.id) ?? [];
+
+
+        const overdue = overdueByBorrower.get(b.id) ?? {
+
+          total: 0,
+
+          count: 0,
+
+        };
         const n = nextById[b.id] ?? {
           next_collection_date: null,
           next_collection_amount: 0,
@@ -132,6 +165,10 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
           next_collection_date: n.next_collection_date,
           next_collection_amount: n.next_collection_amount,
           next_collection_amounts: n.next_collection_amounts,
+          next_collection_status: n.next_collection_status,
+          overdue_total: overdue.total,
+          overdue_count: overdue.count,
+
         };
       });
     } else {
@@ -140,6 +177,7 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
         has_accounts: false,
         next_collection_date: null,
         next_collection_amount: 0,
+
       }));
     }
   }

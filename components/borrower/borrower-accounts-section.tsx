@@ -41,7 +41,10 @@ type AccountComputedMetrics = {
   profitToMake: number;
   nextCollectionDate: string | null;
   nextCollectionAmount: number;
+  nextCollectionStatus: string | null;
   nextUnpaidScheduleId: string | null;
+  overdueCount: number;
+  overdueTotal: number;
 };
 
 type BorrowerAccountsSectionProps = {
@@ -55,22 +58,21 @@ function AccountCard({
   onOpen,
   onEdit,
   metrics,
-  isMarkingNextPaid,
-  onMarkNextPaid,
+
 }: {
   account: AccountRow;
   isOpening: boolean;
   onOpen: (id: string) => void;
   onEdit: (account: AccountRow) => void;
   metrics?: AccountComputedMetrics;
-  isMarkingNextPaid: boolean;
-  onMarkNextPaid: (accountId: string, scheduleId: string) => void;
 }) {
   const amountLeftToPay = metrics?.amountLeftToPay ?? 0;
   const profitToMake = metrics?.profitToMake ?? 0;
   const nextCollectionDate = metrics?.nextCollectionDate;
   const nextCollectionAmount = metrics?.nextCollectionAmount ?? 0;
-  const nextUnpaidScheduleId = metrics?.nextUnpaidScheduleId ?? null;
+  const nextCollectionStatus = metrics?.nextCollectionStatus ?? null;
+  const overdueCount = metrics?.overdueCount ?? 0;
+  const overdueTotal = metrics?.overdueTotal ?? 0;
 
   function tryOpenAccount(e: SyntheticEvent) {
     if (isOpening) return;
@@ -168,24 +170,26 @@ function AccountCard({
                 </p>
                 <p className="text-[11px] font-semibold text-slate-600">
                   ₱{nextCollectionAmount.toLocaleString()}
+                  {nextCollectionStatus ? (
+                    <span className={`ml-1 uppercase ${nextCollectionStatus === "overdue" ? "text-red-600" : "text-slate-500"}`}>
+                      • {nextCollectionStatus}
+                    </span>
+                  ) : null}
                 </p>
               </div>
-              {nextUnpaidScheduleId ? (
-                <button
-                  type="button"
-                  data-prevent-account-open
-                  disabled={isMarkingNextPaid || isOpening}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onMarkNextPaid(account.id, nextUnpaidScheduleId);
-                  }}
-                  className="shrink-0 rounded-md border-2 border-slate-900 bg-emerald-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 disabled:cursor-wait disabled:opacity-70"
-                >
-                  {isMarkingNextPaid ? "..." : "Mark next paid"}
-                </button>
-              ) : null}
+
             </div>
           </div>
+          {overdueCount > 0 ? (
+            <div className="rounded-lg border-2 border-slate-900 bg-red-100/70 p-2 sm:col-span-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                overdue
+              </p>
+              <p className="text-sm font-black text-red-700">
+                {overdueCount} schedule{overdueCount === 1 ? "" : "s"} • ₱{overdueTotal.toLocaleString()}
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
       <AccountCardMenu
@@ -264,39 +268,6 @@ export default function BorrowerAccountsSection({
     router.push(`/accounts/${id}`);
   };
 
-  const markNextSchedulePaid = async (
-    _accountId: string,
-    scheduleId: string
-  ) => {
-    setMarkingNextPaidScheduleId(scheduleId);
-    const { data: row, error: fetchError } = await supabase
-      .from("payment_schedules")
-      .select("amount_due")
-      .eq("id", scheduleId)
-      .single();
-    if (fetchError || !row) {
-      setMarkingNextPaidScheduleId(null);
-      toast.error(fetchError?.message ?? "Could not load schedule.");
-      return;
-    }
-    const due = Number(row.amount_due ?? 0);
-    const { error } = await supabase
-      .from("payment_schedules")
-      .update({
-        status: "paid",
-        amount_paid: due,
-        remaining_amount: 0,
-      })
-      .eq("id", scheduleId);
-    setMarkingNextPaidScheduleId(null);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success("Marked next schedule as paid.");
-    await fetchAccountMetrics();
-    router.refresh();
-  };
 
   const fetchAccountMetrics = async () => {
     if (!accounts || accounts.length === 0) {
@@ -344,7 +315,10 @@ export default function BorrowerAccountsSection({
       const principal = Number(account.principal_amount ?? 0);
       const profitToMake = Math.max(0, totalPayment - principal);
       const nextUnpaid = nextDueScheduleForCollection(rows);
-
+      const overdueRows = rows.filter(
+        (row) => row.status === "overdue" && !isInstallmentFullyPaid(row)
+      );
+      
       computed[account.id] = {
         amountLeftToPay,
         profitToMake,
@@ -352,7 +326,13 @@ export default function BorrowerAccountsSection({
         nextCollectionAmount: nextUnpaid
           ? remainingOnInstallment(nextUnpaid)
           : 0,
+        nextCollectionStatus: nextUnpaid?.status ?? null,
         nextUnpaidScheduleId: nextUnpaid?.id ?? null,
+        overdueCount: overdueRows.length,
+        overdueTotal: overdueRows.reduce(
+          (sum, row) => sum + remainingOnInstallment(row),
+          0
+        ),
       };
     });
 
@@ -400,11 +380,7 @@ export default function BorrowerAccountsSection({
                 setIsAccountDialogOpen(true);
               }}
               metrics={accountMetricsById[account.id]}
-              isMarkingNextPaid={
-                markingNextPaidScheduleId ===
-                accountMetricsById[account.id]?.nextUnpaidScheduleId
-              }
-              onMarkNextPaid={markNextSchedulePaid}
+      
             />
           ))}
         </div>

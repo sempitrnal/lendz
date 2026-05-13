@@ -7,6 +7,40 @@ import { supabase } from "@/lib/supabase/client";
 /** Keep in sync with Canvas `backgroundColor` and wrapper fill. */
 const NOTES_CANVAS_PAPER = "#fffdf5";
 
+/** Compress a JSON value to a base64-encoded gzip string. */
+async function compressJSON(data: unknown): Promise<string> {
+    const json = JSON.stringify(data);
+    const blob = new Blob([json]);
+    const cs = new CompressionStream("gzip");
+    const stream = blob.stream().pipeThrough(cs);
+    const compressed = await new Response(stream).arrayBuffer();
+    const bytes = new Uint8Array(compressed);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
+/** Decompress a base64-encoded gzip string back to a parsed JSON value. */
+async function decompressJSON(base64: string): Promise<unknown> {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    const blob = new Blob([bytes]);
+    const ds = new DecompressionStream("gzip");
+    const stream = blob.stream().pipeThrough(ds);
+    const text = await new Response(stream).text();
+    return JSON.parse(text);
+}
+
+/** Check if a value is a compressed base64 string (not a plain object). */
+function isCompressed(value: unknown): value is string {
+    return typeof value === "string" && value.length > 0;
+}
+
 function paperStrokeColor(canvas: FabricCanvas): string {
     const bg = canvas.backgroundColor;
     return typeof bg === "string" && bg.length > 0 ? bg : NOTES_CANVAS_PAPER;
@@ -161,13 +195,21 @@ export default function NotesCanvas({
 
         window.addEventListener("resize", resizeCanvas);
 
-        // load saved JSON
+        let disposed = false;
+
+        // load saved JSON (supports both compressed and legacy uncompressed)
         const loadCanvas = async () => {
             if (note?.canvas_json) {
                 try {
-                    canvas.clear();
+                    let jsonData: unknown = note.canvas_json;
+                    if (isCompressed(jsonData)) {
+                        jsonData = await decompressJSON(jsonData);
+                    }
 
-                    await canvas.loadFromJSON(note.canvas_json);
+                    if (disposed) return;
+
+                    canvas.clear();
+                    await canvas.loadFromJSON(jsonData as Record<string, unknown>);
 
                     canvas.backgroundColor = NOTES_CANVAS_PAPER;
 
@@ -177,11 +219,12 @@ export default function NotesCanvas({
                 }
             }
 
-            applyDrawingBrushRef.current();
+            if (!disposed) applyDrawingBrushRef.current();
         };
         void loadCanvas();
 
         return () => {
+            disposed = true;
             window.removeEventListener("resize", resizeCanvas);
 
             canvas.dispose();
@@ -202,13 +245,36 @@ export default function NotesCanvas({
 
             const canvas = fabricRef.current;
 
-            const canvas_json = canvas.toJSON();
+            const rawJSON = canvas.toJSON() as Record<string, unknown>;
+            if (Array.isArray(rawJSON.objects)) {
+                rawJSON.objects = (rawJSON.objects as Record<string, unknown>[]).map((obj) => {
+                    const { left, top, width, height, scaleX, scaleY, angle, type, path, stroke, strokeWidth, fill, globalCompositeOperation, strokeLineCap, strokeLineJoin, opacity } = obj as Record<string, unknown>;
+                    const slim: Record<string, unknown> = { type };
+                    if (path !== undefined) slim.path = path;
+                    if (left !== undefined) slim.left = left;
+                    if (top !== undefined) slim.top = top;
+                    if (width !== undefined) slim.width = width;
+                    if (height !== undefined) slim.height = height;
+                    if (scaleX !== undefined && scaleX !== 1) slim.scaleX = scaleX;
+                    if (scaleY !== undefined && scaleY !== 1) slim.scaleY = scaleY;
+                    if (angle !== undefined && angle !== 0) slim.angle = angle;
+                    if (stroke !== undefined) slim.stroke = stroke;
+                    if (strokeWidth !== undefined) slim.strokeWidth = strokeWidth;
+                    if (fill !== undefined) slim.fill = fill;
+                    if (globalCompositeOperation !== undefined) slim.globalCompositeOperation = globalCompositeOperation;
+                    if (strokeLineCap !== undefined) slim.strokeLineCap = strokeLineCap;
+                    if (strokeLineJoin !== undefined) slim.strokeLineJoin = strokeLineJoin;
+                    if (opacity !== undefined && opacity !== 1) slim.opacity = opacity;
+                    return slim;
+                });
+            }
+            const canvas_json = await compressJSON(rawJSON);
 
             const preview_image = canvas.toDataURL({
-                format: "png",
-                quality: 1,
-                multiplier: 2,
-                enableRetinaScaling: true,
+                format: "webp",
+                quality: 0.5,
+                multiplier: 1,
+                enableRetinaScaling: false,
             });
 
             // UPDATE EXISTING NOTE

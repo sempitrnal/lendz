@@ -34,7 +34,6 @@ export default function NextCollectionPanel({
   entries,
 }: NextCollectionPanelProps) {
   const router = useRouter();
-  const [updatingScheduleId, setUpdatingScheduleId] = useState<string | null>(null);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [navigatingBorrowerId, setNavigatingBorrowerId] = useState<string | null>(
     null
@@ -50,38 +49,11 @@ export default function NextCollectionPanel({
 
   const openBorrower = (entry: NextCollectionEntry, e: SyntheticEvent) => {
     if (!entry.borrowerId || navigatingBorrowerId !== null) return;
-    if (updatingScheduleId !== null || isMarkingAll) return;
+    if (isMarkingAll) return;
     if ((e.target as HTMLElement).closest("[data-prevent-borrower-card-open]")) {
       return;
     }
     goToBorrower(entry.borrowerId);
-  };
-
-  const markSchedulePaid = async (entry: NextCollectionEntry) => {
-    const scheduleIds = entry.schedules.map((s) => s.id);
-    if (scheduleIds.length === 0) return;
-
-    setUpdatingScheduleId(entry.id);
-    for (const schedule of entry.schedules) {
-      const due = Number(schedule.amountDue ?? schedule.amount);
-      const { error } = await supabase
-        .from("payment_schedules")
-        .update({
-          status: "paid",
-          amount_paid: due,
-          remaining_amount: 0,
-        })
-        .eq("id", schedule.id);
-      if (error) {
-        setUpdatingScheduleId(null);
-        toast.error(error.message);
-        return;
-      }
-    }
-    setUpdatingScheduleId(null);
-
-    toast.success(`Marked next payment paid for ${entry.name}.`);
-    router.refresh();
   };
 
   const groupedByCategory = useMemo(() => {
@@ -149,7 +121,6 @@ export default function NextCollectionPanel({
             type="button"
             disabled={
               isMarkingAll ||
-              updatingScheduleId !== null ||
               navigatingBorrowerId !== null
             }
             onClick={() => {
@@ -257,23 +228,6 @@ export default function NextCollectionPanel({
                           Borrower record unavailable.
                         </p>
                       ) : null}
-                      <button
-                        type="button"
-                        data-prevent-borrower-card-open
-                        disabled={
-                          isMarkingAll ||
-                          updatingScheduleId === entry.id ||
-                          (entry.borrowerId !== null &&
-                            navigatingBorrowerId === entry.borrowerId)
-                        }
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void markSchedulePaid(entry);
-                        }}
-                        className="rounded-md mt-2 border-2 border-slate-900 bg-emerald-200 px-3 mb-2 py-.5 text-[14px] font-black uppercase text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 disabled:cursor-wait disabled:opacity-70"
-                      >
-                        {updatingScheduleId === entry.id ? "..." : "Mark next paid"}
-                      </button>
                       {isOpening ? (
                         <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                           <Loader2

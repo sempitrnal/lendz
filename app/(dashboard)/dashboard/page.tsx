@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import {
-  amountPaidOnInstallment,
   isInstallmentFullyPaid,
   nextDueScheduleForCollection,
   remainingOnInstallment,
@@ -186,18 +185,32 @@ export default async function Dashboard() {
       .map((row) => row.borrower_id)
       .filter((id): id is string => Boolean(id))
   ).size;
-  const principalReleasedThisMonth = accountTotals.reduce((sum, row) => {
-    if (!row.release_date) return sum;
-    if (row.release_date < startOfMonthDate || row.release_date > endOfMonthDate) {
-      return sum;
-    }
-    return sum + Number(row.principal_amount ?? 0);
-  }, 0);
-  const collectedThisMonth = thisMonthSchedules.reduce(
-    (sum, row) => sum + amountPaidOnInstallment(row),
+  const principalByAccountId = new Map(
+    accountTotals.map((a) => [a.id, Number(a.principal_amount ?? 0)])
+  );
+  const paidByAccount = new Map<string, number>();
+  for (const s of thisMonthSchedules) {
+    const prev = paidByAccount.get(s.account_id) ?? 0;
+    const paid = s.status === "paid"
+      ? Math.max(0, Number(s.amount_due ?? 0))
+      : Math.max(0, Number(s.amount_paid ?? 0));
+    paidByAccount.set(s.account_id, prev + paid);
+  }
+  const unpaidThisMonthAccountIds = [
+    ...new Set(
+      thisMonthSchedules
+        .filter((s) => !isInstallmentFullyPaid(s))
+        .map((s) => s.account_id)
+    ),
+  ];
+  const moneyToCollectThisMonth = unpaidThisMonthAccountIds.reduce(
+    (sum, accountId) => {
+      const principal = principalByAccountId.get(accountId) ?? 0;
+      const paid = paidByAccount.get(accountId) ?? 0;
+      return sum + Math.max(0, principal - paid);
+    },
     0
   );
-  const profitThisMonth = collectedThisMonth - principalReleasedThisMonth;
   const nextCollectionTotal = nextCollectionDate
     ? futureCandidates
         .filter((row) => row.due_date === nextCollectionDate)
@@ -418,9 +431,9 @@ export default async function Dashboard() {
       tone: "bg-blue-100",
     },
     {
-      label: "profit this month",
-      value: `PHP ${profitThisMonth.toLocaleString()}`,
-      delta: `collected: PHP ${collectedThisMonth.toLocaleString()} • principal out: PHP ${principalReleasedThisMonth.toLocaleString()}`,
+      label: "money to collect this month",
+      value: `PHP ${moneyToCollectThisMonth.toLocaleString()}`,
+      delta: `${unpaidThisMonthAccountIds.length} account${unpaidThisMonthAccountIds.length === 1 ? "" : "s"} with unpaid schedules`,
       icon: Landmark,
       tone: "bg-amber-100",
     },
