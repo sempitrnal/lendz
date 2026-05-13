@@ -342,9 +342,9 @@ export default async function AccountDetailPage({
         account_id: id,
         due_date: r.due_date,
         amount_due: r.amount_due,
-        amount_paid: 0,
-        remaining_amount: r.amount_due,
-        status: "pending",
+        amount_paid: r.amount_due,
+        remaining_amount: 0,
+        status: "paid",
         note: r.note ?? null,
       }))
     );
