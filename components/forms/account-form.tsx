@@ -169,6 +169,7 @@ export type AccountEditableRow = {
   release_date: string | null;
   first_payment_date: string | null;
   payment_frequency: string | null;
+  term_installments: number | string | null;
 };
 
 export function accountRowToFormInitial(

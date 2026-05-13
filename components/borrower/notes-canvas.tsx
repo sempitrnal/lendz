@@ -291,13 +291,17 @@ async function uploadPreviewImage(dataUrl: string, noteId?: string) {
             const canvas_json = await compressJSON(rawJSON);
 
       const preview_image_url = await uploadPreviewImage(
-  canvas.toDataURL({
-    format: "webp",
-    quality: 0.5,
-    multiplier: 1,
-  }),
-  note?.id
-);
+                        canvas.toDataURL({
+                         format: "webp",
+
+  quality: 0.85, // 👈 big improvement
+
+  multiplier: 2, // 👈 renders at 2x resolution (key upgrade)
+
+  enableRetinaScaling: true,
+                        }),
+                        note?.id
+                        );
             // UPDATE EXISTING NOTE
             if (note?.id) {
                 const { data, error } = await supabase

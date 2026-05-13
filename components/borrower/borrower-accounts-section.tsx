@@ -46,6 +46,7 @@ type AccountComputedMetrics = {
   overdueCount: number;
   overdueTotal: number;
   term_months?: string| number| null;
+  term_installments?: string| number| null;
 };
 
 type BorrowerAccountsSectionProps = {
@@ -74,7 +75,16 @@ function AccountCard({
   const nextCollectionStatus = metrics?.nextCollectionStatus ?? null;
   const overdueCount = metrics?.overdueCount ?? 0;
   const overdueTotal = metrics?.overdueTotal ?? 0;
-
+  const freq = account.payment_frequency;
+  const termMonths = Number(metrics?.term_months) || 1;
+  const perPayrollDivisor =
+    freq === "custom"
+      ? Number(metrics?.term_installments) || 1
+      : freq === "bimonthly"
+        ? termMonths * 2
+        : freq === "weekly"
+          ? termMonths * 4
+          : termMonths;
   function tryOpenAccount(e: SyntheticEvent) {
     if (isOpening) return;
     if (
@@ -153,7 +163,7 @@ function AccountCard({
               ginansya /  per payroll
             </p>
             <p className="text-sm font-black text-slate-900">
-   ₱{profitToMake.toLocaleString()} | ₱{(profitToMake / (Number(metrics?.term_months) || 1)).toLocaleString()}
+   ₱{profitToMake.toLocaleString()} | ₱{(profitToMake / perPayrollDivisor).toLocaleString()}
             </p>
           </div>
 
@@ -300,6 +310,7 @@ export default function BorrowerAccountsSection({
 
     const computed: Record<string, AccountComputedMetrics> = {};
     accounts.forEach((account) => {
+      console.log(account);
       const rows = byAccount.get(account.id) ?? [];
       const totalPayment = rows.reduce(
         (sum, row) => sum + Number(row.amount_due ?? 0),
@@ -331,6 +342,7 @@ export default function BorrowerAccountsSection({
         nextUnpaidScheduleId: nextUnpaid?.id ?? null,
         overdueCount: overdueRows.length,
         term_months: account.term_months,
+        term_installments: account.term_installments,
 
         overdueTotal: overdueRows.reduce(
           (sum, row) => sum + remainingOnInstallment(row),
