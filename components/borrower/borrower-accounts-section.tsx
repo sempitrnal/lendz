@@ -153,7 +153,7 @@ function AccountCard({
               ginansya /  per payroll
             </p>
             <p className="text-sm font-black text-slate-900">
-   ₱{profitToMake.toLocaleString()} | ₱{(profitToMake / (Number(metrics?.term_months) || 1)).toFixed(2)}
+   ₱{profitToMake.toLocaleString()} | ₱{(profitToMake / (Number(metrics?.term_months) || 1)).toLocaleString()}
             </p>
           </div>
 

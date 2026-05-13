@@ -236,7 +236,27 @@ export default function NotesCanvas({
     useEffect(() => {
         applyDrawingBrush();
     }, [applyDrawingBrush]);
+async function uploadPreviewImage(dataUrl: string, noteId?: string) {
+  const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+  const buffer = Buffer.from(base64, "base64");
 
+  const fileName = `borrower-notes/${noteId ?? crypto.randomUUID()}.webp`;
+
+  const { error } = await supabase.storage
+    .from("borrower-notes")
+    .upload(fileName, buffer, {
+      contentType: "image/webp",
+      upsert: true,
+    });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage
+    .from("borrower-notes")
+    .getPublicUrl(fileName);
+
+  return data.publicUrl;
+}
     const saveNotes = useCallback(async () => {
         if (!fabricRef.current) return;
 
@@ -270,20 +290,21 @@ export default function NotesCanvas({
             }
             const canvas_json = await compressJSON(rawJSON);
 
-            const preview_image = canvas.toDataURL({
-                format: "webp",
-                quality: 0.5,
-                multiplier: 1,
-                enableRetinaScaling: false,
-            });
-
+      const preview_image_url = await uploadPreviewImage(
+  canvas.toDataURL({
+    format: "webp",
+    quality: 0.5,
+    multiplier: 1,
+  }),
+  note?.id
+);
             // UPDATE EXISTING NOTE
             if (note?.id) {
                 const { data, error } = await supabase
                     .from("borrower_notes")
                     .update({
                         canvas_json,
-                        preview_image,
+                     preview_img_url: preview_image_url,
                         updated_at: new Date().toISOString(),
                     })
                     .eq("id", note.id)
@@ -306,7 +327,7 @@ export default function NotesCanvas({
                 .insert({
                     borrower_id: borrowerId,
                     canvas_json,
-                    preview_image,
+                    preview_img_url: preview_image_url,
                     x: 40,
                     y: 40,
                 })
