@@ -25,9 +25,13 @@ export type BorrowerNextCollection = {
   overdue_schedules: AccountScheduleEntry[];
   accounts_count: number;
   account_schedules: AccountScheduleEntry[];
+  manual_total_principal: number;
+  manual_total_paid: number;
+  manual_total_remaining: number;
+  manual_accounts_count: number;
 };
 
-type AccountRow = { id: string; borrower_id: string };
+type AccountRow = { id: string; borrower_id: string; principal_amount?: number | null; schedule_mode?: string | null };
 type ScheduleRow = ScheduleBalanceInput & {
   account_id: string;
   due_date: string;
@@ -40,17 +44,19 @@ export function computeBorrowerNextCollectionById(
 ): Record<string, BorrowerNextCollection> {
   const out: Record<string, BorrowerNextCollection> = {};
   for (const id of borrowerIds) {
-    out[id] = { next_collection_date: null, next_collection_amount: 0, next_collection_status: null, overdue_count: 0, overdue_total: 0, overdue_schedules: [], accounts_count: 0, account_schedules: [] };
+    out[id] = { next_collection_date: null, next_collection_amount: 0, next_collection_status: null, overdue_count: 0, overdue_total: 0, overdue_schedules: [], accounts_count: 0, account_schedules: [], manual_total_principal: 0, manual_total_paid: 0, manual_total_remaining: 0, manual_accounts_count: 0 };
   }
   if (borrowerIds.length === 0 || accountRows.length === 0) {
     return out;
   }
 
   const accountIdsByBorrower = new Map<string, string[]>();
+  const accountById = new Map<string, AccountRow>();
   for (const row of accountRows) {
     const list = accountIdsByBorrower.get(row.borrower_id) ?? [];
     list.push(row.id);
     accountIdsByBorrower.set(row.borrower_id, list);
+    accountById.set(row.id, row);
   }
 
   const byAccount = new Map<string, ScheduleRow[]>();
@@ -117,6 +123,20 @@ export function computeBorrowerNextCollectionById(
     }
     overdueSchedules.sort((a, b) => a.due_date.localeCompare(b.due_date));
 
+    let manualTotalPrincipal = 0;
+    let manualTotalPaid = 0;
+    let manualAccountsCount = 0;
+    for (const accId of accIds) {
+      const acc = accountById.get(accId);
+      if (!acc || acc.schedule_mode !== "manual") continue;
+      manualAccountsCount += 1;
+      manualTotalPrincipal += Number(acc.principal_amount ?? 0);
+      const rows = byAccount.get(accId) ?? [];
+      for (const row of rows) {
+        manualTotalPaid += Number((row as any).amount_paid ?? 0);
+      }
+    }
+
     out[bid] = {
       next_collection_date: bestDate,
       next_collection_amount: amounts.reduce((sum, value) => sum + value, 0),
@@ -127,6 +147,10 @@ export function computeBorrowerNextCollectionById(
       overdue_schedules: overdueSchedules,
       accounts_count: accIds.length,
       account_schedules: accountSchedules,
+      manual_total_principal: manualTotalPrincipal,
+      manual_total_paid: manualTotalPaid,
+      manual_total_remaining: Math.max(0, manualTotalPrincipal - manualTotalPaid),
+      manual_accounts_count: manualAccountsCount,
     };
   }
   return out;

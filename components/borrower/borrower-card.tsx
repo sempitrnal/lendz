@@ -43,6 +43,12 @@ export function BorrowerCard({
   const nextStatus = borrower.next_collection_status;
   const hasNextUnpaid = Boolean(nextDate);
   const schedules = borrower.account_schedules || [];
+  const manualPrincipal = borrower.manual_total_principal ?? 0;
+  const manualPaid = borrower.manual_total_paid ?? 0;
+  const manualRemaining = borrower.manual_total_remaining ?? 0;
+  const hasManual = manualPrincipal > 0;
+  const manualAccountsCount = borrower.manual_accounts_count ?? 0;
+  const hasAutoAccounts = (borrower.accounts_count ?? 0) > manualAccountsCount;
   function openBorrower(e: SyntheticEvent) {
     if (isPending) return;
     if (
@@ -125,7 +131,32 @@ export function BorrowerCard({
           </div>
         </div>
 
-        {showScheduleSummary && hasAccounts ? (
+        {showScheduleSummary && hasManual ? (
+          <div
+            className="mt-4 w-full min-w-0 rounded-lg border-2 border-slate-900 bg-violet-50/80 p-3 shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)]"
+            data-prevent-borrower-card-open
+          >
+            <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+              Manual accounts
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-md border-2 border-slate-900 bg-white p-2 shadow-[1px_1px_0px_0px_#0f172a]">
+                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">Principal</p>
+                <p className="mt-0.5 text-sm font-black tabular-nums text-slate-900">₱{manualPrincipal.toLocaleString()}</p>
+              </div>
+              <div className="rounded-md border-2 border-slate-900 bg-emerald-50 p-2 shadow-[1px_1px_0px_0px_#0f172a]">
+                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">Paid</p>
+                <p className="mt-0.5 text-sm font-black tabular-nums text-emerald-800">₱{manualPaid.toLocaleString()}</p>
+              </div>
+              <div className="rounded-md border-2 border-slate-900 bg-rose-50 p-2 shadow-[1px_1px_0px_0px_#0f172a]">
+                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">Remaining</p>
+                <p className="mt-0.5 text-sm font-black tabular-nums text-rose-800">₱{manualRemaining.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {showScheduleSummary && hasAccounts && hasAutoAccounts ? (
           <div
             className="mt-4 w-full min-w-0 self-stretch rounded-lg border-2 border-slate-900 bg-sky-100/70 p-3 shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)]"
             data-prevent-borrower-card-open

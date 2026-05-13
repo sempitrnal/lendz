@@ -47,6 +47,7 @@ type AccountComputedMetrics = {
   overdueTotal: number;
   term_months?: string| number| null;
   term_installments?: string| number| null;
+  schedule_mode?: string | null;
 };
 
 type BorrowerAccountsSectionProps = {
@@ -75,6 +76,7 @@ function AccountCard({
   const nextCollectionStatus = metrics?.nextCollectionStatus ?? null;
   const overdueCount = metrics?.overdueCount ?? 0;
   const overdueTotal = metrics?.overdueTotal ?? 0;
+  const isManual = account.schedule_mode === "manual";
   const freq = account.payment_frequency;
   const termMonths = Number(metrics?.term_months) || 1;
   const perPayrollDivisor =
@@ -151,24 +153,29 @@ function AccountCard({
        <div className="flex w-full gap-2">
        <div className="rounded-lg w-full border-2 border-slate-900 bg-emerald-100/70 p-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-              bayranan
+              {isManual ? "remaining" : "bayranan"}
             </p>
             <p className="text-sm font-black text-slate-900">
               ₱{amountLeftToPay.toLocaleString()}
             </p>
+            {isManual ? (
+              <p className="text-[9px] font-semibold text-slate-400 mt-0.5">principal − paid</p>
+            ) : null}
           </div>
 
-          <div className="rounded-lg w-full border-2 border-slate-900 bg-amber-100/70 p-2">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-              ginansya /  per payroll
-            </p>
-            <p className="text-sm font-black text-slate-900">
-   ₱{profitToMake.toLocaleString()} | ₱{(profitToMake / perPayrollDivisor).toLocaleString()}
-            </p>
-          </div>
+          {!isManual ? (
+            <div className="rounded-lg w-full border-2 border-slate-900 bg-amber-100/70 p-2">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                ginansya / per payroll
+              </p>
+              <p className="text-sm font-black text-slate-900">
+                ₱{profitToMake.toLocaleString()} | ₱{(profitToMake / perPayrollDivisor).toLocaleString()}
+              </p>
+            </div>
+          ) : null}
 
        </div>
-          <div className="rounded-lg border-2 border-slate-900 bg-sky-100/70 p-2">
+       {!isManual &&    <div className="rounded-lg border-2 border-slate-900 bg-sky-100/70 p-2">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
@@ -190,7 +197,7 @@ function AccountCard({
               </div>
 
             </div>
-          </div>
+          </div>}
           {overdueCount > 0 ? (
             <div className="rounded-lg border-2 border-slate-900 bg-red-100/70 p-2 sm:col-span-3">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
@@ -320,11 +327,13 @@ export default function BorrowerAccountsSection({
         (sum, row) => sum + amountPaidOnInstallment(row),
         0
       );
-      const amountLeftToPay = rows.reduce(
+      const amountLeftToPayRaw = rows.reduce(
         (sum, row) => sum + remainingOnInstallment(row),
         0
       );
       const principal = Number(account.principal_amount ?? 0);
+      const isManual = account.schedule_mode === "manual";
+      const amountLeftToPay = isManual ? Math.max(0, principal - amountPaid) : amountLeftToPayRaw;
       const profitToMake = Math.max(0, totalPayment - principal);
       const nextUnpaid = nextDueScheduleForCollection(rows);
       const overdueRows = rows.filter(
@@ -343,6 +352,7 @@ export default function BorrowerAccountsSection({
         overdueCount: overdueRows.length,
         term_months: account.term_months,
         term_installments: account.term_installments,
+        schedule_mode: account.schedule_mode,
 
         overdueTotal: overdueRows.reduce(
           (sum, row) => sum + remainingOnInstallment(row),

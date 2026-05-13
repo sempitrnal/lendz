@@ -159,6 +159,7 @@ const emptyDefaults = (borrowerId: string): AccountFormValues => ({
   release_date: "",
   first_payment_date: "",
   payment_frequency: "bimonthly",
+  schedule_mode: "auto",
 });
 
 export type AccountEditableRow = {
@@ -170,6 +171,7 @@ export type AccountEditableRow = {
   first_payment_date: string | null;
   payment_frequency: string | null;
   term_installments: number | string | null;
+  schedule_mode: string | null;
 };
 
 export function accountRowToFormInitial(
@@ -185,6 +187,8 @@ export function accountRowToFormInitial(
 
   const t = account.type === "cash_advance" ? "cash_advance" : "loan";
 
+  const scheduleMode = account.schedule_mode === "manual" ? "manual" : "auto";
+
   return {
     type: t,
     principal_amount: Number(account.principal_amount ?? 0),
@@ -193,6 +197,7 @@ export function accountRowToFormInitial(
     release_date: isoDateOnlyForInput(account.release_date),
     first_payment_date: isoDateOnlyForInput(account.first_payment_date),
     payment_frequency,
+    schedule_mode: scheduleMode,
   };
 }
 
@@ -223,7 +228,9 @@ export default function AccountForm({
 
   const value = watch("principal_amount");
   const frequency = watch("payment_frequency");
+  const scheduleMode = watch("schedule_mode");
   const isCustom = frequency === "custom";
+  const isManual = scheduleMode === "manual";
   const onSubmit = async (values: AccountFormValues) => {
     const schedulesPayload = (id: string) => buildSchedulesPayload(id, values);
 
@@ -234,10 +241,11 @@ export default function AccountForm({
           type: values.type,
           principal_amount: values.principal_amount,
           interest_rate: values.interest_rate,
-          term_months: values.term_months,
-          release_date: values.release_date,
-          first_payment_date: values.first_payment_date,
-          payment_frequency: values.payment_frequency,
+          term_months: values.term_months || null,
+          release_date: values.release_date || null,
+          first_payment_date: values.first_payment_date || null,
+          payment_frequency: values.schedule_mode === 'manual' ? 'bisag kanus-a' : values.payment_frequency,
+          schedule_mode: values.schedule_mode,
         })
         .eq("id", accountId);
 
@@ -246,26 +254,28 @@ export default function AccountForm({
         return;
       }
 
-      const { data: delData, error: delError } = await supabase
-        .from("payment_schedules")
-        .delete()
-        .eq("account_id", accountId)
-        .select();
-      console.log(delError, delData)
-      if (delError) {
-        toast.error(delError.message);
-        return;
-      }
+      if (values.schedule_mode === "auto") {
+        const { data: delData, error: delError } = await supabase
+          .from("payment_schedules")
+          .delete()
+          .eq("account_id", accountId)
+          .select();
+        console.log(delError, delData)
+        if (delError) {
+          toast.error(delError.message);
+          return;
+        }
 
-      const schedules = schedulesPayload(accountId);
-      const { error: insertError } = await supabase
-        .from("payment_schedules")
-        .insert(schedules);
-      if (insertError) {
-        toast.error(insertError.message);
-        return;
+        const schedules = schedulesPayload(accountId);
+        const { error: insertError } = await supabase
+          .from("payment_schedules")
+          .insert(schedules);
+        if (insertError) {
+          toast.error(insertError.message);
+          return;
+        }
       }
-      toast.success("Account and payment schedules updated.");
+      toast.success("Account updated." + (values.schedule_mode === "manual" ? " Schedules not regenerated (manual mode)." : ""));
 
       router.refresh();
       onSuccess?.();
@@ -274,7 +284,12 @@ export default function AccountForm({
 
     const { data: account, error } = await supabase
       .from("accounts")
-      .insert(values)
+      .insert({
+        ...values,
+        first_payment_date: values.first_payment_date || null,
+        term_months: values.term_months || null,
+        release_date: values.release_date || null,
+      })
       .select()
       .single();
 
@@ -283,19 +298,21 @@ export default function AccountForm({
       return;
     }
 
-    const schedules = schedulesPayload(account.id);
+    if (values.schedule_mode === "auto") {
+      const schedules = schedulesPayload(account.id);
 
-    const { error: scheduleError } = await supabase
-      .from("payment_schedules")
-      .insert(schedules);
+      const { error: scheduleError } = await supabase
+        .from("payment_schedules")
+        .insert(schedules);
 
-    if (scheduleError) {
-      toast.error(scheduleError.message);
-      return;
+      if (scheduleError) {
+        toast.error(scheduleError.message);
+        return;
+      }
     }
 
     reset(emptyDefaults(borrowerId));
-    toast.success("Account created.");
+    toast.success("Account created." + (values.schedule_mode === "manual" ? " Add schedules manually." : ""));
 
     router.refresh();
     onSuccess?.();
@@ -320,6 +337,20 @@ export default function AccountForm({
         {errors.type?.message ? (
           <p className={formFieldErrorClassName}>{errors.type.message}</p>
         ) : null}
+      </div>
+
+      <div>
+        <label className={formFieldLabelClassName} htmlFor="schedule_mode">
+          Schedule mode
+        </label>
+        <select
+          id="schedule_mode"
+          {...register("schedule_mode")}
+          className={formFieldInputClassName}
+        >
+          <option value="auto">auto (generate schedules)</option>
+          <option value="manual">manual (I&apos;ll add schedules myself)</option>
+        </select>
       </div>
 
       <div>
@@ -409,74 +440,80 @@ export default function AccountForm({
           ) : null}
         </div>
 
-        <div className="min-w-0">
-          <label
-            className={formFieldLabelClassName}
-            htmlFor="first_payment_date"
-          >
-            First payment date
-          </label>
+        {!isManual && (
+          <div className="min-w-0">
+            <label
+              className={formFieldLabelClassName}
+              htmlFor="first_payment_date"
+            >
+              First payment date
+            </label>
 
-          <input
-            id="first_payment_date"
-            type="date"
-            {...register("first_payment_date")}
-            className={`${formFieldInputClassName} w-full min-w-0`}
-          />
+            <input
+              id="first_payment_date"
+              type="date"
+              {...register("first_payment_date")}
+              className={`${formFieldInputClassName} w-full min-w-0`}
+            />
 
-          {errors.first_payment_date?.message ? (
-            <p className={formFieldErrorClassName}>
-              {errors.first_payment_date.message}
-            </p>
-          ) : null}
-        </div>
+            {errors.first_payment_date?.message ? (
+              <p className={formFieldErrorClassName}>
+                {errors.first_payment_date.message}
+              </p>
+            ) : null}
+          </div>
+        )}
       </div>
 
-      <div>
-        <label
-          className={formFieldLabelClassName}
-          htmlFor="payment_frequency"
-        >
-          Payment frequency
-        </label>
-        <select
-          id="payment_frequency"
-          {...register("payment_frequency")}
-          className={formFieldInputClassName}
-        >
-          <option value="weekly">weekly</option>
-          <option value="bimonthly">
-            bimonthly
-          </option>
-          <option value="monthly">monthly</option>
-          <option value="custom">custom</option>
-        </select>
-        {errors.payment_frequency?.message ? (
-          <p className={formFieldErrorClassName}>
-            {errors.payment_frequency.message}
-          </p>
-        ) : null}
-      </div>
+      {!isManual && (
+        <>
+          <div>
+            <label
+              className={formFieldLabelClassName}
+              htmlFor="payment_frequency"
+            >
+              Payment frequency
+            </label>
+            <select
+              id="payment_frequency"
+              {...register("payment_frequency")}
+              className={formFieldInputClassName}
+            >
+              <option value="weekly">weekly</option>
+              <option value="bimonthly">
+                bimonthly
+              </option>
+              <option value="monthly">monthly</option>
+              <option value="custom">custom</option>
+            </select>
+            {errors.payment_frequency?.message ? (
+              <p className={formFieldErrorClassName}>
+                {errors.payment_frequency.message}
+              </p>
+            ) : null}
+          </div>
 
-      <div>
-        <label className={formFieldLabelClassName} htmlFor="term_months">
-          {isCustom ? "Term installments (gives)" : "Term (months)"}
-        </label>
-        <input
-          id="term_months"
-          type="number"
-          inputMode={isCustom ? "numeric" : "decimal"}
-          step={isCustom ? 1 : 0.5}
-          min={isCustom ? 1 : 0.5}
-          {...register("term_months", { valueAsNumber: true })}
-          className={formFieldInputClassName}
-        />
-        {errors.term_months?.message ? (
-          <p className={formFieldErrorClassName}>
-            {errors.term_months.message}
-          </p>
-        ) : null}
-      </div>
+          <div>
+            <label className={formFieldLabelClassName} htmlFor="term_months">
+              {isCustom ? "Term installments (gives)" : "Term (months)"}
+            </label>
+            <input
+              id="term_months"
+              type="number"
+              inputMode={isCustom ? "numeric" : "decimal"}
+              step={isCustom ? 1 : 0.5}
+              min={isCustom ? 1 : 0.5}
+              {...register("term_months", { valueAsNumber: true })}
+              className={formFieldInputClassName}
+            />
+            {errors.term_months?.message ? (
+              <p className={formFieldErrorClassName}>
+                {errors.term_months.message}
+              </p>
+            ) : null}
+          </div>
+        </>
+      )}
 
       <NeobrutButton
         type="submit"

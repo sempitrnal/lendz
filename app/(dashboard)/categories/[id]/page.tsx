@@ -8,6 +8,7 @@ import {
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { isDarkColor } from "@/lib/utils";
 
 export default async function CategoryDetailView({
   params,
@@ -52,9 +53,9 @@ export default async function CategoryDetailView({
   if (borrowerIds.length > 0) {
     const { data: accountsData } = await supabase
       .from("accounts")
-      .select("id, borrower_id, principal_amount")
+      .select("id, borrower_id, principal_amount, schedule_mode")
       .in("borrower_id", borrowerIds);
-    accountRows = (accountsData ?? []) as Array<{ id: string; borrower_id: string; principal_amount: number | null }>;
+    accountRows = (accountsData ?? []) as Array<{ id: string; borrower_id: string; principal_amount: number | null; schedule_mode?: string | null }>;
 
     const accountIds = accountRows.map((account) => account.id);
     if (accountIds.length > 0) {
@@ -92,23 +93,37 @@ export default async function CategoryDetailView({
   const principalByAccountId = new Map(
     accountRows.map((a) => [a.id, Number(a.principal_amount ?? 0)])
   );
+  const scheduleModeByAccountId = new Map(
+    accountRows.map((a) => [a.id, (a as any).schedule_mode as string | null])
+  );
   const totalScheduleCountByAccount = new Map<string, number>();
   const unpaidScheduleCountByAccount = new Map<string, number>();
+  const paidByAccount = new Map<string, number>();
   for (const s of scheduleRows) {
     totalScheduleCountByAccount.set(s.account_id, (totalScheduleCountByAccount.get(s.account_id) ?? 0) + 1);
+    paidByAccount.set(s.account_id, (paidByAccount.get(s.account_id) ?? 0) + Number(s.amount_paid ?? 0));
   }
   for (const s of unpaidSchedules) {
     unpaidScheduleCountByAccount.set(s.account_id, (unpaidScheduleCountByAccount.get(s.account_id) ?? 0) + 1);
   }
-  const moneyToCollect = [...new Set(unpaidSchedules.map((s) => s.account_id))].reduce(
-    (sum, accountId) => {
-      const principal = principalByAccountId.get(accountId) ?? 0;
-      const total = totalScheduleCountByAccount.get(accountId) ?? 1;
-      const unpaid = unpaidScheduleCountByAccount.get(accountId) ?? 0;
-      return sum + principal * (unpaid / total);
-    },
-    0
-  );
+  const manualMoneyToCollect = accountRows.reduce((sum, a) => {
+    if ((a as any).schedule_mode !== "manual") return sum;
+    const principal = Number(a.principal_amount ?? 0);
+    const paid = paidByAccount.get(a.id) ?? 0;
+    return sum + Math.max(0, principal - paid);
+  }, 0);
+
+  const autoUnpaidAccountIds = [...new Set(unpaidSchedules.map((s) => s.account_id))]
+    .filter((id) => scheduleModeByAccountId.get(id) !== "manual");
+
+  const autoMoneyToCollect = autoUnpaidAccountIds.reduce((sum, accountId) => {
+    const principal = principalByAccountId.get(accountId) ?? 0;
+    const total = totalScheduleCountByAccount.get(accountId) ?? 1;
+    const unpaid = unpaidScheduleCountByAccount.get(accountId) ?? 0;
+    return sum + principal * (unpaid / total);
+  }, 0);
+
+  const moneyToCollect = manualMoneyToCollect + autoMoneyToCollect;
 
   const nextCollectionCandidates = [
     ...mapAccountIdToNextDueSchedule(scheduleRows).values(),
@@ -138,8 +153,11 @@ export default async function CategoryDetailView({
   return (
     <div className="space-y-6">
       <BackButton fallbackHref="/categories" />
-      <div>
-        <h1 className="text-2xl font-black uppercase" >{category?.name}</h1>
+      <div className="flex justify-center md:justify-start mt-5" >
+        <h1 className="text-xl text-center font-black rounded-md uppercase w-max p-2 px-4 shadow-[4px_4px_0px_0px_rgb(15_23_42/0.85)]" style={{
+          backgroundColor: category?.color || '#000000',
+          color: isDarkColor(category?.color || '#000000') ? '#ffffff' : '#000000'
+        }} >{category?.name}</h1>
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

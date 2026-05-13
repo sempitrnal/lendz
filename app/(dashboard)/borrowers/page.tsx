@@ -79,12 +79,14 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
   if (borrowerIds.length > 0) {
     const { data: accountRows } = await supabase
       .from("accounts")
-      .select("id, borrower_id")
+      .select("id, borrower_id, principal_amount, schedule_mode")
       .in("borrower_id", borrowerIds);
 
     const accounts = (accountRows ?? []) as Array<{
       id: string;
       borrower_id: string;
+      principal_amount: number | null;
+      schedule_mode: string | null;
     }>;
     const allAccountIds = accounts.map((a) => a.id);
     const accountIdsByBorrower = new Map<string, string[]>();
@@ -171,6 +173,10 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
           accounts_count: n.accounts_count,
           account_schedules: n.account_schedules,
           overdue_schedules: n.overdue_schedules,
+          manual_total_principal: n.manual_total_principal,
+          manual_total_paid: n.manual_total_paid,
+          manual_total_remaining: n.manual_total_remaining,
+          manual_accounts_count: n.manual_accounts_count,
         };
       });
     } else {

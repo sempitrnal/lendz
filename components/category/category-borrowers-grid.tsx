@@ -71,6 +71,10 @@ export default function CategoryBorrowersGrid({
                   accounts_count: nextMeta.accounts_count,
                   account_schedules: nextMeta.account_schedules,
                   overdue_schedules: nextMeta.overdue_schedules,
+                  manual_total_principal: nextMeta.manual_total_principal,
+                  manual_total_paid: nextMeta.manual_total_paid,
+                  manual_total_remaining: nextMeta.manual_total_remaining,
+                  manual_accounts_count: nextMeta.manual_accounts_count,
                 } as Borrower
               }
               showScheduleSummary

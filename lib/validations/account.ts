@@ -18,13 +18,11 @@ export const accountSchema = z.object({
 
     term_months: z
         .number("Term is required")
-        .positive("Term must be greater than 0"),
+        .min(0, "Term cannot be negative"),
 
     release_date: z.string().min(1, "Release date is required"),
 
-    first_payment_date: z
-        .string()
-        .min(1, "First payment date is required"),
+    first_payment_date: z.string(),
 
     payment_frequency: z.enum(
         ["weekly", "monthly", "bimonthly", "custom"] as const,
@@ -32,18 +30,36 @@ export const accountSchema = z.object({
             error: "Payment frequency is required",
         }
     ),
-}).refine(
-    (data) => {
-        if (data.payment_frequency === "custom") {
-            return Number.isInteger(data.term_months) && data.term_months >= 1;
+
+    schedule_mode: z.enum(["auto", "manual"] as const),
+}).superRefine((data, ctx) => {
+    if (data.schedule_mode === "auto") {
+        if (!data.first_payment_date) {
+            ctx.addIssue({
+                code: "custom",
+                message: "First payment date is required",
+                path: ["first_payment_date"],
+            });
         }
-        return data.term_months % 0.5 === 0;
-    },
-    {
-        message: "Term must be in 0.5 increments (or a whole number for custom)",
-        path: ["term_months"],
+        if (data.payment_frequency === "custom") {
+            if (!Number.isInteger(data.term_months) || data.term_months < 1) {
+                ctx.addIssue({
+                    code: "custom",
+                    message: "Term must be a whole number for custom",
+                    path: ["term_months"],
+                });
+            }
+        } else {
+            if (data.term_months % 0.5 !== 0) {
+                ctx.addIssue({
+                    code: "custom",
+                    message: "Term must be in 0.5 increments",
+                    path: ["term_months"],
+                });
+            }
+        }
     }
-);
+});
 
 export type AccountFormValues = z.infer<
     typeof accountSchema

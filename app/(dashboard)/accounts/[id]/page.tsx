@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import BackButton from "@/components/back-button";
 import PartialPaymentForm from "@/components/partial-payment-form";
 import ScheduleStatusSubmitButton from "@/components/schedule-status-submit-button";
+import AddSchedulesPanel from "@/components/add-schedules-panel";
 import {
   amountPaidOnInstallment,
   isInstallmentFullyPaid,
@@ -21,6 +22,7 @@ type AccountRow = {
   interest_rate: number | null;
   term_months: number | null;
   payment_frequency: string | null;
+  schedule_mode: string | null;
   created_at: string;
 };
 
@@ -167,7 +169,7 @@ export default async function AccountDetailPage({
   const { data: account, error: accountError } = await supabase
     .from("accounts")
     .select(
-      "id, borrower_id, type, status, release_date, principal_amount, interest_rate, term_months, payment_frequency, created_at"
+      "id, borrower_id, type, status, release_date, principal_amount, interest_rate, term_months, payment_frequency, schedule_mode, created_at"
     )
     .eq("id", id)
     .single();
@@ -228,20 +230,26 @@ export default async function AccountDetailPage({
     0
   );
 
-  const amountLeft = schedules.reduce(
+  const amountLeftRaw = schedules.reduce(
     (sum, s) => sum + remainingOnInstallment(s),
     0
   );
 
   const principal = Number(accountRow.principal_amount ?? 0);
+  const isManual = accountRow.schedule_mode === "manual";
+
+  const amountLeft = isManual ? Math.max(0, principal - amountPaid) : amountLeftRaw;
 
   const profit = totalPayment - principal;
   const paidInstallments = schedules.filter((s) =>
     isInstallmentFullyPaid(s)
   ).length;
   const totalInstallments = schedules.length;
-  const progressPct =
-    totalInstallments > 0
+  const progressPct = isManual
+    ? principal > 0
+      ? Math.min(100, Math.round((amountPaid / principal) * 100))
+      : 0
+    : totalInstallments > 0
       ? Math.round((paidInstallments / totalInstallments) * 100)
       : 0;
 
@@ -321,6 +329,28 @@ export default async function AccountDetailPage({
     await sb.from("payment_schedules").update(updatePayload).eq("id", scheduleId);
 
     revalidatePath(`/accounts/${row.account_id as string}`);
+  }
+
+  async function addSchedules(
+    rows: { due_date: string; amount_due: number; note?: string }[]
+  ): Promise<{ error?: string }> {
+    "use server";
+    if (!rows.length) return { error: "No rows provided" };
+    const sb = await createSupabaseServer();
+    const { error } = await sb.from("payment_schedules").insert(
+      rows.map((r) => ({
+        account_id: id,
+        due_date: r.due_date,
+        amount_due: r.amount_due,
+        amount_paid: 0,
+        remaining_amount: r.amount_due,
+        status: "pending",
+        note: r.note ?? null,
+      }))
+    );
+    if (error) return { error: error.message };
+    revalidatePath(`/accounts/${id}`);
+    return {};
   }
 
   const borrowerName = borrower
@@ -445,7 +475,9 @@ export default async function AccountDetailPage({
             <span className="tabular-nums">{formatMoney(totalPayment)}</span>
             <span className="mx-2 text-slate-300">|</span>
             <span className="text-slate-600">
-              {paidInstallments} of {totalInstallments} installments paid
+              {isManual
+                ? `${formatMoney(amountPaid)} of ${formatMoney(principal)} recovered`
+                : `${paidInstallments} of ${totalInstallments} installments paid`}
             </span>
           </div>
         </section>
@@ -484,16 +516,18 @@ export default async function AccountDetailPage({
                       </span>
                     ) : null}
                   </p>
-                ) : totalInstallments > 0 ? (
+                ) : totalInstallments > 0 && isManual ? (
                   <p className="mt-1.5 text-sm font-bold text-emerald-900">
-                    All installments settled.
+                    
                   </p>
-                ) : null}
+                ) :   <p className="mt-1.5 text-sm font-bold text-emerald-900">
+                    All installments settled.
+                  </p>}
               </div>
-              {totalInstallments > 0 ? (
+              {(isManual ? principal > 0 : totalInstallments > 0) ? (
                 <div className="w-full max-w-xs sm:w-48">
                   <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-wide text-slate-800">
-                    <span>Progress</span>
+                    <span>{isManual ? "Recovered" : "Progress"}</span>
                     <span className="tabular-nums text-slate-900">
                       {progressPct}%
                     </span>
@@ -515,6 +549,8 @@ export default async function AccountDetailPage({
               ) : null}
             </div>
           </div>
+
+          <AddSchedulesPanel accountId={account.id} addSchedules={addSchedules} />
 
           {schedules.length === 0 ? (
             <div className="border-t-2 border-dashed border-slate-300 bg-slate-50/80 px-5 py-12 text-center">

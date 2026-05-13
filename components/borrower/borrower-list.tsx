@@ -37,6 +37,10 @@ export type Borrower = {
   accounts_count?: number;
   account_schedules?: { due_date: string; amount: number; status: string }[];
   overdue_schedules?: { due_date: string; amount: number; status: string }[];
+  manual_total_principal?: number;
+  manual_total_paid?: number;
+  manual_total_remaining?: number;
+  manual_accounts_count?: number;
 };
 
 type BorrowersListProps = {
