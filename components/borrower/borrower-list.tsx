@@ -269,15 +269,15 @@ export default function BorrowersList({
           </p>
         </div>
       ) : (
-        <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 *:min-w-0">
+        <div className="columns-1 md:columns-2 xl:columns-3 gap-4 w-full">
           {initialBorrowers.map((borrower) => (
-            <BorrowerCard
-              key={borrower.id}
-              borrower={borrower}
-              showScheduleSummary
-              onBorrowerUpdated={refreshPage}
-
-            />
+            <div key={borrower.id} className="break-inside-avoid mb-4">
+              <BorrowerCard
+                borrower={borrower}
+                showScheduleSummary
+                onBorrowerUpdated={refreshPage}
+              />
+            </div>
           ))}
         </div>
       )}

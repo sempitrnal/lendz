@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition, type SyntheticEvent } from "react";
+import { useTransition, useState, type SyntheticEvent } from "react";
 import { isDarkColor } from "@/lib/utils";
 import { Phone } from "lucide-react";
 import Link from "next/link";
@@ -31,6 +31,7 @@ export function BorrowerCard({
 }: BorrowerCardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [overdueOpen, setOverdueOpen] = useState(false);
   const categories = [...(borrower.borrower_categories ?? [])].sort((a, b) =>
     a.category.name.localeCompare(b.category.name)
   );
@@ -139,7 +140,7 @@ export function BorrowerCard({
             <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
               Manual accounts
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
               <div className="rounded-md border-2 border-slate-900 bg-white p-2 shadow-[1px_1px_0px_0px_#0f172a]">
                 <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">Principal</p>
                 <p className="mt-0.5 text-sm font-black tabular-nums text-slate-900">₱{manualPrincipal.toLocaleString()}</p>
@@ -218,30 +219,38 @@ export function BorrowerCard({
           </div>
         ) : null}
        {borrower.overdue_total && borrower.overdue_count ? (
-                <div className="min-w-0 mt-2 shadow-md p-2 border-2 border-red-900 bg-red-50 rounded-lg">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                    Overdue · {borrower.overdue_count} due date{borrower.overdue_count === 1 ? "" : "s"}
-                  </p>
-                  <div className="mt-1.5 space-y-1">
-                    {(borrower.overdue_schedules ?? []).map((s, i) => (
-                      <p key={i} className="text-sm font-black text-slate-900 flex items-center gap-2">
-                        {new Date(s.due_date).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                        <span className="font-bold text-stone-500 text-xs w-max">
-                          ₱{s.amount.toLocaleString()}
-                        </span>
-                        <span className="text-[8px] font-black text-black px-1 shadow-[2px_2px_0px_0px_#333] rounded-xs border border-slate-900 uppercase bg-red-500/70">
-                          overdue
-                        </span>
-                      </p>
-                    ))}
-                  </div>
-                  <p className="mt-1.5 text-xs font-black text-slate-900 border-t border-red-200 pt-1.5">
-                    total: ₱{borrower.overdue_total?.toLocaleString() ?? "0"}
-                  </p>
+                <div className="min-w-0 mt-2 shadow-md border-2 border-red-900 bg-red-50 rounded-lg" data-prevent-borrower-card-open>
+                  <button
+                    type="button"
+                    onClick={() => setOverdueOpen((o) => !o)}
+                    className="w-full flex items-center justify-between p-2 text-left"
+                  >
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                      Overdue · {borrower.overdue_count} due date{borrower.overdue_count === 1 ? "" : "s"} · ₱{borrower.overdue_total?.toLocaleString()}
+                    </p>
+                    <span className={`text-[10px] font-black text-red-700 transition-transform ${overdueOpen ? "rotate-180" : ""}`}>▾</span>
+                  </button>
+                  {overdueOpen ? (
+                    <div className="px-2 pb-2">
+                      <div className="space-y-1">
+                        {(borrower.overdue_schedules ?? []).map((s, i) => (
+                          <p key={i} className="text-sm font-black text-slate-900 flex items-center gap-2">
+                            {new Date(s.due_date).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                            <span className="font-bold text-stone-500 text-xs w-max">
+                              ₱{s.amount.toLocaleString()}
+                            </span>
+                            <span className="text-[8px] font-black text-black px-1 shadow-[2px_2px_0px_0px_#333] rounded-xs border border-slate-900 uppercase bg-red-500/70">
+                              overdue
+                            </span>
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 

@@ -43,7 +43,7 @@ export default function CategoryCard({ category, openEditModal, deleteCategory, 
             className="h-4 w-4 translate-y-[0.6px] rounded-full border-2 border-slate-900"
             style={{ backgroundColor: category.color ?? "#cbd5e1" }}
           />
-          <p className="font-black lowercase text-slate-900">{category.name}</p>
+          <p className="font-black  lowercase text-slate-900">{category.name}</p>
         </div>
         <div className="relative">
           <DropdownMenu>

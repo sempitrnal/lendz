@@ -27,6 +27,10 @@ export function isInstallmentFullyPaid(row: ScheduleBalanceInput): boolean {
   return row.status === "paid" || remainingOnInstallment(row) <= 0;
 }
 
+export function isInstallmentNextHighlight(row: ScheduleBalanceInput): boolean {
+  return row.status === "pending" ;
+}
+
 export function nextDueScheduleForCollection<
   T extends ScheduleBalanceInput & { due_date: string },
 >(schedulesSortedByDueDate: T[]): T | undefined {

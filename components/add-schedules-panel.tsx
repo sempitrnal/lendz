@@ -7,6 +7,17 @@ type Row = { due_date: string; amount_due: string; note: string };
 
 const EMPTY_ROW = (): Row => ({ due_date: "", amount_due: "", note: "" });
 
+function formatCommas(value: string): string {
+  const digits = value.replace(/[^0-9.]/g, "");
+  const [int, dec] = digits.split(".");
+  const formatted = (int ?? "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return dec !== undefined ? `${formatted}.${dec}` : formatted;
+}
+
+function parseAmount(value: string): number {
+  return Number(value.replace(/,/g, ""));
+}
+
 function formatLocalDate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -77,7 +88,8 @@ export default function AddSchedulesPanel({ accountId, addSchedules }: Props) {
   const [batchCount, setBatchCount] = useState("6");
 
   function updateRow(i: number, field: keyof Row, value: string) {
-    setRows((prev) => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
+    const formatted = field === "amount_due" ? formatCommas(value) : value;
+    setRows((prev) => prev.map((r, idx) => idx === i ? { ...r, [field]: formatted } : r));
   }
 
   function addRow() {
@@ -92,16 +104,16 @@ export default function AddSchedulesPanel({ accountId, addSchedules }: Props) {
   function handleGenerate() {
     const dates = generateDates(batchStart, batchPattern, Number(batchCount));
     if (!dates.length) { toast.error("Invalid start date or count"); return; }
-    setRows(dates.map((due_date) => ({ due_date, amount_due: batchAmount, note: "" })));
+    setRows(dates.map((due_date) => ({ due_date, amount_due: formatCommas(batchAmount), note: "" })));
   }
 
   function handleSubmit() {
-    const valid = rows.filter((r) => r.due_date && r.amount_due && Number(r.amount_due) > 0);
+    const valid = rows.filter((r) => r.due_date && r.amount_due && parseAmount(r.amount_due) > 0);
     if (!valid.length) { toast.error("Add at least one row with a date and amount"); return; }
 
     startTransition(async () => {
       const result = await addSchedules(
-        valid.map((r) => ({ due_date: r.due_date, amount_due: Number(r.amount_due), note: r.note || undefined }))
+        valid.map((r) => ({ due_date: r.due_date, amount_due: parseAmount(r.amount_due), note: r.note || undefined }))
       );
       if (result?.error) {
         toast.error(result.error);
@@ -156,12 +168,12 @@ export default function AddSchedulesPanel({ accountId, addSchedules }: Props) {
                   Amount per schedule
                 </label>
                 <input
-                  type="number"
-                  min={0}
-                  placeholder="e.g. 5000"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="e.g. 5,000"
                   value={batchAmount}
-                  onChange={(e) => setBatchAmount(e.target.value)}
-                  className="w-full rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-semibold shadow-[2px_2px_0px_0px_#0f172a] focus:outline-none"
+                  onChange={(e) => setBatchAmount(formatCommas(e.target.value))}
+                  className="w-full rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-semibold tabular-nums shadow-[2px_2px_0px_0px_#0f172a] focus:outline-none"
                 />
               </div>
               <div>
@@ -239,8 +251,8 @@ export default function AddSchedulesPanel({ accountId, addSchedules }: Props) {
                     </td>
                     <td className="border-r-2 border-slate-900 px-2 py-1.5">
                       <input
-                        type="number"
-                        min={0}
+                        type="text"
+                        inputMode="numeric"
                         placeholder="0"
                         value={row.amount_due}
                         onChange={(e) => updateRow(i, "amount_due", e.target.value)}

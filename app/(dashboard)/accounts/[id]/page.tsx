@@ -6,9 +6,13 @@ import BackButton from "@/components/back-button";
 import PartialPaymentForm from "@/components/partial-payment-form";
 import ScheduleStatusSubmitButton from "@/components/schedule-status-submit-button";
 import AddSchedulesPanel from "@/components/add-schedules-panel";
+import AnimatedNumber from "@/components/animated-number";
+import PaidCheck from "@/components/paid-check";
+import OverdueSad from "@/components/overdue-sad";
 import {
   amountPaidOnInstallment,
   isInstallmentFullyPaid,
+  isInstallmentNextHighlight,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
 
@@ -61,9 +65,9 @@ const nb = {
   scheduleShell:
     "overflow-hidden rounded-xl border-2 border-slate-900 bg-white shadow-[5px_5px_0px_0px_#0f172a]",
   scheduleHead:
-    "border-b-2 border-slate-900 bg-green-300 px-4 py-3 sm:px-5 sm:py-4",
+    "border-b-2  border-slate-900 bg-green-300 px-4 py-3 sm:px-5 sm:py-4",
   scheduleTh:
-    "border-r-2 border-slate-900 bg-slate-100 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide text-slate-900 last:border-r-0",
+    "border-r-2  border-b-2 border-slate-900 bg-slate-100 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide text-slate-900 last:border-r-0",
   scheduleTd:
     "border-r-2 border-slate-900 px-3 py-2.5 align-middle text-slate-900 last:border-r-0",
 };
@@ -105,13 +109,15 @@ function getScheduleStatusClasses(status: string) {
       badge: "border-emerald-600/80 bg-emerald-50 text-emerald-900",
       row: "bg-emerald-100",
       dot: "bg-emerald-500",
+      text: "text-green-500"
     };
   }
   if (status === "partial") {
     return {
       badge: "border-violet-600/80 bg-violet-50 text-violet-950",
-      row: "bg-violet-50/60",
+      row: "bg-violet-100",
       dot: "bg-violet-500",
+      text: "text-violet-500"
     };
   }
   if (status === "overdue") {
@@ -119,12 +125,15 @@ function getScheduleStatusClasses(status: string) {
       badge: "border-rose-600/80 bg-rose-50 text-rose-900",
       row: "bg-rose-50",
       dot: "bg-rose-500",
+      text: "text-rose-     800"
     };
   }
   return {
     badge: "border-amber-600/80 bg-amber-50 text-amber-950",
     row: "bg-amber-50/50",
     dot: "bg-amber-500",
+    text: "text-amber-800",
+
   };
 }
 
@@ -140,7 +149,7 @@ function ScheduleStatusForm({
   return (
     <form
       action={updateScheduleStatus}
-      className="inline-flex overflow-hidden rounded-lg border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
+      className="inline-flex w-max overflow-hidden mt-5 rounded-lg border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
     >
       <input type="hidden" name="scheduleId" value={scheduleId} />
       {scheduleStatuses.map((status, i) => {
@@ -254,7 +263,7 @@ export default async function AccountDetailPage({
       : 0;
 
   const nextHighlightIndex = schedules.findIndex(
-    (s) => !isInstallmentFullyPaid(s)
+    (s) => isInstallmentNextHighlight(s)
   );
   const nextDue =
     nextHighlightIndex >= 0 ? schedules[nextHighlightIndex] : null;
@@ -358,7 +367,7 @@ export default async function AccountDetailPage({
     : "Unknown borrower";
 
   return (
-    <div className="mx-auto max-w-5xl pb-16">
+    <div className="mx-auto max-w-8xl pb-16">
       <div className="mb-8">
         <BackButton
           fallbackHref={`/borrowers/${accountRow.borrower_id}`}
@@ -436,8 +445,8 @@ export default async function AccountDetailPage({
               className={`${nb.card} border-sky-900/20 bg-linear-to-br from-sky-50/90 to-white p-4`}
             >
               <p className={nb.label}>Principal</p>
-              <p className="mt-1.5 text-4xl font-black tabular-nums tracking-tight text-slate-900">
-                {formatMoney(Number(accountRow.principal_amount ?? 0))}
+              <p className="mt-1.5 text-4xl font-black tracking-tight text-slate-900">
+                <AnimatedNumber value={Number(accountRow.principal_amount ?? 0)} prefix="₱" />
               </p>
               <p className="mt-1.5 text-xs text-slate-600">Loan amount</p>
             </div>
@@ -445,8 +454,8 @@ export default async function AccountDetailPage({
               className={`${nb.card} border-rose-900/20 bg-linear-to-br from-rose-50/90 to-white p-4`}
             >
               <p className={nb.label}>Remaining</p>
-              <p className="mt-1.5 text-4xl font-black tabular-nums tracking-tight text-slate-900">
-                {formatMoney(amountLeft)}
+              <p className="mt-1.5 text-4xl font-black tracking-tight text-slate-900">
+                <AnimatedNumber value={amountLeft} prefix="₱" />
               </p>
               <p className="mt-1.5 text-xs text-slate-600">Still to collect</p>
             </div>
@@ -454,8 +463,8 @@ export default async function AccountDetailPage({
               className={`${nb.card} border-emerald-900/20 bg-linear-to-br from-emerald-50/90 to-white p-4`}
             >
               <p className={nb.label}>Collected</p>
-              <p className="mt-1.5 text-4xl font-black tabular-nums tracking-tight text-slate-900">
-                {formatMoney(amountPaid)}
+              <p className="mt-1.5 text-4xl font-black tracking-tight text-slate-900">
+                <AnimatedNumber value={amountPaid} prefix="₱" />
               </p>
               <p className="mt-1.5 text-xs text-slate-600">Nabayran</p>
             </div>
@@ -464,8 +473,8 @@ export default async function AccountDetailPage({
               className={`${nb.card} border-amber-900/20 bg-linear-to-br from-amber-50/90 to-white p-4`}
             >
               <p className={nb.label}>Projected profit</p>
-              <p className="mt-1.5 text-4xl font-black tabular-nums tracking-tight text-slate-900">
-                {formatMoney(Math.max(0, profit))}
+              <p className="mt-1.5 text-4xl font-black tracking-tight text-slate-900">
+                <AnimatedNumber value={Math.max(0, profit)} prefix="₱" />
               </p>
               <p className="mt-1.5 text-xs text-slate-600">Over principal</p>
             </div>
@@ -567,7 +576,7 @@ export default async function AccountDetailPage({
                   return (
                     <li
                       key={schedule.id}
-                      className={`border-b-2 border-slate-900 p-4 last:border-b-0 ${st.row} ${isNext ? "" : ""}`}
+                      className={`border-b-2 border-slate-900 p-4 transition duration-1000 last:border-b-0 ${st.row} ${isNext ? "" : ""}`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -579,8 +588,10 @@ export default async function AccountDetailPage({
                               </span>
                             ) : null}
                           </p>
-                          <p className="mt-1 text-lg font-black tabular-nums text-slate-900">
-                            Due {formatMoney(Number(schedule.amount_due ?? 0))}
+                          <p className={`mt-1  flex items-center text-5xl font-black tabular-nums tracking-tight text-slate-900 ${st.text}`}>
+                            {formatMoney(Number(schedule.amount_due ?? 0))}
+                            {schedule.status === "paid" ? <PaidCheck /> : null}
+                            {schedule.status === "overdue" ? <OverdueSad /> : null}
                           </p>
                           <p className="mt-0.5 text-xs font-semibold tabular-nums text-slate-600">
                             Paid {formatMoney(amountPaidOnInstallment(schedule))}{" "}
@@ -600,7 +611,7 @@ export default async function AccountDetailPage({
                               {schedule.note}
                             </p>
                           ) : null}
-                          <p className="mt-0.5 text-sm font-semibold text-slate-700">
+                          <p className="mt-0.5 text-xl font-semibold text-slate-700">
                             {formatScheduleDate(schedule.due_date)}
                           </p>
                         </div>
@@ -619,7 +630,7 @@ export default async function AccountDetailPage({
                           currentStatus={schedule.status}
                           updateScheduleStatus={updateScheduleStatus}
                         />
-                        {!isInstallmentFullyPaid(schedule) ? (
+                        {schedule.status === "partial" ? (
                           <div>
                             <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-600">
                               Partial payment
@@ -627,6 +638,7 @@ export default async function AccountDetailPage({
                             <PartialPaymentForm
                               scheduleId={schedule.id}
                               applyPartialPayment={applyPartialPayment}
+                              autoFocus
                             />
                           </div>
                         ) : null}
@@ -637,9 +649,9 @@ export default async function AccountDetailPage({
               </ul>
 
               <div className="hidden md:block">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[900px] border-collapse border-t-2 border-slate-900 text-left text-sm">
-                    <thead>
+                <div className="max-h-[600px] overflow-auto">
+                  <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+                    <thead className="sticky   top-0 z-10">
                       <tr className="border-b-2 border-slate-900">
                         <th scope="col" className={nb.scheduleTh}>
                           #
@@ -649,19 +661,19 @@ export default async function AccountDetailPage({
                         </th>
                         <th
                           scope="col"
-                          className={`${nb.scheduleTh} text-right`}
+                          className={`${nb.scheduleTh} text-`}
                         >
                           Due
                         </th>
                         <th
                           scope="col"
-                          className={`${nb.scheduleTh} text-right`}
+                          className={`${nb.scheduleTh} text-center`}
                         >
                           Paid
                         </th>
                         <th
                           scope="col"
-                          className={`${nb.scheduleTh} text-right`}
+                          className={`${nb.scheduleTh} text-center`}
                         >
                           Left
                         </th>
@@ -683,7 +695,7 @@ export default async function AccountDetailPage({
                         return (
                           <tr
                             key={schedule.id}
-                            className={`border-b-2 border-slate-900 last:border-b-0 transition-colors hover:bg-slate-50/90 ${st.row} ${isNext ? "bg-sky-100/70" : ""}`}
+                            className={`border-b-2 border-slate-900 last:border-b-0 transition-colors duration-700  ${st.row} ${isNext ? "bg-sky-1000" : ""}`}
                           >
                             <td className={`${nb.scheduleTd} whitespace-nowrap`}>
                               <div className="flex items-center gap-2">
@@ -702,22 +714,22 @@ export default async function AccountDetailPage({
                               </div>
                             </td>
                             <td
-                              className={`${nb.scheduleTd} whitespace-nowrap font-bold text-slate-900`}
+                              className={`${nb.scheduleTd} whitespace-nowrap font-black text-xl text-slate-900`}
                             >
                               {formatScheduleDate(schedule.due_date)}
                             </td>
                             <td
-                              className={`${nb.scheduleTd} whitespace-nowrap text-right font-black tabular-nums text-slate-900`}
+                              className={`${nb.scheduleTd}  whitespace-nowrap text-center font-black text-xl tabular-nums text-slate-900`}
                             >
                               {formatMoney(Number(schedule.amount_due ?? 0))}
                             </td>
                             <td
-                              className={`${nb.scheduleTd} whitespace-nowrap text-right font-bold tabular-nums text-slate-800`}
+                              className={`${nb.scheduleTd} whitespace-nowrap text-center font-black text-xl tabular-nums text-slate-800`}
                             >
                               {formatMoney(amountPaidOnInstallment(schedule))}
                             </td>
                             <td
-                              className={`${nb.scheduleTd} whitespace-nowrap text-right font-black tabular-nums text-slate-900`}
+                              className={`${nb.scheduleTd} whitespace-nowrap text-right font-black text-xl tabular-nums text-slate-900`}
                             >
                               {formatMoney(remainingOnInstallment(schedule))}
                             </td>
@@ -728,14 +740,14 @@ export default async function AccountDetailPage({
                                 {schedule.status}
                               </span>
                             </td>
-                            <td className={`${nb.scheduleTd} align-top`}>
-                              <div className="flex flex-col gap-3">
+                            <td className={`${nb.scheduleTd} text-center`}>
+                              <div className="flex flex-col items-center gap-3">
                                 <ScheduleStatusForm
                                   scheduleId={schedule.id}
                                   currentStatus={schedule.status}
                                   updateScheduleStatus={updateScheduleStatus}
                                 />
-                                {!isInstallmentFullyPaid(schedule) ? (
+                                {schedule.status === "partial" ? (
                                   <div>
                                     <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600">
                                       Partial payment
@@ -743,6 +755,7 @@ export default async function AccountDetailPage({
                                     <PartialPaymentForm
                                       scheduleId={schedule.id}
                                       applyPartialPayment={applyPartialPayment}
+                                      autoFocus
                                     />
                                   </div>
                                 ) : null}

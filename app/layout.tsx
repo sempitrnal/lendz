@@ -47,7 +47,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col bg-[#fffefa] text-slate-900">
         <SiteHeader isLoggedIn={Boolean(user)} logoutAction={logout} />
 
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 md:px-6 py-10 ">{children}</main>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 md:px-6 py-10 ">{children}</main>
         <Toaster />
         <footer className="border-t border-slate-200">
           <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4 text-sm text-slate-600">

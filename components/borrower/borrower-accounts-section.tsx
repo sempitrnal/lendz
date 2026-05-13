@@ -149,7 +149,7 @@ function AccountCard({
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
        <div className="flex w-full gap-2">
        <div className="rounded-lg w-full border-2 border-slate-900 bg-emerald-100/70 p-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">

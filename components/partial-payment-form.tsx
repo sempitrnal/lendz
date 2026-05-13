@@ -19,17 +19,19 @@ function PartialSubmitButton() {
 export default function PartialPaymentForm({
   scheduleId,
   applyPartialPayment,
+  autoFocus,
 }: {
   scheduleId: string;
   applyPartialPayment: (formData: FormData) => Promise<void>;
+  autoFocus?: boolean;
 }) {
   return (
     <form
       action={applyPartialPayment}
-      className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end"
+      className="flex w-max flex-row flex-wrap items-end gap-2"
     >
       <input type="hidden" name="scheduleId" value={scheduleId} />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <label
           htmlFor={`partial-amt-${scheduleId}`}
           className="text-[10px] font-black uppercase tracking-wide text-slate-600"
@@ -45,10 +47,11 @@ export default function PartialPaymentForm({
           step="0.01"
           placeholder="0"
           required
-          className="w-full min-w-0 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold tabular-nums text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+          autoFocus={autoFocus}
+          className="w-28 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold tabular-nums text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
         />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-[200px]">
+      <div className="flex flex-col gap-1">
         <label
           htmlFor={`partial-note-${scheduleId}`}
           className="text-[10px] font-black uppercase tracking-wide text-slate-600"
@@ -61,7 +64,7 @@ export default function PartialPaymentForm({
           type="text"
           maxLength={500}
           placeholder="—"
-          className="w-full rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+          className="w-32 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
         />
       </div>
       <PartialSubmitButton />
