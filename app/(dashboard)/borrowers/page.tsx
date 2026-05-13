@@ -168,7 +168,9 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
           next_collection_status: n.next_collection_status,
           overdue_total: overdue.total,
           overdue_count: overdue.count,
-
+          accounts_count: n.accounts_count,
+          account_schedules: n.account_schedules,
+          overdue_schedules: n.overdue_schedules,
         };
       });
     } else {
@@ -177,7 +179,7 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
         has_accounts: false,
         next_collection_date: null,
         next_collection_amount: 0,
-
+        accounts_count: 0,
       }));
     }
   }
@@ -188,6 +190,7 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
         initialBorrowers={enrichedBorrowers}
         currentPage={currentPage}
         totalPages={totalPages}
+        
         totalCount={totalCount}
         initialSearchQuery={searchQuery}
         initialCategoryIds={categoryIds}

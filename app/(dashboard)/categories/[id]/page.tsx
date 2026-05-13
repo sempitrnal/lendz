@@ -141,7 +141,7 @@ export default async function CategoryDetailView({
     <div className="space-y-6">
       <BackButton fallbackHref="/categories" />
       <div>
-        <h1 className="text-2xl font-bold">{category?.name}</h1>
+        <h1 className="text-2xl font-black uppercase" >{category?.name}</h1>
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -207,7 +207,7 @@ export default async function CategoryDetailView({
       </section>
 
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Assigned Borrowers</h2>
+        <h2 className="mb-3 text-lg font-black lowercase">Borrowers</h2>
 
         {borrowers.length === 0 ? (
           <p className="text-sm text-gray-500">No borrowers assigned yet</p>

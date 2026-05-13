@@ -9,6 +9,12 @@ import {
  * Next collection per borrower: per account, earliest pending unpaid installment (else earliest unpaid),
  * then minimum due date across that borrower’s accounts.
  */
+export type AccountScheduleEntry = {
+  due_date: string;
+  amount: number;
+  status: string;
+};
+
 export type BorrowerNextCollection = {
   next_collection_date: string | null;
   next_collection_amount: number;
@@ -16,6 +22,9 @@ export type BorrowerNextCollection = {
   next_collection_status: string | null;
   overdue_count: number;
   overdue_total: number;
+  overdue_schedules: AccountScheduleEntry[];
+  accounts_count: number;
+  account_schedules: AccountScheduleEntry[];
 };
 
 type AccountRow = { id: string; borrower_id: string };
@@ -31,7 +40,7 @@ export function computeBorrowerNextCollectionById(
 ): Record<string, BorrowerNextCollection> {
   const out: Record<string, BorrowerNextCollection> = {};
   for (const id of borrowerIds) {
-    out[id] = { next_collection_date: null, next_collection_amount: 0, next_collection_status: null, overdue_count: 0, overdue_total: 0 };
+    out[id] = { next_collection_date: null, next_collection_amount: 0, next_collection_status: null, overdue_count: 0, overdue_total: 0, overdue_schedules: [], accounts_count: 0, account_schedules: [] };
   }
   if (borrowerIds.length === 0 || accountRows.length === 0) {
     return out;
@@ -82,37 +91,42 @@ export function computeBorrowerNextCollectionById(
 
     const amounts: number[] = [];
     const statuses = new Set<string>();
-    if (bestDate) {
-      for (const accId of accIds) {
-        const nu = firstUnpaidByAccount.get(accId);
-        if (!nu) continue;
-        if (nu.due_date === bestDate) {
-          amounts.push(nu.remaining);
-          statuses.add(nu.status);
-        }
-      }
+    const accountSchedules: AccountScheduleEntry[] = [];
+    for (const accId of accIds) {
+      const nu = firstUnpaidByAccount.get(accId);
+      if (!nu) continue;
+      amounts.push(nu.remaining);
+      statuses.add(nu.status);
+      accountSchedules.push({ due_date: nu.due_date, amount: nu.remaining, status: nu.status });
     }
+    accountSchedules.sort((a, b) => a.due_date.localeCompare(b.due_date));
 
     let overdueCount = 0;
     let overdueTotal = 0;
+    const overdueSchedules: AccountScheduleEntry[] = [];
     for (const accId of accIds) {
       const rows = byAccount.get(accId) ?? [];
       for (const row of rows) {
         if (row.status === "overdue" && !isInstallmentFullyPaid(row)) {
           overdueCount += 1;
-          overdueTotal += remainingOnInstallment(row);
+          const remaining = remainingOnInstallment(row);
+          overdueTotal += remaining;
+          overdueSchedules.push({ due_date: row.due_date, amount: remaining, status: row.status });
         }
       }
     }
+    overdueSchedules.sort((a, b) => a.due_date.localeCompare(b.due_date));
 
     out[bid] = {
       next_collection_date: bestDate,
-      // Keep aggregate for totals/sorting, but also expose per-account breakdown.
       next_collection_amount: amounts.reduce((sum, value) => sum + value, 0),
       next_collection_amounts: amounts.length > 1 ? amounts : undefined,
       next_collection_status: statuses.has("overdue") ? "overdue" : (statuses.size > 0 ? [...statuses][0] : null),
       overdue_count: overdueCount,
       overdue_total: overdueTotal,
+      overdue_schedules: overdueSchedules,
+      accounts_count: accIds.length,
+      account_schedules: accountSchedules,
     };
   }
   return out;

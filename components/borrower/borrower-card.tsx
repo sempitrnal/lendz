@@ -36,12 +36,13 @@ export function BorrowerCard({
   );
   console.log(borrower);
   const hasAccounts = borrower.has_accounts === true;
+  const accountsCount = borrower.accounts_count ?? 0;
   const nextDate = borrower.next_collection_date;
   const nextAmount = borrower.next_collection_amount ?? 0;
   const nextAmounts = borrower.next_collection_amounts;
   const nextStatus = borrower.next_collection_status;
   const hasNextUnpaid = Boolean(nextDate);
-
+  const schedules = borrower.account_schedules || [];
   function openBorrower(e: SyntheticEvent) {
     if (isPending) return;
     if (
@@ -133,29 +134,41 @@ export function BorrowerCard({
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                   Next collection
+                  {accountsCount > 0 ? (
+                    <span className="ml-1 normal-case text-slate-400">
+                      · {accountsCount} account{accountsCount === 1 ? "" : "s"}
+                    </span>
+                  ) : null}
                 </p>
                 {hasNextUnpaid ? (
                   <div className="mt-2 space-y-1.5">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                        Date
+                        
                       </p>
-                      <p className="text-sm font-black text-slate-900 flex  items-center gap-2">
-                        {new Date(nextDate!).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                        {nextStatus ? (
-                          <span className={`ml-1 text-[10px]  font-black text-black px-1 shadow-[2px_2px_0px_0px_#333] rounded-xs border border-slate-900   uppercase ${nextStatus === "overdue" ? "bg-red-500/70" : nextStatus === "paid" ? "bg-green-500/70" : nextStatus === "pending" ? "bg-yellow-500/70" : nextStatus === "partial" ? "bg-purple-500/70" : "bg-blue-500/70"}`}>
-                             {nextStatus}
-                          </span>
-                        ) : null}
-                      </p>
+                   {schedules ? schedules.map((schedule,i) => (
+                     <p key={i} className="text-sm font-black text-slate-900 flex  items-center gap-2">
+                       {new Date(schedule.due_date).toLocaleDateString(undefined, {
+                         month: "short",
+                         day: "numeric",
+                         year: "numeric",
+                       })}
+                       {schedules.length > 1 ? (
+                         <span className="font-bold text-stone-500 text-xs w-max">
+                           ₱{schedule.amount.toLocaleString()}
+                         </span>
+                       ) : null}
+                       {schedule.status ? (
+                         <span className={`ml-1 text-[8px]  font-black text-black px-1 shadow-[2px_2px_0px_0px_#333] rounded-xs border border-slate-900   uppercase ${schedule.status === "overdue" ? "bg-red-500/70" : schedule.status === "paid" ? "bg-green-500/70" : schedule.status === "pending" ? "bg-yellow-500/70" : schedule.status === "partial" ? "bg-purple-500/70" : "bg-blue-500/70"}`}>
+                           {schedule.status}
+                         </span>
+                       ) : null}
+                     </p>
+                   )) : null}
                     </div>
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                        Amount
+                        total amount
                       </p>
                       <p className="text-sm font-black tabular-nums text-slate-900">
                         {`₱${nextAmount.toLocaleString()}`}
@@ -174,17 +187,30 @@ export function BorrowerCard({
           </div>
         ) : null}
        {borrower.overdue_total && borrower.overdue_count ? (
-                <div className="min-w-0 mt-2 shadow-md p-2 border-2 border-red-900 bg-red-50 rounded-lg ">
+                <div className="min-w-0 mt-2 shadow-md p-2 border-2 border-red-900 bg-red-50 rounded-lg">
                   <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                    Overdue 
+                    Overdue · {borrower.overdue_count} due date{borrower.overdue_count === 1 ? "" : "s"}
                   </p>
-                  <p className="text-[12px] mt-2 font-black">
-                     {borrower.overdue_count ?? "0"} due dates
+                  <div className="mt-1.5 space-y-1">
+                    {(borrower.overdue_schedules ?? []).map((s, i) => (
+                      <p key={i} className="text-sm font-black text-slate-900 flex items-center gap-2">
+                        {new Date(s.due_date).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                        <span className="font-bold text-stone-500 text-xs w-max">
+                          ₱{s.amount.toLocaleString()}
+                        </span>
+                        <span className="text-[8px] font-black text-black px-1 shadow-[2px_2px_0px_0px_#333] rounded-xs border border-slate-900 uppercase bg-red-500/70">
+                          overdue
+                        </span>
+                      </p>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-xs font-black text-slate-900 border-t border-red-200 pt-1.5">
+                    total: ₱{borrower.overdue_total?.toLocaleString() ?? "0"}
                   </p>
-                  <p className="text-sm font-black text-slate-900">
-                    <span className="font-semibold">total:</span> ₱{borrower.overdue_total?.toLocaleString() ?? "0"}
-                  </p>
-               
                 </div>
               ) : null}
 
