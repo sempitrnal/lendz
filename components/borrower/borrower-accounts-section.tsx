@@ -45,6 +45,7 @@ type AccountComputedMetrics = {
   nextUnpaidScheduleId: string | null;
   overdueCount: number;
   overdueTotal: number;
+  term_months?: string| number| null;
 };
 
 type BorrowerAccountsSectionProps = {
@@ -149,10 +150,10 @@ function AccountCard({
 
           <div className="rounded-lg w-full border-2 border-slate-900 bg-amber-100/70 p-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-              ginansya
+              ginansya /  per payroll
             </p>
             <p className="text-sm font-black text-slate-900">
-              ₱{profitToMake.toLocaleString()}
+   ₱{profitToMake.toLocaleString()} | ₱{(profitToMake / (Number(metrics?.term_months) || 1)).toFixed(2)}
             </p>
           </div>
 
@@ -171,9 +172,9 @@ function AccountCard({
                 <p className="text-[11px] font-semibold text-slate-600">
                   ₱{nextCollectionAmount.toLocaleString()}
                   {nextCollectionStatus ? (
-                    <span className={`ml-1 uppercase ${nextCollectionStatus === "overdue" ? "text-red-600" : "text-slate-500"}`}>
-                      • {nextCollectionStatus}
-                    </span>
+                      <span className={`ml-1 text-[8px]  font-black text-black px-1 shadow-[2px_2px_0px_0px_#333] rounded-xs border border-slate-900   uppercase ${nextCollectionStatus === "overdue" ? "bg-red-500/70" : nextCollectionStatus === "paid" ? "bg-green-500/70" : nextCollectionStatus === "pending" ? "bg-yellow-500/70" : nextCollectionStatus === "partial" ? "bg-purple-500/70" : "bg-blue-500/70"}`}>
+                           {nextCollectionStatus}
+                         </span>
                   ) : null}
                 </p>
               </div>
@@ -329,6 +330,8 @@ export default function BorrowerAccountsSection({
         nextCollectionStatus: nextUnpaid?.status ?? null,
         nextUnpaidScheduleId: nextUnpaid?.id ?? null,
         overdueCount: overdueRows.length,
+        term_months: account.term_months,
+
         overdueTotal: overdueRows.reduce(
           (sum, row) => sum + remainingOnInstallment(row),
           0
