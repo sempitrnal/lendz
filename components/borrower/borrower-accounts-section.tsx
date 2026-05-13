@@ -465,13 +465,13 @@ export default function BorrowerAccountsSection({
           hover:scale-[1.02]
         "
             >
-              {note.preview_image ? (
+              {note.preview_img_url ? (
                 <img
-                  src={note.preview_image}
+                  src={note.preview_img_url}
                   className="pointer-events-none rounded w-full"
                 />
               ) : (
-                <div className="h-20 " />
+                <div className="h-20" />
               )}
             </button>
           ))}
