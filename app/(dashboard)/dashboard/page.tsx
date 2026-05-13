@@ -36,6 +36,8 @@ type AccountTotalRow = {
   id: string;
   principal_amount: number | null;
   release_date: string | null;
+  term_months: number | null;
+  payment_frequency: string | null;
 };
 
 type BorrowerRef = {
@@ -121,7 +123,7 @@ export default async function Dashboard() {
       .from("accounts")
       .select("*", { count: "exact", head: true })
       .gte("release_date", startOfMonthIso),
-    supabase.from("accounts").select("id, principal_amount, release_date"),
+    supabase.from("accounts").select("id, principal_amount, release_date, term_months, payment_frequency"),
     fetchSchedulesWhere(supabase, (q) => q.neq("status", "paid")),
     fetchSchedulesWhere(supabase, (q) =>
       q.gte("due_date", startOfMonthDate).lte("due_date", endOfMonthDate)
@@ -188,26 +190,29 @@ export default async function Dashboard() {
   const principalByAccountId = new Map(
     accountTotals.map((a) => [a.id, Number(a.principal_amount ?? 0)])
   );
-  const paidByAccount = new Map<string, number>();
+  const totalInstallmentsByAccount = new Map(
+    accountTotals.map((a) => {
+      const term = Number(a.term_months ?? 1);
+      const freq = a.payment_frequency ?? "monthly";
+      let n = term;
+      if (freq === "weekly") n = term * 4;
+      else if (freq === "bimonthly") n = term * 2;
+      return [a.id, Math.max(1, n)];
+    })
+  );
+  const unpaidThisMonthCountByAccount = new Map<string, number>();
   for (const s of thisMonthSchedules) {
-    const prev = paidByAccount.get(s.account_id) ?? 0;
-    const paid = s.status === "paid"
-      ? Math.max(0, Number(s.amount_due ?? 0))
-      : Math.max(0, Number(s.amount_paid ?? 0));
-    paidByAccount.set(s.account_id, prev + paid);
+    if (!isInstallmentFullyPaid(s)) {
+      unpaidThisMonthCountByAccount.set(s.account_id, (unpaidThisMonthCountByAccount.get(s.account_id) ?? 0) + 1);
+    }
   }
-  const unpaidThisMonthAccountIds = [
-    ...new Set(
-      thisMonthSchedules
-        .filter((s) => !isInstallmentFullyPaid(s))
-        .map((s) => s.account_id)
-    ),
-  ];
+  const unpaidThisMonthAccountIds = [...unpaidThisMonthCountByAccount.keys()];
   const moneyToCollectThisMonth = unpaidThisMonthAccountIds.reduce(
     (sum, accountId) => {
       const principal = principalByAccountId.get(accountId) ?? 0;
-      const paid = paidByAccount.get(accountId) ?? 0;
-      return sum + Math.max(0, principal - paid);
+      const total = totalInstallmentsByAccount.get(accountId) ?? 1;
+      const unpaid = unpaidThisMonthCountByAccount.get(accountId) ?? 0;
+      return sum + principal * (unpaid / total);
     },
     0
   );

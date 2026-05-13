@@ -92,22 +92,20 @@ export default async function CategoryDetailView({
   const principalByAccountId = new Map(
     accountRows.map((a) => [a.id, Number(a.principal_amount ?? 0)])
   );
-  const paidByAccount = new Map<string, number>();
+  const totalScheduleCountByAccount = new Map<string, number>();
+  const unpaidScheduleCountByAccount = new Map<string, number>();
   for (const s of scheduleRows) {
-    const prev = paidByAccount.get(s.account_id) ?? 0;
-    const paid = Math.min(
-      Math.max(0, Number(s.amount_due ?? 0)),
-      s.status === "paid"
-        ? Math.max(0, Number(s.amount_due ?? 0))
-        : Math.max(0, Number(s.amount_paid ?? 0))
-    );
-    paidByAccount.set(s.account_id, prev + paid);
+    totalScheduleCountByAccount.set(s.account_id, (totalScheduleCountByAccount.get(s.account_id) ?? 0) + 1);
+  }
+  for (const s of unpaidSchedules) {
+    unpaidScheduleCountByAccount.set(s.account_id, (unpaidScheduleCountByAccount.get(s.account_id) ?? 0) + 1);
   }
   const moneyToCollect = [...new Set(unpaidSchedules.map((s) => s.account_id))].reduce(
     (sum, accountId) => {
       const principal = principalByAccountId.get(accountId) ?? 0;
-      const paid = paidByAccount.get(accountId) ?? 0;
-      return sum + Math.max(0, principal - paid);
+      const total = totalScheduleCountByAccount.get(accountId) ?? 1;
+      const unpaid = unpaidScheduleCountByAccount.get(accountId) ?? 0;
+      return sum + principal * (unpaid / total);
     },
     0
   );
