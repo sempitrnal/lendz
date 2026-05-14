@@ -1,7 +1,7 @@
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import BackButton from "@/components/back-button";
 import PartialPaymentForm from "@/components/partial-payment-form";
 import ScheduleStatusForm from "@/components/schedule-status-form";
@@ -152,8 +152,10 @@ function getScheduleStatusClasses(status: string) {
 
 export default async function AccountDetailPage({
   params,
-}: AccountDetailPageProps) {
+  searchParams,
+}: AccountDetailPageProps & { searchParams: Promise<{ focus?: string }> }) {
   const { id } = await params;
+  const { focus: focusScheduleId } = await searchParams;
   const supabase = await createSupabaseServer();
 
   const { data: account, error: accountError } = await supabase
@@ -246,16 +248,15 @@ export default async function AccountDetailPage({
   const amountLeft = isManual ? Math.max(0, principal - amountPaid) : amountLeftRaw;
 
   const profit = totalPayment - principal;
-  const paidInstallments = schedules.filter((s) =>
-    isInstallmentFullyPaid(s)
-  ).length;
   const totalInstallments = schedules.length;
+  const totalScheduledDue = schedules.reduce((s, r) => s + Math.max(0, Number(r.amount_due ?? 0)), 0);
+  const totalScheduledPaid = schedules.reduce((s, r) => s + Math.max(0, Number(r.amount_paid ?? 0)), 0);
   const progressPct = isManual
     ? principal > 0
       ? Math.min(100, Math.round((amountPaid / principal) * 100))
       : 0
-    : totalInstallments > 0
-      ? Math.round((paidInstallments / totalInstallments) * 100)
+    : totalScheduledDue > 0
+      ? Math.min(100, Math.round((totalScheduledPaid / totalScheduledDue) * 100))
       : 0;
 
   const nextHighlightIndex = schedules.findIndex(
@@ -310,6 +311,10 @@ export default async function AccountDetailPage({
         .from("schedule_payments")
         .delete()
         .eq("schedule_id", scheduleId);
+    }
+
+    if (status === "partial") {
+      redirect(`/accounts/${accountRow.id}?focus=${scheduleId}`);
     }
 
     revalidatePath(`/accounts/${accountRow.id}`);
@@ -606,7 +611,7 @@ export default async function AccountDetailPage({
             <span className="text-slate-600">
               {isManual
                 ? `${formatMoney(amountPaid)} of ${formatMoney(principal)} recovered`
-                : `${paidInstallments} of ${totalInstallments} installments paid`}
+                : `${schedules.filter((s) => isInstallmentFullyPaid(s)).length} of ${totalInstallments} installments paid`}
             </span>
           </div>
         </section>
@@ -754,17 +759,12 @@ export default async function AccountDetailPage({
                           />
                         </div>
                         {schedule.status === "partial" ? (
-                          <div>
-                            <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-600">
-                              Partial payment
-                            </p>
-                            <PartialPaymentForm
-                              scheduleId={schedule.id}
-                              applyPartialPayment={applyPartialPayment}
-                              autoFocus
-                              dueDate={schedule.due_date}
-                            />
-                          </div>
+                          <PartialPaymentForm
+                            scheduleId={schedule.id}
+                            applyPartialPayment={applyPartialPayment}
+                            autoFocus={focusScheduleId === schedule.id}
+                            dueDate={schedule.due_date}
+                          />
                         ) : null}
                         {(schedule.status === "partial" || schedule.status === "paid") && (paymentsMap.get(schedule.id) ?? []).length > 0 ? (
                           <PaymentHistoryPanel
@@ -780,8 +780,8 @@ export default async function AccountDetailPage({
               </ul>
 
               <div className="hidden md:block print:block">
-                <div className="max-h-[600px] overflow-auto print:max-h-none print:overflow-visible">
-                  <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+                <div className="max-h-[600px] overflow-auto print:max-h-none print:overflow-visible print:overflow-x-visible">
+                  <table className="w-full min-w-[900px] print:min-w-0 border-collapse text-left text-sm [print-color-adjust:exact]">
                     <thead className="sticky top-0 z-10 print:static">
                       <tr className="border-b-2 border-slate-900">
                         <th scope="col" className={nb.scheduleTh}>
@@ -886,17 +886,12 @@ export default async function AccountDetailPage({
                                   updateScheduleStatus={updateScheduleStatus}
                                 />
                                 {schedule.status === "partial" ? (
-                                  <div>
-                                    <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600">
-                                      Partial payment
-                                    </p>
-                                    <PartialPaymentForm
-                                      scheduleId={schedule.id}
-                                      applyPartialPayment={applyPartialPayment}
-                                      autoFocus
-                                      dueDate={schedule.due_date}
-                                    />
-                                  </div>
+                                  <PartialPaymentForm
+                                    scheduleId={schedule.id}
+                                    applyPartialPayment={applyPartialPayment}
+                                    autoFocus={focusScheduleId === schedule.id}
+                                    dueDate={schedule.due_date}
+                                  />
                                 ) : null}
                                 {(schedule.status === "partial" || schedule.status === "paid") && (paymentsMap.get(schedule.id) ?? []).length > 0 ? (
                                   <PaymentHistoryPanel

@@ -45,6 +45,8 @@ type AccountComputedMetrics = {
   nextUnpaidScheduleId: string | null;
   overdueCount: number;
   overdueTotal: number;
+  totalDue: number;
+  totalPaid: number;
   term_months?: string| number| null;
   term_installments?: string| number| null;
   schedule_mode?: string | null;
@@ -71,6 +73,9 @@ function AccountCard({
 }) {
   const amountLeftToPay = metrics?.amountLeftToPay ?? 0;
   const profitToMake = metrics?.profitToMake ?? 0;
+  const totalDue = metrics?.totalDue ?? 0;
+  const totalPaid = metrics?.totalPaid ?? 0;
+  const progressPct = totalDue > 0 ? Math.min(100, Math.round((totalPaid / totalDue) * 100)) : 0;
   const nextCollectionDate = metrics?.nextCollectionDate;
   const nextCollectionAmount = metrics?.nextCollectionAmount ?? 0;
   const nextCollectionStatus = metrics?.nextCollectionStatus ?? null;
@@ -128,12 +133,14 @@ function AccountCard({
       >
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="font-black uppercase text-slate-900">
-              {account.type.replace("_", " ")}
+            <p className="font-black uppercase text-slate-900 flex items-center gap-2">
+              {account.type.replace("_", " ")} <span className="text-[8px] font-bold border border-slate-900 rounded-full px-2 py-0.5 text-stone-900">
+                {account.schedule_mode == "manual" ?"Manual" :account.payment_frequency + " | " + account.term_months + " month" + (account.term_months === 1 ? "" : "s")}
+                </span>
             </p>
 
             <p className="mt-1 text-xs font-semibold uppercase text-slate-500">
-              Status: {account.status}
+              {account.status}
             </p>
           </div>
 
@@ -154,12 +161,12 @@ function AccountCard({
         </div>
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-       <div className="flex w-full gap-2">
-       <div className="rounded-lg w-full border-2 border-slate-900 bg-emerald-100/70 p-2">
+       <div className="">
+       <div className="rounded-lg w-full mb-2 border-2 border-slate-900 bg-emerald-100/70 p-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
               {isManual ? "remaining" : "bayranan"}
             </p>
-            <p className="text-sm font-black text-slate-900">
+            <p className="text-sm font-black  md:text-2xl text-slate-900">
               ₱{amountLeftToPay.toLocaleString()}
             </p>
             {isManual ? (
@@ -172,7 +179,7 @@ function AccountCard({
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 ginansya / per payroll
               </p>
-              <p className="text-sm font-black text-slate-900">
+              <p className="text-sm font-black text-slate-900 md:text-2xl">
                 ₱{Math.round(profitToMake).toLocaleString()} | ₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}
               </p>
             </div>
@@ -180,17 +187,18 @@ function AccountCard({
 
        </div>
        {!isManual &&    <div className="rounded-lg border-2 border-slate-900 bg-sky-100/70 p-2">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            <div className="flex flex-col items-start justify-between gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                   next collection
                 </p>
-                <p className="text-sm font-black text-slate-900">
+              <div className="min-w-0 flex flex-col justify-center">
+          
+                <p className="text-sm font-black md:text-3xl md:mb-2  text-slate-900">
                   {nextCollectionDate
                     ? new Date(nextCollectionDate).toLocaleDateString()
                     : "none"}
                 </p>
-                <p className="text-[11px] font-semibold text-slate-600">
+                <p className="text-[11px] md:text-xl  flex items-center font-semibold text-slate-600">
                   ₱{nextCollectionAmount.toLocaleString()}
                   {nextCollectionStatus ? (
                       <span className={`ml-1 text-[8px]  font-black text-black px-1 shadow-[2px_2px_0px_0px_#333] rounded-xs border border-slate-900   uppercase ${nextCollectionStatus === "overdue" ? "bg-red-500/70" : nextCollectionStatus === "paid" ? "bg-green-500/70" : nextCollectionStatus === "pending" ? "bg-yellow-500/70" : nextCollectionStatus === "partial" ? "bg-purple-500/70" : "bg-blue-500/70"}`}>
@@ -207,9 +215,30 @@ function AccountCard({
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 overdue
               </p>
-              <p className="text-sm font-black text-red-700">
+              <p className="text-sm font-bold text-slate-700">
                 {overdueCount} schedule{overdueCount === 1 ? "" : "s"} • ₱{overdueTotal.toLocaleString()}
               </p>
+            </div>
+          ) : null}
+
+          {!isManual && totalDue > 0 ? (
+            <div className="sm:col-span-2">
+              <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-wide text-slate-500">
+                <span>Progress</span>
+                <span className="tabular-nums text-slate-700">{progressPct}%</span>
+              </div>
+              <div
+                className="h-2.5 overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
+                role="progressbar"
+                aria-valuenow={progressPct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div
+                  className="h-full bg-emerald-400 transition-all duration-500"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
             </div>
           ) : null}
         </div>
@@ -354,6 +383,8 @@ export default function BorrowerAccountsSection({
         nextCollectionStatus: nextUnpaid?.status ?? null,
         nextUnpaidScheduleId: nextUnpaid?.id ?? null,
         overdueCount: overdueRows.length,
+        totalDue: totalPayment,
+        totalPaid: amountPaid,
         term_months: account.term_months,
         term_installments: account.term_installments,
         schedule_mode: account.schedule_mode,
