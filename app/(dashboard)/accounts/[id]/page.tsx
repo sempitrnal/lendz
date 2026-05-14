@@ -8,6 +8,7 @@ import ScheduleStatusForm from "@/components/schedule-status-form";
 import PaymentHistoryPanel from "@/components/payment-history-panel";
 import type { SchedulePayment } from "@/components/payment-history-panel";
 import AddSchedulesPanel from "@/components/add-schedules-panel";
+import PrintButton from "@/components/print-button";
 import AnimatedNumber from "@/components/animated-number";
 import PaidCheck from "@/components/paid-check";
 import OverdueSad from "@/components/overdue-sad";
@@ -486,7 +487,7 @@ export default async function AccountDetailPage({
 
   return (
     <div className="mx-auto max-w-8xl pb-16">
-      <div className="mb-8">
+      <div className="mb-8 print:hidden">
         <BackButton
           fallbackHref={`/borrowers/${accountRow.borrower_id}`}
           className="mb-6"
@@ -525,7 +526,8 @@ export default async function AccountDetailPage({
                 </span>
               </p>
             </div>
-            <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-4 lg:flex-col lg:items-end">
+            <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-4 lg:flex-col lg:items-end print:items-end">
+              <PrintButton />
               <span
                 className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide ${accountStatusClasses.badge}`}
               >
@@ -677,7 +679,7 @@ export default async function AccountDetailPage({
             </div>
           </div>
 
-          {isManual ? <AddSchedulesPanel accountId={account.id} addSchedules={addSchedules} /> : null}
+          {isManual ? <div className="print:hidden"><AddSchedulesPanel accountId={account.id} addSchedules={addSchedules} /></div> : null}
 
           {schedules.length === 0 ? (
             <div className="border-t-2 border-dashed border-slate-300 bg-slate-50/80 px-5 py-12 text-center">
@@ -687,7 +689,7 @@ export default async function AccountDetailPage({
             </div>
           ) : (
             <>
-              <ul className="md:hidden">
+              <ul className="md:hidden print:hidden">
                 {schedules.map((schedule, i) => {
                   const st = getScheduleStatusClasses(schedule.status);
                   const isNext = i === nextHighlightIndex;
@@ -777,10 +779,10 @@ export default async function AccountDetailPage({
                 })}
               </ul>
 
-              <div className="hidden md:block">
-                <div className="max-h-[600px] overflow-auto">
+              <div className="hidden md:block print:block">
+                <div className="max-h-[600px] overflow-auto print:max-h-none print:overflow-visible">
                   <table className="w-full min-w-[900px] border-collapse text-left text-sm">
-                    <thead className="sticky   top-0 z-10">
+                    <thead className="sticky top-0 z-10 print:static">
                       <tr className="border-b-2 border-slate-900">
                         <th scope="col" className={nb.scheduleTh}>
                           #
@@ -809,9 +811,12 @@ export default async function AccountDetailPage({
                         <th scope="col" className={nb.scheduleTh}>
                           Status
                         </th>
+                        <th scope="col" className={`${nb.scheduleTh} hidden print:table-cell`}>
+                          Paid date
+                        </th>
                         <th
                           scope="col"
-                          className={`min-w-[280px] ${nb.scheduleTh}`}
+                          className={`min-w-[280px] ${nb.scheduleTh} print:hidden`}
                         >
                           Update
                         </th>
@@ -869,7 +874,10 @@ export default async function AccountDetailPage({
                                 {schedule.status}
                               </span>
                             </td>
-                            <td className={`${nb.scheduleTd} text-center`}>
+                            <td className={`${nb.scheduleTd} whitespace-nowrap hidden print:table-cell`}>
+                              {schedule.paid_date ? formatScheduleDate(schedule.paid_date) : "—"}
+                            </td>
+                            <td className={`${nb.scheduleTd} text-center print:hidden`}>
                               <div className="flex flex-col items-center gap-3">
                                 <ScheduleStatusForm
                                   scheduleId={schedule.id}

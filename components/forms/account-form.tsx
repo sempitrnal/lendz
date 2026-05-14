@@ -89,46 +89,68 @@ function buildSchedulesPayload(
     const monthlyAnchorDay = currentDate.getDate();
 
     const isCustom = values.payment_frequency === "custom";
-    const numberOfSchedules = isCustom
-      ? Math.round(values.term_months)
-      : values.payment_frequency === "weekly"
-        ? Math.round(values.term_months * 4)
-        : Math.round(values.term_months);
 
-    const totalInterest = isCustom
-      ? values.principal_amount * (values.interest_rate / 100)
-      : values.principal_amount * (values.interest_rate / 100) * values.term_months;
-    const totalPayment = values.principal_amount + totalInterest;
-    const installmentAmount = totalPayment / numberOfSchedules;
+    if (isCustom) {
+      // Custom frequency uses bimonthly-style date pattern and interest
+      const numberOfSchedules = Math.round(values.term_months);
+      const equivalentMonths = numberOfSchedules / 2;
+      const totalInterest =
+        values.principal_amount * (values.interest_rate / 100) * equivalentMonths;
+      const totalPayment = values.principal_amount + totalInterest;
+      const installmentAmount = Number(
+        (totalPayment / numberOfSchedules).toFixed(2)
+      );
 
-    for (let i = 0; i < numberOfSchedules; i++) {
-      const amt = Number(installmentAmount.toFixed(2));
-      schedules.push({
-        account_id: accountId,
-        due_date: formatLocalISODate(currentDate),
-        amount_due: amt,
-        amount_paid: 0,
-        remaining_amount: amt,
-        status: "pending",
-        note: null,
-      });
+      // Reuse bimonthly date generation, request enough months then take first N
+      const monthsNeeded = Math.ceil(numberOfSchedules / 2);
+      const dueDates = generateLegacyBimonthlyDueDates(
+        currentDate,
+        monthsNeeded
+      );
 
-      if (values.payment_frequency === "monthly") {
-        currentDate = addOneMonthAnchored(currentDate, monthlyAnchorDay);
-      } else if (values.payment_frequency === "weekly") {
-        currentDate.setDate(currentDate.getDate() + 7);
-      } else if (values.payment_frequency === "custom") {
-        const curDay = currentDate.getDate();
-        const curMonth = currentDate.getMonth();
-        const curYear = currentDate.getFullYear();
-        if (curDay <= 15) {
-          currentDate = new Date(curYear, curMonth, curDay + 15);
+      for (let i = 0; i < numberOfSchedules; i++) {
+        schedules.push({
+          account_id: accountId,
+          due_date: formatLocalISODate(dueDates[i]),
+          amount_due: installmentAmount,
+          amount_paid: 0,
+          remaining_amount: installmentAmount,
+          status: "pending",
+          note: null,
+        });
+      }
+    } else {
+      const numberOfSchedules =
+        values.payment_frequency === "weekly"
+          ? Math.round(values.term_months * 4)
+          : Math.round(values.term_months);
+
+      const totalInterest =
+        values.principal_amount *
+        (values.interest_rate / 100) *
+        values.term_months;
+      const totalPayment = values.principal_amount + totalInterest;
+      const installmentAmount = totalPayment / numberOfSchedules;
+
+      for (let i = 0; i < numberOfSchedules; i++) {
+        const amt = Number(installmentAmount.toFixed(2));
+        schedules.push({
+          account_id: accountId,
+          due_date: formatLocalISODate(currentDate),
+          amount_due: amt,
+          amount_paid: 0,
+          remaining_amount: amt,
+          status: "pending",
+          note: null,
+        });
+
+        if (values.payment_frequency === "monthly") {
+          currentDate = addOneMonthAnchored(currentDate, monthlyAnchorDay);
+        } else if (values.payment_frequency === "weekly") {
+          currentDate.setDate(currentDate.getDate() + 7);
         } else {
-          const nextMonth = curMonth + 1;
-          currentDate = new Date(curYear, nextMonth, monthlyAnchorDay);
+          currentDate = addOneMonthAnchored(currentDate, monthlyAnchorDay);
         }
-      } else {
-        currentDate = addOneMonthAnchored(currentDate, monthlyAnchorDay);
       }
     }
   }
@@ -235,6 +257,7 @@ export default function AccountForm({
     const schedulesPayload = (id: string) => buildSchedulesPayload(id, values);
 
     if (isEdit && accountId) {
+      const isCustomFreq = values.payment_frequency === "custom";
       const { error: updateError } = await supabase
         .from("accounts")
         .update({
@@ -242,6 +265,7 @@ export default function AccountForm({
           principal_amount: values.principal_amount,
           interest_rate: values.interest_rate,
           term_months: values.term_months || null,
+          term_installments: isCustomFreq ? values.term_months : null,
           release_date: values.release_date || null,
           first_payment_date: values.first_payment_date || null,
           payment_frequency: values.schedule_mode === 'manual' ? 'bisag kanus-a' : values.payment_frequency,
@@ -282,12 +306,14 @@ export default function AccountForm({
       return;
     }
 
+    const isCustomFreq = values.payment_frequency === "custom";
     const { data: account, error } = await supabase
       .from("accounts")
       .insert({
         ...values,
         first_payment_date: values.first_payment_date || null,
         term_months: values.term_months || null,
+        term_installments: isCustomFreq ? values.term_months : null,
         release_date: values.release_date || null,
       })
       .select()

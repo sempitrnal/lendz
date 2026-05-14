@@ -87,6 +87,10 @@ function AccountCard({
         : freq === "weekly"
           ? termMonths * 4
           : termMonths;
+      if(freq === 'custom'){
+        console.log(metrics?.term_installments)
+        console.log(perPayrollDivisor)
+      }
   function tryOpenAccount(e: SyntheticEvent) {
     if (isOpening) return;
     if (
@@ -169,7 +173,7 @@ function AccountCard({
                 ginansya / per payroll
               </p>
               <p className="text-sm font-black text-slate-900">
-                ₱{profitToMake.toLocaleString()} | ₱{(profitToMake / perPayrollDivisor).toLocaleString()}
+                ₱{Math.round(profitToMake).toLocaleString()} | ₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}
               </p>
             </div>
           ) : null}
@@ -339,7 +343,7 @@ export default function BorrowerAccountsSection({
       const overdueRows = rows.filter(
         (row) => row.status === "overdue" && !isInstallmentFullyPaid(row)
       );
-      
+      console.log(account);
       computed[account.id] = {
         amountLeftToPay,
         profitToMake,
