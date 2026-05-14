@@ -80,7 +80,7 @@ export default function PartialPaymentForm({
               name="paymentDate"
               type="date"
               defaultValue={dueDate ?? new Date().toISOString().split("T")[0]}
-              className="w-full sm:w-36 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+              className="w-full sm:w-36 min-w-0 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
             />
           </div>
           <div className="flex flex-col gap-1">

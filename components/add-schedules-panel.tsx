@@ -160,7 +160,7 @@ export default function AddSchedulesPanel({ accountId, addSchedules }: Props) {
                   type="date"
                   value={batchStart}
                   onChange={(e) => setBatchStart(e.target.value)}
-                  className="w-full rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-semibold shadow-[2px_2px_0px_0px_#0f172a] focus:outline-none"
+                  className="w-full min-w-0 rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-semibold shadow-[2px_2px_0px_0px_#0f172a] focus:outline-none"
                 />
               </div>
               <div>
@@ -246,7 +246,7 @@ export default function AddSchedulesPanel({ accountId, addSchedules }: Props) {
                         type="date"
                         value={row.due_date}
                         onChange={(e) => updateRow(i, "due_date", e.target.value)}
-                        className="w-full rounded-md border-2 border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold focus:border-slate-900 focus:outline-none"
+                        className="w-full min-w-0 rounded-md border-2 border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold focus:border-slate-900 focus:outline-none"
                       />
                     </td>
                     <td className="border-r-2 border-slate-900 px-2 py-1.5">

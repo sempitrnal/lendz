@@ -117,7 +117,7 @@ export default function DailyNotesWidget() {
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="w-full rounded-md border-2 border-slate-900 px-2 py-1.5 text-sm font-semibold text-slate-900"
+          className="w-full min-w-0 rounded-md border-2 border-slate-900 px-2 py-1.5 text-sm font-semibold text-slate-900"
         />
         <div className="flex gap-2">
           <input
