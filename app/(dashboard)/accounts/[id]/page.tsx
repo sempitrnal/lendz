@@ -9,6 +9,15 @@ import PaymentHistoryPanel from "@/components/payment-history-panel";
 import type { SchedulePayment } from "@/components/payment-history-panel";
 import AddSchedulesPanel from "@/components/add-schedules-panel";
 import PrintButton from "@/components/print-button";
+import { ScheduleSelectionProvider } from "@/components/schedule-selection-provider";
+import { ScheduleCheckbox } from "@/components/schedule-checkbox";
+import { ScheduleCheckboxCell } from "@/components/schedule-checkbox-cell";
+import { ScheduleMobileCard } from "@/components/schedule-mobile-card";
+import { ScheduleSelectAll } from "@/components/schedule-select-all";
+import { ScheduleSelectAllHeader } from "@/components/schedule-select-all-header";
+import { ScheduleEditBar } from "@/components/schedule-edit-bar";
+import BatchScheduleToolbar from "@/components/batch-schedule-toolbar";
+import type { PaidDateStrategy } from "@/components/batch-schedule-toolbar";
 import ShareScheduleButton from "@/components/share-schedule-button";
 import type { ShareSchedule } from "@/components/share-schedule-button";
 import AnimatedNumber from "@/components/animated-number";
@@ -317,6 +326,52 @@ export default async function AccountDetailPage({
 
     if (status === "partial") {
       redirect(`/accounts/${accountRow.id}?focus=${scheduleId}`);
+    }
+
+    revalidatePath(`/accounts/${accountRow.id}`);
+  }
+
+  async function batchUpdateScheduleStatus(
+    ids: string[],
+    paidDateStrategy: PaidDateStrategy,
+    customDate?: string
+  ) {
+    "use server";
+    if (!ids.length) return;
+
+    const updateSupabase = await createSupabaseServer();
+
+    const { data: rows } = await updateSupabase
+      .from("payment_schedules")
+      .select("id, amount_due, due_date")
+      .in("id", ids);
+
+    if (!rows?.length) return;
+
+    for (const row of rows) {
+      const due = Math.max(0, Number(row.amount_due ?? 0));
+      const paidDate =
+        paidDateStrategy === "custom"
+          ? (customDate || null)
+          : (row.due_date || null);
+
+      await updateSupabase
+        .from("payment_schedules")
+        .update({
+          status: "paid",
+          amount_paid: due,
+          remaining_amount: 0,
+          paid_date: paidDate,
+        })
+        .eq("id", row.id);
+
+      if (due > 0) {
+        await updateSupabase.from("schedule_payments").insert({
+          schedule_id: row.id,
+          amount: due,
+          payment_date: paidDate,
+        });
+      }
     }
 
     revalidatePath(`/accounts/${accountRow.id}`);
@@ -640,10 +695,11 @@ export default async function AccountDetailPage({
           </div>
         </section>
 
-        <section
-          className={nb.scheduleShell}
-          aria-labelledby="schedule-heading"
-        >
+        <ScheduleSelectionProvider>
+          <section
+            className={nb.scheduleShell}
+            aria-labelledby="schedule-heading"
+          >
           <div className={nb.scheduleHead}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -708,6 +764,8 @@ export default async function AccountDetailPage({
             </div>
           </div>
 
+          <ScheduleEditBar allIds={schedules.map((s) => s.id)} />
+
           {isManual ? <div className="print:hidden "><AddSchedulesPanel accountId={account.id} addSchedules={addSchedules} /></div> : null}
 
           {schedules.length === 0 ? (
@@ -723,9 +781,10 @@ export default async function AccountDetailPage({
                   const st = getScheduleStatusClasses(schedule.status);
                   const isNext = i === nextHighlightIndex;
                   return (
-                    <li
+                    <ScheduleMobileCard
                       key={schedule.id}
-                      className={`border-b-2 border-slate-900 p-4 transition duration-1000 last:border-b-0 ${st.row} ${isNext ? "" : ""}`}
+                      scheduleId={schedule.id}
+                      className={`border-b-2 border-slate-900 p-4 transition duration-500 last:border-b-0 ${st.row} ${isNext ? "" : ""}`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -764,11 +823,14 @@ export default async function AccountDetailPage({
                             {formatScheduleDate(schedule.due_date)}
                           </p>
                         </div>
-                        <span
-                          className={`shrink-0 rounded-full border-2 px-2.5 py-1 text-xs font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] ${st.badge}`}
-                        >
-                          {schedule.status}
-                        </span>
+                        <div className="flex shrink-0 items-start gap-2">
+                          <ScheduleCheckbox scheduleId={schedule.id} />
+                          <span
+                            className={`shrink-0 rounded-full border-2 px-2.5 py-1 text-xs font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] ${st.badge}`}
+                          >
+                            {schedule.status}
+                          </span>
+                        </div>
                       </div>
                       <div className="mt-4 space-y-3">
                         <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-600">
@@ -798,7 +860,7 @@ export default async function AccountDetailPage({
                           />
                         ) : null}
                       </div>
-                    </li>
+                    </ScheduleMobileCard>
                   );
                 })}
               </ul>
@@ -808,6 +870,10 @@ export default async function AccountDetailPage({
                   <table className="w-full min-w-[900px] print:min-w-0 border-collapse text-left text-sm [print-color-adjust:exact]">
                     <thead className="sticky top-0 z-10 print:static border-t-2 border-slate-900 border-">
                       <tr className="border-b-2 border-slate-900">
+                        <ScheduleSelectAllHeader
+                          allIds={schedules.map((s) => s.id)}
+                          className={`${nb.scheduleTh} w-10 text-center`}
+                        />
                         <th scope="col" className={nb.scheduleTh}>
                           #
                         </th>
@@ -855,6 +921,10 @@ export default async function AccountDetailPage({
                             key={schedule.id}
                             className={`border-b-2 border-slate-900 last:border-b-0 transition-colors duration-700  ${st.row} ${isNext ? "bg-sky-1000" : ""}`}
                           >
+                            <ScheduleCheckboxCell
+                              scheduleId={schedule.id}
+                              className={`${nb.scheduleTd} text-center whitespace-nowrap`}
+                            />
                             <td className={`${nb.scheduleTd} whitespace-nowrap`}>
                               <div className="flex items-center gap-2">
                                 <span
@@ -940,7 +1010,12 @@ export default async function AccountDetailPage({
               </div>
             </>
           )}
-        </section>
+          </section>
+          <BatchScheduleToolbar
+            allIds={schedules.map((s) => s.id)}
+            onBatchPaid={batchUpdateScheduleStatus}
+          />
+        </ScheduleSelectionProvider>
       </div>
     </div>
   );

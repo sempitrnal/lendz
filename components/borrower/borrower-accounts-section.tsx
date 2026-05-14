@@ -161,29 +161,28 @@ function AccountCard({
         </div>
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-       <div className="">
-            <div className="flex gap-2">  <div className="rounded-lg w-full mb-2 border-2 border-slate-900 bg-purple-100/90 p-2">
+          {/* bayranan */}
+          <div className="rounded-lg border-2 border-slate-900 bg-purple-100/90 p-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-              {isManual ? "bayranan" : "bayranan"}
+              bayranan
             </p>
-            <p className="text-sm font-black  md:text-2xl text-slate-900">
+            <p className="text-sm font-black md:text-2xl text-slate-900">
               ₱{amountLeftToPay.toLocaleString()}
             </p>
-          
           </div>
 
-            {isManual &&   <div className="rounded-lg w-full mb-2 border-2 border-slate-900 bg-emerald-100/70 p-2">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-              { "nabayran"}
-            </p>
-            <p className="text-sm font-black  md:text-2xl text-slate-900">
-              ₱{totalPaid.toLocaleString()}
-            </p>
-          
-          </div>}
-</div>
-          {!isManual ? (
-            <div className="rounded-lg w-full border-2 border-slate-900 bg-amber-100/70 p-2">
+          {/* manual: nabayran | auto: ginansya */}
+          {isManual ? (
+            <div className="rounded-lg border-2 border-slate-900 bg-emerald-100/70 p-2">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                nabayran
+              </p>
+              <p className="text-sm font-black md:text-2xl text-slate-900">
+                ₱{totalPaid.toLocaleString()}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border-2 border-slate-900 bg-amber-100/70 p-2">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 ginansya / per payroll
               </p>
@@ -191,35 +190,49 @@ function AccountCard({
                 ₱{Math.round(profitToMake).toLocaleString()} | ₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}
               </p>
             </div>
-          ) : null}
+          )}
 
-       </div>
-       {!isManual &&    <div className="rounded-lg border-2 border-slate-900 bg-sky-100/70 p-2">
-            <div className="flex flex-col items-start justify-between gap-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+          {/* next collection */}
+          {!isManual && (
+            <div className="rounded-lg border-2 border-slate-900 bg-sky-100/70 p-2">
+              <div className="flex flex-col items-start justify-between gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                   next collection
                 </p>
-              <div className="min-w-0 flex flex-col justify-center">
-          
-                <p className="text-sm font-black md:text-3xl md:mb-2  text-slate-900">
-                  {nextCollectionDate
-                    ? new Date(nextCollectionDate).toLocaleDateString()
-                    : "none"}
-                </p>
-                <p className="text-[11px] md:text-xl  flex items-center font-semibold text-slate-600">
-                  ₱{nextCollectionAmount.toLocaleString()}
-                  {nextCollectionStatus ? (
-                      <span className={`ml-1 text-[8px]  font-black text-black px-1 shadow-[2px_2px_0px_0px_#333] rounded-xs border border-slate-900   uppercase ${nextCollectionStatus === "overdue" ? "bg-red-500/70" : nextCollectionStatus === "paid" ? "bg-green-500/70" : nextCollectionStatus === "pending" ? "bg-yellow-500/70" : nextCollectionStatus === "partial" ? "bg-purple-500/70" : "bg-blue-500/70"}`}>
-                           {nextCollectionStatus}
-                         </span>
-                  ) : null}
-                </p>
+                <div className="min-w-0 flex flex-col justify-center">
+                  <p className="text-sm font-black md:text-3xl md:mb-2 text-slate-900">
+                    {nextCollectionDate
+                      ? new Date(nextCollectionDate).toLocaleDateString()
+                      : "none"}
+                  </p>
+                  <p className="text-[11px] md:text-xl flex items-center font-semibold text-slate-600">
+                    ₱{nextCollectionAmount.toLocaleString()}
+                    {nextCollectionStatus ? (
+                      <span
+                        className={`ml-1 text-[8px] font-black text-black px-1 shadow-[2px_2px_0px_0px_#333] rounded-xs border border-slate-900 uppercase ${
+                          nextCollectionStatus === "overdue"
+                            ? "bg-red-500/70"
+                            : nextCollectionStatus === "paid"
+                              ? "bg-green-500/70"
+                              : nextCollectionStatus === "pending"
+                                ? "bg-yellow-500/70"
+                                : nextCollectionStatus === "partial"
+                                  ? "bg-purple-500/70"
+                                  : "bg-blue-500/70"
+                        }`}
+                      >
+                        {nextCollectionStatus}
+                      </span>
+                    ) : null}
+                  </p>
+                </div>
               </div>
-
             </div>
-          </div>}
-          {overdueCount > 0 ? (
-            <div className="rounded-lg border-2 border-slate-900 bg-red-100/70 p-2 sm:col-span-3">
+          )}
+
+          {/* overdue */}
+          {overdueCount > 0 && (
+            <div className="rounded-lg border-2 border-slate-900 bg-red-100/70 p-2">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 overdue
               </p>
@@ -227,9 +240,10 @@ function AccountCard({
                 {overdueCount} schedule{overdueCount === 1 ? "" : "s"} • ₱{overdueTotal.toLocaleString()}
               </p>
             </div>
-          ) : null}
+          )}
 
-          {!isManual && totalDue > 0 ? (
+          {/* progress */}
+          {!isManual && totalDue > 0 && (
             <div className="sm:col-span-2">
               <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-wide text-slate-500">
                 <span>Progress</span>
@@ -248,7 +262,7 @@ function AccountCard({
                 />
               </div>
             </div>
-          ) : null}
+          )}
         </div>
       </div>
       <AccountCardMenu
