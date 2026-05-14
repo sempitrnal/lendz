@@ -4,7 +4,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import BackButton from "@/components/back-button";
 import PartialPaymentForm from "@/components/partial-payment-form";
-import ScheduleStatusSubmitButton from "@/components/schedule-status-submit-button";
+import ScheduleStatusForm from "@/components/schedule-status-form";
+import PaymentHistoryPanel from "@/components/payment-history-panel";
+import type { SchedulePayment } from "@/components/payment-history-panel";
 import AddSchedulesPanel from "@/components/add-schedules-panel";
 import AnimatedNumber from "@/components/animated-number";
 import PaidCheck from "@/components/paid-check";
@@ -44,7 +46,17 @@ type PaymentScheduleRow = {
   amount_paid: number | null;
   remaining_amount: number | null;
   note: string | null;
+  paid_date: string | null;
   status: string;
+};
+
+type SchedulePaymentRow = {
+  id: string;
+  schedule_id: string;
+  amount: number;
+  payment_date: string | null;
+  note: string | null;
+  created_at: string;
 };
 
 type AccountDetailPageProps = {
@@ -137,38 +149,6 @@ function getScheduleStatusClasses(status: string) {
   };
 }
 
-function ScheduleStatusForm({
-  scheduleId,
-  currentStatus,
-  updateScheduleStatus,
-}: {
-  scheduleId: string;
-  currentStatus: string;
-  updateScheduleStatus: (formData: FormData) => Promise<void>;
-}) {
-  return (
-    <form
-      action={updateScheduleStatus}
-      className="inline-flex w-max overflow-hidden rounded-lg border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
-    >
-      <input type="hidden" name="scheduleId" value={scheduleId} />
-      {scheduleStatuses.map((status, i) => {
-        const isActive = currentStatus === status;
-        const isFirst = i === 0;
-        const isLast = i === scheduleStatuses.length - 1;
-        return (
-          <ScheduleStatusSubmitButton
-            key={status}
-            status={status}
-            isActive={isActive}
-            className={`border-slate-900 ${!isFirst ? "border-l-2" : ""} ${isFirst ? "rounded-l-[5px]" : ""} ${isLast ? "rounded-r-[5px]" : ""}`}
-          />
-        );
-      })}
-    </form>
-  );
-}
-
 export default async function AccountDetailPage({
   params,
 }: AccountDetailPageProps) {
@@ -198,16 +178,15 @@ export default async function AccountDetailPage({
     const res = await supabase
       .from("payment_schedules")
       .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, status"
+        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, paid_date, status"
       )
       .eq("account_id", account.id)
       .order("due_date", { ascending: true });
-      console.log(res.data);
     if (res.error) {
       const fb1 = await supabase
         .from("payment_schedules")
         .select(
-          "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status"
+          "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, status"
         )
         .eq("account_id", account.id)
         .order("due_date", { ascending: true });
@@ -223,6 +202,22 @@ export default async function AccountDetailPage({
       }
     } else {
       schedulesData = res.data ?? [];
+    }
+  }
+
+  // Fetch schedule_payments for all schedules in this account
+  const scheduleIds = ((schedulesData ?? []) as { id: string }[]).map((s) => s.id);
+  let paymentsMap = new Map<string, SchedulePaymentRow[]>();
+  if (scheduleIds.length > 0) {
+    const { data: paymentsData } = await supabase
+      .from("schedule_payments")
+      .select("id, schedule_id, amount, payment_date, note, created_at")
+      .in("schedule_id", scheduleIds)
+      .order("created_at", { ascending: true });
+    for (const p of (paymentsData ?? []) as SchedulePaymentRow[]) {
+      const list = paymentsMap.get(p.schedule_id) ?? [];
+      list.push(p);
+      paymentsMap.set(p.schedule_id, list);
     }
   }
 
@@ -272,6 +267,7 @@ export default async function AccountDetailPage({
     "use server";
     const scheduleId = String(formData.get("scheduleId") ?? "");
     const status = String(formData.get("status") ?? "");
+    const paidDateRaw = String(formData.get("paidDate") ?? "").trim();
 
     if (!scheduleId || !scheduleStatuses.includes(status as ScheduleStatus)) {
       return;
@@ -287,15 +283,33 @@ export default async function AccountDetailPage({
     if (!row) return;
 
     const due = Math.max(0, Number(row.amount_due ?? 0));
-    const patch =
+    const paidDate = paidDateRaw || null;
+    const patch: Record<string, string | number | null> =
       status === "paid"
-        ? { status, amount_paid: due, remaining_amount: 0 }
-        : { status, amount_paid: 0, remaining_amount: due };
+        ? { status, amount_paid: due, remaining_amount: 0, paid_date: paidDate }
+        : { status, amount_paid: 0, remaining_amount: due, paid_date: null };
 
     await updateSupabase
       .from("payment_schedules")
       .update(patch)
       .eq("id", scheduleId);
+
+    // When marking as paid, also insert a schedule_payment record
+    if (status === "paid" && due > 0) {
+      await updateSupabase.from("schedule_payments").insert({
+        schedule_id: scheduleId,
+        amount: due,
+        payment_date: paidDate,
+      });
+    }
+
+    // When reverting to pending or overdue, delete all payment history
+    if (status === "pending" || status === "overdue") {
+      await updateSupabase
+        .from("schedule_payments")
+        .delete()
+        .eq("schedule_id", scheduleId);
+    }
 
     revalidatePath(`/accounts/${accountRow.id}`);
   }
@@ -305,6 +319,7 @@ export default async function AccountDetailPage({
     const scheduleId = String(formData.get("scheduleId") ?? "");
     const rawAmt = String(formData.get("paymentAmount") ?? "").trim();
     const noteRaw = String(formData.get("note") ?? "").trim();
+    const paymentDateRaw = String(formData.get("paymentDate") ?? "").trim();
     const add = Number.parseFloat(rawAmt);
     if (!scheduleId || !Number.isFinite(add) || add <= 0) {
       return;
@@ -325,6 +340,7 @@ export default async function AccountDetailPage({
     const remaining = Math.max(0, due - newPaid);
     /** Any successful partial submit marks the row partial until fully paid. */
     const nextStatus = newPaid >= due ? "paid" : "partial";
+    const paymentDate = paymentDateRaw || null;
 
     const updatePayload: Record<string, string | number | null> = {
       amount_paid: newPaid,
@@ -334,10 +350,112 @@ export default async function AccountDetailPage({
     if (noteRaw.length > 0) {
       updatePayload.note = noteRaw;
     }
+    if (nextStatus === "paid") {
+      updatePayload.paid_date = paymentDate;
+    }
 
     await sb.from("payment_schedules").update(updatePayload).eq("id", scheduleId);
 
+    // Insert into schedule_payments history
+    await sb.from("schedule_payments").insert({
+      schedule_id: scheduleId,
+      amount: add,
+      payment_date: paymentDate,
+      note: noteRaw || null,
+    });
+
     revalidatePath(`/accounts/${row.account_id as string}`);
+  }
+
+  async function updatePaymentEntry(formData: FormData) {
+    "use server";
+    const paymentId = String(formData.get("paymentId") ?? "");
+    const amountRaw = String(formData.get("amount") ?? "").trim();
+    const dateRaw = String(formData.get("paymentDate") ?? "").trim();
+    const noteRaw = String(formData.get("note") ?? "").trim();
+    if (!paymentId) return;
+
+    const sb = await createSupabaseServer();
+    const patch: Record<string, string | number | null> = {};
+    const amt = Number.parseFloat(amountRaw);
+    if (Number.isFinite(amt) && amt > 0) patch.amount = amt;
+    patch.payment_date = dateRaw || null;
+    patch.note = noteRaw || null;
+
+    const { data: payment } = await sb
+      .from("schedule_payments")
+      .select("id, schedule_id, amount")
+      .eq("id", paymentId)
+      .single();
+    if (!payment) return;
+
+    const oldAmount = Number(payment.amount ?? 0);
+    await sb.from("schedule_payments").update(patch).eq("id", paymentId);
+
+    // Recalculate schedule totals from all payments
+    const newAmount = Number(patch.amount ?? oldAmount);
+    const diff = newAmount - oldAmount;
+    if (diff !== 0) {
+      const { data: sched } = await sb
+        .from("payment_schedules")
+        .select("id, amount_due, amount_paid")
+        .eq("id", payment.schedule_id)
+        .single();
+      if (sched) {
+        const due = Math.max(0, Number(sched.amount_due ?? 0));
+        const prevPaid = Math.max(0, Number(sched.amount_paid ?? 0));
+        const newPaid = Math.min(due, Math.max(0, prevPaid + diff));
+        const remaining = Math.max(0, due - newPaid);
+        const nextStatus = newPaid >= due ? "paid" : newPaid > 0 ? "partial" : "pending";
+        await sb.from("payment_schedules").update({
+          amount_paid: newPaid,
+          remaining_amount: remaining,
+          status: nextStatus,
+        }).eq("id", payment.schedule_id);
+      }
+    }
+
+    revalidatePath(`/accounts/${id}`);
+  }
+
+  async function deletePaymentEntry(formData: FormData) {
+    "use server";
+    const paymentId = String(formData.get("paymentId") ?? "");
+    const scheduleId = String(formData.get("scheduleId") ?? "");
+    if (!paymentId) return;
+
+    const sb = await createSupabaseServer();
+    const { data: payment } = await sb
+      .from("schedule_payments")
+      .select("id, schedule_id, amount")
+      .eq("id", paymentId)
+      .single();
+    if (!payment) return;
+
+    await sb.from("schedule_payments").delete().eq("id", paymentId);
+
+    // Recalculate schedule totals
+    const sid = scheduleId || payment.schedule_id;
+    const { data: sched } = await sb
+      .from("payment_schedules")
+      .select("id, amount_due, amount_paid")
+      .eq("id", sid)
+      .single();
+    if (sched) {
+      const due = Math.max(0, Number(sched.amount_due ?? 0));
+      const prevPaid = Math.max(0, Number(sched.amount_paid ?? 0));
+      const removedAmt = Math.max(0, Number(payment.amount ?? 0));
+      const newPaid = Math.max(0, prevPaid - removedAmt);
+      const remaining = Math.max(0, due - newPaid);
+      const nextStatus = newPaid >= due ? "paid" : newPaid > 0 ? "partial" : "pending";
+      await sb.from("payment_schedules").update({
+        amount_paid: newPaid,
+        remaining_amount: remaining,
+        status: nextStatus,
+      }).eq("id", sid);
+    }
+
+    revalidatePath(`/accounts/${id}`);
   }
 
   async function addSchedules(
@@ -629,6 +747,7 @@ export default async function AccountDetailPage({
                           <ScheduleStatusForm
                             scheduleId={schedule.id}
                             currentStatus={schedule.status}
+                            dueDate={schedule.due_date}
                             updateScheduleStatus={updateScheduleStatus}
                           />
                         </div>
@@ -641,8 +760,16 @@ export default async function AccountDetailPage({
                               scheduleId={schedule.id}
                               applyPartialPayment={applyPartialPayment}
                               autoFocus
+                              dueDate={schedule.due_date}
                             />
                           </div>
+                        ) : null}
+                        {(schedule.status === "partial" || schedule.status === "paid") && (paymentsMap.get(schedule.id) ?? []).length > 0 ? (
+                          <PaymentHistoryPanel
+                            payments={(paymentsMap.get(schedule.id) ?? []) as SchedulePayment[]}
+                            updatePayment={updatePaymentEntry}
+                            deletePayment={deletePaymentEntry}
+                          />
                         ) : null}
                       </div>
                     </li>
@@ -747,6 +874,7 @@ export default async function AccountDetailPage({
                                 <ScheduleStatusForm
                                   scheduleId={schedule.id}
                                   currentStatus={schedule.status}
+                                  dueDate={schedule.due_date}
                                   updateScheduleStatus={updateScheduleStatus}
                                 />
                                 {schedule.status === "partial" ? (
@@ -758,8 +886,16 @@ export default async function AccountDetailPage({
                                       scheduleId={schedule.id}
                                       applyPartialPayment={applyPartialPayment}
                                       autoFocus
+                                      dueDate={schedule.due_date}
                                     />
                                   </div>
+                                ) : null}
+                                {(schedule.status === "partial" || schedule.status === "paid") && (paymentsMap.get(schedule.id) ?? []).length > 0 ? (
+                                  <PaymentHistoryPanel
+                                    payments={(paymentsMap.get(schedule.id) ?? []) as SchedulePayment[]}
+                                    updatePayment={updatePaymentEntry}
+                                    deletePayment={deletePaymentEntry}
+                                  />
                                 ) : null}
                                 {schedule.note ? (
                                   <p className="text-xs text-slate-500">

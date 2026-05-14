@@ -20,10 +20,12 @@ export default function PartialPaymentForm({
   scheduleId,
   applyPartialPayment,
   autoFocus,
+  dueDate,
 }: {
   scheduleId: string;
   applyPartialPayment: (formData: FormData) => Promise<void>;
   autoFocus?: boolean;
+  dueDate?: string;
 }) {
   return (
     <form
@@ -49,6 +51,21 @@ export default function PartialPaymentForm({
           required
           autoFocus={autoFocus}
           className="w-full sm:w-28 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold tabular-nums text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label
+          htmlFor={`partial-date-${scheduleId}`}
+          className="text-[10px] font-black uppercase tracking-wide text-slate-600"
+        >
+          Date
+        </label>
+        <input
+          id={`partial-date-${scheduleId}`}
+          name="paymentDate"
+          type="date"
+          defaultValue={dueDate ?? new Date().toISOString().split("T")[0]}
+          className="w-full sm:w-36 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
         />
       </div>
       <div className="flex flex-col gap-1">
