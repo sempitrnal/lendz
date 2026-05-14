@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTransition, useState, type SyntheticEvent } from "react";
 import { isDarkColor } from "@/lib/utils";
-import { Phone } from "lucide-react";
+import { Loader2, Phone } from "lucide-react";
 import Link from "next/link";
 
 import BorrowerDetailMenu from "@/components/borrower/borrower-detail-menu";
@@ -64,7 +64,7 @@ export function BorrowerCard({
 
   return (
     <div
-      className={`relative w-full  min-w-0 max-w-full rounded-xl border-2 border-slate-900 bg-linear-to-br from-sky-50 via-white to-indigo-50 text-left shadow-[4px_4px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:from-sky-100 hover:to-indigo-100 ${isPending ? "cursor-wait opacity-80" : ""}`}
+      className={`relative w-full  min-w-0 max-w-full rounded-xl border-2 border-slate-900 bg-linear-to-br from-sky-50 via-white to-indigo-50 text-left shadow-[4px_4px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:from-sky-100 hover:to-indigo-100`}
       aria-busy={isPending}
     >
       <div
@@ -93,20 +93,20 @@ export function BorrowerCard({
         onKeyDown={(e) => {
           if (isPending) return;
           if (e.key !== "Enter" && e.key !== " ") return;
-          if (
-            (e.target as HTMLElement).closest(
-              "[data-prevent-borrower-card-open]"
-            )
-          ) {
-            return;
-          }
+          // if (
+          //   (e.target as HTMLElement).closest(
+          //     "[data-prevent-borrower-card-open]"
+          //   )
+          // ) {
+          //   return;
+          // }
           e.preventDefault();
           startTransition(() => {
             router.push(`/borrowers/${borrower.id}`);
           });
         }}
         aria-disabled={isPending}
-        className="box-border  block w-full min-w-0 max-w-full cursor-pointer rounded-xl p-4  pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+        className={`box-border  block w-full min-w-0 max-w-full cursor-pointer rounded-xl p-4  pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${isPending ? 'opacity-50' : ''} transition-all duration-200`}
         aria-label={`Open ${borrower.first_name} ${borrower.last_name}`}
       >
         <div className="flex w-full min-w-0 flex-col">
@@ -135,7 +135,6 @@ export function BorrowerCard({
         {showScheduleSummary && hasManual ? (
           <div
             className="mt-4 w-full min-w-0 rounded-lg border-2 border-slate-900 bg-violet-50/80 p-3 shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)]"
-            data-prevent-borrower-card-open
           >
             <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
               Manual accounts
@@ -160,7 +159,6 @@ export function BorrowerCard({
         {showScheduleSummary && hasAccounts && hasAutoAccounts ? (
           <div
             className="mt-4 w-full min-w-0 self-stretch rounded-lg border-2 border-slate-900 bg-sky-100/70 p-3 shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)]"
-            data-prevent-borrower-card-open
           >
             <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:flex-nowrap">
               <div className="min-w-0 flex-1">
@@ -274,7 +272,9 @@ export function BorrowerCard({
         ) : null}
 
         {isPending ? (
-          <p className="mt-3 text-xs font-semibold text-slate-600">Opening…</p>
+          <div className="pointer-events-none absolute inset-0 rounded-xl bg-white/50 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
+          </div>
         ) : null}
       </div>
     </div >

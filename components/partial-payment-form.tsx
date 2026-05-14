@@ -65,7 +65,6 @@ export default function PartialPaymentForm({
               step="0.01"
               placeholder="0"
               required
-              autoFocus={autoFocus}
               className="w-full sm:w-28 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold tabular-nums text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
             />
           </div>

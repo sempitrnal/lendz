@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
@@ -269,17 +269,10 @@ export default function BorrowersList({
           </p>
         </div>
       ) : (
-        <div className="columns-1 md:columns-2 xl:columns-3 gap-4 w-full">
-          {initialBorrowers.map((borrower) => (
-            <div key={borrower.id} className="break-inside-avoid mb-4">
-              <BorrowerCard
-                borrower={borrower}
-                showScheduleSummary
-                onBorrowerUpdated={refreshPage}
-              />
-            </div>
-          ))}
-        </div>
+        <MasonryGrid
+          borrowers={initialBorrowers}
+          onBorrowerUpdated={refreshPage}
+        />
       )}
 
       {/* Pagination controls */}
@@ -323,6 +316,68 @@ export default function BorrowersList({
           )}
         </nav>
       ) : null}
+    </div>
+  );
+}
+
+function useMasonryColCount(): number {
+  const [cols, setCols] = useState(0);
+
+  useLayoutEffect(() => {
+    const update = () => {
+      if (window.matchMedia("(min-width: 1280px)").matches) setCols(3);
+      else if (window.matchMedia("(min-width: 768px)").matches) setCols(2);
+      else setCols(1);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  return cols;
+}
+
+function MasonryGrid({
+  borrowers,
+  onBorrowerUpdated,
+}: {
+  borrowers: Borrower[];
+  onBorrowerUpdated: () => void;
+}) {
+  const colCount = useMasonryColCount();
+
+  if (colCount === 0) {
+    return (
+      <div className="flex flex-col gap-4 w-full">
+        {borrowers.map((borrower) => (
+          <BorrowerCard
+            key={borrower.id}
+            borrower={borrower}
+            showScheduleSummary
+            onBorrowerUpdated={onBorrowerUpdated}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  const columns: Borrower[][] = Array.from({ length: colCount }, () => []);
+  borrowers.forEach((b, i) => columns[i % colCount].push(b));
+
+  return (
+    <div className="flex gap-4 items-start w-full">
+      {columns.map((col, ci) => (
+        <div key={ci} className="flex flex-col gap-4 flex-1 min-w-0">
+          {col.map((borrower) => (
+            <BorrowerCard
+              key={borrower.id}
+              borrower={borrower}
+              showScheduleSummary
+              onBorrowerUpdated={onBorrowerUpdated}
+            />
+          ))}
+        </div>
+      ))}
     </div>
   );
 }
