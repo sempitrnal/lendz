@@ -9,6 +9,8 @@ import PaymentHistoryPanel from "@/components/payment-history-panel";
 import type { SchedulePayment } from "@/components/payment-history-panel";
 import AddSchedulesPanel from "@/components/add-schedules-panel";
 import PrintButton from "@/components/print-button";
+import ShareScheduleButton from "@/components/share-schedule-button";
+import type { ShareSchedule } from "@/components/share-schedule-button";
 import AnimatedNumber from "@/components/animated-number";
 import PaidCheck from "@/components/paid-check";
 import OverdueSad from "@/components/overdue-sad";
@@ -532,7 +534,29 @@ export default async function AccountDetailPage({
               </p>
             </div>
             <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-4 lg:flex-col lg:items-end print:items-end">
-              <PrintButton />
+              <div className="flex gap-2 print:hidden">
+                <PrintButton />
+                <ShareScheduleButton
+                  borrowerName={borrowerName}
+                  accountType={accountRow.type}
+                  releaseDate={accountRow.release_date}
+                  principal={principal}
+                  collected={amountPaid}
+                  remaining={amountLeft}
+                  profit={profit}
+                  totalPayment={totalPayment}
+                  progressPct={progressPct}
+                  schedules={schedules.map((s, i) => ({
+                    index: i + 1,
+                    due_date: s.due_date,
+                    amount_due: Number(s.amount_due ?? 0),
+                    amount_paid: amountPaidOnInstallment(s),
+                    remaining: remainingOnInstallment(s),
+                    status: s.status,
+                    paid_date: s.paid_date,
+                  } as ShareSchedule))}
+                />
+              </div>
               <span
                 className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide ${accountStatusClasses.badge}`}
               >
@@ -684,7 +708,7 @@ export default async function AccountDetailPage({
             </div>
           </div>
 
-          {isManual ? <div className="print:hidden"><AddSchedulesPanel accountId={account.id} addSchedules={addSchedules} /></div> : null}
+          {isManual ? <div className="print:hidden "><AddSchedulesPanel accountId={account.id} addSchedules={addSchedules} /></div> : null}
 
           {schedules.length === 0 ? (
             <div className="border-t-2 border-dashed border-slate-300 bg-slate-50/80 px-5 py-12 text-center">
@@ -782,7 +806,7 @@ export default async function AccountDetailPage({
               <div className="hidden md:block print:block">
                 <div className="max-h-[600px] overflow-auto print:max-h-none print:overflow-visible print:overflow-x-visible">
                   <table className="w-full min-w-[900px] print:min-w-0 border-collapse text-left text-sm [print-color-adjust:exact]">
-                    <thead className="sticky top-0 z-10 print:static">
+                    <thead className="sticky top-0 z-10 print:static border-t-2 border-slate-900 border-">
                       <tr className="border-b-2 border-slate-900">
                         <th scope="col" className={nb.scheduleTh}>
                           #

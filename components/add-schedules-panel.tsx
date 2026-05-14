@@ -125,7 +125,7 @@ export default function AddSchedulesPanel({ accountId, addSchedules }: Props) {
     });
   }
 
-  return (
+  return ( 
     <div className="border-t-2 border-slate-900 bg-white">
       <button
         type="button"
