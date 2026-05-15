@@ -177,8 +177,8 @@ export function BorrowerCard({
                         
                       </p>
                    {schedules ? schedules.map((schedule,i) => (
-                    <div className="flex flex-col gap-2">
-                       <p key={i} className="text-sm mt-2 font-black text-slate-900 flex  items-center gap-2">
+                    <div  key={i} className="flex flex-col gap-2">
+                       <p className="text-sm mt-2 font-black text-slate-900 flex  items-center gap-2">
                        {new Date(schedule.due_date).toLocaleDateString(undefined, {
                          month: "short",
                          day: "numeric",
@@ -198,14 +198,14 @@ export function BorrowerCard({
                       <div
                     className="h-3  md:w-40 w-full overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
                     role="progressbar"
-                    aria-valuenow={40}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
+                    aria-valuenow={(schedule.paid_schedules_count || 0) / (schedule.total_schedules || 1) * 100}
+                    aria-valuemin={schedule.paid_schedules_count || 0}
+                    aria-valuemax={schedule.total_schedules || 1}
                     aria-label="Installments marked paid"
                   >
                     <div
                       className="h-full bg-emerald-400"
-                      style={{ width: `${40}%` }}
+                      style={{ width: `${((schedule.paid_schedules_count || 0) / (schedule.total_schedules || 1)) * 100}%` }}
                     />
                   </div>
                   <p className="font-black text-stone-800 text-xs">

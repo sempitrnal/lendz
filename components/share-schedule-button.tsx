@@ -25,6 +25,7 @@ type Props = {
   totalPayment: number;
   progressPct: number;
   schedules: ShareSchedule[];
+  noDetails?: boolean;
 };
 
 function formatMoney(value: number) {
@@ -57,6 +58,7 @@ export default function ShareScheduleButton({
   totalPayment,
   progressPct,
   schedules,
+  noDetails,
 }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [rendering, setRendering] = useState(false);
@@ -137,7 +139,7 @@ export default function ShareScheduleButton({
         ) : (
           <Share2 className="size-3.5" />
         )}
-        {rendering ? "Generating…" : "Share"}
+        {rendering ? "Generating…" : noDetails ? "Share (no details)" : "Share"}
       </button>
 
       {/* Off-screen card used for image capture */}
@@ -215,56 +217,62 @@ export default function ShareScheduleButton({
                 ) : null}
               </div>
 
-              {/* Balances grid */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr 1fr",
-                  borderBottom: "3px solid #0f172a",
-                }}
-              >
-                {[
-                  { label: "Principal", value: principal, bg: "#e0f2fe" },
-                  { label: "Collected", value: collected, bg: "#d1fae5" },
-                  { label: "Remaining", value: remaining, bg: "#ffe4e6" },
-                  { label: "Profit", value: Math.max(0, profit), bg: "#fef3c7" },
-                ].map((item, i) => (
+              {!noDetails && (
+                <>
+                  {/* Balances grid */}
                   <div
-                    key={i}
                     style={{
-                      padding: "14px 16px",
-                      backgroundColor: item.bg,
-                      borderRight:
-                        i < 3 ? "3px solid #0f172a" : "none",
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                      borderBottom: "3px solid #0f172a",
                     }}
                   >
-                    <div
-                      style={{
-                        fontSize: 9,
-                        fontWeight: 900,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.12em",
-                        color: "#64748b",
-                      }}
-                    >
-                      {item.label}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 18,
-                        fontWeight: 900,
-                        color: "#0f172a",
-                        marginTop: 4,
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      {formatMoney(item.value)}
-                    </div>
+                    {[
+                      { label: "Principal", value: principal, bg: "#e0f2fe" },
+                      { label: "Collected", value: collected, bg: "#d1fae5" },
+                      { label: "Remaining", value: remaining, bg: "#ffe4e6" },
+                      { label: "Profit", value: Math.max(0, profit), bg: "#fef3c7" },
+                    ].map((item, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          padding: "14px 16px",
+                          backgroundColor: item.bg,
+                          borderRight:
+                            i < 3 ? "3px solid #0f172a" : "none",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 9,
+                            fontWeight: 900,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.12em",
+                            color: "#64748b",
+                          }}
+                        >
+                          {item.label}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 18,
+                            fontWeight: 900,
+                            color: "#0f172a",
+                            marginTop: 4,
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {formatMoney(item.value)}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
 
-              {/* Progress bar */}
+                  {/* Progress bar */}
+                </>
+              )}
+
+              {!noDetails && (
               <div
                 style={{
                   padding: "12px 24px",
@@ -307,6 +315,7 @@ export default function ShareScheduleButton({
                   />
                 </div>
               </div>
+              )}
 
               {/* Schedule table */}
               <table
@@ -461,18 +470,22 @@ export default function ShareScheduleButton({
                   alignItems: "center",
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#475569",
-                  }}
-                >
-                  Total paid:{" "}
-                  <span style={{ fontWeight: 900, color: "#0f172a" }}>
-                    {formatMoney(totalPayment)}
-                  </span>
-                </div>
+                {!noDetails ? (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "#475569",
+                    }}
+                  >
+                    Total :{" "}
+                    <span style={{ fontWeight: 900, color: "#0f172a" }}>
+                      {formatMoney(totalPayment)}
+                    </span>
+                  </div>
+                ) : (
+                  <div />
+                )}
                 <div
                   style={{
                     fontSize: 11,

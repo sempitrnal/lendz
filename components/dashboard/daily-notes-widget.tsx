@@ -26,9 +26,8 @@ type DailyChecklistItem = {
 };
 
 function todayDateValue() {
-  return new Date().toISOString().slice(0, 10);
+  return new Date().toLocaleDateString("en-CA");
 }
-
 /** Lighten a hex color to ~20% opacity equivalent on white */
 function tintColor(hex: string, opacity = 0.15): string {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -147,8 +146,9 @@ function CategorySection({
             <ul className="space-y-1.5">
               {sorted.map((item) => (
                 <li
+                onClick={() => onToggle(item)}
                   key={item.id}
-                  className="flex items-center gap-2 rounded-lg border-2 border-slate-900 bg-white px-3 py-1.5"
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg transition border-2 border-slate-900  px-3 py-1.5  ${item.is_checked ? "bg-green-200 opacity-80" : " bg-white hover:bg-slate-100"}`}
                 >
                   <button
                     type="button"
@@ -469,11 +469,10 @@ export default function DailyNotesWidget() {
   }, [items]);
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-5">
       <article className="rounded-xl border-2 border-slate-900 bg-linear-to-br from-violet-50 via-white to-fuchsia-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-black lowercase text-slate-900">
-            daily checklist
           </h2>
           <div className="flex items-center gap-2">
             <Link
@@ -515,7 +514,7 @@ export default function DailyNotesWidget() {
             />
           ))}
 
-          <CategorySection
+          {/* <CategorySection
             category={null}
             items={grouped.get(null) ?? []}
             date={date}
@@ -524,7 +523,7 @@ export default function DailyNotesWidget() {
             onDelete={deleteItem}
             onChangeCategory={changeItemCategory}
             categories={categories}
-          />
+          /> */}
         </>
       )}
     </div>

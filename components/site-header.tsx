@@ -1,5 +1,6 @@
 "use client";
-
+import { RiDashboardFill } from "react-icons/ri";
+import { MdAccountBalanceWallet, MdCategory, MdChecklist, MdLogout } from "react-icons/md";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -13,6 +14,7 @@ import { GiHamburgerMenu } from "react-icons/gi";
 import NeobrutButton from "./neobrut-button";
 
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenu } from "./ui/dropdown-menu";
+import { FaUsers } from "react-icons/fa6";
 type SiteHeaderProps = {
   isLoggedIn: boolean;
   logoutAction: () => Promise<void>;
@@ -103,33 +105,33 @@ export default function SiteHeader({
             </button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-48 text-2xl p-2">
-            <DropdownMenuItem asChild className="text-xl">
-              <Link href="/dashboard">dashboard</Link>
+          <DropdownMenuContent align="end" className="w-52 text-2xl font-bold p-2 bg-transparent outline-0 border-0 ring-0 shadow-none">
+            <DropdownMenuItem asChild className="text-xl cursor-pointer mb-2 border border-indigo-950 shadow-[2px_2px_0px_0px_rgba(59,72,107,1)] bg-white">
+              <Link href="/dashboard"> <RiDashboardFill />dashboard</Link>
             </DropdownMenuItem>
 
-            <DropdownMenuItem asChild className="text-xl">
-              <Link href="/borrowers">borrowers</Link>
+            <DropdownMenuItem asChild className="text-xl cursor-pointer mb-2  border border-indigo-950 shadow-[2px_2px_0px_0px_rgba(59,72,107,1)] bg-white">
+              <Link href="/borrowers"> <FaUsers /> borrowers</Link>
             </DropdownMenuItem>
 
-            <DropdownMenuItem asChild className="text-xl">
-              <Link href="/accounts">accounts</Link>
+            <DropdownMenuItem asChild className="text-xl cursor-pointer mb-2 border border-indigo-950 shadow-[2px_2px_0px_0px_rgba(59,72,107,1)] bg-white">
+              <Link href="/accounts"> <MdAccountBalanceWallet /> accounts</Link>
             </DropdownMenuItem>
 
-            <DropdownMenuItem asChild className="text-xl">
-              <Link href="/categories">categories</Link>
+            <DropdownMenuItem asChild className="text-xl cursor-pointer mb-2 border border-indigo-950 shadow-[2px_2px_0px_0px_rgba(59,72,107,1)] bg-white">
+              <Link href="/categories"> <MdCategory /> categories</Link>
             </DropdownMenuItem>
 
-            <DropdownMenuItem asChild className="text-xl">
-              <Link href="/daily-checklist">daily checklist</Link>
+            <DropdownMenuItem asChild className="text-xl cursor-pointer mb-2 border border-indigo-950 shadow-[2px_2px_0px_0px_rgba(59,72,107,1)] bg-white ">
+              <Link href="/daily-checklist"> <MdChecklist /> daily checklist</Link>
             </DropdownMenuItem>
 
             {isLoggedIn && (
               <DropdownMenuItem
                 onClick={openModal}
-                className="text-red-600 focus:text-red-600 text-xl"
+                className="text-white bg-red-500  text-xl mb-2 border border-indigo-950 shadow-[2px_2px_0px_0px_rgba(59,72,107,1)] hover:bg-red-600  cursor-pointer"
               >
-                logout
+                <MdLogout /> logout
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>

@@ -590,7 +590,7 @@ export default async function AccountDetailPage({
             </div>
             <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-4 lg:flex-col lg:items-end print:items-end">
               <div className="flex gap-2 print:hidden">
-                <PrintButton />
+                {/* <PrintButton /> */}
                 <ShareScheduleButton
                   borrowerName={borrowerName}
                   accountType={accountRow.type}
@@ -599,6 +599,28 @@ export default async function AccountDetailPage({
                   collected={amountPaid}
                   remaining={amountLeft}
                   profit={profit}
+                  totalPayment={totalPayment}
+                  progressPct={progressPct}
+                  schedules={schedules.map((s, i) => ({
+                    index: i + 1,
+                    due_date: s.due_date,
+                    amount_due: Number(s.amount_due ?? 0),
+                    amount_paid: amountPaidOnInstallment(s),
+                    remaining: remainingOnInstallment(s),
+                    status: s.status,
+                    paid_date: s.paid_date,
+                  } as ShareSchedule))}
+                />
+                  <ShareScheduleButton
+                  noDetails
+                  borrowerName={borrowerName}
+                  accountType={accountRow.type}
+                  releaseDate={accountRow.release_date}
+                  principal={principal}
+                  collected={amountPaid}
+                  remaining={amountLeft}
+                  profit={profit}
+
                   totalPayment={totalPayment}
                   progressPct={progressPct}
                   schedules={schedules.map((s, i) => ({
