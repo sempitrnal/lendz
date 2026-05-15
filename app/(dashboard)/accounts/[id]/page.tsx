@@ -874,7 +874,7 @@ export default async function AccountDetailPage({
                             dueDate={schedule.due_date}
                           />
                         ) : null}
-                        {(schedule.status === "partial" || schedule.status === "paid" && (paymentsMap.get(schedule.id)?.length ?? 0) > 1) && (paymentsMap.get(schedule.id) ?? []).length > 0 ? (
+                        {(schedule.status === "partial" || schedule.status === "paid") && (paymentsMap.get(schedule.id) ?? []).length > 0 ? (
                           <PaymentHistoryPanel
                             payments={(paymentsMap.get(schedule.id) ?? []) as SchedulePayment[]}
                             updatePayment={updatePaymentEntry}
