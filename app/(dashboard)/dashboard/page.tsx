@@ -14,7 +14,6 @@ import {
   nextDueScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
-import DailyNotesWidget from "@/components/dashboard/daily-notes-widget";
 
 type ScheduleAggRow = {
   id: string;
@@ -635,7 +634,6 @@ export default async function Dashboard() {
             </div>
           </article>
 
-          <DailyNotesWidget />
         </div>
       </section>
 

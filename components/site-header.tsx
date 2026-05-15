@@ -71,6 +71,12 @@ export default function SiteHeader({
             >
               categories
             </Link>
+            <Link
+              href="/daily-checklist"
+              className="transition-colors hover:text-stone-700"
+            >
+              daily checklist
+            </Link>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -112,6 +118,10 @@ export default function SiteHeader({
 
             <DropdownMenuItem asChild className="text-xl">
               <Link href="/categories">categories</Link>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem asChild className="text-xl">
+              <Link href="/daily-checklist">daily checklist</Link>
             </DropdownMenuItem>
 
             {isLoggedIn && (

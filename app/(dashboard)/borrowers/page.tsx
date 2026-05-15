@@ -106,7 +106,7 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
         .in("account_id", allAccountIds)
         .order("due_date", { ascending: true })
         .order("id", { ascending: true });
-
+  
       const schedules = (scheduleRows ?? []) as Array<{
         account_id: string;
         due_date: string;
@@ -119,16 +119,33 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
         string,
         { total: number; count: number }
       >();
+
+      const scheduleStatsByBorrower = new Map<
+  string,
+  {
+    total_schedules: number;
+    paid_schedules_count: number;
+  }
+>();
+const scheduleStatsByAccount = new Map<
+  string,
+  {
+    total_schedules: number;
+    paid_schedules_count: number;
+  }
+>();
       const accountToBorrower = new Map<string, string>();
 
       for (const a of accounts) {
         accountToBorrower.set(a.id, a.borrower_id);
       }
       for (const s of schedules) {
-        if (s.status !== "overdue") continue;
 
         const borrowerId = accountToBorrower.get(s.account_id);
         if (!borrowerId) continue;
+        const stats = scheduleStatsByAccount.get(s.account_id) ?? {total_schedules: 0, paid_schedules_count: 0};
+        scheduleStatsByAccount.set(s.account_id, {total_schedules: stats.total_schedules + 1, paid_schedules_count: stats.paid_schedules_count + (s.status === "paid" ? 1 : 0)});
+        if (s.status !== "overdue") continue;
 
         const prev = overdueByBorrower.get(borrowerId) ?? {
           total: 0,
@@ -157,7 +174,7 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
           count: 0,
 
         };
-        const n = nextById[b.id] ?? {
+          const n = nextById[b.id] ?? {
           next_collection_date: null,
           next_collection_amount: 0,
         };
@@ -177,6 +194,8 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
           manual_total_paid: n.manual_total_paid,
           manual_total_remaining: n.manual_total_remaining,
           manual_accounts_count: n.manual_accounts_count,
+
+          
         };
       });
     } else {

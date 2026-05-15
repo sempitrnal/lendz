@@ -13,6 +13,8 @@ export type AccountScheduleEntry = {
   due_date: string;
   amount: number;
   status: string;
+  total_schedules?: number;
+  paid_schedules_count?: number;
 };
 
 export type BorrowerNextCollection = {
@@ -65,6 +67,20 @@ export function computeBorrowerNextCollectionById(
     list.push(s);
     byAccount.set(s.account_id, list);
   }
+  const scheduleStatsByAccount = new Map<
+  string,
+  {
+    total_schedules: number;
+    paid_schedules_count: number;
+  }
+>();
+
+for (const [accountId, rows] of byAccount) {
+  scheduleStatsByAccount.set(accountId, {
+    total_schedules: rows.length,
+    paid_schedules_count: rows.filter((r) => r.status === "paid").length,
+  });
+}
   for (const list of byAccount.values()) {
     list.sort((a, b) => a.due_date.localeCompare(b.due_date));
   }
@@ -103,7 +119,22 @@ export function computeBorrowerNextCollectionById(
       if (!nu) continue;
       amounts.push(nu.remaining);
       statuses.add(nu.status);
-      accountSchedules.push({ due_date: nu.due_date, amount: nu.remaining, status: nu.status });
+      
+      const stats = scheduleStatsByAccount.get(accId);
+
+    accountSchedules.push({
+
+  due_date: nu.due_date,
+
+  amount: nu.remaining,
+
+  status: nu.status,
+
+  total_schedules: stats?.total_schedules ?? 0,
+
+  paid_schedules_count: stats?.paid_schedules_count ?? 0,
+
+});
     }
     accountSchedules.sort((a, b) => a.due_date.localeCompare(b.due_date));
 
