@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Canvas, PencilBrush, type Path, type Canvas as FabricCanvas } from "fabric";
 import { supabase } from "@/lib/supabase/client";
+import { Undo2 } from "lucide-react";
 
 /** Keep in sync with Canvas `backgroundColor` and wrapper fill. */
 const NOTES_CANVAS_PAPER = "#fffdf5";
@@ -117,11 +118,62 @@ export default function NotesCanvas({
 }: NotesCanvasProps) {
     const canvasElRef = useRef<HTMLCanvasElement | null>(null);
     const fabricRef = useRef<Canvas | null>(null);
+    const containerRef = useRef<HTMLDivElement | null>(null);
 
     const [showTools, setShowTools] = useState(true);
     const [saving, setSaving] = useState(false);
     const [brushColor, setBrushColor] = useState("#111111");
     const [activeTool, setActiveTool] = useState<DrawTool>("pen");
+
+    const historyRef = useRef<Record<string, unknown>[]>([]);
+    const historyIndexRef = useRef(-1);
+    const maxHistory = 50;
+    const [historyVersion, setHistoryVersion] = useState(0);
+
+    const pushHistory = useCallback(() => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+        const json = canvas.toJSON() as Record<string, unknown>;
+        // Remove entries ahead if we're not at the top
+        historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
+        historyRef.current.push(json);
+        if (historyRef.current.length > maxHistory) {
+            historyRef.current.shift();
+        } else {
+            historyIndexRef.current += 1;
+        }
+        setHistoryVersion((v) => v + 1);
+    }, []);
+
+    const undo = useCallback(() => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+        if (historyIndexRef.current <= 0) return;
+        historyIndexRef.current -= 1;
+        const json = historyRef.current[historyIndexRef.current];
+        canvas.clear();
+        canvas.loadFromJSON(json).then(() => {
+            canvas.backgroundColor = NOTES_CANVAS_PAPER;
+            canvas.renderAll();
+            applyDrawingBrushRef.current();
+            setHistoryVersion((v) => v + 1);
+        });
+    }, []);
+
+    const redo = useCallback(() => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+        if (historyIndexRef.current >= historyRef.current.length - 1) return;
+        historyIndexRef.current += 1;
+        const json = historyRef.current[historyIndexRef.current];
+        canvas.clear();
+        canvas.loadFromJSON(json).then(() => {
+            canvas.backgroundColor = NOTES_CANVAS_PAPER;
+            canvas.renderAll();
+            applyDrawingBrushRef.current();
+            setHistoryVersion((v) => v + 1);
+        });
+    }, []);
 
     const applyDrawingBrush = useCallback(() => {
         const canvas = fabricRef.current;
@@ -171,15 +223,10 @@ export default function NotesCanvas({
         fabricRef.current = canvas;
 
         const resizeCanvas = () => {
-            if (!canvasElRef.current || !fabricRef.current) return;
+            if (!fabricRef.current || !containerRef.current) return;
 
             const c = fabricRef.current;
-
-            const parent = canvasElRef.current.parentElement?.parentElement;
-
-            if (!parent) return;
-
-            const width = parent.getBoundingClientRect().width;
+            const width = containerRef.current.clientWidth;
 
             c.setDimensions({
                 width,
@@ -189,11 +236,22 @@ export default function NotesCanvas({
             c.calcOffset();
             c.renderAll();
         };
-        requestAnimationFrame(() => {
-            resizeCanvas();
-        });
 
-        window.addEventListener("resize", resizeCanvas);
+        // Initial resize after layout settles (dialog animation, etc.)
+        const initTimeout = window.setTimeout(() => {
+            resizeCanvas();
+        }, 50);
+
+        // ResizeObserver catches container width changes even when window doesn't resize
+        let resizeObserver: ResizeObserver | null = null;
+        if (containerRef.current && typeof ResizeObserver !== "undefined") {
+            resizeObserver = new ResizeObserver(() => {
+                resizeCanvas();
+            });
+            resizeObserver.observe(containerRef.current);
+        } else {
+            window.addEventListener("resize", resizeCanvas);
+        }
 
         let disposed = false;
 
@@ -220,15 +278,44 @@ export default function NotesCanvas({
             }
 
             if (!disposed) applyDrawingBrushRef.current();
+
+            // seed initial history after load
+            requestAnimationFrame(() => {
+                if (disposed) return;
+                const initialJSON = canvas.toJSON() as Record<string, unknown>;
+                historyRef.current = [initialJSON];
+                historyIndexRef.current = 0;
+            });
         };
         void loadCanvas();
 
+        // Push state on every completed stroke
+        const handlePathCreated = () => {
+            pushHistory();
+        };
+        canvas.on("path:created", handlePathCreated);
+
+        // Undo / redo via keyboard
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    redo();
+                } else {
+                    undo();
+                }
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+
         return () => {
             disposed = true;
+            window.clearTimeout(initTimeout);
+            resizeObserver?.disconnect();
             window.removeEventListener("resize", resizeCanvas);
-
+            window.removeEventListener("keydown", handleKeyDown);
+            canvas.off("path:created", handlePathCreated);
             canvas.dispose();
-
             fabricRef.current = null;
         };
     }, [note]);
@@ -353,92 +440,29 @@ async function uploadPreviewImage(dataUrl: string, noteId?: string) {
 
     const clearCanvas = () => {
         const canvas = fabricRef.current;
-
         if (!canvas) return;
-
         canvas.clear();
-
         canvas.backgroundColor = NOTES_CANVAS_PAPER;
-
         canvas.renderAll();
-
+        pushHistory();
         applyDrawingBrushRef.current();
     };
 
+    const canUndo = historyIndexRef.current > 0;
+    const canRedo = historyIndexRef.current < historyRef.current.length - 1;
+
     return (
-        <div
-            className="relative overflow-hidden rounded-xl border shadow-sm"
-            style={{ backgroundColor: NOTES_CANVAS_PAPER }}
-        >
-            {/* Toggle tools */}
-            <button
-                type="button"
-                onClick={() => setShowTools((p) => !p)}
-                className="absolute right-3 top-3 z-20 rounded-md bg-black px-3 py-1 text-xs font-medium text-white"
-            >
-                {showTools ? "hide tools" : "show tools"}
-            </button>
-
-            {/* Toolbar */}
-            {showTools && (
-                <div className="absolute left-3 top-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border bg-white p-2 shadow-md">
-                    <button
-                        type="button"
-                        onClick={() => setActiveTool("pen")}
-                        className={`rounded-md px-3 py-1 text-xs hover:bg-slate-100 ${
-                            activeTool === "pen"
-                                ? "bg-slate-900 font-semibold text-white"
-                                : ""
-                        }`}
-                    >
-                        Pen
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => setActiveTool("eraser")}
-                        className={`rounded-md px-3 py-1 text-xs hover:bg-slate-100 ${
-                            activeTool === "eraser"
-                                ? "bg-slate-900 font-semibold text-white"
-                                : ""
-                        }`}
-                    >
-                        Eraser
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => setActiveTool("select")}
-                        className={`rounded-md px-3 py-1 text-xs hover:bg-slate-100 ${
-                            activeTool === "select"
-                                ? "bg-slate-900 font-semibold text-white"
-                                : ""
-                        }`}
-                    >
-                        Select
-                    </button>
-
-                    <label className="flex items-center gap-1.5 text-xs text-slate-600">
-                        <span className="font-medium uppercase tracking-wide">
-                            Color
-                        </span>
-                        <input
-                            type="color"
-                            value={brushColor}
-                            onChange={(e) => setBrushColor(e.target.value)}
-                            disabled={activeTool !== "pen"}
-                            title="Brush color (pen)"
-                            className="h-8 w-10 cursor-pointer rounded border-2 border-slate-300 bg-white p-0.5 disabled:cursor-not-allowed disabled:opacity-40"
-                        />
-                    </label>
-
+        <div className="space-y-2">
+            {/* Persistent top bar — save / clear / hide always showing */}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-slate-900 bg-white p-2 shadow-[3px_3px_0px_0px_#0f172a]">
+                <div className="flex items-center gap-2">
                     <button
                         type="button"
                         onClick={() => {
                             void saveNotes();
                         }}
                         disabled={saving}
-                        className="rounded-md bg-black px-3 py-1 text-xs text-white disabled:opacity-50"
+                        className="rounded-md border-2 border-slate-900 bg-emerald-200 px-3 py-1 text-xs font-bold uppercase text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5 disabled:opacity-50"
                     >
                         {saving ? "Saving..." : "Save"}
                     </button>
@@ -446,20 +470,107 @@ async function uploadPreviewImage(dataUrl: string, noteId?: string) {
                     <button
                         type="button"
                         onClick={clearCanvas}
-                        className="rounded-md px-3 py-1 text-xs hover:bg-red-100"
+                        className="rounded-md border-2 border-slate-900 bg-rose-100 px-3 py-1 text-xs font-bold uppercase text-rose-800 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5"
                     >
                         Clear
                     </button>
                 </div>
-            )}
 
-            {/* Canvas */}
-            <div className="w-full">
-                <canvas
-                    ref={canvasElRef}
-                    tabIndex={-1}
-                    className="block h-[500px] w-full"
-                />
+                <button
+                    type="button"
+                    onClick={() => setShowTools((p) => !p)}
+                    className="rounded-md border-2 border-slate-900 bg-slate-900 px-2.5 py-1 text-xs font-bold uppercase text-white shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5"
+                >
+                    {showTools ? "Hide tools" : "Show tools"}
+                </button>
+            </div>
+
+            {/* Canvas with floating tools */}
+            <div className="relative">
+                {/* Floating drawing toolbar — outside canvas */}
+                {showTools && (
+                    <div className="absolute  -top-28 z-20 flex items-center gap-1.5 rounded-xl border-2 border-slate-900 bg-white/95 p-1.5 shadow-[3px_3px_0px_0px_#0f172a] backdrop-blur-sm">
+                        <button
+                            type="button"
+                            onClick={() => setActiveTool("pen")}
+                            className={`rounded-md border-2 border-slate-900 px-2 py-1 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5 ${
+                                activeTool === "pen"
+                                    ? "bg-slate-900 text-white"
+                                    : "bg-white text-slate-900"
+                            }`}
+                        >
+                            Pen
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setActiveTool("eraser")}
+                            className={`rounded-md border-2 border-slate-900 px-2 py-1 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5 ${
+                                activeTool === "eraser"
+                                    ? "bg-slate-900 text-white"
+                                    : "bg-white text-slate-900"
+                            }`}
+                        >
+                            Eraser
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setActiveTool("select")}
+                            className={`rounded-md border-2 border-slate-900 px-2 py-1 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5 ${
+                                activeTool === "select"
+                                    ? "bg-slate-900 text-white"
+                                    : "bg-white text-slate-900"
+                            }`}
+                        >
+                            Select
+                        </button>
+
+                        <label className="flex items-center gap-1">
+                            <input
+                                type="color"
+                                value={brushColor}
+                                onChange={(e) => setBrushColor(e.target.value)}
+                                disabled={activeTool !== "pen"}
+                                title="Brush color (pen)"
+                                className="h-6 w-8 cursor-pointer rounded border-2 border-slate-300 bg-white p-0.5 disabled:cursor-not-allowed disabled:opacity-40"
+                            />
+                        </label>
+
+                        <button
+                            type="button"
+                            onClick={undo}
+                            disabled={!canUndo}
+                            title="Undo (Ctrl+Z)"
+                            className="rounded-md border-2 border-slate-900 bg-white p-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5 disabled:opacity-40 disabled:shadow-none"
+                        >
+                            <Undo2 className="size-3.5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={redo}
+                            disabled={!canRedo}
+                            title="Redo (Ctrl+Shift+Z)"
+                            className="rounded-md border-2 border-slate-900 bg-white p-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5 disabled:opacity-40 disabled:shadow-none"
+                        >
+                            <Undo2 className="size-3.5 -scale-x-100" />
+                        </button>
+                    </div>
+                )}
+
+                <div
+                    ref={containerRef}
+                    className="overflow-hidden rounded-xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a]"
+                    style={{ backgroundColor: NOTES_CANVAS_PAPER }}
+                >
+                    <div className="w-full">
+                        <canvas
+                            ref={canvasElRef}
+                            tabIndex={-1}
+                            className="block h-[500px] w-full"
+                        />
+                    </div>
+                </div>
             </div>
         </div>
     );

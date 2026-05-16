@@ -293,7 +293,8 @@ export default async function Dashboard() {
         ? entries.map((entry) => entry.name).filter(Boolean).join(" / ")
         : "uncategorized";
     const color = entries.find((entry) => entry.color)?.color ?? null;
-    return { label, color };
+    const id = entries.find((entry) => entry.id)?.id ?? null;
+    return { label, color, id };
   };
 
   const dueTodayRows = dueSchedules.map((schedule) => {
@@ -319,6 +320,7 @@ export default async function Dashboard() {
         name: string;
         category: string;
         categoryColor: string | null;
+        categoryId: string | null;
         schedules: Array<{ id: string; amountDue: number | null; amount: number }>;
       }
     >();
@@ -339,6 +341,7 @@ export default async function Dashboard() {
             : "Unknown borrower",
           category: categoryMeta.label,
           categoryColor: categoryMeta.color,
+          categoryId: categoryMeta.id,
           schedules: [],
         });
       }
@@ -360,6 +363,7 @@ export default async function Dashboard() {
         amounts: row.schedules.map((s) => s.amount),
         category: row.category,
         categoryColor: row.categoryColor,
+        categoryId: row.categoryId,
         schedules: row.schedules,
       };
     });
@@ -419,7 +423,7 @@ export default async function Dashboard() {
     {
       label: "next collection",
       value: nextCollectionDate
-        ? new Date(nextCollectionDate).toLocaleDateString()
+        ? new Date(nextCollectionDate).toLocaleDateString("en-CA")
         : "none",
       delta: nextCollectionDate
         ? `PHP ${nextCollectionTotal.toLocaleString()} • ${nextCollectionCount} schedule${nextCollectionCount === 1 ? "" : "s"}`
@@ -565,7 +569,7 @@ export default async function Dashboard() {
             ) : (
               <div className="space-y-2">
                 {(() => {
-                  const groups = new Map<string, { color: string | null; accountCount: number; total: number }>();
+                  const groups = new Map<string, { color: string | null; categoryId: string | null; accountCount: number; total: number }>();
                   for (const entry of nextCollectionRows) {
                     const existing = groups.get(entry.category);
                     if (existing) {
@@ -574,31 +578,42 @@ export default async function Dashboard() {
                     } else {
                       groups.set(entry.category, {
                         color: entry.categoryColor ?? null,
+                        categoryId: entry.categoryId ?? null,
                         accountCount: entry.schedules.length,
                         total: entry.amount,
                       });
                     }
                   }
-                  return Array.from(groups.entries()).map(([category, g]) => (
-                    <div key={category} className="flex items-center justify-between gap-2 rounded-lg border-2 border-slate-900 bg-slate-50 px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="size-2.5 shrink-0 rounded-full border border-slate-900/25"
-                          style={{ backgroundColor: g.color ?? "#cbd5e1" }}
-                          aria-hidden
-                        />
-                        <span className="text-xs font-black uppercase tracking-wide text-slate-700">
-                          {category}
-                        </span>
-                        <span className="rounded-md border border-slate-900/20 bg-white px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600">
-                          {g.accountCount}
+                  return Array.from(groups.entries()).map(([category, g]) => {
+                    const inner = (
+                      <div className="flex items-center justify-between gap-2 rounded-lg border-2 border-slate-900 bg-slate-50 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="size-2.5 shrink-0 rounded-full border border-slate-900/25"
+                            style={{ backgroundColor: g.color ?? "#cbd5e1" }}
+                            aria-hidden
+                          />
+                          <span className="text-xs font-black uppercase tracking-wide text-slate-700">
+                            {category}
+                          </span>
+                          <span className="rounded-md border border-slate-900/20 bg-white px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600">
+                            {g.accountCount}
+                          </span>
+                        </div>
+                        <span className="text-xs font-semibold text-slate-600">
+                          PHP {g.total.toLocaleString()}
                         </span>
                       </div>
-                      <span className="text-xs font-semibold text-slate-600">
-                        PHP {g.total.toLocaleString()}
-                      </span>
-                    </div>
-                  ));
+                    );
+                    if (g.categoryId) {
+                      return (
+                        <Link key={category} href={`/categories/${g.categoryId}`} className="block transition hover:opacity-80">
+                          {inner}
+                        </Link>
+                      );
+                    }
+                    return <div key={category}>{inner}</div>;
+                  });
                 })()}
                 <div className="flex items-center justify-between rounded-lg border-2 border-slate-900 bg-slate-900 px-3 py-2">
                   <span className="text-xs font-black uppercase tracking-wide text-white">
