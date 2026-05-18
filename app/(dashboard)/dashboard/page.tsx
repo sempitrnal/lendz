@@ -16,6 +16,8 @@ import {
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
 import MonthlyCollectionsChart from "@/components/dashboard/monthly-collections-chart";
+import CollectionRateRing from "@/components/dashboard/collection-rate-ring";
+import OverdueByCategoryChart from "@/components/dashboard/overdue-by-category-chart";
 
 type ScheduleAggRow = {
   id: string;
@@ -461,6 +463,32 @@ export default async function Dashboard() {
     return Array.from(grouped.values()).map(({ seenAccountIds, ...rest }) => rest);
   })();
 
+  const overdueByCategory = (() => {
+    const map = new Map<string, { color: string | null; total: number; principal: number; profit: number }>();
+    for (const schedule of pastOverdueCandidates) {
+      const account = accountsById.get(schedule.account_id);
+      const borrower = account ? borrowersById.get(account.borrower_id) : null;
+      const meta = borrowerCategoryMeta(borrower ?? null);
+      const remaining = remainingOnInstallment(schedule);
+      const accPrincipal = principalByAccountId.get(schedule.account_id) ?? 0;
+      const totalInstallments = totalInstallmentsByAccount.get(schedule.account_id) ?? 1;
+      const principalPerInstallment = accPrincipal / totalInstallments;
+      const principalPortion = Math.min(remaining, principalPerInstallment);
+      const profitPortion = Math.max(0, remaining - principalPerInstallment);
+      const existing = map.get(meta.label);
+      if (existing) {
+        existing.total += remaining;
+        existing.principal += principalPortion;
+        existing.profit += profitPortion;
+      } else {
+        map.set(meta.label, { color: meta.color, total: remaining, principal: principalPortion, profit: profitPortion });
+      }
+    }
+    return Array.from(map.entries())
+      .map(([name, g]) => ({ name, color: g.color, total: Math.round(g.total), principal: Math.round(g.principal), profit: Math.round(g.profit) }))
+      .sort((a, b) => b.total - a.total);
+  })();
+
   const summaryCards = [
     {
       label: "active borrowers",
@@ -554,6 +582,24 @@ export default async function Dashboard() {
             </div>
           </div>
           <MonthlyCollectionsChart data={monthlyChartData} />
+        </article>
+      </section>
+
+      <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1fr_1.6fr]">
+        <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+          <CollectionRateRing
+            data={{
+              collected: monthlyChartData[5]?.collected ?? 0,
+              expectedSoFar: monthlyChartData[5]?.expectedSoFar ?? 0,
+              profit: monthlyChartData[5]?.profit ?? 0,
+              expectedProfit: monthlyChartData[5]?.expectedProfit ?? 0,
+              isComplete: monthlyChartData[5]?.isComplete ?? false,
+              monthLabel: monthlyChartData[5]?.label ?? "",
+            }}
+          />
+        </article>
+        <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+          <OverdueByCategoryChart data={overdueByCategory} />
         </article>
       </section>
 
