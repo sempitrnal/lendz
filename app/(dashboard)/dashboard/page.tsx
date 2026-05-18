@@ -251,7 +251,7 @@ export default async function Dashboard() {
   // Build 6-month chart data: expected = sum of amount_due, collected = sum of amount_paid
   // profit = amount_paid − principal_per_installment (interest collected)
   const monthlyChartData = (() => {
-    const months: { label: string; fullLabel: string; expected: number; expectedSoFar: number; collected: number; profit: number; expectedProfit: number; isComplete: boolean }[] = [];
+    const months: { label: string; fullLabel: string; expected: number; expectedSoFar: number; collected: number; profit: number; expectedProfit: number; expectedProfitSoFar: number; isComplete: boolean }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now);
       d.setMonth(d.getMonth() - i);
@@ -266,6 +266,7 @@ export default async function Dashboard() {
       let collected = 0;
       let profit = 0;
       let expectedProfit = 0;
+      let expectedProfitSoFar = 0;
       for (const row of sixMonthSchedules) {
         if (!row.due_date.startsWith(monthKey)) continue;
         const paid = Number(row.amount_paid ?? 0);
@@ -278,8 +279,9 @@ export default async function Dashboard() {
         const principalPerInstallment = principal / totalInstallments;
         profit += Math.max(0, paid - principalPerInstallment);
         expectedProfit += Math.max(0, due - principalPerInstallment);
+        if (row.due_date <= todayIso) expectedProfitSoFar += Math.max(0, due - principalPerInstallment);
       }
-      months.push({ label, fullLabel, expected: Math.round(expected), expectedSoFar: Math.round(expectedSoFar), collected: Math.round(collected), profit: Math.round(profit), expectedProfit: Math.round(expectedProfit), isComplete: i > 0 });
+      months.push({ label, fullLabel, expected: Math.round(expected), expectedSoFar: Math.round(expectedSoFar), collected: Math.round(collected), profit: Math.round(profit), expectedProfit: Math.round(expectedProfit), expectedProfitSoFar: Math.round(expectedProfitSoFar), isComplete: i > 0 });
     }
     return months;
   })();
@@ -593,6 +595,7 @@ export default async function Dashboard() {
               expectedSoFar: monthlyChartData[5]?.expectedSoFar ?? 0,
               profit: monthlyChartData[5]?.profit ?? 0,
               expectedProfit: monthlyChartData[5]?.expectedProfit ?? 0,
+              expectedProfitSoFar: monthlyChartData[5]?.expectedProfitSoFar ?? 0,
               isComplete: monthlyChartData[5]?.isComplete ?? false,
               monthLabel: monthlyChartData[5]?.label ?? "",
             }}

@@ -7,6 +7,7 @@ export type RingData = {
   expectedSoFar: number;
   profit: number;
   expectedProfit: number;
+  expectedProfitSoFar: number;
   isComplete: boolean;
   monthLabel: string;
 };
@@ -24,7 +25,7 @@ function formatCurrency(v: number) {
 }
 
 export default function CollectionRateRing({ data }: { data: RingData }) {
-  const { collected, expectedSoFar, profit, expectedProfit, isComplete, monthLabel } = data;
+  const { collected, expectedSoFar, profit, expectedProfit, expectedProfitSoFar, isComplete, monthLabel } = data;
 
   const pct =
     expectedSoFar > 0
@@ -118,6 +119,12 @@ export default function CollectionRateRing({ data }: { data: RingData }) {
           <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-amber-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a]">
             <span className="text-[10px] font-black uppercase tracking-wide text-amber-700">Interest rate</span>
             <span className="text-xs font-black tabular-nums text-amber-800">{profitPct}%</span>
+          </div>
+        )}
+        {!isComplete && expectedProfitSoFar > 0 && (
+          <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-amber-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a]">
+            <span className="text-[10px] font-black uppercase tracking-wide text-amber-700">Exp. interest so far</span>
+            <span className="text-xs font-black tabular-nums text-amber-800">{formatCurrency(expectedProfitSoFar)}</span>
           </div>
         )}
       </div>

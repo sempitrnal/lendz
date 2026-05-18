@@ -20,6 +20,7 @@ export type MonthlyData = {
   collected: number;
   profit: number;
   expectedProfit: number;
+  expectedProfitSoFar: number;
   isComplete: boolean;
 };
 
@@ -38,10 +39,10 @@ const LABELS: Record<string, string> = {
 };
 
 const TOOLTIP_LABELS: Record<string, string> = {
-  expected: "Full Month Expected",
-  expectedSoFar: "Expected So Far",
-  collected: "Collected",
-  profit: "Profit (Interest)",
+  expected: "to collect this month",
+  expectedSoFar: "to collect so far",
+  collected: "collected",
+  profit: "meme total",
 };
 
 function formatCurrency(value: number) {
@@ -101,7 +102,7 @@ function CustomTooltip({
       >
         {entry?.fullLabel ?? label}
       </p>
-      {payload.map((item) => (
+      {payload.filter((item) => item.name !== "profit").map((item) => (
         <div key={item.name} style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, fontWeight: 700, marginBottom: 3 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569" }}>
             <span style={{ display: "inline-block", width: 10, height: 10, backgroundColor: item.color, border: "1.5px solid #0f172a", flexShrink: 0 }} />
@@ -110,25 +111,63 @@ function CustomTooltip({
           <span style={{ color: "#0f172a" }}>₱{Number(item.value).toLocaleString()}</span>
         </div>
       ))}
-      {entry?.isComplete && (
+      {entry && (
         <>
-          <div style={{ borderTop: "2px solid #0f172a", margin: "8px 0" }} />
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, fontWeight: 900, marginBottom: 4 }}>
-            <span style={{ color: "#92400e", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Exp. Interest
-            </span>
-            <span style={{ color: "#92400e", backgroundColor: "#fef3c7", padding: "1px 6px", border: "1.5px solid #0f172a" }}>
-              ₱{entry.expectedProfit.toLocaleString()}
-            </span>
+          <div style={{ borderTop: "2px solid #0f172a", margin: "8px 0", display: "flex", alignItems: "center", gap: 6 }}>
+            {/* <span style={{ fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", whiteSpace: "nowrap" }}>profit</span> */}
+            <div style={{ flex: 1, height: 1, backgroundColor: "#0f172a" }} />
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, fontWeight: 900 }}>
-            <span style={{ color: "#991b1b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Uncollected
-            </span>
-            <span style={{ color: "#991b1b", backgroundColor: "#fee2e2", padding: "1px 6px", border: "1.5px solid #0f172a" }}>
-              ₱{Math.max(0, entry.expectedProfit - entry.profit).toLocaleString()}
-            </span>
-          </div>
+          {(() => {
+            const profitItem = payload.find((item) => item.name === "profit");
+            return profitItem ? (
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569" }}>
+                  <span style={{ display: "inline-block", width: 10, height: 10, backgroundColor: profitItem.color, border: "1.5px solid #0f172a", flexShrink: 0 }} />
+                  {TOOLTIP_LABELS.profit}
+                </span>
+                <span style={{ color: "#0f172a" }}>₱{Number(profitItem.value).toLocaleString()}</span>
+              </div>
+            ) : null;
+          })()}
+          {entry.isComplete ? (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, fontWeight: 900, marginBottom: 4 }}>
+                <span style={{ color: "#92400e", textTransform: "lowercase", letterSpacing: "0.06em" }}>
+                  meme (expected)
+                </span>
+                <span style={{ color: "#92400e", backgroundColor: "#fef3c7", padding: "1px 6px", border: "1.5px solid #0f172a" }}>
+                  ₱{entry.expectedProfit.toLocaleString()}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, fontWeight: 900 }}>
+                <span style={{ color: "#991b1b", textTransform: "lowercase", letterSpacing: "0.06em" }}>
+                  wa nakuha
+                </span>
+                <span style={{ color: "#991b1b", backgroundColor: "#fee2e2", padding: "1px 6px", border: "1.5px solid #0f172a" }}>
+                  ₱{Math.max(0, entry.expectedProfit - entry.profit).toLocaleString()}
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, fontWeight: 900, marginBottom: 4 }}>
+                <span style={{ color: "#92400e", textTransform: "lowercase", letterSpacing: "0.06em" }}>
+                 meme (so far)
+                </span>
+                <span style={{ color: "#92400e", backgroundColor: "#fef3c7", padding: "1px 6px", border: "1.5px solid #0f172a" }}>
+                  ₱{entry.expectedProfitSoFar.toLocaleString()}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12, fontWeight: 900 }}>
+                <span style={{ color: "#991b1b", textTransform: "lowercase", letterSpacing: "0.06em" }}>
+                  wa nakuha so far
+                </span>
+                <span style={{ color: "#991b1b", backgroundColor: "#fee2e2", padding: "1px 6px", border: "1.5px solid #0f172a" }}>
+                  ₱{Math.max(0, entry.expectedProfitSoFar - entry.profit).toLocaleString()}
+                </span>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
@@ -169,28 +208,49 @@ export default function MonthlyCollectionsChart({
   return (
     <div className="space-y-3">
       {/* Interactive legend */}
-      <div className="flex flex-wrap gap-2">
-        {ALL_SERIES.map((key) => (
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap gap-2">
+          {(["expected", "expectedSoFar", "collected"] as SeriesKey[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => toggle(key)}
+              className={`inline-flex cursor-pointer items-center gap-1.5 rounded border-2 border-slate-900 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide transition-opacity ${
+                visible[key]
+                  ? "bg-white text-slate-800 shadow-[2px_2px_0px_0px_#0f172a]"
+                  : "bg-slate-100 text-slate-400 opacity-50 shadow-none"
+              }`}
+            >
+              <span
+                className="inline-block size-2.5 shrink-0 border border-slate-900"
+                style={{ backgroundColor: visible[key] ? COLORS[key] : "#e2e8f0" }}
+              />
+              {LABELS[key]}
+            </button>
+          ))}
+          <span className="ml-auto text-[10px] font-semibold text-slate-400 self-center">
+            tap to toggle
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">profit</span>
+          <div className="h-px flex-1 bg-slate-200" />
           <button
-            key={key}
             type="button"
-            onClick={() => toggle(key)}
+            onClick={() => toggle("profit")}
             className={`inline-flex cursor-pointer items-center gap-1.5 rounded border-2 border-slate-900 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide transition-opacity ${
-              visible[key]
+              visible.profit
                 ? "bg-white text-slate-800 shadow-[2px_2px_0px_0px_#0f172a]"
                 : "bg-slate-100 text-slate-400 opacity-50 shadow-none"
             }`}
           >
             <span
               className="inline-block size-2.5 shrink-0 border border-slate-900"
-              style={{ backgroundColor: visible[key] ? COLORS[key] : "#e2e8f0" }}
+              style={{ backgroundColor: visible.profit ? COLORS.profit : "#e2e8f0" }}
             />
-            {LABELS[key]}
+            {LABELS.profit}
           </button>
-        ))}
-        <span className="ml-auto text-[10px] font-semibold text-slate-400 self-center">
-          tap to toggle
-        </span>
+        </div>
       </div>
 
       {/* Horizontal scroll so bars never squish on mobile */}
