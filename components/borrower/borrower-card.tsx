@@ -45,6 +45,7 @@ export function BorrowerCard({
   const hasNextUnpaid = Boolean(nextDate);
   const schedules = borrower.account_schedules || [];
   const manualPrincipal = borrower.manual_total_principal ?? 0;
+  console.log("manual prin"+manualPrincipal)
   const manualPaid = borrower.manual_total_paid ?? 0;
   const manualRemaining = borrower.manual_total_remaining ?? 0;
   const hasManual = manualPrincipal > 0;
@@ -153,6 +154,25 @@ export function BorrowerCard({
                 <p className="mt-0.5 text-sm font-black tabular-nums text-rose-800">₱{manualRemaining.toLocaleString()}</p>
               </div>
             </div>
+
+            {manualPrincipal > 0 && (() => {
+              const pct = Math.min(100, Math.round((manualPaid / manualPrincipal) * 100));
+              return (
+                <div className="mt-2 space-y-1">
+                  <div
+                    className="h-2 w-full overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
+                    role="progressbar"
+                    aria-valuenow={pct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Manual payment progress"
+                  >
+                    <div className="h-full bg-emerald-400" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="text-[10px] font-black text-stone-700">{pct}% paid</p>
+                </div>
+              );
+            })()}
           </div>
         ) : null}
 
@@ -195,22 +215,31 @@ export function BorrowerCard({
                          </span>
                        ) : null}
                      </p>  <div className="flex flex-col gap-2 items-start">
-                      <div
-                    className="h-3  md:w-40 w-full overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
-                    role="progressbar"
-                    aria-valuenow={(schedule.paid_schedules_count || 0) / (schedule.total_schedules || 1) * 100}
-                    aria-valuemin={schedule.paid_schedules_count || 0}
-                    aria-valuemax={schedule.total_schedules || 1}
-                    aria-label="Installments marked paid"
-                  >
-                    <div
-                      className="h-full bg-emerald-400"
-                      style={{ width: `${((schedule.paid_schedules_count || 0) / (schedule.total_schedules || 1)) * 100}%` }}
-                    />
-                  </div>
-                  <p className="font-black text-stone-800 text-xs">
-                    {schedule.paid_schedules_count} paid out of  {schedule.total_schedules} schedules
-                  </p>
+                      {(() => {
+                        const isManual = schedule.schedule_mode === "manual";
+                        const pct = isManual
+                          ? Math.min(100, Math.round(((schedule.amount_paid_total ?? 0) / (Number(schedule.principal_amount) || 1)) * 100))
+                          : Math.round(((schedule.paid_schedules_count ?? 0) / (schedule.total_schedules || 1)) * 100);
+                        return (
+                          <>
+                            <div
+                              className="h-2 md:w-40 w-full overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
+                              role="progressbar"
+                              aria-valuenow={pct}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                              aria-label="Payment progress"
+                            >
+                              <div className="h-full bg-emerald-400" style={{ width: `${pct}%` }} />
+                            </div>
+                            <p className="font-black text-stone-800 text-xs">
+                              {isManual
+                                ? `₱${(schedule.amount_paid_total ?? 0).toLocaleString()} paid of ₱${Number(schedule.principal_amount ?? 0).toLocaleString()}`
+                                : `${schedule.paid_schedules_count} paid out of ${schedule.total_schedules} schedules`}
+                            </p>
+                          </>
+                        );
+                      })()}
                   
                      </div>
                   <div className="h-px bg-slate-800 my-2" />

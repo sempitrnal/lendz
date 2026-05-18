@@ -35,7 +35,7 @@ export type Borrower = {
   overdue_total?: number;
   overdue_count?: number;
   accounts_count?: number;
-  account_schedules?: { due_date: string; amount: number; status: string, total_schedules?:number, paid_schedules_count?:number }[];
+  account_schedules?: { due_date: string; amount: number; status: string; total_schedules?: number; paid_schedules_count?: number; schedule_mode?: string | null; principal_amount?: number | null; amount_paid_total?: number }[];
   overdue_schedules?: { due_date: string; amount: number; status: string }[];
   manual_total_principal?: number;
   manual_total_paid?: number;

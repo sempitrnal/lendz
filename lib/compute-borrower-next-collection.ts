@@ -15,6 +15,9 @@ export type AccountScheduleEntry = {
   status: string;
   total_schedules?: number;
   paid_schedules_count?: number;
+  schedule_mode?: string | null;
+  principal_amount?: number | null;
+  amount_paid_total?: number;
 };
 
 export type BorrowerNextCollection = {
@@ -121,20 +124,20 @@ for (const [accountId, rows] of byAccount) {
       statuses.add(nu.status);
       
       const stats = scheduleStatsByAccount.get(accId);
+      const acc = accountById.get(accId);
+      const accRows = byAccount.get(accId) ?? [];
+      const accAmountPaid = accRows.reduce((sum, r) => sum + Number((r as any).amount_paid ?? 0), 0);
 
-    accountSchedules.push({
-
-  due_date: nu.due_date,
-
-  amount: nu.remaining,
-
-  status: nu.status,
-
-  total_schedules: stats?.total_schedules ?? 0,
-
-  paid_schedules_count: stats?.paid_schedules_count ?? 0,
-
-});
+      accountSchedules.push({
+        due_date: nu.due_date,
+        amount: nu.remaining,
+        status: nu.status,
+        total_schedules: stats?.total_schedules ?? 0,
+        paid_schedules_count: stats?.paid_schedules_count ?? 0,
+        schedule_mode: acc?.schedule_mode ?? null,
+        principal_amount: acc?.principal_amount ?? null,
+        amount_paid_total: accAmountPaid,
+      });
     }
     accountSchedules.sort((a, b) => a.due_date.localeCompare(b.due_date));
 
