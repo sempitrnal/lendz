@@ -6,6 +6,7 @@ import {
   HandCoins,
   Landmark,
   Plus,
+  TrendingUp,
   UserRoundPlus,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
@@ -14,6 +15,7 @@ import {
   nextDueScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
+import MonthlyCollectionsChart from "@/components/dashboard/monthly-collections-chart";
 
 type ScheduleAggRow = {
   id: string;
@@ -104,6 +106,13 @@ export default async function Dashboard() {
   const weekAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     .toLocaleDateString("en-CA", { timeZone: TZ });
 
+  // 6-month window for chart
+  const sixMonthsAgoDate = (() => {
+    const d = new Date(now);
+    d.setMonth(d.getMonth() - 5);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  })();
+
   const [
     { count: borrowerCount },
     { data: newBorrowerAccountsWeekData },
@@ -111,6 +120,7 @@ export default async function Dashboard() {
     { data: accountTotalsData },
     unpaidSchedules,
     thisMonthSchedules,
+    sixMonthSchedules,
   ] = await Promise.all([
     supabase.from("borrowers").select("*", { count: "exact", head: true }),
     supabase
@@ -126,6 +136,9 @@ export default async function Dashboard() {
     fetchSchedulesWhere(supabase, (q) => q.neq("status", "paid")),
     fetchSchedulesWhere(supabase, (q) =>
       q.gte("due_date", startOfMonthDate).lte("due_date", endOfMonthDate)
+    ),
+    fetchSchedulesWhere(supabase, (q) =>
+      q.gte("due_date", sixMonthsAgoDate).lte("due_date", endOfMonthDate)
     ),
   ]);
 
@@ -232,6 +245,42 @@ export default async function Dashboard() {
   const nextCollectionSchedules = nextCollectionDate
     ? futureCandidates.filter((row) => row.due_date === nextCollectionDate)
     : [];
+
+  // Build 6-month chart data: expected = sum of amount_due, collected = sum of amount_paid
+  // profit = amount_paid − principal_per_installment (interest collected)
+  const monthlyChartData = (() => {
+    const months: { label: string; fullLabel: string; expected: number; expectedSoFar: number; collected: number; profit: number; expectedProfit: number; isComplete: boolean }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() - i);
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+      const monthKey = `${y}-${String(m).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("en-US", { month: "short" });
+      const fullLabel = d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+      let expected = 0;
+      let expectedSoFar = 0;
+      let collected = 0;
+      let profit = 0;
+      let expectedProfit = 0;
+      for (const row of sixMonthSchedules) {
+        if (!row.due_date.startsWith(monthKey)) continue;
+        const paid = Number(row.amount_paid ?? 0);
+        const due = Number(row.amount_due ?? 0);
+        expected += due;
+        if (row.due_date <= todayIso) expectedSoFar += due;
+        collected += paid;
+        const principal = principalByAccountId.get(row.account_id) ?? 0;
+        const totalInstallments = totalInstallmentsByAccount.get(row.account_id) ?? 1;
+        const principalPerInstallment = principal / totalInstallments;
+        profit += Math.max(0, paid - principalPerInstallment);
+        expectedProfit += Math.max(0, due - principalPerInstallment);
+      }
+      months.push({ label, fullLabel, expected: Math.round(expected), expectedSoFar: Math.round(expectedSoFar), collected: Math.round(collected), profit: Math.round(profit), expectedProfit: Math.round(expectedProfit), isComplete: i > 0 });
+    }
+    return months;
+  })();
   const dueAccountIds = [...new Set(dueSchedules.map((row) => row.account_id))];
   const nextCollectionAccountIds = [
     ...new Set(nextCollectionSchedules.map((row) => row.account_id)),
@@ -438,20 +487,20 @@ export default async function Dashboard() {
       icon: Coins,
       tone: "bg-blue-100",
     },
-    {
-      label: "money to collect this month",
-      value: `PHP ${moneyToCollectThisMonth.toLocaleString()}`,
-      delta: `${unpaidThisMonthAccountIds.length} account${unpaidThisMonthAccountIds.length === 1 ? "" : "s"} with unpaid schedules`,
-      icon: Landmark,
-      tone: "bg-amber-100",
-    },
-    {
-      label: "new loans this month",
-      value: String(newLoansMonthCount ?? 0),
-      delta: `principal out: PHP ${principalTotal.toLocaleString()}`,
-      icon: Landmark,
-      tone: "bg-rose-100",
-    },
+    // {
+    //   label: "money to collect this month",
+    //   value: `PHP ${moneyToCollectThisMonth.toLocaleString()}`,
+    //   delta: `${unpaidThisMonthAccountIds.length} account${unpaidThisMonthAccountIds.length === 1 ? "" : "s"} with unpaid schedules`,
+    //   icon: Landmark,
+    //   tone: "bg-amber-100",
+    // },
+    // {
+    //   label: "new loans this month",
+    //   value: String(newLoansMonthCount ?? 0),
+    //   delta: `principal out: PHP ${principalTotal.toLocaleString()}`,
+    //   icon: Landmark,
+    //   tone: "bg-rose-100",
+    // },
   ] as const;
 
   return (
@@ -490,6 +539,22 @@ export default async function Dashboard() {
             </p>
           </article>
         ))}
+      </section>
+
+      <section className="mt-4 lg:mt-6">
+        <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="rounded-md border border-slate-900 bg-emerald-100 p-1.5 text-slate-900">
+                <TrendingUp className="size-4" />
+              </span>
+              <h2 className="text-base font-black lowercase text-slate-900">
+                monthly collections
+              </h2>
+            </div>
+          </div>
+          <MonthlyCollectionsChart data={monthlyChartData} />
+        </article>
       </section>
 
       <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1.3fr_1fr]">
@@ -652,7 +717,7 @@ export default async function Dashboard() {
         </div>
       </section>
 
-      {overdueRows.length > 0 ? (
+      {/* {overdueRows.length > 0 ? (
         <section className="mt-4 lg:mt-6">
           <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br from-rose-50 via-white to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
             <h2 className="mb-3 text-base font-black lowercase text-slate-900">
@@ -688,7 +753,7 @@ export default async function Dashboard() {
             </ul>
           </article>
         </section>
-      ) : null}
+      ) : null} */}
     </main>
   );
 }
