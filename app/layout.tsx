@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageTransition } from "@/components/page-transition";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import { redirect } from "next/navigation";
@@ -53,7 +54,9 @@ export default async function RootLayout({
         <OfflineBanner />
         <SiteHeader isLoggedIn={Boolean(user)} logoutAction={logout} />
 
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 md:px-6 py-10 ">{children}</main>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 md:px-6 py-10 ">
+          <PageTransition>{children}</PageTransition>
+        </main>
         <Toaster />
         <footer className="border-t border-slate-200 print:hidden">
           <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4 text-sm text-slate-600">

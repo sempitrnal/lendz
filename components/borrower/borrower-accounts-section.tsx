@@ -36,7 +36,7 @@ type PaymentScheduleLite = {
   status: string;
 };
 
-type AccountComputedMetrics = {
+export type AccountComputedMetrics = {
   amountLeftToPay: number;
   profitToMake: number;
   nextCollectionDate: string | null;
@@ -55,7 +55,8 @@ type AccountComputedMetrics = {
 type BorrowerAccountsSectionProps = {
   borrowerId: string;
   accounts: AccountRow[] | null;
-  borrower?: BorrowerSummary
+  borrower?: BorrowerSummary;
+  initialMetrics?: Record<string, AccountComputedMetrics>;
 };
 function AccountCard({
   account,
@@ -275,7 +276,8 @@ function AccountCard({
 export default function BorrowerAccountsSection({
   borrowerId,
   accounts,
-  borrower
+  borrower,
+  initialMetrics,
 }: BorrowerAccountsSectionProps) {
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountRow | null>(
@@ -290,7 +292,7 @@ export default function BorrowerAccountsSection({
   const [notes, setNotes] = useState<any[]>([]);
   const [accountMetricsById, setAccountMetricsById] = useState<
     Record<string, AccountComputedMetrics>
-  >({});
+  >(initialMetrics ?? {});
   const fetchNotes = async () => {
     const { data, error } = await supabase
       .from("borrower_notes")
