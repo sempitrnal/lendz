@@ -26,9 +26,49 @@ jobs:
             --data-only \
             -f data-$(date +%Y-%m-%d).sql
 
+      - name: Backup storage buckets
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 - <<'EOF'
+          import os, json, urllib.request
+
+          key = os.environ['SUPABASE_SERVICE_ROLE_KEY']
+          base = 'https://ktgfpxmjvfxvukaemnhj.supabase.co'
+          headers = {'apikey': key, 'Authorization': f'Bearer {key}'}
+
+          def fetch(url, body=None):
+              req = urllib.request.Request(url, data=body,
+                    headers={**headers, 'Content-Type': 'application/json'} if body else headers)
+              with urllib.request.urlopen(req) as r:
+                  return json.loads(r.read())
+
+          def list_files(bucket, prefix=''):
+              body = json.dumps({'limit': 1000, 'offset': 0, 'prefix': prefix,
+                                 'sortBy': {'column': 'name', 'order': 'asc'}}).encode()
+              return fetch(f'{base}/storage/v1/object/list/{bucket}', body)
+
+          def download(bucket, path):
+              local = f'storage-backup/{bucket}/{path}'
+              os.makedirs(os.path.dirname(local), exist_ok=True)
+              req = urllib.request.Request(f'{base}/storage/v1/object/{bucket}/{path}', headers=headers)
+              with urllib.request.urlopen(req) as r, open(local, 'wb') as f:
+                  f.write(r.read())
+
+          for bucket in fetch(f'{base}/storage/v1/bucket'):
+              name = bucket['name']
+              print(f'Bucket: {name}')
+              for item in list_files(name):
+                  if item.get('id'):
+                      download(name, item['name'])
+                      print(f'  {item["name"]}')
+          EOF
+
       - name: Upload backup as artifact
         uses: actions/upload-artifact@v4
         with:
           name: db-backup-${{ github.run_id }}
-          path: "*.sql"
+          path: |
+            *.sql
+            storage-backup/
           retention-days: 30
