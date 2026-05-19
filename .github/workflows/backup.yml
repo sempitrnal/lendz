@@ -25,6 +25,7 @@ jobs:
             --db-url "postgresql://postgres.ktgfpxmjvfxvukaemnhj@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres" \
             --data-only \
             -f data-$(date +%Y-%m-%d).sql
+          gzip *.sql
 
       - name: Backup storage buckets
         env:
@@ -69,6 +70,6 @@ jobs:
         with:
           name: db-backup-${{ github.run_id }}
           path: |
-            *.sql
+            *.sql.gz
             storage-backup/
           retention-days: 30
