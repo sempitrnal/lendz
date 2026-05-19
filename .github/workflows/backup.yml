@@ -9,10 +9,9 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
-      - name: Install Supabase CLI
-        run: |
-          wget -qO supabase.deb https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.deb
-          sudo dpkg -i supabase.deb
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
 
       - name: Dump database
         env:
