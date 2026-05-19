@@ -4,7 +4,7 @@
     "target": {
       "namespace": "android_app",
       "package_name": "app.vercel.lendz_theta.twa",
-      "sha256_cert_fingerprints": ["BA:26:FE:CE:05:B5:E3:2F:D9:29:5A:E9:CF:31:4E:41:E3:65:5B:A6:55:7C:87:76:49:E1:CE:24:B0:E5:C4:AD"]
+      "sha256_cert_fingerprints": ["47:7D:3C:89:5E:04:46:05:AA:AC:1F:DF:43:82:70:EC:8F:B1:DB:09:0C:0C:0B:54:7D:9F:99:C2:40:69:62:45"]
     }
   }
 ]
