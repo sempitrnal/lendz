@@ -18,7 +18,8 @@ jobs:
           PGSSLMODE: require
         run: |
           supabase db dump \
-            --db-url "${{ secrets.SUPABASE_DB_URL }}" \
+            --db-url "postgresql://postgres.ktgfpxmjvfxvukaemnhj@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres" \
+            --password "${{ secrets.SUPABASE_DB_PASSWORD }}" \
             -f backup-$(date +%Y-%m-%d).sql
 
       - name: Upload backup as artifact
