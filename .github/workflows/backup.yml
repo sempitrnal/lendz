@@ -20,7 +20,11 @@ jobs:
         run: |
           supabase db dump \
             --db-url "postgresql://postgres.ktgfpxmjvfxvukaemnhj@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres" \
-            -f backup-$(date +%Y-%m-%d).sql
+            -f schema-$(date +%Y-%m-%d).sql
+          supabase db dump \
+            --db-url "postgresql://postgres.ktgfpxmjvfxvukaemnhj@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres" \
+            --data-only \
+            -f data-$(date +%Y-%m-%d).sql
 
       - name: Upload backup as artifact
         uses: actions/upload-artifact@v4
