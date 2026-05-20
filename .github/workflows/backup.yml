@@ -1,12 +1,13 @@
-name: Daily Database Backup
+name: Database Backup
 
 on:
   schedule:
-    - cron: "0 18 * * *" # runs 2AM Manila time (UTC+8) daily
-  workflow_dispatch: # allow manual trigger
+    - cron: "0 18 * * 0"  # weekly every Monday 2AM Manila time (UTC+8)
+    - cron: "0 18 1 * *"  # monthly on the 1st
+  workflow_dispatch:
 
 jobs:
-  backup:
+  db-backup:
     runs-on: ubuntu-latest
     steps:
       - uses: supabase/setup-cli@v1
@@ -27,6 +28,17 @@ jobs:
             -f data-$(date +%Y-%m-%d).sql
           gzip *.sql
 
+      - name: Upload DB backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: "*.sql.gz"
+          retention-days: 30
+
+  storage-backup:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.schedule, '0 18 1')
+    steps:
       - name: Backup storage buckets
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -65,11 +77,9 @@ jobs:
                       print(f'  {item["name"]}')
           EOF
 
-      - name: Upload backup as artifact
+      - name: Upload storage backup
         uses: actions/upload-artifact@v4
         with:
-          name: db-backup-${{ github.run_id }}
-          path: |
-            *.sql.gz
-            storage-backup/
+          name: storage-backup-${{ github.run_id }}
+          path: storage-backup/
           retention-days: 30
