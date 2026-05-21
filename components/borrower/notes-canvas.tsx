@@ -229,10 +229,12 @@ export default function NotesCanvas({
 
             const c = fabricRef.current;
             const width = containerRef.current.clientWidth;
+            const canvasEl = canvasElRef.current;
+            const height = canvasEl ? canvasEl.clientHeight || 300 : 300;
 
             c.setDimensions({
                 width,
-                height: 500,
+                height,
             });
 
             c.calcOffset();
@@ -297,6 +299,22 @@ export default function NotesCanvas({
         };
         canvas.on("path:created", handlePathCreated);
 
+        // Fix: on mobile/stylus, browser fires pointercancel instead of pointerup
+        // which leaves Fabric's brush stuck "down", connecting the next stroke.
+        const forceEndStroke = () => {
+            const c = fabricRef.current;
+            if (!c || !c.isDrawingMode) return;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const cAny = c as any;
+            if (cAny._isCurrentlyDrawing) {
+                try { cAny.freeDrawingBrush?._finalizeAndAddPath?.(); } catch {}
+                cAny._isCurrentlyDrawing = false;
+                c.renderAll();
+            }
+        };
+        upperCanvas?.addEventListener("pointercancel", forceEndStroke);
+        upperCanvas?.addEventListener("touchcancel", forceEndStroke);
+
         // Undo / redo via keyboard
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
@@ -317,6 +335,8 @@ export default function NotesCanvas({
             window.removeEventListener("resize", resizeCanvas);
             window.removeEventListener("keydown", handleKeyDown);
             canvas.off("path:created", handlePathCreated);
+            upperCanvas?.removeEventListener("pointercancel", forceEndStroke);
+            upperCanvas?.removeEventListener("touchcancel", forceEndStroke);
             canvas.dispose();
             fabricRef.current = null;
         };
@@ -495,10 +515,10 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
             </div>
 
             {/* Canvas with floating tools */}
-            <div className="relative">
-                {/* Floating drawing toolbar — outside canvas */}
+            <div className="space-y-2">
+                {/* Drawing toolbar */}
                 {showTools && (
-                    <div className="absolute  -top-28 z-20 flex items-center gap-1.5 rounded-xl border-2 border-slate-900 bg-white/95 p-1.5 shadow-[3px_3px_0px_0px_#0f172a] backdrop-blur-sm">
+                    <div className="flex flex-wrap items-center gap-1.5 rounded-xl border-2 border-slate-900 bg-white/95 p-1.5 shadow-[3px_3px_0px_0px_#0f172a]">
                         <button
                             type="button"
                             onClick={() => setActiveTool("pen")}
@@ -570,13 +590,13 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
                 <div
                     ref={containerRef}
                     className="overflow-hidden rounded-xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a]"
-                    style={{ backgroundColor: NOTES_CANVAS_PAPER }}
+                    style={{ backgroundColor: NOTES_CANVAS_PAPER, touchAction: "none" }}
                 >
                     <div className="w-full">
                         <canvas
                             ref={canvasElRef}
                             tabIndex={-1}
-                            className="block h-[500px] w-full"
+                            className="block h-[60vw] min-h-[280px] max-h-[500px] w-full"
                         />
                     </div>
                 </div>

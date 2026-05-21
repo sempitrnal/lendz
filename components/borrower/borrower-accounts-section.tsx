@@ -563,7 +563,7 @@ export default function BorrowerAccountsSection({
         open={isNotesOpen}
         onOpenChange={setIsNotesOpen}
       >
-        <DialogContent className="max-w-5xl">
+        <DialogContent className="max-w-5xl max-h-[95svh] sm:max-h-[95svh]">
           <div className="flex items-center justify-between mt-10">
             <DialogHeader className="">
               <DialogTitle>
