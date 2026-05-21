@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Canvas, PencilBrush, type Path, type Canvas as FabricCanvas } from "fabric";
+import { Canvas, PencilBrush, Point, type Path, type Canvas as FabricCanvas } from "fabric";
 import { supabase } from "@/lib/supabase/client";
-import { Undo2 } from "lucide-react";
+import { Undo2, Hand, ZoomIn, ZoomOut, Maximize2, Pencil, Eraser, MousePointer2 } from "lucide-react";
 import { toast } from "sonner";
 
 /** Keep in sync with Canvas `backgroundColor` and wrapper fill. */
 const NOTES_CANVAS_PAPER = "#fffdf5";
+
 
 /** Compress a JSON value to a base64-encoded gzip string. */
 async function compressJSON(data: unknown): Promise<string> {
@@ -61,14 +62,8 @@ type NotesCanvasProps = {
     onSaved?: (note: BorrowerNotePayload) => void;
 };
 
-type DrawTool = "pen" | "eraser" | "select";
+type DrawTool = "pen" | "eraser" | "select" | "pan";
 
-/**
- * Live stroke uses the upper canvas only — we paint the paper color there.
- * Committed stroke uses the same opaque paper color (`source-over`) so the bitmap
- * matches the canvas; `destination-out` left transparent pixels that showed the
- * white panel behind the canvas after mouseup.
- */
 class EraserPencilBrush extends PencilBrush {
     override _setBrushStyles(ctx: CanvasRenderingContext2D) {
         super._setBrushStyles(ctx);
@@ -183,10 +178,18 @@ export default function NotesCanvas({
 
         if (activeTool === "select") {
             canvas.isDrawingMode = false;
+            canvas.defaultCursor = "default";
+            return;
+        }
+
+        if (activeTool === "pan") {
+            canvas.isDrawingMode = false;
+            canvas.defaultCursor = "grab";
             return;
         }
 
         canvas.isDrawingMode = true;
+        canvas.defaultCursor = "crosshair";
 
         if (activeTool === "eraser") {
             const brush = new EraserPencilBrush(canvas);
@@ -201,11 +204,14 @@ export default function NotesCanvas({
         }
     }, [activeTool, brushColor]);
 
+    const activeToolRef = useRef<DrawTool>(activeTool);
+
     const applyDrawingBrushRef = useRef(applyDrawingBrush);
 
     useEffect(() => {
         applyDrawingBrushRef.current = applyDrawingBrush;
-    }, [applyDrawingBrush]);
+        activeToolRef.current = activeTool;
+    }, [applyDrawingBrush, activeTool]);
 
     // initialize canvas
     useEffect(() => {
@@ -274,7 +280,13 @@ export default function NotesCanvas({
 
                     canvas.backgroundColor = NOTES_CANVAS_PAPER;
 
+                    const vpt = (jsonData as Record<string, unknown>).viewportTransform;
+                    if (Array.isArray(vpt) && vpt.length === 6) {
+                        canvas.viewportTransform = vpt as [number,number,number,number,number,number];
+                    }
+
                     canvas.renderAll();
+                    setZoom(canvas.getZoom());
                 } catch (err) {
                     console.error("Failed to load canvas JSON", err);
                 }
@@ -297,6 +309,43 @@ export default function NotesCanvas({
             pushHistory();
         };
         canvas.on("path:created", handlePathCreated);
+
+        // Pan tool — drag to move viewport
+        let isPanning = false;
+        let panLastX = 0;
+        let panLastY = 0;
+        const getPoint = (e: MouseEvent | TouchEvent) =>
+            "touches" in e && e.touches.length > 0
+                ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+                : { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY };
+
+        const onPanStart = (opt: { e: MouseEvent | TouchEvent }) => {
+            if (activeToolRef.current !== "pan") return;
+            isPanning = true;
+            const p = getPoint(opt.e);
+            panLastX = p.x;
+            panLastY = p.y;
+            canvas.defaultCursor = "grabbing";
+        };
+        const onPanMove = (opt: { e: MouseEvent | TouchEvent }) => {
+            if (!isPanning || activeToolRef.current !== "pan") return;
+            const p = getPoint(opt.e);
+            const dx = p.x - panLastX;
+            const dy = p.y - panLastY;
+            const vpt = canvas.viewportTransform as number[];
+            vpt[4] += dx;
+            vpt[5] += dy;
+            canvas.requestRenderAll();
+            panLastX = p.x;
+            panLastY = p.y;
+        };
+        const onPanEnd = () => {
+            isPanning = false;
+            if (activeToolRef.current === "pan") canvas.defaultCursor = "grab";
+        };
+        canvas.on("mouse:down", onPanStart as any);
+        canvas.on("mouse:move", onPanMove as any);
+        canvas.on("mouse:up", onPanEnd);
 
         // Fix: on mobile/stylus, browser fires pointercancel instead of pointerup
         // which leaves Fabric's brush stuck "down", connecting the next stroke.
@@ -334,6 +383,9 @@ export default function NotesCanvas({
             window.removeEventListener("resize", resizeCanvas);
             window.removeEventListener("keydown", handleKeyDown);
             canvas.off("path:created", handlePathCreated);
+            canvas.off("mouse:down", onPanStart as any);
+            canvas.off("mouse:move", onPanMove as any);
+            canvas.off("mouse:up", onPanEnd);
             upperCanvas?.removeEventListener("pointercancel", forceEndStroke);
             upperCanvas?.removeEventListener("touchcancel", forceEndStroke);
             canvas.dispose();
@@ -398,20 +450,13 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
                     return slim;
                 });
             }
+            rawJSON.viewportTransform = canvas.viewportTransform;
             const canvas_json = await compressJSON(rawJSON);
 
-      const preview_image_url = await uploadPreviewImage(
-                        canvas.toDataURL({
-                         format: "webp",
-
-  quality: 0.85, // 👈 big improvement
-
-  multiplier: 2, // 👈 renders at 2x resolution (key upgrade)
-
-  enableRetinaScaling: true,
-                        }),
-                        note?.preview_img_url
-                        );
+            const preview_image_url = await uploadPreviewImage(
+                canvas.toDataURL({ format: "webp", quality: 0.85, multiplier: 2, enableRetinaScaling: true }),
+                note?.preview_img_url
+            );
             // UPDATE EXISTING NOTE
             if (note?.id) {
                 const { data, error } = await supabase
@@ -479,6 +524,23 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
     const canUndo = historyIndexRef.current > 0;
     const canRedo = historyIndexRef.current < historyRef.current.length - 1;
 
+    const [zoom, setZoom] = useState(1);
+
+    const zoomCanvas = useCallback((factor: number) => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+        const next = Math.min(Math.max(canvas.getZoom() * factor, 0.1), 10);
+        canvas.zoomToPoint(new Point(canvas.getWidth() / 2, canvas.getHeight() / 2), next);
+        setZoom(next);
+    }, []);
+
+    const resetZoom = useCallback(() => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+        canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+        setZoom(1);
+    }, []);
+
     return (
         <div className="flex flex-col gap-2 h-full">
             {/* Persistent top bar — save / clear / hide always showing */}
@@ -514,10 +576,10 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
             </div>
 
             {/* Canvas with floating tools */}
-            <div className="flex flex-col gap-2 flex-1 min-h-0">
-                {/* Drawing toolbar */}
+            <div className="relative flex-1 min-h-0 sm:min-h-[480px]">
+                {/* Drawing toolbar — floats over the canvas */}
                 {showTools && (
-                    <div className="flex flex-wrap items-center gap-1.5 rounded-xl border-2 border-slate-900 bg-white/95 p-1.5 shadow-[3px_3px_0px_0px_#0f172a]">
+                    <div className="absolute top-[2px] left-2 z-20 flex flex-wrap items-center gap-1.5 rounded-xl border-2 border-slate-900 bg-white/95 p-1.5 shadow-[3px_3px_0px_0px_#0f172a] backdrop-blur-sm">
                         <button
                             type="button"
                             onClick={() => setActiveTool("pen")}
@@ -527,7 +589,7 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
                                     : "bg-white text-slate-900"
                             }`}
                         >
-                            Pen
+                            <Pencil className="size-3.5" />
                         </button>
 
                         <button
@@ -539,7 +601,20 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
                                     : "bg-white text-slate-900"
                             }`}
                         >
-                            Eraser
+                            <Eraser className="size-3.5" />
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setActiveTool("pan")}
+                            title="Pan / scroll canvas"
+                            className={`rounded-md border-2 border-slate-900 px-2 py-1 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5 ${
+                                activeTool === "pan"
+                                    ? "bg-slate-900 text-white"
+                                    : "bg-white text-slate-900"
+                            }`}
+                        >
+                            <Hand className="size-3.5" />
                         </button>
 
                         <button
@@ -551,7 +626,7 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
                                     : "bg-white text-slate-900"
                             }`}
                         >
-                            Select
+                            <MousePointer2 className="size-3.5" />
                         </button>
 
                         <label className="flex items-center gap-1">
@@ -564,6 +639,33 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
                                 className="h-6 w-8 cursor-pointer rounded border-2 border-slate-300 bg-white p-0.5 disabled:cursor-not-allowed disabled:opacity-40"
                             />
                         </label>
+
+                        <div className="flex items-center gap-0.5">
+                            <button
+                                type="button"
+                                onClick={() => zoomCanvas(1 / 1.2)}
+                                title="Zoom out"
+                                className="rounded-md border-2 border-slate-900 bg-white p-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5"
+                            >
+                                <ZoomOut className="size-3.5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={resetZoom}
+                                title="Reset zoom"
+                                className="rounded-md border-2 border-slate-900 bg-white px-1.5 py-1 text-[9px] font-black text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5 tabular-nums"
+                            >
+                                {Math.round(zoom * 100)}%
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => zoomCanvas(1.2)}
+                                title="Zoom in"
+                                className="rounded-md border-2 border-slate-900 bg-white p-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5"
+                            >
+                                <ZoomIn className="size-3.5" />
+                            </button>
+                        </div>
 
                         <button
                             type="button"
@@ -588,7 +690,7 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
 
                 <div
                     ref={containerRef}
-                    className="flex-1 min-h-0 overflow-hidden rounded-xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a]"
+                    className="absolute inset-0 overflow-hidden rounded-xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a]"
                     style={{ backgroundColor: NOTES_CANVAS_PAPER, touchAction: "none" }}
                 >
                     <div className="w-full h-full">
