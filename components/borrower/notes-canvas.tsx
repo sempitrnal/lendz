@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Canvas, PencilBrush, type Path, type Canvas as FabricCanvas } from "fabric";
 import { supabase } from "@/lib/supabase/client";
 import { Undo2 } from "lucide-react";
+import { toast } from "sonner";
 
 /** Keep in sync with Canvas `backgroundColor` and wrapper fill. */
 const NOTES_CANVAS_PAPER = "#fffdf5";
@@ -51,6 +52,7 @@ function paperStrokeColor(canvas: FabricCanvas): string {
 export type BorrowerNotePayload = Record<string, unknown> & {
     id?: string;
     canvas_json?: unknown;
+    preview_img_url?: string | null;
 };
 
 type NotesCanvasProps = {
@@ -323,25 +325,27 @@ export default function NotesCanvas({
     useEffect(() => {
         applyDrawingBrush();
     }, [applyDrawingBrush]);
-async function uploadPreviewImage(dataUrl: string, noteId?: string) {
+async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
   const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
   const buffer = Buffer.from(base64, "base64");
 
-  const fileName = `borrower-notes/${noteId ?? crypto.randomUUID()}.webp`;
+  const fileName = `borrower-notes/${crypto.randomUUID()}.webp`;
 
   const { error } = await supabase.storage
     .from("borrower-notes")
-    .upload(fileName, buffer, {
-      contentType: "image/webp",
-      upsert: true,
-    });
+    .upload(fileName, buffer, { contentType: "image/webp" });
 
   if (error) throw error;
 
-  const { data } = supabase.storage
-    .from("borrower-notes")
-    .getPublicUrl(fileName);
+  if (oldUrl) {
+    const marker = "/object/public/borrower-notes/";
+    const oldPath = oldUrl.split(marker)[1];
+    if (oldPath) {
+      await supabase.storage.from("borrower-notes").remove([oldPath]);
+    }
+  }
 
+  const { data } = supabase.storage.from("borrower-notes").getPublicUrl(fileName);
   return data.publicUrl;
 }
     const saveNotes = useCallback(async () => {
@@ -387,7 +391,7 @@ async function uploadPreviewImage(dataUrl: string, noteId?: string) {
 
   enableRetinaScaling: true,
                         }),
-                        note?.id
+                        note?.preview_img_url
                         );
             // UPDATE EXISTING NOTE
             if (note?.id) {
@@ -404,9 +408,11 @@ async function uploadPreviewImage(dataUrl: string, noteId?: string) {
 
                 if (error) {
                     console.error(error);
+                    toast.error("Failed to update note");
                     return;
                 }
 
+                toast.success("Note updated");
                 onSaved?.(data);
 
                 return;
@@ -427,12 +433,15 @@ async function uploadPreviewImage(dataUrl: string, noteId?: string) {
 
             if (error) {
                 console.error(error);
+                toast.error("Failed to save note");
                 return;
             }
 
+            toast.success("Note saved");
             onSaved?.(data);
         } catch (err) {
             console.error(err);
+            toast.error("Something went wrong while saving");
         } finally {
             setSaving(false);
         }
