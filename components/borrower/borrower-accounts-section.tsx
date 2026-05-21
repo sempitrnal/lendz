@@ -563,7 +563,7 @@ export default function BorrowerAccountsSection({
         open={isNotesOpen}
         onOpenChange={setIsNotesOpen}
       >
-        <DialogContent className="max-w-5xl max-h-[95svh] sm:max-h-[95svh]">
+        <DialogContent className="top-0 translate-y-0 h-[100svh] max-h-[100svh] max-w-full rounded-none sm:top-1/2 sm:-translate-y-1/2 sm:h-auto sm:max-h-[95svh] sm:max-w-5xl sm:rounded-xl">
           <div className="flex items-center justify-between mt-10">
             <DialogHeader className="">
               <DialogTitle>
@@ -595,6 +595,7 @@ export default function BorrowerAccountsSection({
             )}
           </div>
 
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <NotesCanvas
             borrowerId={borrowerId}
             note={selectedNote}
@@ -612,6 +613,7 @@ export default function BorrowerAccountsSection({
               setIsNotesOpen(false);
             }}
           />
+          </div>
         </DialogContent>
       </Dialog>
     </div>

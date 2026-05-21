@@ -229,8 +229,7 @@ export default function NotesCanvas({
 
             const c = fabricRef.current;
             const width = containerRef.current.clientWidth;
-            const canvasEl = canvasElRef.current;
-            const height = canvasEl ? canvasEl.clientHeight || 300 : 300;
+            const height = containerRef.current.clientHeight || 300;
 
             c.setDimensions({
                 width,
@@ -481,7 +480,7 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
     const canRedo = historyIndexRef.current < historyRef.current.length - 1;
 
     return (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2 h-full">
             {/* Persistent top bar — save / clear / hide always showing */}
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-slate-900 bg-white p-2 shadow-[3px_3px_0px_0px_#0f172a]">
                 <div className="flex items-center gap-2">
@@ -515,7 +514,7 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
             </div>
 
             {/* Canvas with floating tools */}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2 flex-1 min-h-0">
                 {/* Drawing toolbar */}
                 {showTools && (
                     <div className="flex flex-wrap items-center gap-1.5 rounded-xl border-2 border-slate-900 bg-white/95 p-1.5 shadow-[3px_3px_0px_0px_#0f172a]">
@@ -589,14 +588,14 @@ async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
 
                 <div
                     ref={containerRef}
-                    className="overflow-hidden rounded-xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a]"
+                    className="flex-1 min-h-0 overflow-hidden rounded-xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a]"
                     style={{ backgroundColor: NOTES_CANVAS_PAPER, touchAction: "none" }}
                 >
-                    <div className="w-full">
+                    <div className="w-full h-full">
                         <canvas
                             ref={canvasElRef}
                             tabIndex={-1}
-                            className="block h-[60vw] min-h-[280px] max-h-[500px] w-full"
+                            className="block h-full w-full"
                         />
                     </div>
                 </div>
