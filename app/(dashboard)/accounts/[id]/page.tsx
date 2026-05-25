@@ -21,6 +21,7 @@ import type { PaidDateStrategy } from "@/components/batch-schedule-toolbar";
 import ShareScheduleButton from "@/components/share-schedule-button";
 import type { ShareSchedule } from "@/components/share-schedule-button";
 import AnimatedNumber from "@/components/animated-number";
+import NextScheduleScroller from "@/components/next-schedule-scroller";
 import PaidCheck from "@/components/paid-check";
 import OverdueSad from "@/components/overdue-sad";
 import {
@@ -548,22 +549,21 @@ export default async function AccountDetailPage({
     : "Unknown borrower";
 
   return (
-    <div className="mx-auto max-w-8xl pb-16">
-      <div className="mb-8 print:hidden">
-        <BackButton
-          fallbackHref={`/borrowers/${accountRow.borrower_id}`}
-          className="mb-6"
-        />
-      </div>
+    <div className="mx-auto max-w-8xl pb-16 relative">
+      <BackButton
+        fallbackHref={`/borrowers/${accountRow.borrower_id}`}
+        floating
+      />
 
-      <div className="space-y-6">
+      <NextScheduleScroller />
+      <div className="space-y-6 mt-10">
         <header
           className={`overflow-hidden `}
         >
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">
               <h1 className="mt-1 font-black uppercase tracking-tight text-slate-900 sm:text-xl">
-                {accountRow.type.replace("_", " ")}
+                {/* {accountRow.type.replace("_", " ")} */}
               </h1>
               {borrower ? (
                 <p className="mt-3  text-4xl font-black uppercase leading-tight text-slate-900 sm:text-3xl">
@@ -806,6 +806,7 @@ export default async function AccountDetailPage({
                     <ScheduleMobileCard
                       key={schedule.id}
                       scheduleId={schedule.id}
+                      id={isNext ? "next-schedule" : undefined}
                       className={`border-b-2 border-slate-900 p-4 transition duration-500 last:border-b-0 ${st.row} ${isNext ? "" : ""}`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -941,6 +942,7 @@ export default async function AccountDetailPage({
                         return (
                           <tr
                             key={schedule.id}
+                            id={isNext ? "next-schedule" : undefined}
                             className={`border-b-2 border-slate-900 last:border-b-0 transition-colors duration-700  ${st.row} ${isNext ? "bg-sky-1000" : ""}`}
                           >
                             <ScheduleCheckboxCell

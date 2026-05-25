@@ -32,6 +32,9 @@ export function BorrowerCard({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [overdueOpen, setOverdueOpen] = useState(false);
+  const [expandedOverdue, setExpandedOverdue] = useState<Record<number, boolean>>({});
+  const toggleOverdue = (i: number, defaultOpen: boolean) =>
+    setExpandedOverdue((prev) => ({ ...prev, [i]: !(prev[i] ?? defaultOpen) }));
   const categories = [...(borrower.borrower_categories ?? [])].sort((a, b) =>
     a.category.name.localeCompare(b.category.name)
   );
@@ -197,7 +200,14 @@ export function BorrowerCard({
                         
                       </p>
                    {schedules ? schedules.map((schedule,i) => (
-                    <div  key={i} className="flex flex-col gap-2">
+                    <Link
+                      key={i}
+                      href={schedule.account_id ? `/accounts/${schedule.account_id}` : "#"}
+                      data-prevent-borrower-card-open
+                      className="block rounded-lg transition hover:bg-black/5 -mx-1 px-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                    <div className="flex flex-col gap-2">
                        <p className="text-sm mt-2 font-black text-slate-900 flex  items-center gap-2">
                        {new Date(schedule.due_date).toLocaleDateString(undefined, {
                          month: "short",
@@ -207,6 +217,9 @@ export function BorrowerCard({
                        {schedules.length > 1 ? (
                          <span className="font-bold text-stone-500 text-xs w-max">
                            ₱{schedule.amount.toLocaleString()}
+                           {schedule.status === "partial" && schedule.amount_due_per_schedule && schedule.amount_due_per_schedule > schedule.amount ? (
+                             <span className="font-normal text-slate-400"> of ₱{Number(schedule.amount_due_per_schedule).toLocaleString()}</span>
+                           ) : null}
                          </span>
                        ) : null}
                        {schedule.status ? (
@@ -217,9 +230,17 @@ export function BorrowerCard({
                      </p>  <div className="flex flex-col gap-2 items-start">
                       {(() => {
                         const isManual = schedule.schedule_mode === "manual";
+                        const principal = Number(schedule.principal_amount ?? 0);
+                        const totalSched = schedule.total_schedules || 1;
+                        const amtDue = Number(schedule.amount_due_per_schedule ?? 0);
+                        const isPartial = schedule.status === "partial";
+                        const partialPaid = isPartial && amtDue > 0 ? amtDue - schedule.amount : 0;
+                        const partialFraction = isPartial && amtDue > 0 ? partialPaid / amtDue : 0;
                         const pct = isManual
-                          ? Math.min(100, Math.round(((schedule.amount_paid_total ?? 0) / (Number(schedule.principal_amount) || 1)) * 100))
-                          : Math.round(((schedule.paid_schedules_count ?? 0) / (schedule.total_schedules || 1)) * 100);
+                          ? Math.min(100, Math.round(((schedule.amount_paid_total ?? 0) / (principal || 1)) * 100))
+                          : Math.min(100, Math.round((((schedule.paid_schedules_count ?? 0) + partialFraction) / totalSched) * 100));
+                        const principalPerSched = principal / totalSched;
+                        const interestPerSched = amtDue > 0 ? amtDue - principalPerSched : null;
                         return (
                           <>
                             <div
@@ -234,9 +255,59 @@ export function BorrowerCard({
                             </div>
                             <p className="font-black text-stone-800 text-xs">
                               {isManual
-                                ? `₱${(schedule.amount_paid_total ?? 0).toLocaleString()} paid of ₱${Number(schedule.principal_amount ?? 0).toLocaleString()}`
-                                : `${schedule.paid_schedules_count} paid out of ${schedule.total_schedules} schedules`}
+                                ? `₱${(schedule.amount_paid_total ?? 0).toLocaleString()} paid of ₱${principal.toLocaleString()}`
+                                : isPartial
+                                  ? `${schedule.paid_schedules_count} paid · ₱${partialPaid.toLocaleString()} of ₱${amtDue.toLocaleString()} on current`
+                                  : `${schedule.paid_schedules_count} paid out of ${schedule.total_schedules} schedule${schedule.total_schedules === 1 ? '' : 's'}`}
                             </p>
+                            {!isManual && principal > 0 && (
+                              <div className="flex flex-wrap gap-3 gap-y-1 mt-0.5">
+                                <span className="text-[10px] text-slate-500">
+                                  <span className="font-black text-slate-700">Principal</span> ₱{principal.toLocaleString()}
+                                </span>
+                                {schedule.interest_rate != null && (
+                                  <span className="text-[10px] text-slate-500">
+                                    <span className="font-black text-slate-700">Interest</span> {schedule.interest_rate}%
+                                  </span>
+                                )}
+                                {interestPerSched != null && interestPerSched > 0 && (
+                                  <span className="text-[10px] text-slate-500">
+                                    <span className="font-black text-slate-700">per payroll</span> ₱{interestPerSched.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {schedule.overdue_schedules && schedule.overdue_schedules.length > 0 && (() => {
+                              const defaultOpen = schedule.overdue_schedules.length <= 6;
+                              const isOpen = expandedOverdue[i] ?? defaultOpen;
+                              return (
+                                <div className="mt-1 w-full rounded-md border-2 border-red-900 bg-red-50/80 px-2 py-1.5">
+                                  <button
+                                    type="button"
+                                    data-prevent-borrower-card-open
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleOverdue(i, defaultOpen); }}
+                                    className="w-full flex items-center justify-between gap-2"
+                                  >
+                                    <span className="text-[9px] font-black uppercase tracking-wide text-red-700">
+                                      Overdue installments · {schedule.overdue_schedules.length}
+                                    </span>
+                                    <span className="text-[9px] text-red-600">{isOpen ? "▲" : "▼"}</span>
+                                  </button>
+                                  {isOpen && (
+                                    <div className="space-y-0.5 mt-1">
+                                      {schedule.overdue_schedules.map((os, oi) => (
+                                        <div key={oi} className="flex items-center justify-between gap-2">
+                                          <span className="text-[10px] font-semibold text-slate-700">
+                                            {new Date(os.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                                          </span>
+                                          <span className="text-[10px] font-black text-red-700">₱{os.amount.toLocaleString()}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </>
                         );
                       })()}
@@ -245,6 +316,7 @@ export function BorrowerCard({
                   <div className="h-px bg-slate-800 my-2" />
 
                     </div>
+                    </Link>
                    )) : null}
 
                     </div>
@@ -254,6 +326,9 @@ export function BorrowerCard({
                       </p>
                       <p className="text-sm font-black tabular-nums text-slate-900">
                         {`₱${nextAmount.toLocaleString()}`}
+                        {schedules.length === 1 && schedules[0].status === "partial" && schedules[0].amount_due_per_schedule && schedules[0].amount_due_per_schedule > nextAmount ? (
+                          <span className="ml-1 text-xs font-normal text-slate-400">of ₱{Number(schedules[0].amount_due_per_schedule).toLocaleString()}</span>
+                        ) : null}
                       </p>
                     </div>
                   </div>
@@ -268,7 +343,7 @@ export function BorrowerCard({
             </div>
           </div>
         ) : null}
-       {borrower.overdue_total && borrower.overdue_count ? (
+       {/* {borrower.overdue_total && borrower.overdue_count ? (
                 <div className="min-w-0 mt-2 shadow-md border-2 border-red-900 bg-red-50 rounded-lg" data-prevent-borrower-card-open>
                   <button
                     type="button"
@@ -302,7 +377,7 @@ export function BorrowerCard({
                     </div>
                   ) : null}
                 </div>
-              ) : null}
+              ) : null} */}
 
         {!showScheduleSummary && quickAction ? (
           <div

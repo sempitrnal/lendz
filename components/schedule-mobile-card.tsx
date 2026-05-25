@@ -7,16 +7,19 @@ export function ScheduleMobileCard({
   scheduleId,
   children,
   className,
+  id,
 }: {
   scheduleId: string;
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }) {
   const { isEditing, isSelected, toggleId } = useScheduleSelection();
   const selected = isSelected(scheduleId);
 
   return (
     <li
+      id={id}
       onClick={() => {
         if (isEditing) toggleId(scheduleId);
       }}

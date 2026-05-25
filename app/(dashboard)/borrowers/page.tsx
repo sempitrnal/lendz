@@ -79,7 +79,7 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
   if (borrowerIds.length > 0) {
     const { data: accountRows } = await supabase
       .from("accounts")
-      .select("id, borrower_id, principal_amount, schedule_mode")
+      .select("id, borrower_id, principal_amount, schedule_mode, interest_rate")
       .in("borrower_id", borrowerIds);
 
     const accounts = (accountRows ?? []) as Array<{
@@ -87,6 +87,7 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
       borrower_id: string;
       principal_amount: number | null;
       schedule_mode: string | null;
+      interest_rate: number | null;
     }>;
     const allAccountIds = accounts.map((a) => a.id);
     const accountIdsByBorrower = new Map<string, string[]>();

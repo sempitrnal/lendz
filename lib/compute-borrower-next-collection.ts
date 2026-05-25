@@ -10,6 +10,7 @@ import {
  * then minimum due date across that borrower’s accounts.
  */
 export type AccountScheduleEntry = {
+  account_id?: string;
   due_date: string;
   amount: number;
   status: string;
@@ -18,6 +19,9 @@ export type AccountScheduleEntry = {
   schedule_mode?: string | null;
   principal_amount?: number | null;
   amount_paid_total?: number;
+  interest_rate?: number | null;
+  amount_due_per_schedule?: number | null;
+  overdue_schedules?: { due_date: string; amount: number }[];
 };
 
 export type BorrowerNextCollection = {
@@ -36,7 +40,7 @@ export type BorrowerNextCollection = {
   manual_accounts_count: number;
 };
 
-type AccountRow = { id: string; borrower_id: string; principal_amount?: number | null; schedule_mode?: string | null };
+type AccountRow = { id: string; borrower_id: string; principal_amount?: number | null; schedule_mode?: string | null; interest_rate?: number | null };
 type ScheduleRow = ScheduleBalanceInput & {
   account_id: string;
   due_date: string;
@@ -90,7 +94,7 @@ for (const [accountId, rows] of byAccount) {
 
   const firstUnpaidByAccount = new Map<
     string,
-    { due_date: string; remaining: number; status: string }
+    { due_date: string; remaining: number; status: string; amount_due: number }
   >();
   for (const [accountId, list] of byAccount) {
     const u = nextDueScheduleForCollection(list);
@@ -99,6 +103,7 @@ for (const [accountId, rows] of byAccount) {
         due_date: u.due_date,
         remaining: remainingOnInstallment(u),
         status: u.status,
+        amount_due: Number(u.amount_due ?? 0),
       });
     }
   }
@@ -128,7 +133,13 @@ for (const [accountId, rows] of byAccount) {
       const accRows = byAccount.get(accId) ?? [];
       const accAmountPaid = accRows.reduce((sum, r) => sum + Number((r as any).amount_paid ?? 0), 0);
 
+      const accOverdueSchedules = accRows
+        .filter((r) => r.status === "overdue" && !isInstallmentFullyPaid(r))
+        .sort((a, b) => a.due_date.localeCompare(b.due_date))
+        .map((r) => ({ due_date: r.due_date, amount: remainingOnInstallment(r) }));
+
       accountSchedules.push({
+        account_id: accId,
         due_date: nu.due_date,
         amount: nu.remaining,
         status: nu.status,
@@ -137,6 +148,9 @@ for (const [accountId, rows] of byAccount) {
         schedule_mode: acc?.schedule_mode ?? null,
         principal_amount: acc?.principal_amount ?? null,
         amount_paid_total: accAmountPaid,
+        interest_rate: (acc as any)?.interest_rate ?? null,
+        amount_due_per_schedule: nu.amount_due,
+        overdue_schedules: accOverdueSchedules.length > 0 ? accOverdueSchedules : undefined,
       });
     }
     accountSchedules.sort((a, b) => a.due_date.localeCompare(b.due_date));

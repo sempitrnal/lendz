@@ -61,15 +61,19 @@ export default async function BorrowerAccountsAsync({
         profitToMake,
         nextCollectionDate: nextUnpaid?.due_date ?? null,
         nextCollectionAmount: nextUnpaid ? remainingOnInstallment(nextUnpaid) : 0,
+        nextCollectionAmountDue: nextUnpaid ? Math.max(0, Number(nextUnpaid.amount_due ?? 0)) : 0,
         nextCollectionStatus: nextUnpaid?.status ?? null,
         nextUnpaidScheduleId: nextUnpaid?.id ?? null,
         overdueCount: overdueRows.length,
+        overdueTotal: overdueRows.reduce((sum, row) => sum + remainingOnInstallment(row), 0),
+        overdueSchedules: [...overdueRows]
+          .sort((a, b) => a.due_date.localeCompare(b.due_date))
+          .map((row) => ({ due_date: row.due_date, amount: remainingOnInstallment(row) })),
         totalDue: totalPayment,
         totalPaid: amountPaid,
         term_months: account.term_months,
         term_installments: account.term_installments,
         schedule_mode: account.schedule_mode,
-        overdueTotal: overdueRows.reduce((sum, row) => sum + remainingOnInstallment(row), 0),
       };
     });
   }

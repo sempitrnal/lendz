@@ -41,10 +41,12 @@ export type AccountComputedMetrics = {
   profitToMake: number;
   nextCollectionDate: string | null;
   nextCollectionAmount: number;
+  nextCollectionAmountDue: number;
   nextCollectionStatus: string | null;
   nextUnpaidScheduleId: string | null;
   overdueCount: number;
   overdueTotal: number;
+  overdueSchedules: { due_date: string; amount: number }[];
   totalDue: number;
   totalPaid: number;
   term_months?: string| number| null;
@@ -79,9 +81,11 @@ function AccountCard({
   const progressPct = totalDue > 0 ? Math.min(100, Math.round((totalPaid / totalDue) * 100)) : 0;
   const nextCollectionDate = metrics?.nextCollectionDate;
   const nextCollectionAmount = metrics?.nextCollectionAmount ?? 0;
+  const nextCollectionAmountDue = metrics?.nextCollectionAmountDue ?? 0;
   const nextCollectionStatus = metrics?.nextCollectionStatus ?? null;
   const overdueCount = metrics?.overdueCount ?? 0;
   const overdueTotal = metrics?.overdueTotal ?? 0;
+  const [overdueExpanded, setOverdueExpanded] = useState(overdueCount <= 6);
   const isManual = account.schedule_mode === "manual";
   const freq = account.payment_frequency;
   const termMonths = Number(metrics?.term_months) || 1;
@@ -107,11 +111,35 @@ function AccountCard({
     onOpen(account.id);
   }
 
+  const isCashAdvance = account.type === "cash_advance";
+  const cardAccent = isCashAdvance
+    ? "from-amber-50 via-white to-orange-50"
+    : "from-violet-50 via-white to-fuchsia-50";
+  const cardAccentHover = isCashAdvance
+    ? "hover:from-amber-100 hover:to-orange-100"
+    : "hover:from-violet-100 hover:to-fuchsia-100";
+  const badgeBg = isCashAdvance ? "bg-amber-200 text-amber-900" : "bg-violet-200 text-violet-900";
+
   return (
     <div
-      className={`flex relative gap-2 rounded-xl border-2 border-slate-900 bg-linear-to-br from-violet-50 via-white to-fuchsia-50 p-4 shadow-[4px_4px_0px_0px_#0f172a] transition ${isOpening ? "opacity-70" : "hover:-translate-y-0.5 hover:from-violet-100 hover:to-fuchsia-100"
-        }`}
+      className={`relative rounded-xl border-2 border-slate-900 bg-linear-to-br ${cardAccent} shadow-[4px_4px_0px_0px_#0f172a] transition ${
+        isOpening ? "opacity-70" : `${cardAccentHover} hover:-translate-y-0.5`
+      }`}
     >
+      {/* Top accent bar */}
+      <div className={`rounded-t-[10px] px-4 py-2 flex items-center justify-between border-b-2 border-slate-900 ${isCashAdvance ? "bg-amber-100" : "bg-violet-100"}`}>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold border border-slate-400 rounded-full px-2 py-0.5 text-slate-600 bg-white/70">
+            {isManual ? "manual" : `${account.payment_frequency} · ${account.term_months}mo`}
+          </span>
+        </div>
+        <span className={`text-[10px] mr-2 font-black uppercase px-2 py-0.5 rounded-full border border-slate-900 ${
+          account.status === "active" ? "bg-emerald-200 text-emerald-900" : "bg-slate-200 text-slate-600"
+        }`}>
+          {account.status}
+        </span>
+      </div>
+
       <div
         role="button"
         tabIndex={isOpening ? -1 : 0}
@@ -119,76 +147,57 @@ function AccountCard({
         onKeyDown={(e) => {
           if (isOpening) return;
           if (e.key !== "Enter" && e.key !== " ") return;
-          if (
-            (e.target as HTMLElement).closest("[data-prevent-account-open]")
-          ) {
-            return;
-          }
+          if ((e.target as HTMLElement).closest("[data-prevent-account-open]")) return;
           e.preventDefault();
           onOpen(account.id);
         }}
         aria-disabled={isOpening}
-        className="min-w-0 flex-1 pr-2 cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
-        aria-label={`Open account for ${account.type.replace("_", " ")}`}
+        className="min-w-0 w-full cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 p-4"
+        aria-label={`Open account`}
         aria-busy={isOpening}
       >
-        <div className="flex items-center justify-between gap-3">
+        {/* Hero: principal + interest + release date */}
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
           <div>
-            <p className="font-black uppercase text-slate-900 flex items-center gap-2">
-              {account.type.replace("_", " ")} <span className="text-[8px] font-bold border border-slate-900 rounded-full px-2 py-0.5 text-stone-900">
-                {account.schedule_mode == "manual" ?"Manual" :account.payment_frequency + " | " + account.term_months + " month" + (account.term_months === 1 ? "" : "s")}
-                </span>
-            </p>
-
-            <p className="mt-1 text-xs font-semibold uppercase text-slate-500">
-              {account.status}
-            </p>
-          </div>
-
-          <div className="text-right">
-            <p className="font-black text-slate-900">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5">Principal</p>
+            <p className="text-3xl font-black tabular-nums text-slate-900 leading-none">
               ₱{Number(account.principal_amount ?? 0).toLocaleString()}
             </p>
-
-            <p className="text-xs font-semibold text-slate-500">
-              {account.interest_rate}% interest
-            </p>
-            {isOpening ? (
-              <p className="mt-1 text-xs font-medium text-slate-600">
-                Opening account...
-              </p>
-            ) : null}
+          </div>
+          <div className="flex gap-3">
+            <div className="text-center">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5">Interest</p>
+              <p className="text-xl font-black text-slate-900">{account.interest_rate}%</p>
+            </div>
+            {account.release_date && (
+              <div className="text-center">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5">Released</p>
+                <p className="text-sm font-black text-slate-900">
+                  {new Date(account.release_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 grid-cols-2">
           {/* bayranan */}
           <div className="rounded-lg border-2 border-slate-900 bg-purple-100/90 p-2">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-              bayranan
-            </p>
-            <p className="text-sm font-black md:text-2xl text-slate-900">
-              ₱{amountLeftToPay.toLocaleString()}
-            </p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">bayranan</p>
+            <p className="text-lg font-black text-slate-900">₱{amountLeftToPay.toLocaleString()}</p>
           </div>
 
           {/* manual: nabayran | auto: ginansya */}
           {isManual ? (
             <div className="rounded-lg border-2 border-slate-900 bg-emerald-100/70 p-2">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                nabayran
-              </p>
-              <p className="text-sm font-black md:text-2xl text-slate-900">
-                ₱{totalPaid.toLocaleString()}
-              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">nabayran</p>
+              <p className="text-lg font-black text-slate-900">₱{totalPaid.toLocaleString()}</p>
             </div>
           ) : (
             <div className="rounded-lg border-2 border-slate-900 bg-amber-100/70 p-2">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                ginansya / per payroll
-              </p>
-              <p className="text-sm font-black text-slate-900 md:text-2xl">
-                ₱{Math.round(profitToMake).toLocaleString()} | ₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">ginansya / per payroll</p>
+              <p className="text-lg font-black text-slate-900">
+                ₱{Math.round(profitToMake).toLocaleString()} <span className="text-sm text-slate-500 font-bold">| ₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}</span>
               </p>
             </div>
           )}
@@ -196,56 +205,65 @@ function AccountCard({
           {/* next collection */}
           {!isManual && (
             <div className="rounded-lg border-2 border-slate-900 bg-sky-100/70 p-2">
-              <div className="flex flex-col items-start justify-between gap-2">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                  next collection
-                </p>
-                <div className="min-w-0 flex flex-col justify-center">
-                  <p className="text-sm font-black md:text-3xl md:mb-2 text-slate-900">
-                    {nextCollectionDate
-                      ? new Date(nextCollectionDate).toLocaleDateString()
-                      : "none"}
-                  </p>
-                  <p className="text-[11px] md:text-xl flex items-center font-semibold text-slate-600">
-                    ₱{nextCollectionAmount.toLocaleString()}
-                    {nextCollectionStatus ? (
-                      <span
-                        className={`ml-1 text-[8px] font-black text-black px-1 shadow-[2px_2px_0px_0px_#333] rounded-xs border border-slate-900 uppercase ${
-                          nextCollectionStatus === "overdue"
-                            ? "bg-red-500/70"
-                            : nextCollectionStatus === "paid"
-                              ? "bg-green-500/70"
-                              : nextCollectionStatus === "pending"
-                                ? "bg-yellow-500/70"
-                                : nextCollectionStatus === "partial"
-                                  ? "bg-purple-500/70"
-                                  : "bg-blue-500/70"
-                        }`}
-                      >
-                        {nextCollectionStatus}
-                      </span>
-                    ) : null}
-                  </p>
-                </div>
-              </div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">next collection</p>
+              <p className="text-lg font-black text-slate-900">
+                {nextCollectionDate
+                  ? new Date(nextCollectionDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+                  : "—"}
+              </p>
+              <p className="text-xs font-semibold text-slate-600 flex items-center gap-1 flex-wrap">
+                ₱{nextCollectionAmount.toLocaleString()}
+                {nextCollectionStatus === "partial" && nextCollectionAmountDue > nextCollectionAmount && (
+                  <span className="text-slate-400 font-normal">of ₱{nextCollectionAmountDue.toLocaleString()}</span>
+                )}
+                {nextCollectionStatus && (
+                  <span className={`text-[8px] font-black text-black px-1 shadow-[1px_1px_0px_0px_#333] rounded-xs border border-slate-900 uppercase ${
+                    nextCollectionStatus === "overdue" ? "bg-red-500/70"
+                      : nextCollectionStatus === "paid" ? "bg-green-500/70"
+                      : nextCollectionStatus === "pending" ? "bg-yellow-500/70"
+                      : nextCollectionStatus === "partial" ? "bg-purple-500/70"
+                      : "bg-blue-500/70"
+                  }`}>{nextCollectionStatus}</span>
+                )}
+              </p>
             </div>
           )}
 
           {/* overdue */}
           {overdueCount > 0 && (
-            <div className="rounded-lg border-2 border-slate-900 bg-red-100/70 p-2">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                overdue
-              </p>
-              <p className="text-sm font-bold text-slate-700">
-                {overdueCount} schedule{overdueCount === 1 ? "" : "s"} • ₱{overdueTotal.toLocaleString()}
-              </p>
+            <div className="col-span-2 rounded-lg border-2 border-red-700 bg-red-100/70 p-2">
+              <button
+                type="button"
+                data-prevent-account-open
+                onClick={() => setOverdueExpanded((v) => !v)}
+                className="w-full flex items-center justify-between gap-2"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-wide text-red-600">overdue · {overdueCount} schedule{overdueCount === 1 ? "" : "s"}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-black text-red-800">₱{overdueTotal.toLocaleString()}</p>
+                  <span className="text-[10px] text-red-600">{overdueExpanded ? "▲" : "▼"}</span>
+                </div>
+              </button>
+              {overdueExpanded && (
+                <div className="space-y-1 mt-1.5">
+                  {(metrics?.overdueSchedules ?? []).map((os, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-semibold text-slate-700">
+                        {new Date(os.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                      <span className="text-[10px] font-black text-red-700">₱{os.amount.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
+       
+        </div>
           {/* progress */}
-          {!isManual && totalDue > 0 && (
-            <div className="sm:col-span-2">
+           {!isManual && totalDue > 0 && (
+            <div className="sm:col-span-2 mt-2">
               <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-wide text-slate-500">
                 <span>Progress</span>
                 <span className="tabular-nums text-slate-700">{progressPct}%</span>
@@ -257,19 +275,15 @@ function AccountCard({
                 aria-valuemin={0}
                 aria-valuemax={100}
               >
-                <div
-                  className="h-full bg-emerald-400 transition-all duration-500"
-                  style={{ width: `${progressPct}%` }}
-                />
+                <div className="h-full bg-emerald-400 transition-all duration-500" style={{ width: `${progressPct}%` }} />
               </div>
             </div>
           )}
-        </div>
       </div>
-      <AccountCardMenu
-        accountId={account.id}
-        onEdit={() => onEdit(account)}
-      />
+
+      <div className="absolute right-3 top-2" data-prevent-account-open>
+        <AccountCardMenu accountId={account.id} onEdit={() => onEdit(account)} />
+      </div>
     </div>
   );
 }
@@ -401,22 +415,20 @@ export default function BorrowerAccountsSection({
         amountLeftToPay,
         profitToMake,
         nextCollectionDate: nextUnpaid?.due_date ?? null,
-        nextCollectionAmount: nextUnpaid
-          ? remainingOnInstallment(nextUnpaid)
-          : 0,
+        nextCollectionAmount: nextUnpaid ? remainingOnInstallment(nextUnpaid) : 0,
+        nextCollectionAmountDue: nextUnpaid ? Math.max(0, Number(nextUnpaid.amount_due ?? 0)) : 0,
         nextCollectionStatus: nextUnpaid?.status ?? null,
         nextUnpaidScheduleId: nextUnpaid?.id ?? null,
         overdueCount: overdueRows.length,
+        overdueTotal: overdueRows.reduce((sum, row) => sum + remainingOnInstallment(row), 0),
+        overdueSchedules: [...overdueRows]
+          .sort((a, b) => a.due_date.localeCompare(b.due_date))
+          .map((row) => ({ due_date: row.due_date, amount: remainingOnInstallment(row) })),
         totalDue: totalPayment,
         totalPaid: amountPaid,
         term_months: account.term_months,
         term_installments: account.term_installments,
         schedule_mode: account.schedule_mode,
-
-        overdueTotal: overdueRows.reduce(
-          (sum, row) => sum + remainingOnInstallment(row),
-          0
-        ),
       };
     });
 
@@ -451,24 +463,48 @@ export default function BorrowerAccountsSection({
         <div className="rounded-xl border border-dashed p-10 text-center">
           <p className="text-gray-500">No accounts yet</p>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {accounts.map((account) => (
-            <AccountCard
-              key={account.id}
-              account={account}
-              isOpening={openingAccountId === account.id}
-              onOpen={handleOpenAccount}
-              onEdit={(acc) => {
-                setEditingAccount(acc);
-                setIsAccountDialogOpen(true);
-              }}
-              metrics={accountMetricsById[account.id]}
-      
-            />
-          ))}
-        </div>
-      )}
+      ) : (() => {
+        const sortByRelease = (group: typeof accounts) =>
+          [...group].sort((a, b) => {
+            const da = a.release_date ? new Date(a.release_date).getTime() : 0;
+            const db = b.release_date ? new Date(b.release_date).getTime() : 0;
+            return db - da;
+          });
+        const loans = sortByRelease(accounts.filter((a) => a.type !== "cash_advance"));
+        const cashAdvances = sortByRelease(accounts.filter((a) => a.type === "cash_advance"));
+        const renderGroup = (group: typeof accounts, label: string, accent: string) =>
+          group.length === 0 ? null : (
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border-2 border-slate-900 shadow-[2px_2px_0px_0px_#0f172a] ${accent}`}>
+                  {label}
+                </span>
+                <span className="text-xs font-semibold text-slate-400">{group.length} account{group.length === 1 ? "" : "s"}</span>
+              </div>
+              <div className="space-y-4">
+                {group.map((account) => (
+                  <AccountCard
+                    key={account.id}
+                    account={account}
+                    isOpening={openingAccountId === account.id}
+                    onOpen={handleOpenAccount}
+                    onEdit={(acc) => {
+                      setEditingAccount(acc);
+                      setIsAccountDialogOpen(true);
+                    }}
+                    metrics={accountMetricsById[account.id]}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        return (
+          <div className="space-y-8">
+            {renderGroup(loans, "loans", "bg-violet-200 text-violet-900")}
+            {renderGroup(cashAdvances, "cash advances", "bg-amber-200 text-amber-900")}
+          </div>
+        );
+      })()}
 
       <Dialog
         open={isAccountDialogOpen}

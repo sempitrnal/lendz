@@ -118,13 +118,11 @@ function CategorySection({
       {expanded && (
         <>
           <div className="mb-2 flex gap-2">
-            <input
-              type="text"
+            <textarea
+              
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void handleAdd();
-              }}
+         
               placeholder={`Add item${category ? ` to ${category.name}` : ""}...`}
               className="w-full rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm text-slate-900"
             />
@@ -163,7 +161,7 @@ function CategorySection({
                     <Check className="size-3.5" />
                   </button>
                   <span
-                    className={`min-w-0 flex-1 text-lg -translate-y-[0.8px] font-bold ${item.is_checked ? "text-slate-500 line-through" : "text-slate-900"}`}
+                    className={`min-w-0 flex-1 text-lg -translate-y-[0.8px] font-bold whitespace-pre-wrap ${item.is_checked ? "text-slate-500 line-through" : "text-slate-900"}`}
                   >
                     {item.label}
                   </span>

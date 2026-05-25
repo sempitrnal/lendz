@@ -34,10 +34,9 @@ export function isInstallmentNextHighlight(row: ScheduleBalanceInput): boolean {
 export function nextDueScheduleForCollection<
   T extends ScheduleBalanceInput & { due_date: string },
 >(schedulesSortedByDueDate: T[]): T | undefined {
-  const unpaid = schedulesSortedByDueDate.filter((r) => !isInstallmentFullyPaid(r));
-  const pending = unpaid.find((r) => r.status === "pending");
-  if (pending) return pending;
-  return unpaid[0];
+  return schedulesSortedByDueDate.find(
+    (r) => r.status === "pending" || r.status === "partial"
+  );
 }
 
 /** Groups rows by `account_id`, sorts by due_date (optional `id` tiebreak), then picks next due per account. */
