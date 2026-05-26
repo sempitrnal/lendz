@@ -1,4 +1,5 @@
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -328,6 +329,15 @@ export default async function AccountDetailPage({
       .update(patch)
       .eq("id", scheduleId);
 
+    await logAudit({
+      action: "schedule.status_changed",
+      entity_type: "payment_schedule",
+      entity_id: scheduleId,
+      account_id: accountRow.id,
+      description: `Schedule status changed to "${status}"`,
+      metadata: { scheduleId, status, amount_due: due },
+    });
+
     // When marking as paid, also insert a schedule_payment record
     if (status === "paid" && due > 0) {
       await updateSupabase.from("schedule_payments").insert({
@@ -369,31 +379,41 @@ export default async function AccountDetailPage({
 
     if (!rows?.length) return;
 
-    for (const row of rows) {
-      const due = Math.max(0, Number(row.amount_due ?? 0));
-      const paidDate =
-        paidDateStrategy === "custom"
-          ? (customDate || null)
-          : (row.due_date || null);
+    await Promise.all(
+      rows.map(async (row) => {
+        const due = Math.max(0, Number(row.amount_due ?? 0));
+        const paidDate =
+          paidDateStrategy === "custom"
+            ? (customDate || null)
+            : (row.due_date || null);
 
-      await updateSupabase
-        .from("payment_schedules")
-        .update({
-          status: "paid",
-          amount_paid: due,
-          remaining_amount: 0,
-          paid_date: paidDate,
-        })
-        .eq("id", row.id);
+        await updateSupabase
+          .from("payment_schedules")
+          .update({
+            status: "paid",
+            amount_paid: due,
+            remaining_amount: 0,
+            paid_date: paidDate,
+          })
+          .eq("id", row.id);
 
-      if (due > 0) {
-        await updateSupabase.from("schedule_payments").insert({
-          schedule_id: row.id,
-          amount: due,
-          payment_date: paidDate,
-        });
-      }
-    }
+        if (due > 0) {
+          await updateSupabase.from("schedule_payments").insert({
+            schedule_id: row.id,
+            amount: due,
+            payment_date: paidDate,
+          });
+        }
+      })
+    );
+
+    await logAudit({
+      action: "schedule.batch_paid",
+      entity_type: "payment_schedule",
+      account_id: accountRow.id,
+      description: `Batch marked ${ids.length} schedule${ids.length === 1 ? "" : "s"} as paid`,
+      metadata: { ids, paidDateStrategy, customDate },
+    });
 
     revalidatePath(`/accounts/${accountRow.id}`);
   }
@@ -479,6 +499,15 @@ export default async function AccountDetailPage({
         status: "pending",
       });
     }
+
+    await logAudit({
+      action: "schedule.payment_applied",
+      entity_type: "payment_schedule",
+      entity_id: scheduleId,
+      account_id: row.account_id as string,
+      description: `Payment of ₱${add.toLocaleString()} applied`,
+      metadata: { scheduleId, amount: add, paymentDate, isRolling: isRollingManualPayment, newStatus: nextStatus },
+    });
 
     revalidatePath(`/accounts/${row.account_id as string}`);
   }
@@ -585,6 +614,15 @@ export default async function AccountDetailPage({
           .eq("status", "pending")
           .neq("id", sid);
       }
+
+      await logAudit({
+        action: "schedule.payment_deleted",
+        entity_type: "payment_schedule",
+        entity_id: sid,
+        account_id: sched.account_id as string,
+        description: `Payment of ₱${Number(payment.amount ?? 0).toLocaleString()} deleted`,
+        metadata: { paymentId, scheduleId: sid, amount: payment.amount },
+      });
     }
 
     revalidatePath(`/accounts/${id}`);
@@ -594,8 +632,21 @@ export default async function AccountDetailPage({
     "use server";
     if (!scheduleId) return;
     const sb = await createSupabaseServer();
+    const { data: sched } = await sb
+      .from("payment_schedules")
+      .select("id, amount_due, due_date, status")
+      .eq("id", scheduleId)
+      .single();
     await sb.from("schedule_payments").delete().eq("schedule_id", scheduleId);
     await sb.from("payment_schedules").delete().eq("id", scheduleId);
+    await logAudit({
+      action: "schedule.deleted",
+      entity_type: "payment_schedule",
+      entity_id: scheduleId,
+      account_id: id,
+      description: `Schedule deleted (due ${sched?.due_date ?? "?"}, ₱${Number(sched?.amount_due ?? 0).toLocaleString()})`,
+      metadata: { scheduleId, amount_due: sched?.amount_due, due_date: sched?.due_date, status: sched?.status },
+    });
     revalidatePath(`/accounts/${id}`);
   }
 

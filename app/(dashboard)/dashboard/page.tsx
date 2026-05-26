@@ -8,6 +8,7 @@ import {
   Plus,
   TrendingUp,
   UserRoundPlus,
+  ClipboardList,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import {
@@ -759,6 +760,13 @@ export default async function Dashboard() {
               >
                 manage categories
                 <Plus className="size-4" />
+              </Link>
+              <Link
+                href="/audit"
+                className="flex items-center justify-between rounded-lg border-2 border-slate-900 bg-slate-100 px-3 py-2 text-sm font-bold lowercase text-slate-900 transition hover:bg-slate-200"
+              >
+                audit trail
+                <ClipboardList className="size-4" />
               </Link>
             </div>
           </article>

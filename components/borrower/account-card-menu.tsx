@@ -6,6 +6,7 @@ import { BsThreeDotsVertical } from "react-icons/bs";
 
 import NeobrutButton from "@/components/neobrut-button";
 import { supabase } from "@/lib/supabase/client";
+import { logAuditAction } from "@/app/actions/audit";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { DialogContent, DialogTitle, DialogHeader, Dialog } from "../ui/dialog";
 
@@ -75,6 +76,7 @@ export default function AccountCardMenu({
         return;
       }
 
+      await logAuditAction("account.deleted", "account", accountId, "Account deleted", { accountId }, accountId);
       setDeleteModalOpen(false);
       router.refresh();
     } finally {

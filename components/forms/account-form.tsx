@@ -9,6 +9,7 @@ import {
   accountSchema,
   type AccountFormValues,
 } from "@/lib/validations/account";
+import { logAuditAction } from "@/app/actions/audit";
 import {
   formFieldErrorClassName,
   formFieldInputClassName,
@@ -305,6 +306,7 @@ export default function AccountForm({
           return;
         }
       }
+      await logAuditAction("account.updated", "account", accountId!, `Account updated (${values.type}, ₱${values.principal_amount.toLocaleString()})`, { type: values.type, principal: values.principal_amount, interest_rate: values.interest_rate }, accountId);
       toast.success("Account updated." + (values.schedule_mode === "manual" ? " Schedules not regenerated (manual mode)." : ""));
 
       router.refresh();
@@ -363,6 +365,7 @@ export default function AccountForm({
       }
     }
 
+    await logAuditAction("account.created", "account", account.id, `Account created (${values.type}, ₱${values.principal_amount.toLocaleString()})`, { type: values.type, principal: values.principal_amount, interest_rate: values.interest_rate, schedule_mode: values.schedule_mode, interest_type: values.interest_type }, account.id);
     reset(emptyDefaults(borrowerId));
     toast.success("Account created." + (values.schedule_mode === "manual" ? (values.interest_type === "rolling" ? " First rolling schedule generated." : " Add schedules manually.") : ""));
 
