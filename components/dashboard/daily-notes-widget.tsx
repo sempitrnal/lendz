@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
-import { Settings, Check, ArrowRightLeft, Trash2, ChevronDown } from "lucide-react";
+import { Settings, Check, ArrowRightLeft, Trash2, ChevronDown, GripVertical } from "lucide-react";
 import Modal from "@/components/modal";
 
 type ChecklistCategory = {
@@ -45,6 +45,7 @@ function CategorySection({
   onToggle,
   onDelete,
   onChangeCategory,
+  onReorder,
   categories,
 }: {
   category: ChecklistCategory | null;
@@ -54,12 +55,16 @@ function CategorySection({
   onToggle: (item: DailyChecklistItem) => void;
   onDelete: (id: string) => void;
   onChangeCategory: (itemId: string, newCategoryId: string | null) => void;
+  onReorder: (reordered: DailyChecklistItem[]) => void;
   categories: ChecklistCategory[];
 }) {
   const [newLabel, setNewLabel] = useState("");
   const [saving, setSaving] = useState(false);
   const [editingItem, setEditingItem] = useState<DailyChecklistItem | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const didDragRef = useRef(false);
 
   const checkedCount = items.filter((i) => i.is_checked).length;
 
@@ -142,15 +147,39 @@ function CategorySection({
             </p>
           ) : (
             <ul className="space-y-1.5">
-              {sorted.map((item) => (
+              {sorted.map((item, idx) => {
+                const dragIdx = dragId ? sorted.findIndex((x) => x.id === dragId) : -1;
+                const isAbove = dropIndex !== null && dropIndex === idx && dragIdx > idx;
+                const isBelow = dropIndex !== null && dropIndex === idx && dragIdx < idx;
+                return (
                 <li
-                onClick={() => onToggle(item)}
                   key={item.id}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg transition border-2 border-slate-900  px-3 py-1.5  ${item.is_checked ? "bg-green-200 opacity-80" : " bg-white hover:bg-slate-100"}`}
+                  draggable
+                  onDragStart={() => { didDragRef.current = true; setDragId(item.id); setDropIndex(idx); }}
+                  onDragOver={(e) => { e.preventDefault(); setDropIndex(idx); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragId && dropIndex !== null && dragId !== item.id) {
+                      const from = sorted.findIndex((x) => x.id === dragId);
+                      const next = [...sorted];
+                      const [moved] = next.splice(from, 1);
+                      next.splice(dropIndex, 0, moved);
+                      onReorder(next);
+                    }
+                    setDragId(null);
+                    setDropIndex(null);
+                  }}
+                  onDragEnd={() => { setDragId(null); setDropIndex(null); setTimeout(() => { didDragRef.current = false; }, 0); }}
+                  onClick={() => { if (didDragRef.current) return; onToggle(item); }}
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg transition border-2 border-slate-900 px-3 py-1.5 ${
+                    item.is_checked ? "bg-green-200 opacity-80" : "bg-white hover:bg-slate-100"
+                  } ${dragId === item.id ? "opacity-40" : ""} ${
+                    isAbove ? "border-t-4 border-t-violet-500" : isBelow ? "border-b-4 border-b-violet-500" : ""
+                  }`}
                 >
                   <button
                     type="button"
-                    onClick={() => onToggle(item)}
+                    onClick={(e) => { e.stopPropagation(); onToggle(item); }}
                     title={item.is_checked ? "Uncheck" : "Check"}
                     className={`shrink-0 rounded-md border-2 border-slate-900 p-1 transition ${
                       item.is_checked
@@ -168,7 +197,7 @@ function CategorySection({
                   <div className="flex shrink-0 items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => setEditingItem(item)}
+                      onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}
                       title="Move to category"
                       className="rounded-md border-2 border-slate-900 bg-white p-1 text-slate-600 transition hover:bg-violet-50 hover:text-violet-700"
                     >
@@ -176,15 +205,23 @@ function CategorySection({
                     </button>
                     <button
                       type="button"
-                      onClick={() => onDelete(item.id)}
+                      onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
                       title="Delete"
                       className="rounded-md border-2 border-slate-900 bg-white p-1 text-rose-600 transition hover:bg-rose-50 hover:text-rose-700"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
+                    <span
+                      title="Drag to reorder"
+                      className="cursor-grab rounded-md border-2 border-slate-900 bg-white p-1 text-slate-400 active:cursor-grabbing"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <GripVertical className="size-3.5" />
+                    </span>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </>
@@ -320,16 +357,28 @@ export default function DailyNotesWidget() {
     void loadItems(date);
   }, [date]);
 
+  const reorderItems = (reordered: DailyChecklistItem[]) => {
+    const updated = reordered.map((item, idx) => ({ ...item, sort_order: idx }));
+    const idSet = new Set(updated.map((i) => i.id));
+    setItems((prev) => [...prev.filter((i) => !idSet.has(i.id)), ...updated]);
+    Promise.all(
+      updated.map((item) =>
+        supabase.from("daily_checklist_items").update({ sort_order: item.sort_order }).eq("id", item.id)
+      )
+    ).then((results) => {
+      const err = results.find((r) => r.error)?.error;
+      if (err) toast.error(err.message);
+    });
+  };
+
   const addItem = async (
     label: string,
     categoryId: string | null,
     targetDate: string
   ) => {
-    const maxSort = items.reduce(
-      (max, item) => Math.max(max, item.sort_order),
-      -1
-    );
-    const newSort = maxSort + 1;
+    const catItems = items.filter((i) => i.category_id === categoryId);
+    const minSort = catItems.reduce((min, i) => Math.min(min, i.sort_order), 0);
+    const newSort = minSort - 1;
     const tempId = crypto.randomUUID();
     const cat = categories.find((c) => c.id === categoryId) ?? null;
 
@@ -344,7 +393,7 @@ export default function DailyNotesWidget() {
       daily_checklist_categories: cat,
     };
 
-    setItems((prev) => [...prev, optimistic]);
+    setItems((prev) => [optimistic, ...prev]);
 
     const insertPayload: Record<string, unknown> = {
       checklist_date: targetDate,
@@ -508,6 +557,7 @@ export default function DailyNotesWidget() {
               onToggle={toggleItem}
               onDelete={deleteItem}
               onChangeCategory={changeItemCategory}
+              onReorder={reorderItems}
               categories={categories}
             />
           ))}
