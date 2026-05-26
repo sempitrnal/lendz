@@ -16,6 +16,7 @@ import { ScheduleMobileCard } from "@/components/schedule-mobile-card";
 import { ScheduleSelectAll } from "@/components/schedule-select-all";
 import { ScheduleSelectAllHeader } from "@/components/schedule-select-all-header";
 import { ScheduleEditBar } from "@/components/schedule-edit-bar";
+import { ScheduleDeleteButton } from "@/components/schedule-delete-button";
 import BatchScheduleToolbar from "@/components/batch-schedule-toolbar";
 import type { PaidDateStrategy } from "@/components/batch-schedule-toolbar";
 import ShareScheduleButton from "@/components/share-schedule-button";
@@ -42,6 +43,7 @@ type AccountRow = {
   term_months: number | null;
   payment_frequency: string | null;
   schedule_mode: string | null;
+  interest_type: string | null;
   created_at: string;
 };
 
@@ -173,7 +175,7 @@ export default async function AccountDetailPage({
   const { data: account, error: accountError } = await supabase
     .from("accounts")
     .select(
-      "id, borrower_id, type, status, release_date, principal_amount, interest_rate, term_months, payment_frequency, schedule_mode, created_at"
+      "id, borrower_id, type, status, release_date, principal_amount, interest_rate, term_months, payment_frequency, schedule_mode, interest_type, created_at"
     )
     .eq("id", id)
     .single();
@@ -253,19 +255,37 @@ export default async function AccountDetailPage({
     (sum, s) => sum + remainingOnInstallment(s),
     0
   );
+  const amountLeftRolling = schedules
+    .filter((s) => s.status !== "partial")
+    .reduce((sum, s) => sum + remainingOnInstallment(s), 0);
 
   const principal = Number(accountRow.principal_amount ?? 0);
+  const interestRate = Number(accountRow.interest_rate ?? 0);
   const isManual = accountRow.schedule_mode === "manual";
+  const isRolling = isManual && accountRow.interest_type === "rolling";
+  const isFlatManual = isManual && !isRolling;
+  const manualFlatTotal = isFlatManual ? principal * (1 + interestRate / 100) : 0;
 
-  const amountLeft = isManual ? Math.max(0, principal - amountPaid) : amountLeftRaw;
-
-  const profit = totalPayment - principal;
-  const totalInstallments = schedules.length;
   const totalScheduledDue = schedules.reduce((s, r) => s + Math.max(0, Number(r.amount_due ?? 0)), 0);
   const totalScheduledPaid = schedules.reduce((s, r) => s + Math.max(0, Number(r.amount_paid ?? 0)), 0);
-  const progressPct = isManual
-    ? principal > 0
-      ? Math.min(100, Math.round((amountPaid / principal) * 100))
+
+  const amountLeft = isFlatManual
+    ? Math.max(0, manualFlatTotal - amountPaid)
+    : isRolling
+      ? amountLeftRolling
+      : amountLeftRaw;
+
+  const rollingTotalContract = isRolling ? amountPaid + amountLeft : 0;
+  const profit = isFlatManual
+    ? manualFlatTotal - principal
+    : isRolling
+      ? rollingTotalContract - principal
+      : totalPayment - principal;
+
+  const totalInstallments = schedules.length;
+  const progressPct = isFlatManual
+    ? manualFlatTotal > 0
+      ? Math.min(100, Math.round((amountPaid / manualFlatTotal) * 100))
       : 0
     : totalScheduledDue > 0
       ? Math.min(100, Math.round((totalScheduledPaid / totalScheduledDue) * 100))
@@ -398,24 +418,41 @@ export default async function AccountDetailPage({
 
     if (!row) return;
 
+    // Fetch account to determine if rolling manual
+    const { data: acc } = await sb
+      .from("accounts")
+      .select("schedule_mode, interest_type, interest_rate")
+      .eq("id", row.account_id as string)
+      .single();
+    const isRollingManualPayment =
+      acc?.schedule_mode === "manual" && acc?.interest_type === "rolling";
+
     const due = Math.max(0, Number(row.amount_due ?? 0));
     const prevPaid = Math.max(0, Number(row.amount_paid ?? 0));
     const newPaid = Math.min(due, prevPaid + add);
-    const remaining = Math.max(0, due - newPaid);
-    /** Any successful partial submit marks the row partial until fully paid. */
-    const nextStatus = newPaid >= due ? "paid" : "partial";
+    const balanceForNextCycle = Math.max(0, due - newPaid);
     const paymentDate = paymentDateRaw || null;
+
+    let nextStatus: string;
+    let remaining: number;
+
+    if (isRollingManualPayment) {
+      // Rolling: current schedule always closes as "paid"; remaining goes to next cycle
+      nextStatus = "paid";
+      remaining = 0;
+    } else {
+      remaining = balanceForNextCycle;
+      nextStatus = newPaid >= due ? "paid" : "partial";
+    }
 
     const updatePayload: Record<string, string | number | null> = {
       amount_paid: newPaid,
       remaining_amount: remaining,
       status: nextStatus,
+      paid_date: paymentDate,
     };
     if (noteRaw.length > 0) {
       updatePayload.note = noteRaw;
-    }
-    if (nextStatus === "paid") {
-      updatePayload.paid_date = paymentDate;
     }
 
     await sb.from("payment_schedules").update(updatePayload).eq("id", scheduleId);
@@ -427,6 +464,21 @@ export default async function AccountDetailPage({
       payment_date: paymentDate,
       note: noteRaw || null,
     });
+
+    // For rolling: generate next schedule from unpaid balance + interest
+    if (isRollingManualPayment && balanceForNextCycle > 0) {
+      const rate = Number(acc!.interest_rate ?? 0);
+      const nextDue = Math.round(balanceForNextCycle * (1 + rate / 100) * 100) / 100;
+      const nextDueDate = paymentDate ?? new Date().toISOString().split("T")[0];
+      await sb.from("payment_schedules").insert({
+        account_id: row.account_id,
+        due_date: nextDueDate,
+        amount_due: nextDue,
+        amount_paid: 0,
+        remaining_amount: nextDue,
+        status: "pending",
+      });
+    }
 
     revalidatePath(`/accounts/${row.account_id as string}`);
   }
@@ -502,7 +554,7 @@ export default async function AccountDetailPage({
     const sid = scheduleId || payment.schedule_id;
     const { data: sched } = await sb
       .from("payment_schedules")
-      .select("id, amount_due, amount_paid")
+      .select("id, account_id, amount_due, amount_paid")
       .eq("id", sid)
       .single();
     if (sched) {
@@ -516,9 +568,34 @@ export default async function AccountDetailPage({
         amount_paid: newPaid,
         remaining_amount: remaining,
         status: nextStatus,
+        paid_date: null,
       }).eq("id", sid);
+
+      // For rolling manual: delete all pending schedules generated downstream
+      const { data: acc } = await sb
+        .from("accounts")
+        .select("schedule_mode, interest_type")
+        .eq("id", sched.account_id as string)
+        .single();
+      if (acc?.schedule_mode === "manual" && acc?.interest_type === "rolling") {
+        await sb
+          .from("payment_schedules")
+          .delete()
+          .eq("account_id", sched.account_id)
+          .eq("status", "pending")
+          .neq("id", sid);
+      }
     }
 
+    revalidatePath(`/accounts/${id}`);
+  }
+
+  async function deleteSchedule(scheduleId: string) {
+    "use server";
+    if (!scheduleId) return;
+    const sb = await createSupabaseServer();
+    await sb.from("schedule_payments").delete().eq("schedule_id", scheduleId);
+    await sb.from("payment_schedules").delete().eq("id", scheduleId);
     revalidatePath(`/accounts/${id}`);
   }
 
@@ -702,17 +779,19 @@ export default async function AccountDetailPage({
               <p className="mt-1.5 text-4xl font-black tracking-tight text-slate-900">
                 <AnimatedNumber value={Math.max(0, profit)} prefix="₱" />
               </p>
-              <p className="mt-1.5 text-xs text-slate-600">Over principal</p>
+              <p className="mt-1.5 text-xs text-slate-600">{isRolling ? "Interest charged (all cycles)" : "Over principal"}</p>
             </div>
           </div>
           <div className={`mt-3 ${nb.inset} px-4 py-3 text-sm text-slate-700`}>
             <span className="font-semibold text-slate-900">Total contract</span>{" "}
-            <span className="tabular-nums">{formatMoney(totalPayment)}</span>
+            <span className="tabular-nums">{formatMoney(isRolling ? rollingTotalContract : totalPayment)}</span>
             <span className="mx-2 text-slate-300">|</span>
             <span className="text-slate-600">
-              {isManual
-                ? `${formatMoney(amountPaid)} of ${formatMoney(principal)} recovered`
-                : `${schedules.filter((s) => isInstallmentFullyPaid(s)).length} of ${totalInstallments} installments paid`}
+              {isRolling
+                ? `${schedules.filter((s) => isInstallmentFullyPaid(s)).length} cycle${schedules.filter((s) => isInstallmentFullyPaid(s)).length === 1 ? "" : "s"} paid · ${formatMoney(amountLeft)} outstanding`
+                : isManual
+                  ? `${formatMoney(amountPaid)} of ${formatMoney(principal)} recovered`
+                  : `${schedules.filter((s) => isInstallmentFullyPaid(s)).length} of ${totalInstallments} installments paid`}
             </span>
           </div>
         </section>
@@ -824,6 +903,17 @@ export default async function AccountDetailPage({
                             {schedule.status === "paid" ? <PaidCheck /> : null}
                             {schedule.status === "overdue" ? <OverdueSad /> : null}
                           </p>
+                          {isRolling && interestRate > 0 && (() => {
+                            const due = Number(schedule.amount_due ?? 0);
+                            const base = Math.round(due / (1 + interestRate / 100) * 100) / 100;
+                            const interest = Math.round((due - base) * 100) / 100;
+                            return (
+                              <p className="text-[10px] font-semibold tabular-nums text-slate-400">
+                                {formatMoney(base)} + {interestRate}%
+                                <span className="ml-1 text-slate-500">(+{formatMoney(interest)})</span>
+                              </p>
+                            );
+                          })()}
                           <p className="mt-0.5 text-xs font-semibold tabular-nums text-slate-600">
                             Paid {formatMoney(amountPaidOnInstallment(schedule))}{" "}
                             {remainingOnInstallment(schedule) != 0 ? schedule.amount_due  ==remainingOnInstallment(schedule) ? <span>
@@ -859,15 +949,18 @@ export default async function AccountDetailPage({
                         <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-600">
                           Update status
                         </p>
-                        <div className="overflow-x-auto pb-1">
+                        <div className="overflow-x-auto pb-1 flex items-start gap-2">
                           <ScheduleStatusForm
                             scheduleId={schedule.id}
                             currentStatus={schedule.status}
                             dueDate={schedule.due_date}
                             updateScheduleStatus={updateScheduleStatus}
+                            isRollingManual={isRolling}
+                            applyPartialPayment={applyPartialPayment}
                           />
+                          <ScheduleDeleteButton scheduleId={schedule.id} deleteSchedule={deleteSchedule} />
                         </div>
-                        {schedule.status === "partial" ? (
+                        {!isRolling && schedule.status === "partial" ? (
                           <PartialPaymentForm
                             scheduleId={schedule.id}
                             applyPartialPayment={applyPartialPayment}
@@ -974,6 +1067,17 @@ export default async function AccountDetailPage({
                               className={`${nb.scheduleTd}  whitespace-nowrap text-center font-black text-xl tabular-nums text-slate-900`}
                             >
                               {formatMoney(Number(schedule.amount_due ?? 0))}
+                              {isRolling && interestRate > 0 && (() => {
+                                const due = Number(schedule.amount_due ?? 0);
+                                const base = Math.round(due / (1 + interestRate / 100) * 100) / 100;
+                                const interest = Math.round((due - base) * 100) / 100;
+                                return (
+                                  <p className="text-[10px] font-semibold tabular-nums text-slate-400">
+                                    {formatMoney(base)} + {interestRate}%
+                                    <span className="ml-1 text-slate-500">(+{formatMoney(interest)})</span>
+                                  </p>
+                                );
+                              })()}
                             </td>
                             <td
                               className={`${nb.scheduleTd} whitespace-nowrap text-center font-black text-xl tabular-nums text-slate-800`}
@@ -1002,8 +1106,11 @@ export default async function AccountDetailPage({
                                   currentStatus={schedule.status}
                                   dueDate={schedule.due_date}
                                   updateScheduleStatus={updateScheduleStatus}
+                                  isRollingManual={isRolling}
+                                  applyPartialPayment={applyPartialPayment}
                                 />
-                                {schedule.status === "partial" ? (
+                                <ScheduleDeleteButton scheduleId={schedule.id} deleteSchedule={deleteSchedule} />
+                                {!isRolling && schedule.status === "partial" ? (
                                   <PartialPaymentForm
                                     scheduleId={schedule.id}
                                     applyPartialPayment={applyPartialPayment}

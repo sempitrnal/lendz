@@ -93,8 +93,7 @@ export default function AssignBorrower({
             searchBorrowers("");
         }
     }, [open]);
-    console.log(borrowers)
-    console.log(selected)
+  
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>

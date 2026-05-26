@@ -50,10 +50,26 @@ export default async function BorrowerAccountsAsync({
       const totalPayment = rows.reduce((sum, row) => sum + Number(row.amount_due ?? 0), 0);
       const amountPaid = rows.reduce((sum, row) => sum + amountPaidOnInstallment(row), 0);
       const amountLeftToPayRaw = rows.reduce((sum, row) => sum + remainingOnInstallment(row), 0);
+      const amountLeftToPayRolling = rows
+        .filter((row) => row.status !== "partial")
+        .reduce((sum, row) => sum + remainingOnInstallment(row), 0);
       const principal = Number(account.principal_amount ?? 0);
+      const interestRate = Number(account.interest_rate ?? 0);
       const isManual = account.schedule_mode === "manual";
-      const amountLeftToPay = isManual ? Math.max(0, principal - amountPaid) : amountLeftToPayRaw;
-      const profitToMake = Math.max(0, totalPayment - principal);
+      const isRolling = isManual && account.interest_type === "rolling";
+      const isFlatManual = isManual && !isRolling;
+      const manualFlatTotal = isFlatManual ? principal * (1 + interestRate / 100) : 0;
+      const amountLeftToPay = isFlatManual
+        ? Math.max(0, manualFlatTotal - amountPaid)
+        : isRolling
+          ? amountLeftToPayRolling
+          : amountLeftToPayRaw;
+      const rollingContract = isRolling ? amountPaid + amountLeftToPay : 0;
+      const profitToMake = isFlatManual
+        ? manualFlatTotal - principal
+        : isRolling
+          ? Math.max(0, rollingContract - principal)
+          : Math.max(0, totalPayment - principal);
       const nextUnpaid = nextDueScheduleForCollection(rows);
       const overdueRows = rows.filter((row) => row.status === "overdue" && !isInstallmentFullyPaid(row));
       initialMetrics[account.id] = {
@@ -69,7 +85,7 @@ export default async function BorrowerAccountsAsync({
         overdueSchedules: [...overdueRows]
           .sort((a, b) => a.due_date.localeCompare(b.due_date))
           .map((row) => ({ due_date: row.due_date, amount: remainingOnInstallment(row) })),
-        totalDue: totalPayment,
+        totalDue: isFlatManual ? manualFlatTotal : totalPayment,
         totalPaid: amountPaid,
         term_months: account.term_months,
         term_installments: account.term_installments,

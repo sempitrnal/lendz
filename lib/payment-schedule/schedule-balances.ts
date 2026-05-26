@@ -9,9 +9,9 @@ export type ScheduleBalanceInput = {
 export function amountPaidOnInstallment(row: ScheduleBalanceInput): number {
   const due = Math.max(0, Number(row.amount_due ?? 0));
   if (due <= 0) return 0;
-  if (row.status === "paid") return due;
-  const paid = Number(row.amount_paid ?? 0);
-  return Math.min(due, Math.max(0, paid));
+  const paid = Math.max(0, Number(row.amount_paid ?? 0));
+  if (row.status === "paid") return paid > 0 ? Math.min(due, paid) : due;
+  return Math.min(due, paid);
 }
 
 export function remainingOnInstallment(row: ScheduleBalanceInput): number {

@@ -182,6 +182,7 @@ const emptyDefaults = (borrowerId: string): AccountFormValues => ({
   first_payment_date: "",
   payment_frequency: "bimonthly",
   schedule_mode: "auto",
+  interest_type: "flat",
 });
 
 export type AccountEditableRow = {
@@ -194,6 +195,7 @@ export type AccountEditableRow = {
   payment_frequency: string | null;
   term_installments: number | string | null;
   schedule_mode: string | null;
+  interest_type?: string | null;
 };
 
 export function accountRowToFormInitial(
@@ -220,6 +222,7 @@ export function accountRowToFormInitial(
     first_payment_date: isoDateOnlyForInput(account.first_payment_date),
     payment_frequency,
     schedule_mode: scheduleMode,
+    interest_type: account.interest_type === "rolling" ? "rolling" : "flat",
   };
 }
 
@@ -251,8 +254,10 @@ export default function AccountForm({
   const value = watch("principal_amount");
   const frequency = watch("payment_frequency");
   const scheduleMode = watch("schedule_mode");
+  const interestType = watch("interest_type");
   const isCustom = frequency === "custom";
   const isManual = scheduleMode === "manual";
+  const isRolling = isManual && interestType === "rolling";
   const onSubmit = async (values: AccountFormValues) => {
     const schedulesPayload = (id: string) => buildSchedulesPayload(id, values);
 
@@ -270,6 +275,7 @@ export default function AccountForm({
           first_payment_date: values.first_payment_date || null,
           payment_frequency: values.schedule_mode === 'manual' ? 'bisag kanus-a' : values.payment_frequency,
           schedule_mode: values.schedule_mode,
+          interest_type: values.interest_type ?? 'flat',
         })
         .eq("id", accountId);
 
@@ -337,8 +343,28 @@ export default function AccountForm({
       }
     }
 
+    if (values.schedule_mode === "manual" && values.interest_type === "rolling" && values.interest_rate > 0) {
+      const principal = values.principal_amount;
+      const firstDue = Math.round(principal * (1 + values.interest_rate / 100) * 100) / 100;
+      const dueDate = values.release_date || new Date().toISOString().split("T")[0];
+      const { error: scheduleError } = await supabase
+        .from("payment_schedules")
+        .insert({
+          account_id: account.id,
+          due_date: dueDate,
+          amount_due: firstDue,
+          amount_paid: 0,
+          remaining_amount: firstDue,
+          status: "pending",
+        });
+      if (scheduleError) {
+        toast.error(scheduleError.message);
+        return;
+      }
+    }
+
     reset(emptyDefaults(borrowerId));
-    toast.success("Account created." + (values.schedule_mode === "manual" ? " Add schedules manually." : ""));
+    toast.success("Account created." + (values.schedule_mode === "manual" ? (values.interest_type === "rolling" ? " First rolling schedule generated." : " Add schedules manually.") : ""));
 
     router.refresh();
     onSuccess?.();
@@ -378,6 +404,40 @@ export default function AccountForm({
           <option value="manual">manual (I&apos;ll add schedules myself)</option>
         </select>
       </div>
+
+      {isManual && (
+        <div>
+          <label className={formFieldLabelClassName}>Interest type</label>
+          <div className="flex gap-3">
+            {(["flat", "rolling"] as const).map((type) => (
+              <label
+                key={type}
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition ${
+                  interestType === type
+                    ? "bg-violet-200 shadow-[2px_2px_0px_0px_#0f172a]"
+                    : "bg-white hover:bg-slate-50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  value={type}
+                  {...register("interest_type")}
+                  className="sr-only"
+                />
+                <span className="capitalize">{type}</span>
+                <span className="text-[10px] font-normal text-slate-500">
+                  {type === "flat" ? "fixed total" : "applies each cycle"}
+                </span>
+              </label>
+            ))}
+          </div>
+          {isRolling && (
+            <p className="mt-1 text-[10px] text-slate-500">
+              First schedule auto-created on save. Each partial payment generates the next cycle with interest on remaining balance.
+            </p>
+          )}
+        </div>
+      )}
 
       <div>
         <label
