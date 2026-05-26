@@ -44,7 +44,7 @@ export default async function AuditPage({
   const params = await searchParams;
   const page = Math.max(1, Number(params.page ?? 1));
   const filterAction = params.action ?? "";
-  const pageSize = 50;
+  const pageSize = 10;
   const offset = (page - 1) * pageSize;
 
   const sb = await createSupabaseServer();
@@ -210,40 +210,9 @@ export default async function AuditPage({
         </>
       )}
 
-      {/* Pagination — always shown when more than one page */}
-      <div className="mt-6 flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-500">
-          Page <span className="font-black text-slate-900">{page}</span> of{" "}
-          <span className="font-black text-slate-900">{totalPages}</span>
-          <span className="ml-2 text-slate-400">
-            ({count ?? 0} event{count !== 1 ? "s" : ""})
-          </span>
-        </span>
-        <div className="flex gap-2">
-          <Link
-            href={page > 1 ? `/audit?page=${page - 1}${filterAction ? `&action=${filterAction}` : ""}` : "#"}
-            aria-disabled={page <= 1}
-            className={`rounded-md border-2 px-3 py-1.5 text-xs font-black uppercase tracking-wide transition ${
-              page <= 1
-                ? "cursor-not-allowed border-slate-200 text-slate-300"
-                : "border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] hover:bg-slate-100 active:shadow-none"
-            }`}
-          >
-            ← Prev
-          </Link>
-          <Link
-            href={page < totalPages ? `/audit?page=${page + 1}${filterAction ? `&action=${filterAction}` : ""}` : "#"}
-            aria-disabled={page >= totalPages}
-            className={`rounded-md border-2 px-3 py-1.5 text-xs font-black uppercase tracking-wide transition ${
-              page >= totalPages
-                ? "cursor-not-allowed border-slate-200 text-slate-300"
-                : "border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] hover:bg-slate-100 active:shadow-none"
-            }`}
-          >
-            Next →
-          </Link>
-        </div>
-      </div>
+      <p className="mt-4 text-center text-xs text-slate-400">
+        Showing latest {logs.length} of {count ?? 0} event{count !== 1 ? "s" : ""}
+      </p>
     </div>
   );
 }

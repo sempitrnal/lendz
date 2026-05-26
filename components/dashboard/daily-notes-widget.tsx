@@ -122,7 +122,7 @@ function CategorySection({
 
       {expanded && (
         <>
-          <div className="mb-2 flex gap-2">
+          <div className="mb-5 flex flex-col gap-2">
             <textarea
               
               value={newLabel}
@@ -190,7 +190,7 @@ function CategorySection({
                     <Check className="size-3.5" />
                   </button>
                   <span
-                    className={`min-w-0 flex-1 text-lg -translate-y-[0.8px] font-bold whitespace-pre-wrap ${item.is_checked ? "text-slate-500 line-through" : "text-slate-900"}`}
+                    className={`min-w-0 flex-1 text-lg -translate-y-[0.8px] font-bold whitespace-pre-wrap break-words overflow-hidden ${item.is_checked ? "text-slate-500 line-through" : "text-slate-900"}`}
                   >
                     {item.label}
                   </span>

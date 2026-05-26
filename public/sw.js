@@ -116,6 +116,33 @@ async function prefetchUrls(urls) {
   }
 }
 
+self.addEventListener('push', (event) => {
+  let data = { title: 'Utangz', body: 'Good morning ma! 🌅' };
+  try {
+    if (event.data) data = event.data.json();
+  } catch { /* use defaults */ }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? 'Utangz', {
+      body: data.body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'morning-greeting',
+      renotify: true,
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      if (clients.length > 0) return clients[0].focus();
+      return self.clients.openWindow('/dashboard');
+    })
+  );
+});
+
 async function safePut(cache, request, response) {
   try {
     await cache.put(request, response);
