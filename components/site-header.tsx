@@ -42,7 +42,7 @@ export default function SiteHeader({
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur print:hidden">
+    <header className="hidden sm:sticky sm:top-0 sm:z-50 sm:flex sm:flex-col border-b border-slate-200 bg-white/80 backdrop-blur print:hidden">
       <nav className="relative mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
         <div className="flex items-center gap-5">
           <Link href="/" className="text-lg font-black tracking-tight">
