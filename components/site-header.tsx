@@ -2,8 +2,8 @@
 import { RiDashboardFill } from "react-icons/ri";
 import { MdAccountBalanceWallet, MdCategory, MdChecklist, MdLogout } from "react-icons/md";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { GiHamburgerMenu } from "react-icons/gi";
+import { Loader2 } from "lucide-react";
 import NeobrutButton from "./neobrut-button";
 
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenu } from "./ui/dropdown-menu";
@@ -20,13 +21,24 @@ type SiteHeaderProps = {
   logoutAction: () => Promise<void>;
 };
 
+const DESKTOP_LINKS = [
+  { href: "/dashboard", label: "dashboard" },
+  { href: "/borrowers", label: "borrowers" },
+  { href: "/accounts", label: "accounts" },
+  { href: "/categories", label: "categories" },
+  { href: "/daily-checklist", label: "daily checklist" },
+];
+
 export default function SiteHeader({
   isLoggedIn,
   logoutAction,
 }: SiteHeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -45,40 +57,49 @@ export default function SiteHeader({
     <header className="hidden sm:sticky sm:top-0 sm:z-50 sm:flex sm:flex-col border-b border-slate-200 bg-white/80 backdrop-blur print:hidden">
       <nav className="relative mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
         <div className="flex items-center gap-5">
-          <Link href="/" className="text-lg font-black tracking-tight">
-            *utangz
-          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              if (isPending) return;
+              setPendingHref("/");
+              startTransition(() => router.push("/"));
+            }}
+            className="text-lg font-black tracking-tight transition-colors hover:text-stone-600"
+          >
+            {isPending && pendingHref === "/" ? (
+              <span className="inline-flex items-center gap-1">
+                <Loader2 className="size-4 animate-spin" />
+                *utangz
+              </span>
+            ) : (
+              "*utangz"
+            )}
+          </button>
           <div className="hidden items-center gap-5 text-sm font-medium text-stone-900 sm:flex">
-            <Link
-              href="/dashboard"
-              className="transition-colors hover:text-stone-700"
-            >
-              dashboard
-            </Link>
-            <Link
-              href="/borrowers"
-              className="transition-colors hover:text-stone-700"
-            >
-              borrowers
-            </Link>
-            <Link
-              href="/accounts"
-              className="transition-colors hover:text-stone-700"
-            >
-              accounts
-            </Link>
-            <Link
-              href="/categories"
-              className="transition-colors hover:text-stone-700"
-            >
-              categories
-            </Link>
-            <Link
-              href="/daily-checklist"
-              className="transition-colors hover:text-stone-700"
-            >
-              daily checklist
-            </Link>
+            {DESKTOP_LINKS.map(({ href, label }) => {
+              const isLoading = isPending && pendingHref === href;
+              return (
+                <button
+                  key={href}
+                  type="button"
+                  onClick={() => {
+                    if (isPending) return;
+                    setPendingHref(href);
+                    startTransition(() => router.push(href));
+                  }}
+                  className={`transition-colors hover:text-stone-700 ${isLoading ? "opacity-60" : ""}`}
+                >
+                  {isLoading ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Loader2 className="size-3 animate-spin" />
+                      {label}
+                    </span>
+                  ) : (
+                    label
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="flex items-center gap-3">
