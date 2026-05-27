@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import SiteHeader from "@/components/site-header";
 import BottomNav from "@/components/bottom-nav";
+import MobileTopBar from "@/components/mobile-top-bar";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 import { OfflineBanner } from "@/components/offline-banner";
 import { OfflineSyncManager } from "@/components/offline-sync-manager";
@@ -64,9 +65,10 @@ export default async function RootLayout({
         <OfflineBanner />
         <SiteHeader isLoggedIn={Boolean(user)} logoutAction={logout} />
 
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 md:px-6 py-10 ">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 md:px-6 py-10 mt-10 sm:mt-0 ">
           <PageTransition>{children}</PageTransition>
         </main>
+        <MobileTopBar />
         {Boolean(user) && <BottomNav />}
         <Toaster />
         <footer className="border-t border-slate-200 print:hidden">

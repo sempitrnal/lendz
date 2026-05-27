@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import BackButton from "@/components/back-button";
+import StickyAccountStrip from "@/components/sticky-account-strip";
 import PartialPaymentForm from "@/components/partial-payment-form";
 import ScheduleStatusForm from "@/components/schedule-status-form";
 import PaymentHistoryPanel from "@/components/payment-history-panel";
@@ -284,6 +285,7 @@ export default async function AccountDetailPage({
       : totalPayment - principal;
 
   const totalInstallments = schedules.length;
+  const profitPerPayroll = totalInstallments > 0 ? Math.round(Math.max(0, profit) / totalInstallments) : 0;
   const progressPct = isFlatManual
     ? manualFlatTotal > 0
       ? Math.min(100, Math.round((amountPaid / manualFlatTotal) * 100))
@@ -678,13 +680,28 @@ export default async function AccountDetailPage({
 
   return (
     <div className="mx-auto max-w-8xl pb-16 relative">
-      <BackButton
+      {/* <BackButton
         fallbackHref={`/borrowers/${accountRow.borrower_id}`}
         floating
-      />
+      /> */}
 
       <NextScheduleScroller />
-      <div className="space-y-6 mt-10">
+
+      <StickyAccountStrip
+        borrowerName={borrowerName}
+        releaseDate={accountRow.release_date ? formatScheduleDate(accountRow.release_date) : "—"}
+        interest={accountRow.interest_rate ?? 0}
+        termMonths={accountRow.term_months ?? 0}
+        paymentFrequency={accountRow.payment_frequency ?? "—"}
+        principal={principal}
+        remaining={amountLeft}
+        collected={amountPaid}
+        profit={profit}
+        profitPerPayroll={profitPerPayroll}
+        progressPct={progressPct}
+      />
+
+      <div className="space-y-6 mt-4 sm:mt-10">
         <header
           className={`overflow-hidden `}
         >
@@ -693,7 +710,7 @@ export default async function AccountDetailPage({
               <h1 className="mt-1 font-black uppercase tracking-tight text-slate-900 sm:text-xl">
                 {/* {accountRow.type.replace("_", " ")} */}
               </h1>
-              {borrower ? (
+              {/* {borrower ? (
                 <p className="mt-3  text-4xl font-black uppercase leading-tight text-slate-900 sm:text-3xl">
                   <Link
                     href={`/borrowers/${borrower.id}`}
@@ -706,15 +723,15 @@ export default async function AccountDetailPage({
                 <p className="mt-3 text-2xl font-black uppercase text-slate-900 sm:text-3xl">
                   {borrowerName}
                 </p>
-              )}
-              <p className="mt-3 text-sm text-slate-600">
+              )} */}
+              {/* <p className="mt-3 text-sm text-slate-600">
                 Released{" "}
                 <span className="font-semibold text-slate-900">
                   {accountRow.release_date
                     ? formatScheduleDate(accountRow.release_date)
                     : "—"}
                 </span>
-              </p>
+              </p> */}
             </div>
             <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-4 lg:flex-col lg:items-end print:items-end">
               <div className="flex gap-2 print:hidden">
@@ -762,12 +779,12 @@ export default async function AccountDetailPage({
                   } as ShareSchedule))}
                 />
               </div>
-              <span
+              {/* <span
                 className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide ${accountStatusClasses.badge}`}
               >
                 {accountRow.status}
-              </span>
-              <dl className="grid gap-2 text-sm sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-1">
+              </span> */}
+              {/* <dl className="grid gap-2 text-sm sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-1">
                 <div className={`${nb.cardSoft} px-3 py-2`}>
                   <dt className={nb.label}>Interest</dt>
                   <dd className="mt-0.5 text-lg font-black tabular-nums text-slate-900">
@@ -785,12 +802,12 @@ export default async function AccountDetailPage({
                     </span>
                   </dd>
                 </div>
-              </dl>
+              </dl> */}
             </div>
           </div>
         </header>
 
-        <section aria-labelledby="balances-heading">
+        <section aria-labelledby="balances-heading" className="hidden sm:block">
           <h2 id="balances-heading" className={`mb-3 ${nb.label}`}>
             Balances
           </h2>
@@ -937,96 +954,96 @@ export default async function AccountDetailPage({
                       key={schedule.id}
                       scheduleId={schedule.id}
                       id={isNext ? "next-schedule" : undefined}
-                      className={`border-b-2 border-slate-900 p-4 transition duration-500 last:border-b-0 ${st.row} ${isNext ? "" : ""}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-[11px] font-black uppercase tracking-wide text-slate-600">
-                            #{i + 1}
-                            {isNext ? (
-                              <span className="ml-2 inline-block rounded border-2 border-slate-900 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a]">
-                                Next
-                              </span>
-                            ) : null}
-                          </p>
-                          <p className={`mt-1  flex items-center text-3xl md:text-5xl font-black tabular-nums tracking-tight text-slate-900 `}>
-                            {formatMoney(Number(schedule.amount_due ?? 0))}
-                            {schedule.status === "paid" ? <PaidCheck /> : null}
-                            {schedule.status === "overdue" ? <OverdueSad /> : null}
-                          </p>
-                          {isRolling && interestRate > 0 && (() => {
-                            const due = Number(schedule.amount_due ?? 0);
-                            const base = Math.round(due / (1 + interestRate / 100) * 100) / 100;
-                            const interest = Math.round((due - base) * 100) / 100;
-                            return (
-                              <p className="text-[10px] font-semibold tabular-nums text-slate-400">
-                                {formatMoney(base)} + {interestRate}%
-                                <span className="ml-1 text-slate-500">(+{formatMoney(interest)})</span>
-                              </p>
-                            );
-                          })()}
-                          <p className="mt-0.5 text-xs font-semibold tabular-nums text-slate-600">
-                            Paid {formatMoney(amountPaidOnInstallment(schedule))}{" "}
-                            {remainingOnInstallment(schedule) != 0 ? schedule.amount_due  ==remainingOnInstallment(schedule) ? <span>
-
-· Left{" "}
-<span className="">{formatMoney(remainingOnInstallment(schedule))}</span>
-</span>  : <span>
-
-· Left{" "}
-<span className="text-red-400 font-black text-sm">-{formatMoney(remainingOnInstallment(schedule))}</span>
-</span>  : ""}
-
-                          </p>
-                          {schedule.note ? (
-                            <p className="mt-1 line-clamp-2 text-xs text-slate-500">
-                              {schedule.note}
-                            </p>
+                      className={`border-b-2 border-slate-900 px-4 py-3 last:border-b-0 ${st.row}`}
+                      defaultOpen={isNext || focusScheduleId === schedule.id}
+                      actions={
+                        <div className="space-y-3 pb-2">
+                          <div className="overflow-x-auto pb-1 flex items-start gap-2">
+                            <ScheduleStatusForm
+                              scheduleId={schedule.id}
+                              currentStatus={schedule.status}
+                              dueDate={schedule.due_date}
+                              updateScheduleStatus={updateScheduleStatus}
+                              isRollingManual={isRolling}
+                              applyPartialPayment={applyPartialPayment}
+                            />
+                            <ScheduleDeleteButton scheduleId={schedule.id} deleteSchedule={deleteSchedule} />
+                          </div>
+                          {!isRolling && schedule.status === "partial" ? (
+                            <PartialPaymentForm
+                              scheduleId={schedule.id}
+                              applyPartialPayment={applyPartialPayment}
+                              autoFocus={focusScheduleId === schedule.id}
+                              dueDate={schedule.due_date}
+                            />
                           ) : null}
-                          <p className="mt-0.5 text-xl font-semibold text-slate-700">
-                            {formatScheduleDate(schedule.due_date)}
-                          </p>
+                          {(schedule.status === "partial" || schedule.status === "paid") && (paymentsMap.get(schedule.id) ?? []).length > 0 ? (
+                            <PaymentHistoryPanel
+                              payments={(paymentsMap.get(schedule.id) ?? []) as SchedulePayment[]}
+                              updatePayment={updatePaymentEntry}
+                              deletePayment={deletePaymentEntry}
+                            />
+                          ) : null}
                         </div>
-                        <div className="flex shrink-0 items-start gap-2">
-                          <ScheduleCheckbox scheduleId={schedule.id} />
-                          <span
-                            className={`shrink-0 rounded-full border-2 px-2.5 py-1 text-xs font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] ${st.badge}`}
-                          >
-                            {schedule.status}
+                      }
+                    >
+                      {/* always-visible card header */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-black uppercase tracking-wide text-slate-400">#{i + 1}</span>
+                        {isNext && (
+                          <span className="inline-block rounded border-2 border-slate-900 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a]">
+                            Next
                           </span>
-                        </div>
+                        )}
+                        <span className={`ml-auto shrink-0 rounded-full border-2 px-2 py-0.5 text-[10px] font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] ${st.badge}`}>
+                          {schedule.status}
+                        </span>
+                        <ScheduleCheckbox scheduleId={schedule.id} />
                       </div>
-                      <div className="mt-4 space-y-3">
-                        <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-600">
-                          Update status
+
+                      <div className="mt-1 flex items-baseline gap-2">
+                        <p className="text-2xl font-black tabular-nums tracking-tight text-slate-900">
+                          {formatMoney(Number(schedule.amount_due ?? 0))}
                         </p>
-                        <div className="overflow-x-auto pb-1 flex items-start gap-2">
-                          <ScheduleStatusForm
-                            scheduleId={schedule.id}
-                            currentStatus={schedule.status}
-                            dueDate={schedule.due_date}
-                            updateScheduleStatus={updateScheduleStatus}
-                            isRollingManual={isRolling}
-                            applyPartialPayment={applyPartialPayment}
-                          />
-                          <ScheduleDeleteButton scheduleId={schedule.id} deleteSchedule={deleteSchedule} />
-                        </div>
-                        {!isRolling && schedule.status === "partial" ? (
-                          <PartialPaymentForm
-                            scheduleId={schedule.id}
-                            applyPartialPayment={applyPartialPayment}
-                            autoFocus={focusScheduleId === schedule.id}
-                            dueDate={schedule.due_date}
-                          />
-                        ) : null}
-                        {(schedule.status === "partial" || schedule.status === "paid") && (paymentsMap.get(schedule.id) ?? []).length > 0 ? (
-                          <PaymentHistoryPanel
-                            payments={(paymentsMap.get(schedule.id) ?? []) as SchedulePayment[]}
-                            updatePayment={updatePaymentEntry}
-                            deletePayment={deletePaymentEntry}
-                          />
-                        ) : null}
+                        {schedule.status === "paid" ? <PaidCheck /> : null}
+                        {schedule.status === "overdue" ? <OverdueSad /> : null}
                       </div>
+
+                      {isRolling && interestRate > 0 && (() => {
+                        const due = Number(schedule.amount_due ?? 0);
+                        const base = Math.round(due / (1 + interestRate / 100) * 100) / 100;
+                        const interest = Math.round((due - base) * 100) / 100;
+                        return (
+                          <p className="text-[10px] tabular-nums text-slate-400">
+                            {formatMoney(base)} + {interestRate}% (+{formatMoney(interest)})
+                          </p>
+                        );
+                      })()}
+
+                      <p className="mt-0.5 text-sm font-semibold text-slate-600">
+                        {formatScheduleDate(schedule.due_date)}
+                      </p>
+
+                      {schedule.status === "partial" && (() => {
+                        const paid = amountPaidOnInstallment(schedule);
+                        const due = Number(schedule.amount_due ?? 0);
+                        const pct = due > 0 ? Math.min(100, Math.round((paid / due) * 100)) : 0;
+                        return (
+                          <div className="mt-2">
+                            <div className="flex justify-between text-[10px] font-black text-slate-500">
+                              <span>Paid {formatMoney(paid)}</span>
+                              <span>Left {formatMoney(remainingOnInstallment(schedule))}</span>
+                            </div>
+                            <div className="mt-1 h-1.5 overflow-hidden rounded-full border border-slate-300 bg-slate-100">
+                              <div className="h-full bg-amber-400" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {schedule.note ? (
+                        <p className="mt-1 line-clamp-1 text-xs text-slate-400">{schedule.note}</p>
+                      ) : null}
                     </ScheduleMobileCard>
                   );
                 })}

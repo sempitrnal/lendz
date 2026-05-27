@@ -28,10 +28,7 @@ export default function BorrowerDetailView({
   borrower,
 }: BorrowerDetailViewProps) {
   return (
-    <> <BackButton
-      fallbackHref={`/borrowers`}
-      className="mb-10"
-    />   <div className="flex w-full flex-col gap-6">
+    <>   <div className="flex w-full flex-col gap-6">
 
         <div className="">
           <div className="flex items-start justify-between gap-4">

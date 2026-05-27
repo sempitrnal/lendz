@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTransition, useState, type SyntheticEvent } from "react";
 import { isDarkColor } from "@/lib/utils";
-import { Loader2, Phone } from "lucide-react";
+import { ChevronDown, Loader2, Phone } from "lucide-react";
 import Link from "next/link";
 
 import BorrowerDetailMenu from "@/components/borrower/borrower-detail-menu";
@@ -39,6 +39,7 @@ export function BorrowerCard({
     a.category.name.localeCompare(b.category.name)
   );
 
+  const hasOverdue = (borrower.overdue_count ?? 0) > 0;
   const hasAccounts = borrower.has_accounts === true;
   const accountsCount = borrower.accounts_count ?? 0;
   const nextDate = borrower.next_collection_date;
@@ -48,7 +49,6 @@ export function BorrowerCard({
   const hasNextUnpaid = Boolean(nextDate);
   const schedules = borrower.account_schedules || [];
   const manualPrincipal = borrower.manual_total_principal ?? 0;
-  console.log("manual prin"+manualPrincipal)
   const manualPaid = borrower.manual_total_paid ?? 0;
   const manualRemaining = borrower.manual_total_remaining ?? 0;
   const hasManual = manualPrincipal > 0;
@@ -68,9 +68,14 @@ export function BorrowerCard({
 
   return (
     <div
-      className={`relative w-full  min-w-0 max-w-full rounded-xl border-2 border-slate-900 bg-linear-to-br from-sky-50 via-white to-indigo-50 text-left shadow-[4px_4px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:from-sky-100 hover:to-indigo-100`}
+      className={`relative w-full min-w-0 max-w-full overflow-hidden rounded-xl border-2 bg-white text-left transition-all duration-150 ${
+        hasOverdue
+          ? "border-red-700 shadow-[4px_4px_0px_0px_#b91c1c]"
+          : "border-slate-900 shadow-[4px_4px_0px_0px_#0f172a]"
+      } ${isPending ? "" : "hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#0f172a]"}`}
       aria-busy={isPending}
     >
+
       <div
         className="absolute right-2 top-2 z-10 flex items-center gap-1"
         data-prevent-borrower-card-open
@@ -78,10 +83,10 @@ export function BorrowerCard({
         {borrower.contact ? (
           <Link
             href={`tel:${borrower.contact}`}
-            className="rounded-md border-2  border-slate-900 bg-indigo-100 p-2 text-indigo-700 transition hover:bg-indigo-200"
+            className="rounded border-2 border-slate-900 bg-indigo-100 p-1.5 text-indigo-700 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-indigo-200 active:shadow-none active:translate-y-px"
             aria-label={`Call ${borrower.first_name} ${borrower.last_name}`}
           >
-            <Phone className="size-4" />
+            <Phone className="size-3.5" />
           </Link>
         ) : null}
         <BorrowerDetailMenu
@@ -97,20 +102,13 @@ export function BorrowerCard({
         onKeyDown={(e) => {
           if (isPending) return;
           if (e.key !== "Enter" && e.key !== " ") return;
-          // if (
-          //   (e.target as HTMLElement).closest(
-          //     "[data-prevent-borrower-card-open]"
-          //   )
-          // ) {
-          //   return;
-          // }
           e.preventDefault();
           startTransition(() => {
             router.push(`/borrowers/${borrower.id}`);
           });
         }}
         aria-disabled={isPending}
-        className={`box-border  block w-full min-w-0 max-w-full cursor-pointer rounded-xl p-4  pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${isPending ? 'opacity-50' : ''} transition-all duration-200`}
+        className={`box-border block w-full min-w-0 max-w-full cursor-pointer p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${isPending ? "opacity-50" : ""}`}
         aria-label={`Open ${borrower.first_name} ${borrower.last_name}`}
       >
         <div className="flex w-full min-w-0 flex-col">
@@ -138,7 +136,7 @@ export function BorrowerCard({
 
         {showScheduleSummary && hasManual ? (
           <div
-            className="mt-4 w-full min-w-0 rounded-lg border-2 border-slate-900 bg-violet-50/80 p-3 shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)]"
+            className="mt-4 w-full min-w-0 border-2 border-slate-900 bg-violet-50 p-3 shadow-[2px_2px_0px_0px_#0f172a]"
           >
             <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
               Manual accounts
@@ -181,7 +179,7 @@ export function BorrowerCard({
 
         {showScheduleSummary && hasAccounts && hasAutoAccounts ? (
           <div
-            className="mt-4 w-full min-w-0 self-stretch rounded-lg border-2 border-slate-900 bg-sky-100/70 p-3 shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)]"
+            className="mt-4 w-full min-w-0 self-stretch border-2 border-slate-900 bg-sky-100 p-3 shadow-[2px_2px_0px_0px_#0f172a]"
           >
             <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:flex-nowrap">
               <div className="min-w-0 flex-1">
@@ -286,25 +284,27 @@ export function BorrowerCard({
                                     type="button"
                                     data-prevent-borrower-card-open
                                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleOverdue(i, defaultOpen); }}
-                                    className="w-full flex items-center justify-between gap-2"
+                                    className="flex w-full items-center justify-between gap-2"
                                   >
                                     <span className="text-[9px] font-black uppercase tracking-wide text-red-700">
                                       Overdue installments · {schedule.overdue_schedules.length}
                                     </span>
-                                    <span className="text-[9px] text-red-600">{isOpen ? "▲" : "▼"}</span>
+                                    <ChevronDown className={`size-3 text-red-600 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
                                   </button>
-                                  {isOpen && (
-                                    <div className="space-y-0.5 mt-1">
-                                      {schedule.overdue_schedules.map((os, oi) => (
-                                        <div key={oi} className="flex items-center justify-between gap-2">
-                                          <span className="text-[10px] font-semibold text-slate-700">
-                                            {new Date(os.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                                          </span>
-                                          <span className="text-[10px] font-black text-red-700">₱{os.amount.toLocaleString()}</span>
-                                        </div>
-                                      ))}
+                                  <div className={`grid transition-[grid-template-rows] duration-200 ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+                                    <div className="overflow-hidden">
+                                      <div className="space-y-0.5 mt-1">
+                                        {schedule.overdue_schedules.map((os, oi) => (
+                                          <div key={oi} className="flex items-center justify-between gap-2">
+                                            <span className="text-[10px] font-semibold text-slate-700">
+                                              {new Date(os.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                                            </span>
+                                            <span className="text-[10px] font-black text-red-700">₱{os.amount.toLocaleString()}</span>
+                                          </div>
+                                        ))}
+                                      </div>
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
                               );
                             })()}
