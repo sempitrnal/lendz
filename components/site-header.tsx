@@ -60,7 +60,6 @@ export default function SiteHeader({
           <button
             type="button"
             onClick={() => {
-              if (isPending) return;
               setPendingHref("/");
               startTransition(() => router.push("/"));
             }}
@@ -83,7 +82,6 @@ export default function SiteHeader({
                   key={href}
                   type="button"
                   onClick={() => {
-                    if (isPending) return;
                     setPendingHref(href);
                     startTransition(() => router.push(href));
                   }}

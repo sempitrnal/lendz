@@ -31,7 +31,6 @@ export default function BottomNav() {
               <button
                 type="button"
                 onClick={() => {
-                  if (isPending) return;
                   setPendingHref(href);
                   startTransition(() => {
                     router.push(href);
