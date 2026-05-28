@@ -38,6 +38,7 @@ type Props = {
   interest: number;
   termMonths: number;
   paymentFrequency: string;
+  isManual?: boolean;
   principal: number;
   remaining: number;
   collected: number;
@@ -56,6 +57,7 @@ export default function StickyAccountStrip({
   interest,
   termMonths,
   paymentFrequency,
+  isManual = false,
   principal,
   remaining,
   collected,
@@ -79,7 +81,7 @@ export default function StickyAccountStrip({
           <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
             <span>Released <strong className="text-slate-700">{releaseDate}</strong></span>
             <span>Interest <strong className="text-slate-700">{interest}%</strong></span>
-            <span>Term <strong className="text-slate-700">{termMonths} {paymentFrequency}</strong></span>
+            <span>Term <strong className="text-slate-700">{isManual ? "manual" : `${termMonths} ${paymentFrequency}`}</strong></span>
           </div>
         </div>
         <ChevronDown

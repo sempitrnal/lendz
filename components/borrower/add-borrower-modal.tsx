@@ -20,8 +20,8 @@ export default function AddBorrowerModal({
 }: AddBorrowerModalProps) {
 
     return (
-        <div className="mb-10">
-            <NeobrutButton onClick={openModal} color="green">add</NeobrutButton>
+        <div className="">
+            {/* <NeobrutButton onClick={openModal} color="green">add</NeobrutButton> */}
             <Dialog open={isOpen} onOpenChange={(open) => {
                 if (!open) {
                     onClose();

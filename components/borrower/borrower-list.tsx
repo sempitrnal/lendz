@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
@@ -12,6 +13,7 @@ import {
 import AddBorrowerModal from "./add-borrower-modal";
 import { BorrowerCard } from "./borrower-card";
 import { BsChevronDown, BsChevronLeft, BsChevronRight } from "react-icons/bs";
+import { FaPlus } from "react-icons/fa6";
 import Link from "next/link";
 
 export type Borrower = {
@@ -72,6 +74,11 @@ export default function BorrowersList({
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [suggestions, setSuggestions] = useState<{ id: string; first_name: string; last_name: string; contact: string | null }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
 
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(initialCategoryIds);
 
@@ -85,6 +92,30 @@ export default function BorrowersList({
     [router, selectedCategoryIds]
   );
 
+  const fetchSuggestions = useCallback(async (q: string) => {
+    if (q.trim().length === 0) { setSuggestions([]); setShowSuggestions(false); return; }
+    const pattern = `%${q.trim()}%`;
+    const { data } = await supabase
+      .from("borrowers")
+      .select("id, first_name, last_name, contact")
+      .or(`first_name.ilike.${pattern},last_name.ilike.${pattern},contact.ilike.${pattern}`)
+      .order("first_name", { ascending: true })
+      .limit(6);
+    setSuggestions((data ?? []) as { id: string; first_name: string; last_name: string; contact: string | null }[]);
+    setShowSuggestions(true);
+    setActiveSuggestion(-1);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   // Sync local state when server prop changes (e.g. back/forward navigation)
   useEffect(() => {
     setSearchQuery(initialSearchQuery);
@@ -94,6 +125,8 @@ export default function BorrowersList({
   }, [initialCategoryIds]);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isAddBorrowerModalOpen, setIsAddBorrowerModalOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => { setIsMounted(true); }, []);
   const [updatingBorrowerId, setUpdatingBorrowerId] = useState<string | null>(
     null
   );
@@ -149,25 +182,78 @@ export default function BorrowersList({
 
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black lowercase">Borrowers</h1>
-          <p className="text-xs text-slate-500 mt-1">
+          {/* <h1 className="text-2xl font-black lowercase">Borrowers</h1> */}
+          {/* <p className="text-xs text-slate-500 mt-1">
             {totalCount} total
-          </p>
+          </p> */}
         </div>
       </div>
 
+      {isMounted && createPortal(
+        <button
+          type="button"
+          onClick={openAddBorrowerModal}
+          aria-label="Add borrower"
+          className="fixed bottom-[76px] right-4 z-[9999] flex size-14 items-center justify-center rounded-full border-2 border-slate-900 bg-slate-900 text-white shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform duration-200 active:scale-95"
+        >
+          <FaPlus className="size-5" />
+        </button>,
+        document.body
+      )}
+
       <div className="mb-6 flex flex-col gap-3">
-        <input
-          type="search"
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            navigateSearch(e.target.value.trim());
-          }}
-          placeholder="Search by name or contact"
-          className={formFieldInputClassName}
-          aria-label="Search borrowers"
-        />
+        <div ref={searchWrapperRef} className="relative">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => {
+              const v = e.target.value;
+              setSearchQuery(v);
+              navigateSearch(v.trim());
+              if (suggestDebounceRef.current) clearTimeout(suggestDebounceRef.current);
+              suggestDebounceRef.current = setTimeout(() => fetchSuggestions(v), 200);
+            }}
+            onFocus={() => { if (searchQuery.trim() && suggestions.length > 0) setShowSuggestions(true); }}
+            onKeyDown={(e) => {
+              if (!showSuggestions || suggestions.length === 0) return;
+              if (e.key === "ArrowDown") { e.preventDefault(); setActiveSuggestion((p) => Math.min(p + 1, suggestions.length - 1)); }
+              else if (e.key === "ArrowUp") { e.preventDefault(); setActiveSuggestion((p) => Math.max(p - 1, -1)); }
+              else if (e.key === "Enter" && activeSuggestion >= 0) { e.preventDefault(); setShowSuggestions(false); router.push(`/borrowers/${suggestions[activeSuggestion].id}`); }
+              else if (e.key === "Escape") { setShowSuggestions(false); }
+            }}
+            placeholder="Search by name or contact"
+            className={formFieldInputClassName}
+            aria-label="Search borrowers"
+            aria-autocomplete="list"
+            aria-expanded={showSuggestions}
+            autoComplete="off"
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border-2 border-slate-900 bg-white shadow-[3px_3px_0px_0px_#0f172a]">
+              {suggestions.map((s, i) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); setShowSuggestions(false); router.push(`/borrowers/${s.id}`); }}
+                  className={`flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 transition-colors ${
+                    i === activeSuggestion ? "bg-slate-900 text-white" : "hover:bg-slate-50"
+                  }`}
+                >
+                  <span className={`text-sm font-black uppercase ${
+                    i === activeSuggestion ? "text-white" : "text-slate-900"
+                  }`}>
+                    {s.first_name} {s.last_name}
+                  </span>
+                  {s.contact && (
+                    <span className={`shrink-0 text-[10px] tabular-nums ${
+                      i === activeSuggestion ? "text-slate-300" : "text-slate-400"
+                    }`}>{s.contact}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="relative">
           <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">

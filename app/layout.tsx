@@ -67,7 +67,7 @@ export default async function RootLayout({
         <OfflineBanner />
         <SiteHeader isLoggedIn={Boolean(user)} logoutAction={logout} />
 
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 md:px-6 py-10 mt-10 sm:mt-0 ">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 md:px-6 py-10  sm:mt-0 ">
           <PageTransition>{children}</PageTransition>
         </main>
         <MobileTopBar />

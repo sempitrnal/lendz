@@ -2,7 +2,8 @@
 
 import { FaPlus } from "react-icons/fa6";
 import { ChevronDown } from "lucide-react";
-import { useEffect, useRef, useState, type SyntheticEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Modal from "@/components/modal";
@@ -22,6 +23,93 @@ import {
 } from "@/lib/payment-schedule/schedule-balances";
 import NotesCanvas from "./notes-canvas";
 import NeobrutButton from "../neobrut-button";
+import BorrowerDetailMenu from "./borrower-detail-menu";
+import { isDarkColor } from "@/lib/utils";
+
+function StickyBorrowerStrip({
+  borrower,
+  totalLoaned,
+  totalExpected,
+  totalCollected,
+  profitPerSchedule,
+  collectedPct,
+}: {
+  borrower: BorrowerSummary | undefined;
+  totalLoaned: number;
+  totalExpected: number;
+  totalCollected: number;
+  profitPerSchedule: number;
+  collectedPct: number;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!borrower) return null;
+  return (
+    <div className="sticky top-10 z-30 -mx-4 bg-white/95 backdrop-blur sm:hidden relative">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-black uppercase tracking-wide text-slate-900">
+              {borrower.first_name} {borrower.last_name}
+            </p>
+            {borrower.category && borrower.category.length > 0 && (
+              <div className="mt-0.5 flex flex-wrap gap-1">
+                {borrower.category.map((c) => (
+                  <span
+                    key={c.id}
+                    className={`text-[9px] font-black px-1.5 py-0.5 rounded border border-slate-900/30 ${isDarkColor(c.color) ? "text-white" : "text-slate-900"}`}
+                    style={{ backgroundColor: c.color }}
+                  >{c.name}</span>
+                ))}
+              </div>
+            )}
+            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+              <span>Loaned <strong className="text-slate-700">₱{Math.round(totalLoaned).toLocaleString()}</strong></span>
+              <span>Profit <strong className="text-slate-700">₱{Math.round(totalExpected).toLocaleString()}</strong></span>
+              <span>Collected <strong className="text-emerald-700">{collectedPct}%</strong></span>
+            </div>
+          </div>
+          <ChevronDown className={`ml-1 size-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        </button>
+        <div className="ml-2 shrink-0" data-prevent-strip-open>
+          <BorrowerDetailMenu borrowerId={borrower.id} />
+        </div>
+      </div>
+      <div className={`absolute left-0 right-0 top-full z-30 grid overflow-hidden bg-white/95 backdrop-blur shadow-[0_4px_0_0_#0f172a] transition-[grid-template-rows] duration-300 ease-in-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+        <div className="overflow-hidden">
+          <div className="px-4 pb-3">
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              {([
+                { label: "Total Loaned",     value: totalLoaned,        bg: "bg-sky-100" },
+                { label: "Profit Expected",  value: totalExpected,      bg: "bg-amber-100" },
+                { label: "Profit Collected", value: totalCollected,     bg: "bg-emerald-100" },
+                { label: "Profit / Schedule",value: profitPerSchedule,  bg: "bg-violet-100" },
+              ] as const).map(({ label, value, bg }, i) => (
+                <div
+                  key={label}
+                  className={`border-2 border-slate-900 ${bg} px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] transition-all duration-200 ${open ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"}`}
+                  style={{ transitionDelay: open ? `${i * 40}ms` : "0ms" }}
+                >
+                  <p className="font-black uppercase tracking-wide text-slate-500">{label}</p>
+                  <p className="mt-0.5 font-black tabular-nums text-slate-900">₱{Math.round(value).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+            <div className={`mt-2 flex items-center gap-2 transition-all duration-200 ${open ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: open ? "160ms" : "0ms" }}>
+              <div className="h-2 flex-1 overflow-hidden rounded-sm border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]">
+                <div className="h-full bg-emerald-400 transition-[width] duration-500 ease-out" style={{ width: open ? `${collectedPct}%` : "0%" }} />
+              </div>
+              <span className="shrink-0 text-[10px] font-black tabular-nums text-slate-700">{collectedPct}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 export type AccountRow = AccountEditableRow & {
   id: string;
   borrower_id: string;
@@ -140,142 +228,96 @@ function AccountCard({
         aria-disabled={isOpening}
         aria-busy={isOpening}
         aria-label="Open account"
-        className="min-w-0 w-full cursor-pointer pl-5 pr-10 pt-3 pb-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+        className="min-w-0 w-full cursor-pointer pl-4 pr-10 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
       >
-        {/* Row 1: type badge + term + status */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`text-[10px] font-black uppercase tracking-wider border-2 border-slate-900 px-2 py-0.5 shadow-[1px_1px_0px_0px_#0f172a] ${badgeBg}`}>
-            {isCashAdvance ? "cash advance" : "loan"}
+        {/* Row 1: type badge + principal + status */}
+        <div className="flex items-center gap-1.5">
+          {/* <span className={`shrink-0 text-[9px] font-black uppercase border border-slate-900 px-1.5 py-0.5 ${badgeBg}`}>
+            {isCashAdvance ? "ca" : "loan"}
+          </span> */}
+          <span className="text-lg font-black tabular-nums leading-none text-slate-900">
+            ₱{Number(account.principal_amount ?? 0).toLocaleString()}
           </span>
-          {!isManual && (
-            <span className="text-[10px] font-semibold text-slate-500 border border-slate-300 rounded-full px-2 py-0.5 bg-white">
-              {account.payment_frequency} · {account.term_months}mo
-            </span>
-          )}
-          {isManual && (
-            <span className="text-[10px] font-semibold text-slate-500 border border-slate-300 rounded-full px-2 py-0.5 bg-white">manual</span>
-          )}
-          <span className={`ml-auto text-[10px] font-black uppercase border border-slate-900 px-2 py-0.5 rounded-full ${
+          <span className={`ml-auto shrink-0 text-[9px] font-black uppercase border border-slate-900 px-1.5 py-0.5 rounded-full ${
             account.status === "active" ? "bg-emerald-200 text-emerald-900" : "bg-slate-200 text-slate-600"
           }`}>
             {account.status}
           </span>
         </div>
 
-        {/* Row 2: Principal hero */}
-        <div className="mt-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Principal</p>
-          <p className="text-3xl font-black tabular-nums leading-none text-slate-900">
-            ₱{Number(account.principal_amount ?? 0).toLocaleString()}
-          </p>
-          <p className="mt-0.5 text-[11px] text-slate-400">
-            {account.interest_rate}% interest
-            {account.release_date && (
-              <> · {new Date(account.release_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</>
+        {/* Row 2: meta */}
+        <p className="mt-0.5 text-[10px] text-slate-400">
+          {!isManual ? `${account.payment_frequency} · ${account.term_months}mo · ` : "manual · "}
+          {account.interest_rate}%
+          {account.release_date && ` · ${new Date(account.release_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
+        </p>
+
+        {/* Row 3: stats */}
+        <p className="mt-1 text-[11px] leading-snug text-slate-500">
+          <span>Rem </span><strong className="font-black text-slate-900">₱{amountLeftToPay.toLocaleString()}</strong>
+          {isManual ? (
+            <><span className="text-slate-300"> · </span><span>Paid </span><strong className="font-black text-slate-900">₱{totalPaid.toLocaleString()}</strong></>
+          ) : (
+            <><span className="text-slate-300"> · </span><span>Profit </span><strong className="font-black text-slate-900">₱{Math.round(profitToMake).toLocaleString()}</strong><span className="text-slate-300"> · </span><strong className="font-black text-slate-900">₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}</strong><span>/pay</span></>
+          )}
+        </p>
+
+        {/* Row 4: next collection */}
+        {!isManual && nextCollectionDate && (
+          <p className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] leading-snug text-slate-500">
+            <span>Next </span>
+            <strong className="font-black text-slate-900">{new Date(nextCollectionDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</strong>
+            <strong className="font-black tabular-nums text-slate-700">₱{nextCollectionAmount.toLocaleString()}</strong>
+            {nextCollectionStatus === "partial" && nextCollectionAmountDue > nextCollectionAmount && (
+              <span className="text-slate-400">of ₱{nextCollectionAmountDue.toLocaleString()}</span>
+            )}
+            {nextCollectionStatus && (
+              <span className={`text-[7px] font-black px-1 py-0.5 border border-slate-900 uppercase ${
+                nextCollectionStatus === "overdue" ? "bg-red-300 text-red-900"
+                  : nextCollectionStatus === "paid" ? "bg-emerald-300 text-emerald-900"
+                  : nextCollectionStatus === "pending" ? "bg-yellow-300 text-yellow-900"
+                  : nextCollectionStatus === "partial" ? "bg-purple-300 text-purple-900"
+                  : "bg-blue-300 text-blue-900"
+              }`}>{nextCollectionStatus}</span>
             )}
           </p>
-        </div>
+        )}
 
-        {/* Metric grid */}
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="border-2 border-slate-900 bg-purple-100 px-2.5 py-2 shadow-[2px_2px_0px_0px_#0f172a]">
-            <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">bayranan</p>
-            <p className="text-base font-black tabular-nums text-slate-900">₱{amountLeftToPay.toLocaleString()}</p>
+        {/* Overdue */}
+        {hasOverdue && (
+          <div className="mt-3  bg-red-100 p-1 rounded-sm border-red-400 border">
+            <button
+              type="button"
+              data-prevent-account-open
+              onClick={() => setOverdueExpanded((v) => !v)}
+              className="flex w-full items-center gap-1 text-[11px]"
+            >
+              <span className="font-black text-red-600">⚠ {overdueCount} overdue</span>
+              <span className="font-black tabular-nums text-red-800">₱{overdueTotal.toLocaleString()}</span>
+              <ChevronDown className={`ml-auto size-3 text-red-600 transition-transform duration-200 ${overdueExpanded ? "rotate-180" : ""}`} />
+            </button>
+            <div className={`grid transition-[grid-template-rows] duration-200 ${overdueExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+              <div className="overflow-hidden">
+                <div className="mt-0.5 space-y-0.5 pl-1">
+                  {(metrics?.overdueSchedules ?? []).map((os, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 text-[10px]">
+                      <span className="text-slate-600">{new Date(os.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
+                      <span className="font-black text-red-700">₱{os.amount.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-
-          {isManual ? (
-            <div className="border-2 border-slate-900 bg-emerald-100 px-2.5 py-2 shadow-[2px_2px_0px_0px_#0f172a]">
-              <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">nabayran</p>
-              <p className="text-base font-black tabular-nums text-slate-900">₱{totalPaid.toLocaleString()}</p>
-            </div>
-          ) : (
-            <div className="border-2 border-slate-900 bg-amber-100 px-2.5 py-2 shadow-[2px_2px_0px_0px_#0f172a]">
-              <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">ginansya / per payroll</p>
-              <p className="text-base font-black tabular-nums text-slate-900">
-                ₱{Math.round(profitToMake).toLocaleString()}
-                <span className="ml-1 text-sm font-bold text-slate-500">| ₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}</span>
-              </p>
-            </div>
-          )}
-
-          {!isManual && (
-            <div className="col-span-2 border-2 border-slate-900 bg-sky-100 px-2.5 py-2 shadow-[2px_2px_0px_0px_#0f172a]">
-              <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">next collection</p>
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="text-base font-black text-slate-900">
-                  {nextCollectionDate
-                    ? new Date(nextCollectionDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
-                    : "—"}
-                </p>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm font-black tabular-nums text-slate-700">₱{nextCollectionAmount.toLocaleString()}</span>
-                  {nextCollectionStatus === "partial" && nextCollectionAmountDue > nextCollectionAmount && (
-                    <span className="text-[10px] text-slate-400">of ₱{nextCollectionAmountDue.toLocaleString()}</span>
-                  )}
-                  {nextCollectionStatus && (
-                    <span className={`text-[8px] font-black px-1.5 py-0.5 border border-slate-900 uppercase shadow-[1px_1px_0px_0px_#0f172a] ${
-                      nextCollectionStatus === "overdue" ? "bg-red-300 text-red-900"
-                        : nextCollectionStatus === "paid" ? "bg-emerald-300 text-emerald-900"
-                        : nextCollectionStatus === "pending" ? "bg-yellow-300 text-yellow-900"
-                        : nextCollectionStatus === "partial" ? "bg-purple-300 text-purple-900"
-                        : "bg-blue-300 text-blue-900"
-                    }`}>{nextCollectionStatus}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {hasOverdue && (
-            <div className="col-span-2 border-2 border-red-700 bg-red-100 px-2.5 py-2 shadow-[2px_2px_0px_0px_#991b1b]">
-              <button
-                type="button"
-                data-prevent-account-open
-                onClick={() => setOverdueExpanded((v) => !v)}
-                className="flex w-full items-center justify-between gap-2"
-              >
-                <p className="text-[9px] font-black uppercase tracking-wide text-red-700">
-                  overdue · {overdueCount} schedule{overdueCount === 1 ? "" : "s"}
-                </p>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-black tabular-nums text-red-900">₱{overdueTotal.toLocaleString()}</span>
-                  <ChevronDown className={`size-3.5 text-red-700 transition-transform duration-200 ${overdueExpanded ? "rotate-180" : ""}`} />
-                </div>
-              </button>
-              <div className={`grid transition-[grid-template-rows] duration-200 ${ overdueExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
-                <div className="overflow-hidden">
-                  <div className="mt-1.5 space-y-1">
-                    {(metrics?.overdueSchedules ?? []).map((os, i) => (
-                      <div key={i} className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-semibold text-slate-700">
-                          {new Date(os.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                        </span>
-                        <span className="text-[10px] font-black text-red-700">₱{os.amount.toLocaleString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Progress bar */}
-        {!isManual && totalDue > 0 && (
-          <div className="mt-3">
-            <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-wide text-slate-500">
-              <span>Progress</span>
-              <span className="tabular-nums text-slate-700">{progressPct}%</span>
-            </div>
-            <div
-              className="h-2.5 overflow-hidden border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
-              role="progressbar"
-              aria-valuenow={progressPct}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
+        {totalDue > 0 && (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <div className="h-1 flex-1 overflow-hidden bg-slate-100" role="progressbar" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}>
               <div className="h-full bg-emerald-400 transition-all duration-500" style={{ width: `${progressPct}%` }} />
             </div>
+            <span className="shrink-0 text-[9px] tabular-nums text-slate-400">{progressPct}%</span>
           </div>
         )}
       </div>
@@ -297,6 +339,9 @@ export default function BorrowerAccountsSection({
     null
   );
   const [openingAccountId, setOpeningAccountId] = useState<string | null>(null);
+  const [fabOpen, setFabOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => { setIsMounted(true); }, []);
   const [markingNextPaidScheduleId, setMarkingNextPaidScheduleId] = useState<
     string | null
   >(null);
@@ -455,25 +500,52 @@ export default function BorrowerAccountsSection({
     fetchAccountMetrics();
   }, [borrowerId, accounts]);
 
+  const summaryStats = useMemo(() => {
+    if (!accounts || accounts.length === 0) return null;
+    const totalLoaned = accounts.reduce((s, a) => s + Number(a.principal_amount ?? 0), 0);
+    const metricsArr = Object.values(accountMetricsById);
+    const totalExpected = metricsArr.reduce((s, m) => s + m.profitToMake, 0);
+    const totalCollected = metricsArr.reduce((s, m) =>
+      s + (m.totalDue > 0 ? m.profitToMake * (m.totalPaid / m.totalDue) : 0), 0);
+    let profitPerSchedule = 0;
+    for (const a of accounts) {
+      const m = accountMetricsById[a.id];
+      if (!m) continue;
+      const termMonths = Number(m.term_months) || 0;
+      const freq = a.payment_frequency;
+      const isManual = a.schedule_mode === "manual";
+      const installments = isManual
+        ? Number(m.term_installments) || termMonths || 1
+        : freq === "custom"
+          ? Number(m.term_installments) || 1
+          : freq === "bimonthly"
+            ? termMonths * 2 || 1
+            : freq === "weekly"
+              ? termMonths * 4 || 1
+              : termMonths || 1;
+      profitPerSchedule += m.profitToMake / installments;
+    }
+    const collectedPct = totalExpected > 0 ? Math.min(100, Math.round((totalCollected / totalExpected) * 100)) : 0;
+    return { totalLoaned, totalExpected, totalCollected, profitPerSchedule, collectedPct };
+  }, [accounts, accountMetricsById]);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
   return (
     <div className="rounded-lg  ">
-      <div className="mb-6 flex items-center justify-between">
-     <div className=""></div>
-        <NeobrutButton
-          onClick={() => {
-            setEditingAccount(null);
-            setIsAccountDialogOpen(true);
-          }}
-          aria-label="Add loan"
-          variant="green"
-        >
-          add loan
-        </NeobrutButton>
-      </div>
+      {summaryStats && (
+        <StickyBorrowerStrip
+          borrower={borrower}
+          totalLoaned={summaryStats.totalLoaned}
+          totalExpected={summaryStats.totalExpected}
+          totalCollected={summaryStats.totalCollected}
+          profitPerSchedule={summaryStats.profitPerSchedule}
+          collectedPct={summaryStats.collectedPct}
+        />
+      )}
 
+   
       {!accounts || accounts.length === 0 ? (
         <div className="rounded-xl border border-dashed p-10 text-center">
           <p className="text-gray-500">No accounts yet</p>
@@ -490,13 +562,13 @@ export default function BorrowerAccountsSection({
         const renderGroup = (group: typeof accounts, label: string, accent: string) =>
           group.length === 0 ? null : (
             <div>
-              <div className="mb-3 flex items-center gap-2">
+              <div className="mb-3 flex items-center gap-2 mt-10">
                 <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border-2 border-slate-900 shadow-[2px_2px_0px_0px_#0f172a] ${accent}`}>
                   {label}
                 </span>
                 <span className="text-xs font-semibold text-slate-400">{group.length} account{group.length === 1 ? "" : "s"}</span>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {group.map((account) => (
                   <AccountCard
                     key={account.id}
@@ -520,6 +592,39 @@ export default function BorrowerAccountsSection({
           </div>
         );
       })()}
+
+      {/* Speed-dial FAB — portalled to body to escape PageTransition transform stacking context */}
+      {isMounted && createPortal(
+        <div className="fixed bottom-[76px] right-4 z-[9999] flex flex-col items-end gap-2">
+          {fabOpen && (
+            <>
+              <button
+                type="button"
+                onClick={() => { setFabOpen(false); setSelectedNote(null); setIsNotesOpen(true); }}
+                className="flex items-center gap-2 rounded-full border-2 border-slate-900 bg-yellow-300 px-4 py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a] transition active:translate-y-px active:shadow-[1px_1px_0px_0px_#0f172a]"
+              >
+                <FaPlus className="size-3" /> note
+              </button>
+              <button
+                type="button"
+                onClick={() => { setFabOpen(false); setEditingAccount(null); setIsAccountDialogOpen(true); }}
+                className="flex items-center gap-2 rounded-full border-2 border-slate-900 bg-emerald-300 px-4 py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a] transition active:translate-y-px active:shadow-[1px_1px_0px_0px_#0f172a]"
+              >
+                <FaPlus className="size-3" /> loan
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setFabOpen((v) => !v)}
+            aria-label={fabOpen ? "Close actions" : "Open actions"}
+            className={`flex size-14 items-center justify-center rounded-full border-2 border-slate-900 bg-slate-900 text-white shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform duration-200 active:scale-95 ${fabOpen ? "rotate-45" : ""}`}
+          >
+            <FaPlus className="size-5" />
+          </button>
+        </div>,
+        document.body
+      )}
 
       <Dialog
         open={isAccountDialogOpen}
@@ -553,21 +658,11 @@ export default function BorrowerAccountsSection({
       </Dialog>
       {/* <NotesCanvas borrowerId={borrowerId} initialData={borrower?.notes_canvas} /> */}
       <div className="mt-10">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-black uppercase">
-            Notes
-          </h2>
-
-          <NeobrutButton
-            onClick={() => {
-              setSelectedNote(null);
-              setIsNotesOpen(true);
-            }}
-            variant="yellow"
-          >
-            New note
-          </NeobrutButton>
+       {notes.length === 0 ? null : (
+        <div className="mb-4">
+          <h2 className="text-xl font-black uppercase">Notes</h2>
         </div>
+       )}
 
         <div
           className="

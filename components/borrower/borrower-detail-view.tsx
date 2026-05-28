@@ -2,9 +2,6 @@ import { Suspense } from "react";
 
 import BorrowerAccountsAsync from "@/components/borrower/borrower-accounts-async";
 import BorrowerAccountsSectionSkeleton from "@/components/borrower/borrower-accounts-section-skeleton";
-import BorrowerDetailMenu from "@/components/borrower/borrower-detail-menu";
-import BackButton from "../back-button";
-import { isDarkColor } from "@/lib/utils";
 type Category = {
   id: string;
   name: string;
@@ -29,34 +26,6 @@ export default function BorrowerDetailView({
 }: BorrowerDetailViewProps) {
   return (
     <>   <div className="flex w-full flex-col gap-6">
-
-        <div className="">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 flex-col gap-2">
-              <h1 className="text-5xl font-black">
-                {borrower.first_name} {borrower.last_name}
-              </h1>
-              <p className="text-gray-500">
-                {borrower.contact || ""}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {borrower.category?.map((e) => {
-                  return (
-                    <div
-                      key={e.id}
-                      style={{ backgroundColor: e.color }}
-                      className={`rounded-lg border border-slate-900  px-3 py-1 text-xs font-black shadow-[4px_4px_0px_#1e1a4d] ${isDarkColor(e.color) ? "text-white" : "text-indigo-950"
-                        }`}
-                    >
-                      {e.name}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <BorrowerDetailMenu borrowerId={borrower.id} />
-          </div>
-        </div>
 
         <Suspense fallback={<BorrowerAccountsSectionSkeleton />}>
           <BorrowerAccountsAsync borrower={borrower} borrowerId={borrower.id} />

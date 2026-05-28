@@ -693,6 +693,7 @@ export default async function AccountDetailPage({
         interest={accountRow.interest_rate ?? 0}
         termMonths={accountRow.term_months ?? 0}
         paymentFrequency={accountRow.payment_frequency ?? "—"}
+        isManual={isManual}
         principal={principal}
         remaining={amountLeft}
         collected={amountPaid}
