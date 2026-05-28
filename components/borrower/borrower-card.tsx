@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition, useState, type SyntheticEvent } from "react";
+import { useTransition, useState, useRef, type SyntheticEvent } from "react";
 import { isDarkColor } from "@/lib/utils";
 import { ChevronDown, Loader2, Phone } from "lucide-react";
 import Link from "next/link";
@@ -33,6 +33,8 @@ export function BorrowerCard({
   const [isPending, startTransition] = useTransition();
   const [isAccountPending, startAccountTransition] = useTransition();
   const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
+  const touchStartY = useRef(0);
+  const didScroll = useRef(false);
   const [overdueOpen, setOverdueOpen] = useState(false);
   const [expandedOverdue, setExpandedOverdue] = useState<Record<number, boolean>>({});
   const toggleOverdue = (i: number, defaultOpen: boolean) =>
@@ -58,6 +60,7 @@ export function BorrowerCard({
   const hasAutoAccounts = (borrower.accounts_count ?? 0) > manualAccountsCount;
   function openBorrower(e: SyntheticEvent) {
     if (isPending) return;
+    if (didScroll.current) return;
     if (
       (e.target as HTMLElement).closest("[data-prevent-borrower-card-open]")
     ) {
@@ -70,6 +73,8 @@ export function BorrowerCard({
 
   return (
     <div
+      onTouchStart={(e) => { touchStartY.current = e.touches[0].clientY; didScroll.current = false; }}
+      onTouchMove={(e) => { if (Math.abs(e.touches[0].clientY - touchStartY.current) > 8) didScroll.current = true; }}
       className={`relative w-full min-w-0 max-w-full overflow-hidden rounded-xl border-2 bg-white text-left transition-all duration-150 ${
         hasOverdue
           ? "border-red-700 shadow-[4px_4px_0px_0px_#b91c1c]"
@@ -209,6 +214,7 @@ export function BorrowerCard({
                       className="relative block w-full touch-manipulation rounded-lg text-left transition hover:bg-black/5 -mx-1 px-1"
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (didScroll.current) return;
                         if (!schedule.account_id) return;
                         setPendingAccountId(schedule.account_id);
                         startAccountTransition(() => {
