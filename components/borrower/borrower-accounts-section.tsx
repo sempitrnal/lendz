@@ -31,6 +31,8 @@ function StickyBorrowerStrip({
   totalLoaned,
   totalExpected,
   totalCollected,
+  totalAmountCollected,
+  totalRemaining,
   profitPerSchedule,
   collectedPct,
 }: {
@@ -38,6 +40,8 @@ function StickyBorrowerStrip({
   totalLoaned: number;
   totalExpected: number;
   totalCollected: number;
+  totalAmountCollected: number;
+  totalRemaining: number;
   profitPerSchedule: number;
   collectedPct: number;
 }) {
@@ -68,8 +72,8 @@ function StickyBorrowerStrip({
             )}
             <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
               <span>Loaned <strong className="text-slate-700">₱{Math.round(totalLoaned).toLocaleString()}</strong></span>
-              <span>Profit <strong className="text-slate-700">₱{Math.round(totalExpected).toLocaleString()}</strong></span>
-              <span>Collected <strong className="text-emerald-700">{collectedPct}%</strong></span>
+              <span>Collected <strong className="text-emerald-700">₱{Math.round(totalAmountCollected).toLocaleString()}</strong></span>
+              <span>Remaining <strong className="text-rose-700">₱{Math.round(totalRemaining).toLocaleString()}</strong></span>
             </div>
           </div>
           <ChevronDown className={`ml-1 size-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
@@ -83,10 +87,12 @@ function StickyBorrowerStrip({
           <div className="px-4 pb-3">
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               {([
-                { label: "Total Loaned",     value: totalLoaned,        bg: "bg-sky-100" },
-                { label: "Profit Expected",  value: totalExpected,      bg: "bg-amber-100" },
-                { label: "Profit Collected", value: totalCollected,     bg: "bg-emerald-100" },
-                { label: "Profit / Schedule",value: profitPerSchedule,  bg: "bg-violet-100" },
+                { label: "Total Loaned",      value: totalLoaned,             bg: "bg-sky-100" },
+                { label: "Money Collected",   value: totalAmountCollected,    bg: "bg-teal-100" },
+                { label: "Remaining",         value: totalRemaining,          bg: "bg-rose-100" },
+                { label: "Profit Expected",   value: totalExpected,           bg: "bg-amber-100" },
+                { label: "Profit Collected",  value: totalCollected,          bg: "bg-emerald-100" },
+                { label: "Profit / Schedule", value: profitPerSchedule,       bg: "bg-violet-100" },
               ] as const).map(({ label, value, bg }, i) => (
                 <div
                   key={label}
@@ -254,11 +260,11 @@ function AccountCard({
 
         {/* Row 3: stats */}
         <p className="mt-1 text-[11px] leading-snug text-slate-500">
-          <span>Rem </span><strong className="font-black text-slate-900">₱{amountLeftToPay.toLocaleString()}</strong>
+          <span>Remaining </span><strong className="font-black  text-red-700">₱{amountLeftToPay.toLocaleString()}</strong>
           {isManual ? (
             <><span className="text-slate-300"> · </span><span>Paid </span><strong className="font-black text-slate-900">₱{totalPaid.toLocaleString()}</strong></>
           ) : (
-            <><span className="text-slate-300"> · </span><span>Profit </span><strong className="font-black text-slate-900">₱{Math.round(profitToMake).toLocaleString()}</strong><span className="text-slate-300"> · </span><strong className="font-black text-slate-900">₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}</strong><span>/pay</span></>
+            <><span className="text-slate-300"> · </span><span>Collected </span><strong className="font-black text-green-700">₱{totalPaid.toLocaleString()}</strong><span className="text-slate-300"> · </span><span>Profit </span><strong className="font-black text-slate-900">₱{Math.round(profitToMake).toLocaleString()}</strong><span className="text-slate-300"> · </span><strong className="font-black text-slate-900">₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}</strong><span>/pay</span></>
           )}
         </p>
 
@@ -505,6 +511,8 @@ export default function BorrowerAccountsSection({
     const totalLoaned = accounts.reduce((s, a) => s + Number(a.principal_amount ?? 0), 0);
     const metricsArr = Object.values(accountMetricsById);
     const totalExpected = metricsArr.reduce((s, m) => s + m.profitToMake, 0);
+    const totalAmountCollected = metricsArr.reduce((s, m) => s + m.totalPaid, 0);
+    const totalRemaining = metricsArr.reduce((s, m) => s + m.amountLeftToPay, 0);
     const totalCollected = metricsArr.reduce((s, m) =>
       s + (m.totalDue > 0 ? m.profitToMake * (m.totalPaid / m.totalDue) : 0), 0);
     let profitPerSchedule = 0;
@@ -526,7 +534,7 @@ export default function BorrowerAccountsSection({
       profitPerSchedule += m.profitToMake / installments;
     }
     const collectedPct = totalExpected > 0 ? Math.min(100, Math.round((totalCollected / totalExpected) * 100)) : 0;
-    return { totalLoaned, totalExpected, totalCollected, profitPerSchedule, collectedPct };
+    return { totalLoaned, totalExpected, totalCollected, totalAmountCollected, totalRemaining, profitPerSchedule, collectedPct };
   }, [accounts, accountMetricsById]);
 
   useEffect(() => {
@@ -540,6 +548,8 @@ export default function BorrowerAccountsSection({
           totalLoaned={summaryStats.totalLoaned}
           totalExpected={summaryStats.totalExpected}
           totalCollected={summaryStats.totalCollected}
+          totalAmountCollected={summaryStats.totalAmountCollected}
+          totalRemaining={summaryStats.totalRemaining}
           profitPerSchedule={summaryStats.profitPerSchedule}
           collectedPct={summaryStats.collectedPct}
         />
