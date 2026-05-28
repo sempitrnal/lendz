@@ -85,7 +85,7 @@ export function BorrowerCard({
         {borrower.contact ? (
           <Link
             href={`tel:${borrower.contact}`}
-            className="rounded border-2 border-slate-900 bg-indigo-100 p-1.5 text-indigo-700 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-indigo-200 active:shadow-none active:translate-y-px"
+            className="touch-manipulation rounded border-2 border-slate-900 bg-indigo-100 p-1.5 text-indigo-700 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-indigo-200 active:shadow-none active:translate-y-px"
             aria-label={`Call ${borrower.first_name} ${borrower.last_name}`}
           >
             <Phone className="size-3.5" />
@@ -110,7 +110,7 @@ export function BorrowerCard({
           });
         }}
         aria-disabled={isPending}
-        className={`box-border block w-full min-w-0 max-w-full cursor-pointer p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${isPending ? "opacity-50" : ""}`}
+        className={`box-border block w-full min-w-0 max-w-full touch-manipulation cursor-pointer p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${isPending ? "opacity-50" : ""}`}
         aria-label={`Open ${borrower.first_name} ${borrower.last_name}`}
       >
         <div className="flex w-full min-w-0 flex-col">
@@ -206,8 +206,8 @@ export function BorrowerCard({
                       key={i}
                       type="button"
                       data-prevent-borrower-card-open
-                      className="relative block w-full rounded-lg text-left transition hover:bg-black/5 -mx-1 px-1"
-                      onPointerDown={(e) => {
+                      className="relative block w-full touch-manipulation rounded-lg text-left transition hover:bg-black/5 -mx-1 px-1"
+                      onClick={(e) => {
                         e.stopPropagation();
                         if (!schedule.account_id) return;
                         setPendingAccountId(schedule.account_id);
