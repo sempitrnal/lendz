@@ -31,6 +31,8 @@ export function BorrowerCard({
 }: BorrowerCardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [isAccountPending, startAccountTransition] = useTransition();
+  const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
   const [overdueOpen, setOverdueOpen] = useState(false);
   const [expandedOverdue, setExpandedOverdue] = useState<Record<number, boolean>>({});
   const toggleOverdue = (i: number, defaultOpen: boolean) =>
@@ -197,13 +199,22 @@ export function BorrowerCard({
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                         
                       </p>
-                   {schedules ? schedules.map((schedule,i) => (
-                    <Link
+                   {schedules ? schedules.map((schedule,i) => {
+                    const isThisAccountPending = isAccountPending && pendingAccountId === schedule.account_id;
+                    return (
+                    <button
                       key={i}
-                      href={schedule.account_id ? `/accounts/${schedule.account_id}` : "#"}
+                      type="button"
                       data-prevent-borrower-card-open
-                      className="block rounded-lg transition hover:bg-black/5 -mx-1 px-1"
-                      onClick={(e) => e.stopPropagation()}
+                      className="relative block w-full rounded-lg text-left transition hover:bg-black/5 -mx-1 px-1"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        if (!schedule.account_id) return;
+                        setPendingAccountId(schedule.account_id);
+                        startAccountTransition(() => {
+                          router.push(`/accounts/${schedule.account_id}`);
+                        });
+                      }}
                     >
                     <div className="flex flex-col gap-2">
                        <p className="text-sm mt-2 font-black text-slate-900 flex  items-center gap-2">
@@ -316,8 +327,14 @@ export function BorrowerCard({
                   <div className="h-px bg-slate-800 my-2" />
 
                     </div>
-                    </Link>
-                   )) : null}
+                      {isThisAccountPending && (
+                        <div className="pointer-events-none absolute inset-0 rounded-lg bg-white/60 flex items-center justify-center">
+                          <Loader2 className="size-4 animate-spin text-slate-500" />
+                        </div>
+                      )}
+                    </button>
+                    );
+                   }) : null}
 
                     </div>
                     <div>

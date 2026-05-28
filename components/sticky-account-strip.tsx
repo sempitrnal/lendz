@@ -66,11 +66,11 @@ export default function StickyAccountStrip({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="sticky top-10 z-30 -mx-4 border-b border-slate-200 bg-white/95 backdrop-blur sm:hidden">
+    <div className="sticky top-10 z-30 -mx-4 bg-white/95 backdrop-blur sm:hidden relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-4 py-2"
+        className="flex w-full items-center justify-between border-b border-slate-200 px-4 py-2"
       >
         <div className="min-w-0 text-left">
           <p className="truncate text-sm font-black uppercase tracking-wide text-slate-900">
@@ -87,8 +87,8 @@ export default function StickyAccountStrip({
         />
       </button>
 
-      {/* smooth height via grid-rows trick */}
-      <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+      {/* Absolute overlay — doesn't push page content */}
+      <div className={`absolute left-0 right-0 top-full z-30 grid overflow-hidden bg-white/95 backdrop-blur shadow-[0_4px_0_0_#0f172a] transition-[grid-template-rows] duration-300 ease-in-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
         <div className="overflow-hidden">
           <div className="px-4 pb-3">
             <div className="grid grid-cols-3 gap-2 text-[11px]">

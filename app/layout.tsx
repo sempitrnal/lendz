@@ -7,6 +7,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import SiteHeader from "@/components/site-header";
 import BottomNav from "@/components/bottom-nav";
 import MobileTopBar from "@/components/mobile-top-bar";
+import { ScrollRestoration } from "@/components/scroll-restoration";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 import { OfflineBanner } from "@/components/offline-banner";
 import { OfflineSyncManager } from "@/components/offline-sync-manager";
@@ -60,6 +61,7 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased `}
     >
       <body className="min-h-full flex flex-col bg-[#fffefa] text-slate-900">
+        <ScrollRestoration />
         <ServiceWorkerRegistrar />
         <OfflineSyncManager />
         <OfflineBanner />
