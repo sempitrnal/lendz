@@ -16,5 +16,5 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  return <div className="pb-16 sm:pb-0">{children}</div>;
+  return <div className="pb-[52px] sm:pb-0">{children}</div>;
 }

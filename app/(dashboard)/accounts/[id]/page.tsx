@@ -648,6 +648,14 @@ export default async function AccountDetailPage({
       />
 
       <div className="space-y-6 mt-4 sm:mt-10">
+        <Link
+          href={`/borrowers/${accountRow.borrower_id}`}
+          className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider text-slate-500 transition hover:text-slate-900"
+        >
+          <span>←</span>
+          <span>{borrowerName}</span>
+        </Link>
+
         <header
           className={`overflow-hidden `}
         >
@@ -1037,13 +1045,13 @@ export default async function AccountDetailPage({
                         </th>
                         <th
                           scope="col"
-                          className={`${nb.scheduleTh} text-center`}
+                          className={`${nb.scheduleTh} text-center hidden `}
                         >
                           Paid
                         </th>
                         <th
                           scope="col"
-                          className={`${nb.scheduleTh} text-center`}
+                          className={`${nb.scheduleTh} text-center hidden `}
                         >
                           Left
                         </th>
@@ -1113,12 +1121,12 @@ export default async function AccountDetailPage({
                               })()}
                             </td>
                             <td
-                              className={`${nb.scheduleTd} whitespace-nowrap text-center font-black text-xl tabular-nums text-slate-800`}
+                              className={`${nb.scheduleTd} whitespace-nowrap text-center font-black text-xl tabular-nums text-slate-800 hidden `}
                             >
                               {formatMoney(amountPaidOnInstallment(schedule))}
                             </td>
                             <td
-                              className={`${nb.scheduleTd} whitespace-nowrap text-right font-black text-xl tabular-nums text-slate-900`}
+                              className={`${nb.scheduleTd} whitespace-nowrap text-right font-black text-xl tabular-nums text-slate-900 hidden `}
                             >
                               {formatMoney(remainingOnInstallment(schedule))}
                             </td>

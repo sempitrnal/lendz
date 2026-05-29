@@ -4,11 +4,16 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { connection } from "next/server";
 import { revalidatePath } from "next/cache";
 
-export default async function CalendarPage() {
+export default async function CalendarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string; month?: string }>;
+}) {
   await connection();
+  const params = await searchParams;
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  const year = params.year ? Number(params.year) : now.getFullYear();
+  const month = params.month ? Number(params.month) : now.getMonth() + 1;
 
   const [events, supabase] = await Promise.all([
     getCalendarEvents(year, month),

@@ -68,7 +68,7 @@ export default function StickyAccountStrip({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="sticky top-10 z-30 -mx-4 bg-white/95 backdrop-blur relative">
+    <div className="sticky top-10 sm:top-16 z-30 -mx-4 bg-white/95 backdrop-blur relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
