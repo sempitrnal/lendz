@@ -48,7 +48,7 @@ function StickyBorrowerStrip({
   const [open, setOpen] = useState(false);
   if (!borrower) return null;
   return (
-    <div className="sticky top-10 z-30 -mx-4 bg-white/95 backdrop-blur sm:hidden relative">
+    <div className="sticky top-10 z-30 -mx-4 bg-white/95 backdrop-blur  relative">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
         <button
           type="button"

@@ -79,7 +79,7 @@ export function BorrowerCard({
         hasOverdue
           ? "border-red-700 shadow-[4px_4px_0px_0px_#b91c1c]"
           : "border-slate-900 shadow-[4px_4px_0px_0px_#0f172a]"
-      } ${isPending ? "" : "hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#0f172a]"}`}
+      } ${isPending ? "" : " active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#0f172a]"}`}
       aria-busy={isPending}
     >
 

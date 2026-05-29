@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { BsThreeDotsVertical } from "react-icons/bs";
 
 import { supabase } from "@/lib/supabase/client";
@@ -15,6 +15,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 type BorrowerDetailMenuProps = {
   borrowerId: string;
@@ -30,31 +36,10 @@ export default function BorrowerDetailMenu({
   onDeleted,
 }: BorrowerDetailMenuProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function onPointerDown(event: PointerEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    if (!open) return;
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
 
   function openDeleteModal() {
-    setOpen(false);
     setDeleteModalOpen(true);
   }
 
@@ -89,62 +74,59 @@ export default function BorrowerDetailMenu({
   }
 
   return (
-    <div className="relative shrink-0" ref={rootRef}>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label="Borrower actions"
-        onClick={() => setOpen((v) => !v)}
-        className="rounded-md p-1 text-gray-700 outline-none transition-colors hover:bg-gray-100 hover:text-gray-500 focus-visible:ring-2 focus-visible:ring-gray-400"
-      >
-        <BsThreeDotsVertical className="size-4 cursor-pointer" />
-      </button>
-
-      {open ? (
-        <div
-          role="menu"
-          className="absolute right-0 top-full z-20 mt-1 min-w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
-        >
-          {!hideEditLink ? (
-            <Link
-              role="menuitem"
-              href={`/borrowers/${borrowerId}/edit`}
-              className="block px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-50"
-              onClick={() => setOpen(false)}
-            >
-              edit
-            </Link>
-          ) : null}
+    <div className="relative shrink-0">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <button
             type="button"
-            role="menuitem"
-            className="w-full px-4 py-2 text-left text-sm text-red-600 transition-colors cursor-pointer hover:bg-red-50"
-            onClick={openDeleteModal}
+            aria-label="Borrower actions"
+            className="rounded-md p-1 text-gray-700 outline-none transition-colors hover:bg-gray-100 hover:text-gray-500 focus-visible:ring-2 focus-visible:ring-gray-400"
           >
-            delete
+            <BsThreeDotsVertical className="size-4 cursor-pointer" />
           </button>
-        </div>
-      ) : null}
-  <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Delete borrower</DialogTitle>      
-      </DialogHeader>
-      <DialogDescription>
-        This will permanently remove this borrower. This cannot be undone.
-      </DialogDescription>
-      <DialogFooter>
-       <div className="flex justify-end gap-4">
-        <NeobrutButton variant="white" disabled={isDeleting} onClick={closeDeleteModal} className="">cancel</NeobrutButton>
-        <NeobrutButton variant="red" disabled={isDeleting} onClick={confirmDelete} className="">
-          {isDeleting ? "deleting..." : "delete"}
-        </NeobrutButton>
-       </div>
-      </DialogFooter> 
-    </DialogContent>
-  </Dialog>
-   
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {!hideEditLink ? (
+            <DropdownMenuItem asChild>
+              <Link href={`/borrowers/${borrowerId}/edit`}>edit</Link>
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem variant="destructive" onClick={openDeleteModal}>
+            delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete borrower</DialogTitle>
+          </DialogHeader>
+          <DialogDescription>
+            This will permanently remove this borrower. This cannot be undone.
+          </DialogDescription>
+          <DialogFooter>
+            <div className="flex justify-end gap-4">
+              <NeobrutButton
+                variant="white"
+                disabled={isDeleting}
+                onClick={closeDeleteModal}
+                className=""
+              >
+                cancel
+              </NeobrutButton>
+              <NeobrutButton
+                variant="red"
+                disabled={isDeleting}
+                onClick={confirmDelete}
+                className=""
+              >
+                {isDeleting ? "deleting..." : "delete"}
+              </NeobrutButton>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
