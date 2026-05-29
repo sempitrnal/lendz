@@ -121,7 +121,6 @@ export default function MonthView({
   const [activeWeek, setActiveWeek] = useState(0);
   const directionRef = useRef<"prev" | "next" | null>(null);
   const jumpTargetRef = useRef<{ year: number; month: number; day: number } | null>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (jumpTargetRef.current) {
@@ -228,14 +227,13 @@ export default function MonthView({
           >
             <ChevronRight className="size-5" />
           </button>
-          <button
-            type="button"
-            onClick={() => dateInputRef.current?.showPicker?.()}
-            className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+          <label
+            htmlFor="calendar-date-picker"
+            className="cursor-pointer rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
             aria-label="Jump to date"
           >
             <CalendarDays className="size-5" />
-          </button>
+          </label>
         </div>
       </div>
 
@@ -256,14 +254,13 @@ export default function MonthView({
             <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
               week {activeWeek + 1} of {weeks.length}
             </p>
-            <button
-              type="button"
-              onClick={() => dateInputRef.current?.showPicker?.()}
-              className="rounded border border-slate-300 p-0.5 text-slate-500 transition hover:border-slate-600 hover:text-slate-900"
+            <label
+              htmlFor="calendar-date-picker"
+              className="cursor-pointer rounded border border-slate-300 p-0.5 text-slate-500 transition hover:border-slate-600 hover:text-slate-900"
               aria-label="Jump to date"
             >
               <CalendarDays className="size-3" />
-            </button>
+            </label>
           </div>
         </div>
         <button
@@ -276,9 +273,10 @@ export default function MonthView({
       </div>
 
       <input
-        ref={dateInputRef}
+        id="calendar-date-picker"
         type="date"
-        className="sr-only"
+        className="pointer-events-none absolute opacity-0"
+        style={{ width: 0, height: 0 }}
         onChange={(e) => {
           if (e.target.value) jumpToDate(e.target.value);
         }}
