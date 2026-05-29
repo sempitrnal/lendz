@@ -273,15 +273,17 @@ function AccountCard({
           </button>
         )}
 
-        {/* Row 3: stats */}
-        <p className="mt-1 text-[11px] leading-snug text-slate-500">
-          <span>Remaining </span><strong className="font-black  text-red-700">₱{amountLeftToPay.toLocaleString()}</strong>
-          {isManual ? (
-            <><span className="text-slate-300"> · </span><span>Paid </span><strong className="font-black text-slate-900">₱{totalPaid.toLocaleString()}</strong></>
-          ) : (
-            <><span className="text-slate-300"> · </span><span>Collected </span><strong className="font-black text-green-700">₱{totalPaid.toLocaleString()}</strong><span className="text-slate-300"> · </span><span>Profit </span><strong className="font-black text-slate-900">₱{Math.round(profitToMake).toLocaleString()}</strong><span className="text-slate-300"> · </span><strong className="font-black text-slate-900">₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}</strong><span>/pay</span></>
-          )}
-        </p>
+        {/* Row 3: stats — hidden when pending */}
+        {account.status !== "pending" && (
+          <p className="mt-1 text-[11px] leading-snug text-slate-500">
+            <span>Remaining </span><strong className="font-black  text-red-700">₱{amountLeftToPay.toLocaleString()}</strong>
+            {isManual ? (
+              <><span className="text-slate-300"> · </span><span>Paid </span><strong className="font-black text-slate-900">₱{totalPaid.toLocaleString()}</strong></>
+            ) : (
+              <><span className="text-slate-300"> · </span><span>Collected </span><strong className="font-black text-green-700">₱{totalPaid.toLocaleString()}</strong><span className="text-slate-300"> · </span><span>Profit </span><strong className="font-black text-slate-900">₱{Math.round(profitToMake).toLocaleString()}</strong><span className="text-slate-300"> · </span><strong className="font-black text-slate-900">₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}</strong><span>/pay</span></>
+            )}
+          </p>
+        )}
 
         {/* Row 4: next collection */}
         {!isManual && nextCollectionDate && (
