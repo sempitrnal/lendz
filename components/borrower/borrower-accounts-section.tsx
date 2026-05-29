@@ -24,6 +24,7 @@ import {
 import NotesCanvas from "./notes-canvas";
 import NeobrutButton from "../neobrut-button";
 import BorrowerDetailMenu from "./borrower-detail-menu";
+import ActivateAccountDialog from "./activate-account-dialog";
 import { isDarkColor } from "@/lib/utils";
 
 function StickyBorrowerStrip({
@@ -120,6 +121,7 @@ export type AccountRow = AccountEditableRow & {
   id: string;
   borrower_id: string;
   status: string;
+  first_payment_date: string | null;
 };
 type PaymentScheduleLite = {
   id: string;
@@ -160,6 +162,7 @@ function AccountCard({
   isOpening,
   onOpen,
   onEdit,
+  onActivate,
   metrics,
 
 }: {
@@ -167,6 +170,7 @@ function AccountCard({
   isOpening: boolean;
   onOpen: (id: string) => void;
   onEdit: (account: AccountRow) => void;
+  onActivate?: (account: AccountRow) => void;
   metrics?: AccountComputedMetrics;
 }) {
   const amountLeftToPay = metrics?.amountLeftToPay ?? 0;
@@ -245,7 +249,7 @@ function AccountCard({
             ₱{Number(account.principal_amount ?? 0).toLocaleString()}
           </span>
           <span className={`ml-auto shrink-0 text-[9px] font-black uppercase border border-slate-900 px-1.5 py-0.5 rounded-full ${
-            account.status === "active" ? "bg-emerald-200 text-emerald-900" : "bg-slate-200 text-slate-600"
+            account.status === "active" ? "bg-emerald-200 text-emerald-900" : account.status === "pending" ? "bg-amber-200 text-amber-900" : "bg-slate-200 text-slate-600"
           }`}>
             {account.status}
           </span>
@@ -253,10 +257,21 @@ function AccountCard({
 
         {/* Row 2: meta */}
         <p className="mt-0.5 text-[10px] text-slate-400">
-          {!isManual ? `${account.payment_frequency} · ${account.term_months}mo · ` : "manual · "}
+          {!isManual && account.status !== "pending" ? `${account.payment_frequency} · ${account.term_months}mo · ` : account.status === "pending" ? "pending · " : "manual · "}
           {account.interest_rate}%
           {account.release_date && ` · ${new Date(account.release_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
         </p>
+
+        {account.status === "pending" && onActivate && (
+          <button
+            type="button"
+            data-prevent-account-open
+            onClick={() => onActivate(account)}
+            className="mt-2 inline-flex items-center rounded-lg border-2 border-slate-900 bg-emerald-400 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+          >
+            activate account
+          </button>
+        )}
 
         {/* Row 3: stats */}
         <p className="mt-1 text-[11px] leading-snug text-slate-500">
@@ -345,6 +360,7 @@ export default function BorrowerAccountsSection({
     null
   );
   const [openingAccountId, setOpeningAccountId] = useState<string | null>(null);
+  const [activatingAccount, setActivatingAccount] = useState<AccountRow | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => { setIsMounted(true); }, []);
@@ -542,20 +558,19 @@ export default function BorrowerAccountsSection({
   }, []);
   return (
     <div className="rounded-lg  ">
-      {summaryStats && (
+      {borrower && (
         <StickyBorrowerStrip
           borrower={borrower}
-          totalLoaned={summaryStats.totalLoaned}
-          totalExpected={summaryStats.totalExpected}
-          totalCollected={summaryStats.totalCollected}
-          totalAmountCollected={summaryStats.totalAmountCollected}
-          totalRemaining={summaryStats.totalRemaining}
-          profitPerSchedule={summaryStats.profitPerSchedule}
-          collectedPct={summaryStats.collectedPct}
+          totalLoaned={summaryStats?.totalLoaned ?? 0}
+          totalExpected={summaryStats?.totalExpected ?? 0}
+          totalCollected={summaryStats?.totalCollected ?? 0}
+          totalAmountCollected={summaryStats?.totalAmountCollected ?? 0}
+          totalRemaining={summaryStats?.totalRemaining ?? 0}
+          profitPerSchedule={summaryStats?.profitPerSchedule ?? 0}
+          collectedPct={summaryStats?.collectedPct ?? 0}
         />
       )}
 
-   
       {!accounts || accounts.length === 0 ? (
         <div className="rounded-xl border border-dashed p-10 text-center">
           <p className="text-gray-500">No accounts yet</p>
@@ -567,8 +582,11 @@ export default function BorrowerAccountsSection({
             const db = b.release_date ? new Date(b.release_date).getTime() : 0;
             return db - da;
           });
-        const loans = sortByRelease(accounts.filter((a) => a.type !== "cash_advance"));
-        const cashAdvances = sortByRelease(accounts.filter((a) => a.type === "cash_advance"));
+        const activeLoans = sortByRelease(accounts.filter((a) => a.status !== "pending" && a.type !== "cash_advance"));
+        const activeCashAdvances = sortByRelease(accounts.filter((a) => a.status !== "pending" && a.type === "cash_advance"));
+        const pendingLoans = sortByRelease(accounts.filter((a) => a.status === "pending" && a.type !== "cash_advance"));
+        const pendingCashAdvances = sortByRelease(accounts.filter((a) => a.status === "pending" && a.type === "cash_advance"));
+        const pendingAll = [...pendingLoans, ...pendingCashAdvances];
         const renderGroup = (group: typeof accounts, label: string, accent: string) =>
           group.length === 0 ? null : (
             <div>
@@ -589,6 +607,7 @@ export default function BorrowerAccountsSection({
                       setEditingAccount(acc);
                       setIsAccountDialogOpen(true);
                     }}
+                    onActivate={(acc) => setActivatingAccount(acc)}
                     metrics={accountMetricsById[account.id]}
                   />
                 ))}
@@ -597,8 +616,9 @@ export default function BorrowerAccountsSection({
           );
         return (
           <div className="space-y-8">
-            {renderGroup(loans, "loans", "bg-violet-200 text-violet-900")}
-            {renderGroup(cashAdvances, "cash advances", "bg-amber-200 text-amber-900")}
+            {renderGroup(activeLoans, "loans", "bg-violet-200 text-violet-900")}
+            {renderGroup(activeCashAdvances, "cash advances", "bg-amber-200 text-amber-900")}
+            {renderGroup(pendingAll, "pending", "bg-amber-50 text-amber-800")}
           </div>
         );
       })()}
@@ -666,6 +686,27 @@ export default function BorrowerAccountsSection({
           />
         </DialogContent>
       </Dialog>
+
+      <ActivateAccountDialog
+        open={Boolean(activatingAccount)}
+        onClose={() => setActivatingAccount(null)}
+        accountId={activatingAccount?.id ?? ""}
+        initialValues={
+          activatingAccount
+            ? {
+                principal_amount: Number(activatingAccount.principal_amount ?? 0),
+                interest_rate: Number(activatingAccount.interest_rate ?? 0),
+                release_date: activatingAccount.release_date ?? "",
+                first_payment_date: activatingAccount.first_payment_date ?? "",
+                payment_frequency: (activatingAccount.payment_frequency as any) ?? "bimonthly",
+                term_months: Number(activatingAccount.term_months ?? 1),
+                schedule_mode: (activatingAccount.schedule_mode as any) ?? "auto",
+                interest_type: (activatingAccount.interest_type as any) ?? "flat",
+              }
+            : {}
+        }
+      />
+
       {/* <NotesCanvas borrowerId={borrowerId} initialData={borrower?.notes_canvas} /> */}
       <div className="mt-10">
        {notes.length === 0 ? null : (

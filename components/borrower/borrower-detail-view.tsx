@@ -25,13 +25,10 @@ export default function BorrowerDetailView({
   borrower,
 }: BorrowerDetailViewProps) {
   return (
-    <>   <div className="flex w-full flex-col gap-6">
-
-        <Suspense fallback={<BorrowerAccountsSectionSkeleton />}>
-          <BorrowerAccountsAsync borrower={borrower} borrowerId={borrower.id} />
-
-        </Suspense>
-      </div></>
-
+    <div className="flex w-full flex-col gap-6">
+      <Suspense fallback={<BorrowerAccountsSectionSkeleton />}>
+        <BorrowerAccountsAsync borrower={borrower} borrowerId={borrower.id} />
+      </Suspense>
+    </div>
   );
 }

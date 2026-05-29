@@ -9,6 +9,7 @@ export type AuditAction =
   | "schedule.added"
   | "account.created"
   | "account.updated"
+  | "account.activated"
   | "account.deleted"
   | "borrower.created"
   | "borrower.updated"

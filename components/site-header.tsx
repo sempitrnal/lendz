@@ -25,6 +25,7 @@ const DESKTOP_LINKS = [
   { href: "/dashboard", label: "dashboard" },
   { href: "/borrowers", label: "borrowers" },
   { href: "/accounts", label: "accounts" },
+  { href: "/calendar", label: "calendar" },
   { href: "/categories", label: "categories" },
   { href: "/daily-checklist", label: "daily checklist" },
 ];

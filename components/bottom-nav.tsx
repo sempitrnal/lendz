@@ -2,11 +2,12 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition, useState } from "react";
-import { LayoutDashboard, Users, Tag, ClipboardCheck, Loader2 } from "lucide-react";
+import { LayoutDashboard, Users, Tag, ClipboardCheck, CalendarDays, Loader2 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard",       label: "Dashboard",  Icon: LayoutDashboard },
   { href: "/borrowers",       label: "Borrowers",  Icon: Users },
+  { href: "/calendar",        label: "Calendar",   Icon: CalendarDays },
   { href: "/categories",      label: "Categories", Icon: Tag },
   { href: "/daily-checklist", label: "Checklist",  Icon: ClipboardCheck },
 ];

@@ -17,146 +17,11 @@ import {
 } from "@/lib/form-field-classes";
 import { supabase } from "@/lib/supabase/client";
 import NeobrutButton from "@/components/neobrut-button";
-import {
-  bimonthlyLegacyInstallmentAmount,
-  generateLegacyBimonthlyDueDates,
-} from "@/lib/payment-schedule/bimonthly-legacy";
-import { addOneMonthAnchored } from "@/lib/payment-schedule/monthly-anchor";
-
-function formatLocalISODate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-/** Avoid UTC vs local ambiguity from `new Date("YYYY-MM-DD")`. */
-function parseDateInput(isoDate: string): Date {
-  const [y, m, d] = isoDate.split("-").map(Number);
-  return new Date(y, (m ?? 1) - 1, d ?? 1);
-}
+import { buildSchedulesPayload } from "@/lib/payment-schedule/build-payload";
 
 export function isoDateOnlyForInput(iso: string | null | undefined): string {
   if (!iso) return "";
   return iso.slice(0, 10);
-}
-
-function buildSchedulesPayload(
-  accountId: string,
-  values: AccountFormValues
-): Array<{
-  account_id: string;
-  due_date: string;
-  amount_due: number;
-  amount_paid: number;
-  remaining_amount: number;
-  status: string;
-  note: null;
-}> {
-  const schedules: Array<{
-    account_id: string;
-    due_date: string;
-    amount_due: number;
-    amount_paid: number;
-    remaining_amount: number;
-    status: string;
-    note: null;
-  }> = [];
-
-  if (values.payment_frequency === "bimonthly") {
-    const totalWithInterest =
-      values.principal_amount * (1 + values.interest_rate / 100);
-    const start = parseDateInput(values.first_payment_date);
-    const dueDates = generateLegacyBimonthlyDueDates(start, values.term_months);
-    const pay = bimonthlyLegacyInstallmentAmount(
-      values.principal_amount,
-      values.interest_rate,
-      values.term_months
-    );
-
-    for (const d of dueDates) {
-      schedules.push({
-        account_id: accountId,
-        due_date: formatLocalISODate(d),
-        amount_due: pay,
-        amount_paid: 0,
-        remaining_amount: pay,
-        status: "pending",
-        note: null,
-      });
-    }
-  } else {
-    let currentDate = parseDateInput(values.first_payment_date);
-    const monthlyAnchorDay = currentDate.getDate();
-
-    const isCustom = values.payment_frequency === "custom";
-
-    if (isCustom) {
-      // Custom frequency uses bimonthly-style date pattern and interest
-      const numberOfSchedules = Math.round(values.term_months);
-      const equivalentMonths = numberOfSchedules / 2;
-      const totalInterest =
-        values.principal_amount * (values.interest_rate / 100) * equivalentMonths;
-      const totalPayment = values.principal_amount + totalInterest;
-      const installmentAmount = Number(
-        (totalPayment / numberOfSchedules).toFixed(2)
-      );
-
-      // Reuse bimonthly date generation, request enough months then take first N
-      const monthsNeeded = Math.ceil(numberOfSchedules / 2);
-      const dueDates = generateLegacyBimonthlyDueDates(
-        currentDate,
-        monthsNeeded
-      );
-
-      for (let i = 0; i < numberOfSchedules; i++) {
-        schedules.push({
-          account_id: accountId,
-          due_date: formatLocalISODate(dueDates[i]),
-          amount_due: installmentAmount,
-          amount_paid: 0,
-          remaining_amount: installmentAmount,
-          status: "pending",
-          note: null,
-        });
-      }
-    } else {
-      const numberOfSchedules =
-        values.payment_frequency === "weekly"
-          ? Math.round(values.term_months * 4)
-          : Math.round(values.term_months);
-
-      const totalInterest =
-        values.principal_amount *
-        (values.interest_rate / 100) *
-        values.term_months;
-      const totalPayment = values.principal_amount + totalInterest;
-      const installmentAmount = totalPayment / numberOfSchedules;
-
-      for (let i = 0; i < numberOfSchedules; i++) {
-        const amt = Number(installmentAmount.toFixed(2));
-        schedules.push({
-          account_id: accountId,
-          due_date: formatLocalISODate(currentDate),
-          amount_due: amt,
-          amount_paid: 0,
-          remaining_amount: amt,
-          status: "pending",
-          note: null,
-        });
-
-        if (values.payment_frequency === "monthly") {
-          currentDate = addOneMonthAnchored(currentDate, monthlyAnchorDay);
-        } else if (values.payment_frequency === "weekly") {
-          currentDate.setDate(currentDate.getDate() + 7);
-        } else {
-          currentDate = addOneMonthAnchored(currentDate, monthlyAnchorDay);
-        }
-      }
-    }
-  }
-
-  return schedules;
 }
 
 const formatNumber = (value: string) => {
@@ -184,6 +49,7 @@ const emptyDefaults = (borrowerId: string): AccountFormValues => ({
   payment_frequency: "bimonthly",
   schedule_mode: "auto",
   interest_type: "flat",
+  status: "active",
 });
 
 export type AccountEditableRow = {
@@ -197,6 +63,7 @@ export type AccountEditableRow = {
   term_installments: number | string | null;
   schedule_mode: string | null;
   interest_type?: string | null;
+  status?: string | null;
 };
 
 export function accountRowToFormInitial(
@@ -224,7 +91,8 @@ export function accountRowToFormInitial(
     payment_frequency,
     schedule_mode: scheduleMode,
     interest_type: account.interest_type === "rolling" ? "rolling" : "flat",
-  };
+    status: (account.status as AccountFormValues["status"] | undefined) ?? "active",
+  } as Partial<AccountFormValues>;
 }
 
 export default function AccountForm({
@@ -244,21 +112,24 @@ export default function AccountForm({
     watch,
     formState: { errors, isSubmitting },
   } = useForm<AccountFormValues>({
-    resolver: zodResolver(accountSchema),
+    resolver: zodResolver(accountSchema) as any,
     defaultValues: {
       ...emptyDefaults(borrowerId),
       ...initialValues,
       borrower_id: borrowerId,
-    },
+      status: initialValues?.status ?? emptyDefaults(borrowerId).status,
+    } as AccountFormValues,
   });
 
   const value = watch("principal_amount");
   const frequency = watch("payment_frequency");
   const scheduleMode = watch("schedule_mode");
   const interestType = watch("interest_type");
+  const status = watch("status");
   const isCustom = frequency === "custom";
   const isManual = scheduleMode === "manual";
   const isRolling = isManual && interestType === "rolling";
+  const isPending = status === "pending";
   const onSubmit = async (values: AccountFormValues) => {
     const schedulesPayload = (id: string) => buildSchedulesPayload(id, values);
 
@@ -277,6 +148,7 @@ export default function AccountForm({
           payment_frequency: values.schedule_mode === 'manual' ? 'bisag kanus-a' : values.payment_frequency,
           schedule_mode: values.schedule_mode,
           interest_type: values.interest_type ?? 'flat',
+          status: values.status,
         })
         .eq("id", accountId);
 
@@ -332,7 +204,21 @@ export default function AccountForm({
       return;
     }
 
-    if (values.schedule_mode === "auto") {
+    if (values.status === "pending" && values.release_date) {
+      const { error: evtError } = await supabase.from("calendar_events").insert({
+        borrower_id: values.borrower_id,
+        account_id: account.id,
+        event_date: values.release_date,
+        title: "Activate account",
+        amount: values.principal_amount,
+        status: "scheduled",
+      });
+      if (evtError) {
+        toast.error("Account created but calendar event failed: " + evtError.message);
+      }
+    }
+
+    if (values.status !== "pending" && values.schedule_mode === "auto") {
       const schedules = schedulesPayload(account.id);
 
       const { error: scheduleError } = await supabase
@@ -345,7 +231,7 @@ export default function AccountForm({
       }
     }
 
-    if (values.schedule_mode === "manual" && values.interest_type === "rolling" && values.interest_rate > 0) {
+    if (values.status !== "pending" && values.schedule_mode === "manual" && values.interest_type === "rolling" && values.interest_rate > 0) {
       const principal = values.principal_amount;
       const firstDue = Math.round(principal * (1 + values.interest_rate / 100) * 100) / 100;
       const dueDate = values.release_date || new Date().toISOString().split("T")[0];
@@ -365,9 +251,12 @@ export default function AccountForm({
       }
     }
 
-    await logAuditAction("account.created", "account", account.id, `Account created (${values.type}, ₱${values.principal_amount.toLocaleString()})`, { type: values.type, principal: values.principal_amount, interest_rate: values.interest_rate, schedule_mode: values.schedule_mode, interest_type: values.interest_type }, account.id);
+    await logAuditAction("account.created", "account", account.id, `Account created (${values.type}, ₱${values.principal_amount.toLocaleString()})`, { type: values.type, principal: values.principal_amount, interest_rate: values.interest_rate, schedule_mode: values.schedule_mode, interest_type: values.interest_type, status: values.status }, account.id);
     reset(emptyDefaults(borrowerId));
-    toast.success("Account created." + (values.schedule_mode === "manual" ? (values.interest_type === "rolling" ? " First rolling schedule generated." : " Add schedules manually.") : ""));
+    const msg = values.status === "pending"
+      ? "Pending account created. A calendar event was scheduled for activation."
+      : "Account created." + (values.schedule_mode === "manual" ? (values.interest_type === "rolling" ? " First rolling schedule generated." : " Add schedules manually.") : "");
+    toast.success(msg);
 
     router.refresh();
     onSuccess?.();
@@ -407,6 +296,49 @@ export default function AccountForm({
           <option value="manual">manual (I&apos;ll add schedules myself)</option>
         </select>
       </div>
+
+      {!isEdit && (
+        <div>
+          <label className={formFieldLabelClassName}>Account status</label>
+          <div className="flex gap-3">
+            <label
+              className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition ${
+                !isPending
+                  ? "bg-emerald-200 shadow-[2px_2px_0px_0px_#0f172a]"
+                  : "bg-white hover:bg-slate-50"
+              }`}
+            >
+              <input
+                type="radio"
+                value="active"
+                {...register("status")}
+                className="sr-only"
+              />
+              <span>active</span>
+            </label>
+            <label
+              className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition ${
+                isPending
+                  ? "bg-amber-200 shadow-[2px_2px_0px_0px_#0f172a]"
+                  : "bg-white hover:bg-slate-50"
+              }`}
+            >
+              <input
+                type="radio"
+                value="pending"
+                {...register("status")}
+                className="sr-only"
+              />
+              <span>pending</span>
+            </label>
+          </div>
+          {isPending && (
+            <p className="mt-1 text-[10px] text-slate-500">
+              Payment schedules will be created when this account is activated. A calendar event will be added using the release date.
+            </p>
+          )}
+        </div>
+      )}
 
       {isManual && (
         <div>
@@ -529,7 +461,7 @@ export default function AccountForm({
           ) : null}
         </div>
 
-        {!isManual && (
+        {!isManual && !isPending && (
           <div className="min-w-0">
             <label
               className={formFieldLabelClassName}
@@ -554,7 +486,7 @@ export default function AccountForm({
         )}
       </div>
 
-      {!isManual && (
+      {!isManual && !isPending && (
         <>
           <div>
             <label

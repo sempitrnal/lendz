@@ -29,6 +29,8 @@ import AnimatedNumber from "@/components/animated-number";
 import NextScheduleScroller from "@/components/next-schedule-scroller";
 import PaidCheck from "@/components/paid-check";
 import OverdueSad from "@/components/overdue-sad";
+import PendingActivationBanner from "@/components/accounts/pending-activation-banner";
+import type { ActivateAccountData } from "@/app/actions/accounts";
 import {
   amountPaidOnInstallment,
   isInstallmentFullyPaid,
@@ -48,6 +50,7 @@ type AccountRow = {
   payment_frequency: string | null;
   schedule_mode: string | null;
   interest_type: string | null;
+  first_payment_date: string | null;
   created_at: string;
 };
 
@@ -750,6 +753,24 @@ export default async function AccountDetailPage({
           </div>
         </header>
 
+        {accountRow.status === "pending" ? (
+          <PendingActivationBanner
+            releaseDate={accountRow.release_date}
+            principal={principal}
+            accountId={id}
+            initialValues={{
+              principal_amount: principal,
+              interest_rate: Number(accountRow.interest_rate ?? 0),
+              release_date: accountRow.release_date ?? "",
+              first_payment_date: accountRow.first_payment_date ?? "",
+              payment_frequency: (accountRow.payment_frequency as ActivateAccountData["payment_frequency"]) ?? "bimonthly",
+              term_months: Number(accountRow.term_months ?? 1),
+              schedule_mode: (accountRow.schedule_mode as ActivateAccountData["schedule_mode"]) ?? "auto",
+              interest_type: (accountRow.interest_type as ActivateAccountData["interest_type"]) ?? "flat",
+            }}
+          />
+        ) : null}
+
         <section aria-labelledby="balances-heading" className="hidden sm:block">
           <h2 id="balances-heading" className={`mb-3 ${nb.label}`}>
             Balances
@@ -807,6 +828,7 @@ export default async function AccountDetailPage({
           </div>
         </section>
 
+        {accountRow.status !== "pending" ? (
         <ScheduleSelectionProvider>
           <section
             className={nb.scheduleShell}
@@ -1158,6 +1180,7 @@ export default async function AccountDetailPage({
             onBatchPaid={batchUpdateScheduleStatus}
           />
         </ScheduleSelectionProvider>
+        ) : null}
       </div>
     </div>
   );

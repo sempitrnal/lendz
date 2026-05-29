@@ -27,6 +27,7 @@ type AccountRow = {
   payment_frequency: string | null;
   schedule_mode: string | null;
   interest_type: string | null;
+  first_payment_date: string | null;
   created_at: string;
 };
 

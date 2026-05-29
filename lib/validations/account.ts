@@ -34,8 +34,10 @@ export const accountSchema = z.object({
     schedule_mode: z.enum(["auto", "manual"] as const),
 
     interest_type: z.enum(["flat", "rolling"] as const).optional(),
+
+    status: z.enum(["active", "pending"] as const).default("active"),
 }).superRefine((data, ctx) => {
-    if (data.schedule_mode === "auto") {
+    if (data.status !== "pending" && data.schedule_mode === "auto") {
         if (!data.first_payment_date) {
             ctx.addIssue({
                 code: "custom",
