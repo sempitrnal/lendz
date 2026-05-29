@@ -1,4 +1,6 @@
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { connection } from "next/server";
+import { getAccountDetailPageData } from "@/lib/cache/accounts";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
@@ -170,78 +172,18 @@ export default async function AccountDetailPage({
   params,
   searchParams,
 }: AccountDetailPageProps & { searchParams: Promise<{ focus?: string }> }) {
+  await connection();
   const { id } = await params;
   const { focus: focusScheduleId } = await searchParams;
-  const supabase = await createSupabaseServer();
 
-  const { data: account, error: accountError } = await supabase
-    .from("accounts")
-    .select(
-      "id, borrower_id, type, status, release_date, principal_amount, interest_rate, term_months, payment_frequency, schedule_mode, interest_type, created_at"
-    )
-    .eq("id", id)
-    .single();
-
-  if (accountError || !account) {
+  let accountDetail;
+  try {
+    accountDetail = await getAccountDetailPageData(id);
+  } catch {
     notFound();
   }
 
-  const { data: borrower } = await supabase
-    .from("borrowers")
-    .select("id, first_name, last_name")
-    .eq("id", account.borrower_id)
-    .single<BorrowerRow>();
-
-  let schedulesData: unknown[] | null = null;
-  {
-    const res = await supabase
-      .from("payment_schedules")
-      .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, paid_date, status"
-      )
-      .eq("account_id", account.id)
-      .order("due_date", { ascending: true });
-    if (res.error) {
-      const fb1 = await supabase
-        .from("payment_schedules")
-        .select(
-          "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, status"
-        )
-        .eq("account_id", account.id)
-        .order("due_date", { ascending: true });
-      if (fb1.error) {
-        const fb2 = await supabase
-          .from("payment_schedules")
-          .select("id, account_id, due_date, amount_due, status")
-          .eq("account_id", account.id)
-          .order("due_date", { ascending: true });
-        schedulesData = (fb2.data ?? []) as unknown[];
-      } else {
-        schedulesData = fb1.data ?? [];
-      }
-    } else {
-      schedulesData = res.data ?? [];
-    }
-  }
-
-  // Fetch schedule_payments for all schedules in this account
-  const scheduleIds = ((schedulesData ?? []) as { id: string }[]).map((s) => s.id);
-  let paymentsMap = new Map<string, SchedulePaymentRow[]>();
-  if (scheduleIds.length > 0) {
-    const { data: paymentsData } = await supabase
-      .from("schedule_payments")
-      .select("id, schedule_id, amount, payment_date, note, created_at")
-      .in("schedule_id", scheduleIds)
-      .order("created_at", { ascending: true });
-    for (const p of (paymentsData ?? []) as SchedulePaymentRow[]) {
-      const list = paymentsMap.get(p.schedule_id) ?? [];
-      list.push(p);
-      paymentsMap.set(p.schedule_id, list);
-    }
-  }
-
-  const schedules = (schedulesData ?? []) as PaymentScheduleRow[];
-  const accountRow = account as AccountRow;
+  const { account: accountRow, borrower, schedules, paymentsMap } = accountDetail;
   const accountStatusClasses = getAccountStatusClasses(accountRow.status);
   const totalPayment = schedules.reduce(
     (sum, s) => sum + (s.amount_due ?? 0),
@@ -936,7 +878,7 @@ export default async function AccountDetailPage({
 
           <ScheduleEditBar allIds={schedules.map((s) => s.id)} />
 
-          {isManual ? <div className="print:hidden "><AddSchedulesPanel accountId={account.id} addSchedules={addSchedules} /></div> : null}
+          {isManual ? <div className="print:hidden "><AddSchedulesPanel accountId={accountRow.id} addSchedules={addSchedules} /></div> : null}
 
           {schedules.length === 0 ? (
             <div className="border-t-2 border-dashed border-slate-300 bg-slate-50/80 px-5 py-12 text-center">

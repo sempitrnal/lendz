@@ -1,98 +1,18 @@
-import { createSupabaseServer } from "@/lib/supabase/server";
-import BorrowerAccountsSection, {
-  type AccountRow,
-  type AccountComputedMetrics,
-} from "@/components/borrower/borrower-accounts-section";
-import { BorrowerSummary } from "./borrower-detail-view";
-import {
-  amountPaidOnInstallment,
-  isInstallmentFullyPaid,
-  nextDueScheduleForCollection,
-  remainingOnInstallment,
-} from "@/lib/payment-schedule/schedule-balances";
+import { getBorrowerAccountsWithSchedules } from "@/lib/cache/borrowers";
+import BorrowerAccountsSection from "@/components/borrower/borrower-accounts-section";
+import type { BorrowerSummary } from "./borrower-detail-view";
 
 type BorrowerAccountsAsyncProps = {
   borrowerId: string;
-  borrower?: BorrowerSummary
+  borrower?: BorrowerSummary;
 };
 
 export default async function BorrowerAccountsAsync({
   borrowerId,
-  borrower
+  borrower,
 }: BorrowerAccountsAsyncProps) {
-  const supabase = await createSupabaseServer();
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("*")
-    .eq("borrower_id", borrowerId)
-    .order("created_at", { ascending: false });
-
-  const accountList = (accounts ?? []) as AccountRow[];
-  const initialMetrics: Record<string, AccountComputedMetrics> = {};
-
-  if (accountList.length > 0) {
-    const { data: schedulesData } = await supabase
-      .from("payment_schedules")
-      .select("id, account_id, due_date, amount_due, amount_paid, remaining_amount, status")
-      .in("account_id", accountList.map((a) => a.id))
-      .order("due_date", { ascending: true });
-
-    const scheduleRows = schedulesData ?? [];
-    const byAccount = new Map<string, typeof scheduleRows>();
-    scheduleRows.forEach((row) => {
-      const prev = byAccount.get(row.account_id) ?? [];
-      prev.push(row);
-      byAccount.set(row.account_id, prev);
-    });
-
-    accountList.forEach((account) => {
-      const rows = byAccount.get(account.id) ?? [];
-      const totalPayment = rows.reduce((sum, row) => sum + Number(row.amount_due ?? 0), 0);
-      const amountPaid = rows.reduce((sum, row) => sum + amountPaidOnInstallment(row), 0);
-      const amountLeftToPayRaw = rows.reduce((sum, row) => sum + remainingOnInstallment(row), 0);
-      const amountLeftToPayRolling = rows
-        .filter((row) => row.status !== "partial")
-        .reduce((sum, row) => sum + remainingOnInstallment(row), 0);
-      const principal = Number(account.principal_amount ?? 0);
-      const interestRate = Number(account.interest_rate ?? 0);
-      const isManual = account.schedule_mode === "manual";
-      const isRolling = isManual && account.interest_type === "rolling";
-      const isFlatManual = isManual && !isRolling;
-      const manualFlatTotal = isFlatManual ? principal * (1 + interestRate / 100) : 0;
-      const amountLeftToPay = isFlatManual
-        ? Math.max(0, manualFlatTotal - amountPaid)
-        : isRolling
-          ? amountLeftToPayRolling
-          : amountLeftToPayRaw;
-      const rollingContract = isRolling ? amountPaid + amountLeftToPay : 0;
-      const profitToMake = isFlatManual
-        ? manualFlatTotal - principal
-        : isRolling
-          ? Math.max(0, rollingContract - principal)
-          : Math.max(0, totalPayment - principal);
-      const nextUnpaid = nextDueScheduleForCollection(rows);
-      const overdueRows = rows.filter((row) => row.status === "overdue" && !isInstallmentFullyPaid(row));
-      initialMetrics[account.id] = {
-        amountLeftToPay,
-        profitToMake,
-        nextCollectionDate: nextUnpaid?.due_date ?? null,
-        nextCollectionAmount: nextUnpaid ? remainingOnInstallment(nextUnpaid) : 0,
-        nextCollectionAmountDue: nextUnpaid ? Math.max(0, Number(nextUnpaid.amount_due ?? 0)) : 0,
-        nextCollectionStatus: nextUnpaid?.status ?? null,
-        nextUnpaidScheduleId: nextUnpaid?.id ?? null,
-        overdueCount: overdueRows.length,
-        overdueTotal: overdueRows.reduce((sum, row) => sum + remainingOnInstallment(row), 0),
-        overdueSchedules: [...overdueRows]
-          .sort((a, b) => a.due_date.localeCompare(b.due_date))
-          .map((row) => ({ due_date: row.due_date, amount: remainingOnInstallment(row) })),
-        totalDue: isFlatManual ? manualFlatTotal : totalPayment,
-        totalPaid: amountPaid,
-        term_months: account.term_months,
-        term_installments: account.term_installments,
-        schedule_mode: account.schedule_mode,
-      };
-    });
-  }
+  const { accountList, initialMetrics } =
+    await getBorrowerAccountsWithSchedules(borrowerId);
 
   return (
     <BorrowerAccountsSection

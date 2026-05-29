@@ -1,5 +1,5 @@
 import BorrowerDetailView from "@/components/borrower/borrower-detail-view";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { getBorrowerById } from "@/lib/cache/borrowers";
 import { notFound } from "next/navigation";
 
 type BorrowerPageProps = {
@@ -12,22 +12,18 @@ export default async function BorrowerPage({
   params,
 }: BorrowerPageProps) {
   const { id } = await params;
-  const supabase = await createSupabaseServer();
 
-  const { data: borrower, error } = await supabase
-    .from("borrowers")
-    .select(`
-    *,
-    category:categories(*)
-  `)
-    .eq("id", id)
-    .single();
+  try {
+    const borrower = await getBorrowerById(id);
 
-  if (error || !borrower) {
+    if (!borrower) {
+      notFound();
+    }
+
+    return (
+      <BorrowerDetailView borrower={borrower} />
+    );
+  } catch {
     notFound();
   }
-  console.log(borrower)
-  return (
-    <BorrowerDetailView borrower={borrower} />
-  );
 }
