@@ -3,7 +3,7 @@
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { buildSchedulesPayload } from "@/lib/payment-schedule/build-payload";
 import { logAudit } from "@/lib/audit";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 export type ActivateAccountData = {
   principal_amount: number;
@@ -129,5 +129,13 @@ export async function activateAccountAction(
   revalidatePath(`/accounts/${accountId}`);
   revalidatePath(`/borrowers/${account.borrower_id}`);
   revalidatePath("/calendar");
+  updateTag("account");
+  updateTag(`account-${accountId}`);
+  updateTag("accounts-page");
+  updateTag("borrowers");
+  updateTag(`borrower-accounts-${account.borrower_id}`);
+  updateTag("calendar");
+  updateTag("dashboard");
+  updateTag("next-collection");
   return {};
 }

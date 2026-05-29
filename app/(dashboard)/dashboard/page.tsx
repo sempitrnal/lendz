@@ -11,6 +11,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { getAllPaymentSchedules } from "@/lib/cache/schedules";
 import {
   isInstallmentFullyPaid,
   nextDueScheduleForCollection,
@@ -64,36 +65,6 @@ type BorrowerRef = {
   }>;
 };
 
-const SUPABASE_PAGE_SIZE = 1000;
-
-async function fetchSchedulesWhere(
-  supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  applyFilters?: (query: any) => any
-): Promise<ScheduleAggRow[]> {
-  const allRows: ScheduleAggRow[] = [];
-  let from = 0;
-
-  while (true) {
-    let query = supabase
-      .from("payment_schedules")
-      .select(
-        "id, account_id, amount_due, amount_paid, remaining_amount, status, due_date"
-      );
-
-    if (applyFilters) query = applyFilters(query);
-
-    const { data, error } = await query.range(from, from + SUPABASE_PAGE_SIZE - 1);
-
-    if (error || !data || data.length === 0) break;
-    allRows.push(...(data as ScheduleAggRow[]));
-    if (data.length < SUPABASE_PAGE_SIZE) break;
-    from += SUPABASE_PAGE_SIZE;
-  }
-
-  return allRows;
-}
-
 export default async function Dashboard() {
   const supabase = await createSupabaseServer();
   const now = new Date();
@@ -121,9 +92,7 @@ export default async function Dashboard() {
     { data: newBorrowerAccountsWeekData },
     { count: newLoansMonthCount },
     { data: accountTotalsData },
-    unpaidSchedules,
-    thisMonthSchedules,
-    sixMonthSchedules,
+    allSchedules,
   ] = await Promise.all([
     supabase.from("borrowers").select("*", { count: "exact", head: true }),
     supabase
@@ -136,14 +105,16 @@ export default async function Dashboard() {
       .select("*", { count: "exact", head: true })
       .gte("release_date", startOfMonthIso),
     supabase.from("accounts").select("id, principal_amount, release_date, term_months, payment_frequency"),
-    fetchSchedulesWhere(supabase, (q) => q.neq("status", "paid")),
-    fetchSchedulesWhere(supabase, (q) =>
-      q.gte("due_date", startOfMonthDate).lte("due_date", endOfMonthDate)
-    ),
-    fetchSchedulesWhere(supabase, (q) =>
-      q.gte("due_date", sixMonthsAgoDate).lte("due_date", endOfMonthDate)
-    ),
+    getAllPaymentSchedules(),
   ]);
+
+  const unpaidSchedules = allSchedules.filter((row) => row.status !== "paid");
+  const thisMonthSchedules = allSchedules.filter(
+    (row) => row.due_date >= startOfMonthDate && row.due_date <= endOfMonthDate
+  );
+  const sixMonthSchedules = allSchedules.filter(
+    (row) => row.due_date >= sixMonthsAgoDate && row.due_date <= endOfMonthDate
+  );
 
   const dueSchedules = unpaidSchedules
     .filter(

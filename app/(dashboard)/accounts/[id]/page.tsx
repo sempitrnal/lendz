@@ -2,7 +2,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { connection } from "next/server";
 import { getAccountDetailPageData } from "@/lib/cache/accounts";
 import { logAudit } from "@/lib/audit";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import BackButton from "@/components/back-button";
@@ -307,6 +307,13 @@ export default async function AccountDetailPage({
     }
 
     revalidatePath(`/accounts/${accountRow.id}`);
+    updateTag("account");
+    updateTag(`account-${accountRow.id}`);
+    updateTag("accounts-page");
+    updateTag("borrowers");
+    updateTag("calendar");
+    updateTag("dashboard");
+    updateTag("next-collection");
   }
 
   async function batchUpdateScheduleStatus(
@@ -363,6 +370,13 @@ export default async function AccountDetailPage({
     });
 
     revalidatePath(`/accounts/${accountRow.id}`);
+    updateTag("account");
+    updateTag(`account-${accountRow.id}`);
+    updateTag("accounts-page");
+    updateTag("borrowers");
+    updateTag("calendar");
+    updateTag("dashboard");
+    updateTag("next-collection");
   }
 
   async function applyPartialPayment(formData: FormData) {
@@ -457,6 +471,13 @@ export default async function AccountDetailPage({
     });
 
     revalidatePath(`/accounts/${row.account_id as string}`);
+    updateTag("account");
+    updateTag(`account-${row.account_id as string}`);
+    updateTag("accounts-page");
+    updateTag("borrowers");
+    updateTag("calendar");
+    updateTag("dashboard");
+    updateTag("next-collection");
   }
 
   async function updatePaymentEntry(formData: FormData) {
@@ -508,6 +529,13 @@ export default async function AccountDetailPage({
     }
 
     revalidatePath(`/accounts/${id}`);
+    updateTag("account");
+    updateTag(`account-${id}`);
+    updateTag("accounts-page");
+    updateTag("borrowers");
+    updateTag("calendar");
+    updateTag("dashboard");
+    updateTag("next-collection");
   }
 
   async function deletePaymentEntry(formData: FormData) {
@@ -573,6 +601,13 @@ export default async function AccountDetailPage({
     }
 
     revalidatePath(`/accounts/${id}`);
+    updateTag("account");
+    updateTag(`account-${id}`);
+    updateTag("accounts-page");
+    updateTag("borrowers");
+    updateTag("calendar");
+    updateTag("dashboard");
+    updateTag("next-collection");
   }
 
   async function deleteSchedule(scheduleId: string) {
@@ -595,6 +630,13 @@ export default async function AccountDetailPage({
       metadata: { scheduleId, amount_due: sched?.amount_due, due_date: sched?.due_date, status: sched?.status },
     });
     revalidatePath(`/accounts/${id}`);
+    updateTag("account");
+    updateTag(`account-${id}`);
+    updateTag("accounts-page");
+    updateTag("borrowers");
+    updateTag("calendar");
+    updateTag("dashboard");
+    updateTag("next-collection");
   }
 
   async function addSchedules(
@@ -616,6 +658,13 @@ export default async function AccountDetailPage({
     );
     if (error) return { error: error.message };
     revalidatePath(`/accounts/${id}`);
+    updateTag("account");
+    updateTag(`account-${id}`);
+    updateTag("accounts-page");
+    updateTag("borrowers");
+    updateTag("calendar");
+    updateTag("dashboard");
+    updateTag("next-collection");
     return {};
   }
 

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
+import { fetchCategoriesAction } from "@/lib/actions/categories";
 import { formFieldInputClassName } from "@/lib/form-field-classes";
 import {
   mapAccountIdToNextDueSchedule,
@@ -34,6 +35,8 @@ export type Borrower = {
   next_collection_amounts?: number[];
   next_collection_status?: string | null;
   has_accounts?: boolean;
+  all_accounts_pending?: boolean;
+  pending_principal_total?: number;
   overdue_total?: number;
   overdue_count?: number;
   accounts_count?: number;
@@ -155,20 +158,9 @@ export default function BorrowersList({
   >([]);
 
   useEffect(() => {
-    const loadCategories = async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name, color")
-        .order("name", { ascending: true });
-
-      if (!error) {
-        setCategories(
-          (data ?? []) as { id: string; name: string; color: string | null }[]
-        );
-      }
-    };
-
-    loadCategories();
+    fetchCategoriesAction().then((rows) => {
+      setCategories(rows.map((c) => ({ id: c.id, name: c.name, color: c.color })));
+    });
   }, []);
 
   return (

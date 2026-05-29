@@ -1,34 +1,44 @@
-import { Suspense } from "react";
+import BorrowerAccountsSection from "@/components/borrower/borrower-accounts-section";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import type { AccountRow, AccountComputedMetrics } from "@/components/borrower/borrower-accounts-section";
 
-import BorrowerAccountsAsync from "@/components/borrower/borrower-accounts-async";
-import BorrowerAccountsSectionSkeleton from "@/components/borrower/borrower-accounts-section-skeleton";
 type Category = {
   id: string;
   name: string;
   color: string;
-  created_at: string
-}
+  created_at: string;
+};
+
 export type BorrowerSummary = {
   id: string;
   first_name: string;
   last_name: string;
   contact: string | null;
-  category: Category[]
-  notes_canvas: any
+  category: Category[];
+  notes_canvas: any;
 };
 
 type BorrowerDetailViewProps = {
   borrower: BorrowerSummary;
+  accounts: AccountRow[];
+  initialMetrics: Record<string, AccountComputedMetrics>;
 };
 
 export default function BorrowerDetailView({
   borrower,
+  accounts,
+  initialMetrics,
 }: BorrowerDetailViewProps) {
   return (
     <div className="flex w-full flex-col gap-6">
-      <Suspense fallback={<BorrowerAccountsSectionSkeleton />}>
-        <BorrowerAccountsAsync borrower={borrower} borrowerId={borrower.id} />
-      </Suspense>
+      <Link href="/borrowers" className="flex gap-2 items-center text-stone-600 text-sm"><ArrowLeft className="w-5 h-5"/><span>back to borrowers</span></Link>
+      <BorrowerAccountsSection
+        borrower={borrower}
+        borrowerId={borrower.id}
+        accounts={accounts}
+        initialMetrics={initialMetrics}
+      />
     </div>
   );
 }

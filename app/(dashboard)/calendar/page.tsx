@@ -2,7 +2,7 @@ import CalendarPageClient from "@/components/calendar/calendar-page-client";
 import { getCalendarEvents } from "@/lib/cache/calendar-events";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { connection } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 export default async function CalendarPage({
   searchParams,
@@ -74,6 +74,7 @@ export default async function CalendarPage({
 
     revalidatePath("/calendar");
     revalidatePath(`/borrowers/${borrower_id}`);
+    updateTag("calendar");
     return {};
   }
 
@@ -90,6 +91,7 @@ export default async function CalendarPage({
 
     revalidatePath("/calendar");
     if (evt?.borrower_id) revalidatePath(`/borrowers/${evt.borrower_id}`);
+    updateTag("calendar");
     return {};
   }
 

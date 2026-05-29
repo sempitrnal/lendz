@@ -82,6 +82,14 @@ export function BorrowerCard({
       } ${isPending ? "" : " active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#0f172a]"}`}
       aria-busy={isPending}
     >
+      {/* Prefetch borrower detail page for instant navigation */}
+      <Link
+        href={`/borrowers/${borrower.id}`}
+        prefetch
+        className="sr-only"
+        aria-hidden="true"
+        tabIndex={-1}
+      />
 
       <div
         className="absolute right-2 top-2 z-10 flex items-center gap-1"
@@ -141,34 +149,44 @@ export function BorrowerCard({
           </div>
         </div>
 
-        {showScheduleSummary && hasManual ? (
-          <div
-            className="mt-4 w-full min-w-0 border-2 border-slate-900 bg-violet-50 p-3 shadow-[2px_2px_0px_0px_#0f172a]"
-          >
-            <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-              Manual accounts
+        {showScheduleSummary && borrower.all_accounts_pending ? (
+          <div className="mt-4 w-full min-w-0 rounded-xl border-2 border-amber-600 bg-amber-50 p-3 shadow-[2px_2px_0px_0px_#d97706]">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-800">
+              pending loan
             </p>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-              <div className="rounded-md border-2 border-slate-900 bg-white p-2 shadow-[1px_1px_0px_0px_#0f172a]">
-                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">Principal</p>
-                <p className="mt-0.5 text-sm font-black tabular-nums text-slate-900">₱{manualPrincipal.toLocaleString()}</p>
+            <p className="mt-1 text-sm font-black text-amber-900">
+              ₱{(borrower.pending_principal_total ?? 0).toLocaleString()}{" "}
+              <span className="text-xs font-bold text-amber-700">principal</span>
+            </p>
+            <p className="mt-1 text-[10px] font-bold text-amber-700">
+              Awaiting release — no collection schedules yet
+            </p>
+          </div>
+        ) : null}
+
+        {showScheduleSummary && hasManual && schedules.length > 0 ? (
+          <div className="mt-3 w-full min-w-0 rounded-lg border-2 border-slate-900 bg-violet-50 p-2.5 shadow-[2px_2px_0px_0px_#0f172a]">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">manual</p>
+                <p className="text-xs font-black tabular-nums text-slate-900">₱{manualPrincipal.toLocaleString()}</p>
               </div>
-              <div className="rounded-md border-2 border-slate-900 bg-emerald-50 p-2 shadow-[1px_1px_0px_0px_#0f172a]">
-                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">Paid</p>
-                <p className="mt-0.5 text-sm font-black tabular-nums text-emerald-800">₱{manualPaid.toLocaleString()}</p>
+              <div className="text-right">
+                <p className="text-[9px] font-black uppercase tracking-wider text-emerald-600">paid</p>
+                <p className="text-xs font-black tabular-nums text-emerald-700">₱{manualPaid.toLocaleString()}</p>
               </div>
-              <div className="rounded-md border-2 border-slate-900 bg-rose-50 p-2 shadow-[1px_1px_0px_0px_#0f172a]">
-                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">Remaining</p>
-                <p className="mt-0.5 text-sm font-black tabular-nums text-rose-800">₱{manualRemaining.toLocaleString()}</p>
+              <div className="text-right">
+                <p className="text-[9px] font-black uppercase tracking-wider text-rose-600">left</p>
+                <p className="text-xs font-black tabular-nums text-rose-700">₱{manualRemaining.toLocaleString()}</p>
               </div>
             </div>
 
             {manualPrincipal > 0 && (() => {
               const pct = Math.min(100, Math.round((manualPaid / manualPrincipal) * 100));
               return (
-                <div className="mt-2 space-y-1">
+                <div className="mt-2 flex items-center gap-2">
                   <div
-                    className="h-2 w-full overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
+                    className="h-1.5 flex-1 overflow-hidden rounded border border-slate-900 bg-white"
                     role="progressbar"
                     aria-valuenow={pct}
                     aria-valuemin={0}
@@ -177,14 +195,14 @@ export function BorrowerCard({
                   >
                     <div className="h-full bg-emerald-400" style={{ width: `${pct}%` }} />
                   </div>
-                  <p className="text-[10px] font-black text-stone-700">{pct}% paid</p>
+                  <p className="shrink-0 text-[9px] font-black text-stone-700">{pct}%</p>
                 </div>
               );
             })()}
           </div>
         ) : null}
 
-        {showScheduleSummary && hasAccounts && hasAutoAccounts ? (
+        {showScheduleSummary && hasAccounts && hasAutoAccounts && schedules.length > 0 ? (
           <div
             className="mt-4 w-full min-w-0 self-stretch border-2 border-slate-900 bg-sky-100 p-3 shadow-[2px_2px_0px_0px_#0f172a]"
           >

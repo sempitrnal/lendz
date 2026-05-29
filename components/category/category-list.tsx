@@ -9,6 +9,7 @@ import {
   formFieldLabelClassName,
 } from "@/lib/form-field-classes";
 import { supabase } from "@/lib/supabase/client";
+import { fetchCategoriesAction } from "@/lib/actions/categories";
 import CategoryCard from "./category-card";
 import BackButton from "../back-button";
 type Count = {
@@ -40,18 +41,12 @@ export default function CategoryList() {
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const loadCategories = async () => {
-    const { data, error } = await supabase
-      .from("categories")
-      .select("id, name, color, created_at, borrower_categories(count)")
-      .order("name", { ascending: true });
-
-    if (error) {
-      alert(error.message);
-      setLoading(false);
-      return;
+    try {
+      const rows = await fetchCategoriesAction();
+      setCategories(rows as Category[]);
+    } catch {
+      setCategories([]);
     }
-
-    setCategories((data ?? []) as Category[]);
     setLoading(false);
   };
 

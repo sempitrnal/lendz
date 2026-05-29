@@ -1,5 +1,5 @@
 import BorrowerDetailView from "@/components/borrower/borrower-detail-view";
-import { getBorrowerById } from "@/lib/cache/borrowers";
+import { getBorrowerById, getBorrowerAccountsWithSchedules } from "@/lib/cache/borrowers";
 import { notFound } from "next/navigation";
 
 type BorrowerPageProps = {
@@ -14,14 +14,17 @@ export default async function BorrowerPage({
   const { id } = await params;
 
   try {
-    const borrower = await getBorrowerById(id);
+    const [borrower, { accountList, initialMetrics }] = await Promise.all([
+      getBorrowerById(id),
+      getBorrowerAccountsWithSchedules(id),
+    ]);
 
     if (!borrower) {
       notFound();
     }
 
     return (
-      <BorrowerDetailView borrower={borrower} />
+      <BorrowerDetailView borrower={borrower} accounts={accountList} initialMetrics={initialMetrics} />
     );
   } catch {
     notFound();

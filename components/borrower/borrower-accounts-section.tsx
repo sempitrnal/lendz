@@ -519,8 +519,7 @@ export default function BorrowerAccountsSection({
 
   useEffect(() => {
     fetchNotes();
-    fetchAccountMetrics();
-  }, [borrowerId, accounts]);
+  }, [borrowerId]);
 
   const summaryStats = useMemo(() => {
     if (!accounts || accounts.length === 0) return null;

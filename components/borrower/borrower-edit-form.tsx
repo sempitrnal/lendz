@@ -20,6 +20,7 @@ import {
 } from "@/lib/form-field-classes";
 import { formatContactNumber } from "@/lib/format-contact-number";
 import { supabase } from "@/lib/supabase/client";
+import { fetchCategoriesAction } from "@/lib/actions/categories";
 import { useEffect, useState } from "react";
 import { isDarkColor } from "@/lib/utils";
 
@@ -71,18 +72,9 @@ export default function BorrowerEditForm({
     register("contact");
 
   useEffect(() => {
-    const loadCategories = async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name, color")
-        .order("name", { ascending: true });
-
-      if (!error) {
-        setCategories((data ?? []) as CategoryOption[]);
-      }
-    };
-
-    loadCategories();
+    fetchCategoriesAction().then((rows) => {
+      setCategories(rows.map((c) => ({ id: c.id, name: c.name, color: c.color ?? "" })));
+    });
   }, []);
 
   const onSubmit = async (values: BorrowerFormValues) => {

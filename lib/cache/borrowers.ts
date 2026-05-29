@@ -94,7 +94,7 @@ export async function getBorrowersPageData(
   if (borrowerIds.length > 0) {
     const { data: accountRows } = await supabase
       .from("accounts")
-      .select("id, borrower_id, principal_amount, schedule_mode, interest_rate")
+      .select("id, borrower_id, principal_amount, schedule_mode, interest_rate, status")
       .in("borrower_id", borrowerIds);
 
     const accounts = (accountRows ?? []) as Array<{
@@ -103,7 +103,14 @@ export async function getBorrowersPageData(
       principal_amount: number | null;
       schedule_mode: string | null;
       interest_rate: number | null;
+      status: string | null;
     }>;
+    const accountsByBorrower = new Map<string, typeof accounts>();
+    for (const a of accounts) {
+      const list = accountsByBorrower.get(a.borrower_id) ?? [];
+      list.push(a);
+      accountsByBorrower.set(a.borrower_id, list);
+    }
     const allAccountIds = accounts.map((a) => a.id);
     const accountIdsByBorrower = new Map<string, string[]>();
     for (const a of accounts) {
@@ -179,6 +186,11 @@ export async function getBorrowersPageData(
 
       enrichedBorrowers = rawBorrowers.map((b) => {
         const accIds = accountIdsByBorrower.get(b.id) ?? [];
+        const borrowerAccounts = accountsByBorrower.get(b.id) ?? [];
+        const allPending = borrowerAccounts.length > 0 && borrowerAccounts.every((a) => a.status === "pending");
+        const pendingPrincipal = allPending
+          ? borrowerAccounts.reduce((sum, a) => sum + Number(a.principal_amount ?? 0), 0)
+          : 0;
         const overdue = overdueByBorrower.get(b.id) ?? {
           total: 0,
           count: 0,
@@ -190,6 +202,8 @@ export async function getBorrowersPageData(
         return {
           ...b,
           has_accounts: accIds.length > 0,
+          all_accounts_pending: allPending,
+          pending_principal_total: pendingPrincipal,
           next_collection_date: n.next_collection_date,
           next_collection_amount: n.next_collection_amount,
           next_collection_amounts: n.next_collection_amounts,
@@ -209,6 +223,8 @@ export async function getBorrowersPageData(
       enrichedBorrowers = rawBorrowers.map((b) => ({
         ...b,
         has_accounts: false,
+        all_accounts_pending: false,
+        pending_principal_total: 0,
         next_collection_date: null,
         next_collection_amount: 0,
         accounts_count: 0,
