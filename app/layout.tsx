@@ -57,6 +57,7 @@ async function AuthHeaderAndNav() {
   return (
     <>
       <SiteHeader isLoggedIn={Boolean(user)} logoutAction={logout} />
+      <OfflineBanner />
       {Boolean(user) && <BottomNav />}
     </>
   );
@@ -78,8 +79,6 @@ export default function RootLayout({
         </Suspense>
         <ServiceWorkerRegistrar />
         <OfflineSyncManager />
-        <OfflineBanner />
-        
         <Suspense fallback={<div className="h-16 bg-white border-b border-slate-200" />}>
           <AuthHeaderAndNav />
         </Suspense>
