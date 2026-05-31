@@ -22,7 +22,7 @@ export function ScheduleDeleteButton({ scheduleId, deleteSchedule }: Props) {
       onClick={() =>
         startTransition(() => deleteSchedule(scheduleId))
       }
-      className="flex items-center justify-center rounded-md border-2 border-red-700 bg-red-100 p-1 text-red-700 shadow-[1px_1px_0px_0px_#b91c1c] transition hover:bg-red-200 disabled:cursor-wait disabled:opacity-50"
+      className="flex items-center justify-center rounded-md border-2 border-red-700 bg-red-100 p-1 text-red-700 shadow-[1px_1px_0px_0px_#b91c1c] transition hover:bg-red-200 disabled:cursor-wait disabled:opacity-50 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/40"
       aria-label="Delete schedule"
     >
       <Trash2 className="size-3.5" />

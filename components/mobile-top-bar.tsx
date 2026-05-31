@@ -21,12 +21,12 @@ export default function MobileTopBar() {
   }
 
   return (
-    <div className="fixed left-0 right-0 top-0 z-40 flex h-10 items-center gap-2 border-b border-slate-200 bg-white/90 px-3 backdrop-blur sm:hidden print:hidden">
+    <div className="fixed left-0 right-0 top-0 z-40 flex h-10 items-center gap-2 border-b border-slate-200 bg-white/90 px-3 backdrop-blur dark:border-border/50 dark:bg-background/90 sm:hidden print:hidden">
       <button
         type="button"
         onClick={handleBack}
         aria-label="Go back"
-        className="flex items-center gap-1.5 rounded-lg border border-slate-900 bg-white px-2 py-1 text-xs font-black shadow-[2px_2px_0px_0px_#0f172a] transition active:shadow-none"
+        className="flex items-center gap-1.5 rounded-lg border border-slate-900 bg-white px-2 py-1 text-xs font-black shadow-[2px_2px_0px_0px_#0f172a] transition active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
       >
         <ArrowLeft className="size-3.5" strokeWidth={2.5} />
         back

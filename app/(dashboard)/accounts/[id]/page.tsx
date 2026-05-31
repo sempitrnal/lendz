@@ -97,13 +97,13 @@ const nb = {
     "text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500",
   /** Payment schedule block — full neobrut */
   scheduleShell:
-    "overflow-hidden rounded-xl border-2 border-slate-900 bg-white shadow-[5px_5px_0px_0px_#0f172a]",
+    "overflow-hidden rounded-xl border-2 border-slate-900 bg-white shadow-[5px_5px_0px_0px_#0f172a] dark:border-border dark:bg-card",
   scheduleHead:
-    "border-b-2  border-slate-900 bg-green-300 px-4 py-3 sm:px-5 sm:py-4",
+    "border-b-2  border-slate-900 bg-green-300 px-4 py-3 sm:px-5 sm:py-4 dark:border-border dark:bg-[#0e331e]",
   scheduleTh:
-    "border-r-2  border-b-2 border-slate-900 bg-slate-100 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide text-slate-900 last:border-r-0",
+    "border-r-2  border-b-2 border-slate-900 bg-slate-100 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide text-slate-900 last:border-r-0 dark:border-border dark:bg-muted dark:text-foreground",
   scheduleTd:
-    "border-r-2 border-slate-900 px-3 py-2.5 align-middle text-slate-900 last:border-r-0",
+    "border-r-2 border-slate-900 px-3 py-2.5 align-middle text-slate-900 last:border-r-0 dark:border-border dark:text-foreground",
 };
 
 function formatMoney(value: number) {
@@ -140,34 +140,33 @@ function getAccountStatusClasses(status: string) {
 function getScheduleStatusClasses(status: string) {
   if (status === "paid") {
     return {
-      badge: "border-emerald-600/80 bg-emerald-50 text-emerald-900",
-      row: "bg-emerald-100",
-      dot: "bg-emerald-500",
-      text: "text-green-500"
+      badge: "border-emerald-600/80 bg-emerald-50 text-emerald-900 dark:border-[#2ea043] dark:bg-[#2ea043]/20 dark:text-[#56d364]",
+      row: "bg-emerald-100 dark:bg-[#0f2417]",
+      dot: "bg-emerald-500 dark:bg-[#2ea043]",
+      text: "text-green-500 dark:text-[#56d364]"
     };
   }
   if (status === "partial") {
     return {
-      badge: "border-violet-600/80 bg-violet-50 text-violet-950",
-      row: "bg-violet-100",
-      dot: "bg-violet-500",
-      text: "text-violet-500"
+      badge: "border-violet-600/80 bg-violet-50 text-violet-950 dark:border-[#8b5cf6] dark:bg-[#8b5cf6]/20 dark:text-[#c4b5fd]",
+      row: "bg-violet-100 dark:bg-[#1a1033]",
+      dot: "bg-violet-500 dark:bg-[#8b5cf6]",
+      text: "text-violet-500 dark:text-[#c4b5fd]"
     };
   }
   if (status === "overdue") {
     return {
-      badge: "border-rose-600/80 bg-rose-50 text-rose-900",
-      row: "bg-rose-50",
-      dot: "bg-rose-500",
-      text: "text-rose-     800"
+      badge: "border-rose-600/80 bg-rose-50 text-rose-900 dark:border-[#f85149] dark:bg-[#f85149]/20 dark:text-[#ff7b72]",
+      row: "bg-rose-50 dark:bg-[#2a0a0a]",
+      dot: "bg-rose-500 dark:bg-[#f85149]",
+      text: "text-rose-800 dark:text-[#ff7b72]"
     };
   }
   return {
-    badge: "border-amber-600/80 bg-amber-50 text-amber-950",
-    row: "bg-amber-50/50",
-    dot: "bg-amber-500",
-    text: "text-amber-800",
-
+    badge: "border-amber-600/80 bg-amber-50 text-amber-950 dark:border-[#d29922] dark:bg-[#d29922]/20 dark:text-[#e3b341]",
+    row: "bg-amber-50/50 dark:bg-[#241a00]",
+    dot: "bg-amber-500 dark:bg-[#d29922]",
+    text: "text-amber-800 dark:text-[#e3b341]",
   };
 }
 
@@ -896,49 +895,49 @@ export default async function AccountDetailPage({
               <div>
                 <h2
                   id="schedule-heading"
-                  className="text-sm font-black uppercase tracking-wide text-slate-900"
+                  className="text-sm font-black uppercase tracking-wide text-slate-900 dark:text-foreground"
                 >
                   Payment schedules
                 </h2>
                 {nextDue ? (
-                  <p className="mt-1.5 text-sm font-semibold text-slate-800">
+                  <p className="mt-1.5 text-sm font-semibold text-slate-800 dark:text-muted-foreground">
                     Next due{" "}
-                    <span className="font-black text-slate-900">
+                    <span className="font-black text-slate-900 dark:text-foreground">
                       {formatScheduleDate(nextDue.due_date)}
                     </span>
-                    <span className="text-slate-600"> · </span>
-                    <span className="font-black tabular-nums text-slate-900">
+                    <span className="text-slate-600 dark:text-muted-foreground"> · </span>
+                    <span className="font-black tabular-nums text-slate-900 dark:text-foreground">
                       {formatMoney(remainingOnInstallment(nextDue))}
                     </span>
                     {remainingOnInstallment(nextDue) <
                     Number(nextDue.amount_due ?? 0) ? (
-                      <span className="text-slate-600">
+                      <span className="text-slate-600 dark:text-muted-foreground">
                         {" "}
                         left of{" "}
-                        <span className="font-bold tabular-nums">
+                        <span className="font-bold tabular-nums dark:text-foreground">
                           {formatMoney(Number(nextDue.amount_due ?? 0))}
                         </span>
                       </span>
                     ) : null}
                   </p>
                 ) : totalInstallments > 0 && isManual ? (
-                  <p className="mt-1.5 text-sm font-bold text-emerald-900">
-                    
+                  <p className="mt-1.5 text-sm font-bold text-emerald-900 dark:text-emerald-400">
+
                   </p>
-                ) :   <p className="mt-1.5 text-sm font-bold text-emerald-900">
+                ) :   <p className="mt-1.5 text-sm font-bold text-emerald-900 dark:text-emerald-400">
                     All installments settled.
                   </p>}
               </div>
               {(isManual ? principal > 0 : totalInstallments > 0) ? (
                 <div className="w-full max-w-xs sm:w-48">
-                  <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-wide text-slate-800">
+                  <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-wide text-slate-800 dark:text-muted-foreground">
                     <span>{isManual ? "Recovered" : "Progress"}</span>
-                    <span className="tabular-nums text-slate-900">
+                    <span className="tabular-nums text-slate-900 dark:text-foreground">
                       {progressPct}%
                     </span>
                   </div>
                   <div
-                    className="h-3 overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
+                    className="h-3 overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-card"
                     role="progressbar"
                     aria-valuenow={progressPct}
                     aria-valuemin={0}
@@ -960,8 +959,8 @@ export default async function AccountDetailPage({
           {isManual ? <div className="print:hidden "><AddSchedulesPanel accountId={accountRow.id} addSchedules={addSchedules} /></div> : null}
 
           {schedules.length === 0 ? (
-            <div className="border-t-2 border-dashed border-slate-300 bg-slate-50/80 px-5 py-12 text-center">
-              <p className="text-sm font-black uppercase tracking-wide text-slate-600">
+            <div className="border-t-2 border-dashed border-slate-300 bg-slate-50/80 px-5 py-12 text-center dark:border-border/50 dark:bg-muted/50">
+              <p className="text-sm font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
                 No payment schedules yet
               </p>
             </div>
@@ -1011,20 +1010,20 @@ export default async function AccountDetailPage({
                     >
                       {/* always-visible card header */}
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-black uppercase tracking-wide text-slate-400">#{i + 1}</span>
+                        <span className="text-[11px] font-black uppercase tracking-wide text-slate-400 dark:text-muted-foreground">#{i + 1}</span>
                         {isNext && (
-                          <span className="inline-block rounded border-2 border-slate-900 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a]">
+                          <span className="inline-block rounded border-2 border-slate-900 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-sky-900/30 dark:text-sky-200">
                             Next
                           </span>
                         )}
-                        <span className={`ml-auto shrink-0 rounded-full border-2 px-2 py-0.5 text-[10px] font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] ${st.badge}`}>
+                        <span className={`ml-auto shrink-0 rounded-full border-2 px-2 py-0.5 text-[10px] font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-none ${st.badge}`}>
                           {schedule.status}
                         </span>
                         <ScheduleCheckbox scheduleId={schedule.id} />
                       </div>
 
                       <div className="mt-1 flex items-baseline gap-2">
-                        <p className="text-2xl font-black tabular-nums tracking-tight text-slate-900">
+                        <p className="text-2xl font-black tabular-nums tracking-tight text-slate-900 dark:text-foreground">
                           {formatMoney(Number(schedule.amount_due ?? 0))}
                         </p>
                         {schedule.status === "paid" ? <PaidCheck /> : null}
@@ -1036,13 +1035,13 @@ export default async function AccountDetailPage({
                         const base = Math.round(due / (1 + interestRate / 100) * 100) / 100;
                         const interest = Math.round((due - base) * 100) / 100;
                         return (
-                          <p className="text-[10px] tabular-nums text-slate-400">
+                          <p className="text-[10px] tabular-nums text-slate-400 dark:text-muted-foreground">
                             {formatMoney(base)} + {interestRate}% (+{formatMoney(interest)})
                           </p>
                         );
                       })()}
 
-                      <p className="mt-0.5 text-sm font-semibold text-slate-600">
+                      <p className="mt-0.5 text-sm font-semibold text-slate-600 dark:text-muted-foreground">
                         {formatScheduleDate(schedule.due_date)}
                       </p>
 
@@ -1052,11 +1051,11 @@ export default async function AccountDetailPage({
                         const pct = due > 0 ? Math.min(100, Math.round((paid / due) * 100)) : 0;
                         return (
                           <div className="mt-2">
-                            <div className="flex justify-between text-[10px] font-black text-slate-500">
+                            <div className="flex justify-between text-[10px] font-black text-slate-500 dark:text-muted-foreground">
                               <span>Paid {formatMoney(paid)}</span>
                               <span>Left {formatMoney(remainingOnInstallment(schedule))}</span>
                             </div>
-                            <div className="mt-1 h-1.5 overflow-hidden rounded-full border border-slate-300 bg-slate-100">
+                            <div className="mt-1 h-1.5 overflow-hidden rounded-full border border-slate-300 bg-slate-100 dark:border-border dark:bg-muted">
                               <div className="h-full bg-amber-400" style={{ width: `${pct}%` }} />
                             </div>
                           </div>
@@ -1064,7 +1063,7 @@ export default async function AccountDetailPage({
                       })()}
 
                       {schedule.note ? (
-                        <p className="mt-1 line-clamp-1 text-xs text-slate-400">{schedule.note}</p>
+                        <p className="mt-1 line-clamp-1 text-xs text-slate-400 dark:text-muted-foreground">{schedule.note}</p>
                       ) : null}
                     </ScheduleMobileCard>
                   );
@@ -1126,7 +1125,7 @@ export default async function AccountDetailPage({
                           <tr
                             key={schedule.id}
                             id={isNext ? "next-schedule" : undefined}
-                            className={`border-b-2 border-slate-900 last:border-b-0 transition-colors duration-700  ${st.row} ${isNext ? "bg-sky-1000" : ""}`}
+                            className={`border-b-2 border-slate-900 last:border-b-0 transition-colors duration-700 dark:border-border ${st.row} ${isNext ? "bg-sky-100 dark:bg-sky-900/20" : ""}`}
                           >
                             <ScheduleCheckboxCell
                               scheduleId={schedule.id}

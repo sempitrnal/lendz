@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Settings, Check, ArrowRightLeft, Trash2, ChevronDown, GripVertical } from "lucide-react";
+import { useTheme } from "next-themes";
 import Modal from "@/components/modal";
 
 type ChecklistCategory = {
@@ -37,6 +38,16 @@ function tintColor(hex: string, opacity = 0.15): string {
   return `rgb(${blend(r)}, ${blend(g)}, ${blend(b)})`;
 }
 
+/** Darken a hex color by mixing with dark card background (#161b22) */
+function darkTintColor(hex: string, opacity = 0.25): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const bgR = 22, bgG = 27, bgB = 34;
+  const blend = (c: number, bg: number) => Math.round(c * opacity + bg * (1 - opacity));
+  return `rgb(${blend(r, bgR)}, ${blend(g, bgG)}, ${blend(b, bgB)})`;
+}
+
 function CategorySection({
   category,
   items,
@@ -65,6 +76,8 @@ function CategorySection({
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const didDragRef = useRef(false);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   const checkedCount = items.filter((i) => i.is_checked).length;
 
@@ -86,14 +99,18 @@ function CategorySection({
     setNewLabel("");
   };
 
-  const bgColor = category ? tintColor(category.color, 0.15) : undefined;
+  const bgColor = category
+    ? isDark
+      ? darkTintColor(category.color, 0.25)
+      : tintColor(category.color, 0.15)
+    : undefined;
   const borderColor = category ? category.color : undefined;
 
   return (
     <div
-      className="rounded-xl border-2 border-slate-900 p-3 shadow-[3px_3px_0px_0px_#0f172a] sm:p-4"
+      className="rounded-xl border-2 border-slate-900 p-3 shadow-[3px_3px_0px_0px_#0f172a] dark:border-border dark:shadow-none sm:p-4"
       style={{
-        backgroundColor: bgColor ?? "#f8fafc",
+        backgroundColor: bgColor ?? (isDark ? "#161b22" : "#f8fafc"),
         borderColor: borderColor ?? undefined,
       }}
     >
@@ -104,19 +121,19 @@ function CategorySection({
       >
         {category && (
           <span
-            className="inline-block size-3 shrink-0 rounded-sm border border-slate-900/25"
+            className="inline-block size-3 shrink-0 rounded-sm border border-slate-900/25 dark:border-border/50"
             style={{ backgroundColor: category.color }}
             aria-hidden
           />
         )}
-        <h3 className="text-sm font-black lowercase text-slate-900">
+        <h3 className="text-sm font-black lowercase text-slate-900 dark:text-foreground">
           {category ? category.name : "uncategorized"}
         </h3>
-        <span className="text-xs font-semibold text-slate-500">
+        <span className="text-xs font-semibold text-slate-500 dark:text-muted-foreground">
           {checkedCount}/{items.length}
         </span>
         <ChevronDown
-          className={`ml-auto size-4 text-slate-600 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+          className={`ml-auto size-4 text-slate-600 dark:text-muted-foreground transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -129,20 +146,20 @@ function CategorySection({
               onChange={(e) => setNewLabel(e.target.value)}
          
               placeholder={`Add item${category ? ` to ${category.name}` : ""}...`}
-              className="w-full rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm text-slate-900"
+              className="w-full rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-border dark:bg-card dark:text-foreground"
             />
             <button
               type="button"
               onClick={() => void handleAdd()}
               disabled={saving}
-              className="shrink-0 rounded-md border-2 border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs font-bold uppercase text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300"
+              className="shrink-0 rounded-md border-2 border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs font-bold uppercase text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 dark:border-border dark:bg-emerald-900/30 dark:text-emerald-300 dark:shadow-none dark:hover:bg-emerald-900/40"
             >
               {saving ? "..." : "add"}
             </button>
           </div>
 
           {sorted.length === 0 ? (
-            <p className="rounded-md border-2 border-dashed border-slate-400 bg-white/60 px-3 py-2 text-xs text-slate-500">
+            <p className="rounded-md border-2 border-dashed border-slate-400 bg-white/60 px-3 py-2 text-xs text-slate-500 dark:border-border/50 dark:bg-card/60 dark:text-muted-foreground">
               No items yet.
             </p>
           ) : (
@@ -171,8 +188,8 @@ function CategorySection({
                   }}
                   onDragEnd={() => { setDragId(null); setDropIndex(null); setTimeout(() => { didDragRef.current = false; }, 0); }}
                   onClick={() => { if (didDragRef.current) return; onToggle(item); }}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg transition border-2 border-slate-900 px-3 py-1.5 ${
-                    item.is_checked ? "bg-green-200 opacity-80" : "bg-white hover:bg-slate-100"
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg transition border-2 border-slate-900 px-3 py-1.5 dark:border-border ${
+                    item.is_checked ? "bg-green-200 opacity-80 dark:bg-[#0f2417]" : "bg-white hover:bg-slate-100 dark:bg-card dark:hover:bg-muted"
                   } ${dragId === item.id ? "opacity-40" : ""} ${
                     isAbove ? "border-t-4 border-t-violet-500" : isBelow ? "border-b-4 border-b-violet-500" : ""
                   }`}
@@ -181,16 +198,16 @@ function CategorySection({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onToggle(item); }}
                     title={item.is_checked ? "Uncheck" : "Check"}
-                    className={`shrink-0 rounded-md border-2 border-slate-900 p-1 transition ${
+                    className={`shrink-0 rounded-md border-2 border-slate-900 p-1 transition dark:border-border ${
                       item.is_checked
-                        ? "bg-emerald-400 text-white"
-                        : "bg-white text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
+                        ? "bg-emerald-400 text-white dark:bg-[#2ea043]"
+                        : "bg-white text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:bg-card dark:text-muted-foreground dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
                     }`}
                   >
                     <Check className="size-3.5" />
                   </button>
                   <span
-                    className={`min-w-0 flex-1 text-lg -translate-y-[0.8px] font-bold whitespace-pre-wrap break-words overflow-hidden ${item.is_checked ? "text-slate-500 line-through" : "text-slate-900"}`}
+                    className={`min-w-0 flex-1 text-lg -translate-y-[0.8px] font-bold whitespace-pre-wrap break-words overflow-hidden ${item.is_checked ? "text-slate-500 line-through dark:text-muted-foreground" : "text-slate-900 dark:text-foreground"}`}
                   >
                     {item.label}
                   </span>
@@ -199,7 +216,7 @@ function CategorySection({
                       type="button"
                       onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}
                       title="Move to category"
-                      className="rounded-md border-2 border-slate-900 bg-white p-1 text-slate-600 transition hover:bg-violet-50 hover:text-violet-700"
+                      className="rounded-md border-2 border-slate-900 bg-white p-1 text-slate-600 transition hover:bg-violet-50 hover:text-violet-700 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-violet-900/20 dark:hover:text-violet-400"
                     >
                       <ArrowRightLeft className="size-3.5" />
                     </button>
@@ -207,13 +224,13 @@ function CategorySection({
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
                       title="Delete"
-                      className="rounded-md border-2 border-slate-900 bg-white p-1 text-rose-600 transition hover:bg-rose-50 hover:text-rose-700"
+                      className="rounded-md border-2 border-slate-900 bg-white p-1 text-rose-600 transition hover:bg-rose-50 hover:text-rose-700 dark:border-border dark:bg-card dark:hover:bg-rose-900/20 dark:hover:text-rose-400"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
                     <span
                       title="Drag to reorder"
-                      className="cursor-grab rounded-md border-2 border-slate-900 bg-white p-1 text-slate-400 active:cursor-grabbing"
+                      className="cursor-grab rounded-md border-2 border-slate-900 bg-white p-1 text-slate-400 active:cursor-grabbing dark:border-border dark:bg-card dark:text-muted-foreground"
                       onMouseDown={(e) => e.stopPropagation()}
                     >
                       <GripVertical className="size-3.5" />
@@ -238,8 +255,8 @@ function CategorySection({
       >
         {editingItem && (
           <div className="space-y-3">
-            <p className="text-sm text-slate-600">
-              Moving <strong className="text-slate-900">{editingItem.label}</strong>
+            <p className="text-sm text-slate-600 dark:text-muted-foreground">
+              Moving <strong className="text-slate-900 dark:text-foreground">{editingItem.label}</strong>
             </p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -248,10 +265,10 @@ function CategorySection({
                   onChangeCategory(editingItem.id, null);
                   setEditingItem(null);
                 }}
-                className={`rounded-lg border-2 px-3 py-2 text-sm font-bold lowercase transition ${
+                className={`rounded-lg border-2 px-3 py-2 text-sm font-bold lowercase transition dark:shadow-none ${
                   editingItem.category_id === null
-                    ? "border-slate-900 bg-slate-900 text-white shadow-[3px_3px_0px_0px_#0f172a]"
-                    : "border-slate-900 bg-slate-100 text-slate-900 shadow-[3px_3px_0px_0px_#0f172a] hover:-translate-y-0.5 hover:translate-x-0.5"
+                    ? "border-slate-900 bg-slate-900 text-white shadow-[3px_3px_0px_0px_#0f172a] dark:border-border dark:bg-foreground dark:text-background"
+                    : "border-slate-900 bg-slate-100 text-slate-900 shadow-[3px_3px_0px_0px_#0f172a] hover:-translate-y-0.5 hover:translate-x-0.5 dark:border-border dark:bg-muted dark:text-foreground"
                 }`}
               >
                 uncategorized
@@ -266,7 +283,7 @@ function CategorySection({
                       onChangeCategory(editingItem.id, c.id);
                       setEditingItem(null);
                     }}
-                    className={`inline-flex items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold lowercase shadow-[3px_3px_0px_0px_#0f172a] transition ${
+                    className={`inline-flex items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold lowercase shadow-[3px_3px_0px_0px_#0f172a] transition dark:shadow-none ${
                       isActive
                         ? ""
                         : "hover:-translate-y-0.5 hover:translate-x-0.5"
@@ -274,8 +291,8 @@ function CategorySection({
                     style={{
                       backgroundColor: isActive
                         ? c.color
-                        : tintColor(c.color, 0.2),
-                      color: "#0f172a",
+                        : (isDark ? darkTintColor(c.color, 0.3) : tintColor(c.color, 0.2)),
+                      color: isDark ? "#c9d1d9" : "#0f172a",
                     }}
                   >
                     <span
@@ -517,14 +534,14 @@ export default function DailyNotesWidget() {
 
   return (
     <div className="flex flex-col gap-5">
-      <article className="rounded-xl border-2 border-slate-900 bg-linear-to-br from-violet-50 via-white to-fuchsia-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+      <article className="rounded-xl border-2 border-slate-900 bg-linear-to-br from-violet-50 via-white to-fuchsia-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] dark:border-border dark:from-violet-950/20 dark:via-card dark:to-fuchsia-950/20 dark:shadow-none sm:p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-black lowercase text-slate-900">
+          <h2 className="text-base font-black lowercase text-slate-900 dark:text-foreground">
           </h2>
           <div className="flex items-center gap-2">
             <Link
               href="/daily-checklist/categories"
-              className="inline-flex items-center gap-1 rounded-md border-2 border-slate-900 bg-white px-2 py-1 text-xs font-bold uppercase text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5"
+              className="inline-flex items-center gap-1 rounded-md border-2 border-slate-900 bg-white px-2 py-1 text-xs font-bold uppercase text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:translate-x-0.5 dark:border-border dark:bg-card dark:text-foreground dark:shadow-none"
             >
               <Settings className="size-3" />
               categories
@@ -536,13 +553,13 @@ export default function DailyNotesWidget() {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full min-w-0 rounded-md border-2 border-slate-900 px-2 py-1.5 text-sm font-semibold text-slate-900"
+            className="w-full min-w-0 rounded-md border-2 border-slate-900 px-2 py-1.5 text-sm font-semibold text-slate-900 dark:border-border dark:bg-card dark:text-foreground"
           />
         </div>
       </article>
 
       {loading ? (
-        <div className="rounded-xl border-2 border-dashed border-slate-400 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+        <div className="rounded-xl border-2 border-dashed border-slate-400 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600 dark:border-border/50 dark:bg-muted dark:text-muted-foreground">
           Loading checklist...
         </div>
       ) : (

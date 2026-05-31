@@ -49,15 +49,15 @@ function StickyBorrowerStrip({
   const [open, setOpen] = useState(false);
   if (!borrower) return null;
   return (
-    <div className="sticky top-10 z-30 -mx-4 bg-white/95 backdrop-blur  relative">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
+    <div className="sticky top-10 z-30 -mx-4 bg-white/95 backdrop-blur relative dark:bg-background/95">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2 dark:border-border/50">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-black uppercase tracking-wide text-slate-900">
+            <p className="truncate text-sm font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
               {borrower.first_name} {borrower.last_name}
             </p>
             {borrower.category && borrower.category.length > 0 && (
@@ -71,45 +71,45 @@ function StickyBorrowerStrip({
                 ))}
               </div>
             )}
-            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
-              <span>Loaned <strong className="text-slate-700">₱{Math.round(totalLoaned).toLocaleString()}</strong></span>
-              <span>Collected <strong className="text-emerald-700">₱{Math.round(totalAmountCollected).toLocaleString()}</strong></span>
-              <span>Remaining <strong className="text-rose-700">₱{Math.round(totalRemaining).toLocaleString()}</strong></span>
+            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500 dark:text-muted-foreground">
+              <span>Loaned <strong className="text-slate-700 dark:text-foreground">₱{Math.round(totalLoaned).toLocaleString()}</strong></span>
+              <span>Collected <strong className="text-emerald-700 dark:text-emerald-400">₱{Math.round(totalAmountCollected).toLocaleString()}</strong></span>
+              <span>Remaining <strong className="text-rose-700 dark:text-rose-400">₱{Math.round(totalRemaining).toLocaleString()}</strong></span>
             </div>
           </div>
-          <ChevronDown className={`ml-1 size-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+          <ChevronDown className={`ml-1 size-4 shrink-0 text-slate-500 dark:text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
         </button>
         <div className="ml-2 shrink-0" data-prevent-strip-open>
           <BorrowerDetailMenu borrowerId={borrower.id} />
         </div>
       </div>
-      <div className={`absolute left-0 right-0 top-full z-30 grid overflow-hidden bg-white/95 backdrop-blur shadow-[0_4px_0_0_#0f172a] transition-[grid-template-rows] duration-300 ease-in-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+      <div className={`absolute left-0 right-0 top-full z-30 grid overflow-hidden bg-white/95 backdrop-blur shadow-[0_4px_0_0_#0f172a] dark:bg-background/95 dark:shadow-[0_4px_0_0_#0f172a] transition-[grid-template-rows] duration-300 ease-in-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
         <div className="overflow-hidden">
           <div className="px-4 pb-3">
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               {([
-                { label: "Total Loaned",      value: totalLoaned,             bg: "bg-sky-100" },
-                { label: "Money Collected",   value: totalAmountCollected,    bg: "bg-teal-100" },
-                { label: "Remaining",         value: totalRemaining,          bg: "bg-rose-100" },
-                { label: "Profit Expected",   value: totalExpected,           bg: "bg-amber-100" },
-                { label: "Profit Collected",  value: totalCollected,          bg: "bg-emerald-100" },
-                { label: "Profit / Schedule", value: profitPerSchedule,       bg: "bg-violet-100" },
+                { label: "Total Loaned",      value: totalLoaned,             bg: "bg-sky-100 dark:bg-sky-900/30" },
+                { label: "Money Collected",   value: totalAmountCollected,    bg: "bg-teal-100 dark:bg-teal-900/30" },
+                { label: "Remaining",         value: totalRemaining,          bg: "bg-rose-100 dark:bg-rose-900/30" },
+                { label: "Profit Expected",   value: totalExpected,           bg: "bg-amber-100 dark:bg-amber-900/30" },
+                { label: "Profit Collected",  value: totalCollected,          bg: "bg-emerald-100 dark:bg-emerald-900/30" },
+                { label: "Profit / Schedule", value: profitPerSchedule,       bg: "bg-violet-100 dark:bg-violet-900/30" },
               ] as const).map(({ label, value, bg }, i) => (
                 <div
                   key={label}
-                  className={`border-2 border-slate-900 ${bg} px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] transition-all duration-200 ${open ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"}`}
+                  className={`border-2 border-slate-900 dark:border-border ${bg} px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] transition-all duration-200 ${open ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"}`}
                   style={{ transitionDelay: open ? `${i * 40}ms` : "0ms" }}
                 >
-                  <p className="font-black uppercase tracking-wide text-slate-500">{label}</p>
-                  <p className="mt-0.5 font-black tabular-nums text-slate-900">₱{Math.round(value).toLocaleString()}</p>
+                  <p className="font-black uppercase tracking-wide text-slate-500 dark:text-muted-foreground">{label}</p>
+                  <p className="mt-0.5 font-black tabular-nums text-slate-900 dark:text-foreground">₱{Math.round(value).toLocaleString()}</p>
                 </div>
               ))}
             </div>
             <div className={`mt-2 flex items-center gap-2 transition-all duration-200 ${open ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: open ? "160ms" : "0ms" }}>
-              <div className="h-2 flex-1 overflow-hidden rounded-sm border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]">
+              <div className="h-2 flex-1 overflow-hidden rounded-sm border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-card">
                 <div className="h-full bg-emerald-400 transition-[width] duration-500 ease-out" style={{ width: open ? `${collectedPct}%` : "0%" }} />
               </div>
-              <span className="shrink-0 text-[10px] font-black tabular-nums text-slate-700">{collectedPct}%</span>
+              <span className="shrink-0 text-[10px] font-black tabular-nums text-slate-700 dark:text-foreground">{collectedPct}%</span>
             </div>
           </div>
         </div>
@@ -213,8 +213,8 @@ function AccountCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl border-2 bg-white transition-all duration-150 ${
-        hasOverdue ? "border-red-700 shadow-[4px_4px_0px_0px_#b91c1c]" : "border-slate-900 shadow-[4px_4px_0px_0px_#0f172a]"
+      className={`relative overflow-hidden rounded-xl border-2 bg-white transition-all duration-150 dark:bg-card ${
+        hasOverdue ? "border-red-700 shadow-[4px_4px_0px_0px_#b91c1c]" : "border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] dark:border-border"
       } ${
         isOpening
           ? "scale-[0.98] opacity-60"
@@ -238,25 +238,25 @@ function AccountCard({
         aria-disabled={isOpening}
         aria-busy={isOpening}
         aria-label="Open account"
-        className="min-w-0 w-full cursor-pointer pl-4 pr-10 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+        className="min-w-0 w-full cursor-pointer pl-4 pr-10 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 dark:focus-visible:ring-border"
       >
         {/* Row 1: type badge + principal + status */}
         <div className="flex items-center gap-1.5">
           {/* <span className={`shrink-0 text-[9px] font-black uppercase border border-slate-900 px-1.5 py-0.5 ${badgeBg}`}>
             {isCashAdvance ? "ca" : "loan"}
           </span> */}
-          <span className="text-lg font-black tabular-nums leading-none text-slate-900">
+          <span className="text-lg font-black tabular-nums leading-none text-slate-900 dark:text-foreground">
             ₱{Number(account.principal_amount ?? 0).toLocaleString()}
           </span>
-          <span className={`ml-auto shrink-0 text-[9px] font-black uppercase border border-slate-900 px-1.5 py-0.5 rounded-full ${
-            account.status === "active" ? "bg-emerald-200 text-emerald-900" : account.status === "pending" ? "bg-amber-200 text-amber-900" : "bg-slate-200 text-slate-600"
+          <span className={`ml-auto shrink-0 text-[9px] font-black uppercase border border-slate-900 px-1.5 py-0.5 rounded-full dark:border-border ${
+            account.status === "active" ? "bg-emerald-200 text-emerald-900 dark:bg-emerald-800/50 dark:text-emerald-200" : account.status === "pending" ? "bg-amber-200 text-amber-900 dark:bg-amber-800/50 dark:text-amber-200" : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
           }`}>
             {account.status}
           </span>
         </div>
 
         {/* Row 2: meta */}
-        <p className="mt-0.5 text-[10px] text-slate-400">
+        <p className="mt-0.5 text-[10px] text-slate-400 dark:text-muted-foreground">
           {!isManual && account.status !== "pending" ? `${account.payment_frequency} · ${account.term_months}mo · ` : account.status === "pending" ? "pending · " : "manual · "}
           {account.interest_rate}%
           {account.release_date && ` · ${new Date(account.release_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
@@ -267,7 +267,7 @@ function AccountCard({
             type="button"
             data-prevent-account-open
             onClick={() => onActivate(account)}
-            className="mt-2 inline-flex items-center rounded-lg border-2 border-slate-900 bg-emerald-400 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+            className="mt-2 inline-flex items-center rounded-lg border-2 border-slate-900 bg-emerald-400 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-emerald-700/50 dark:text-emerald-100"
           >
             activate account
           </button>
@@ -275,32 +275,32 @@ function AccountCard({
 
         {/* Row 3: stats — hidden when pending */}
         {account.status !== "pending" && (
-          <p className="mt-1 text-[11px] leading-snug text-slate-500">
-            <span>Remaining </span><strong className="font-black  text-red-700">₱{amountLeftToPay.toLocaleString()}</strong>
+          <p className="mt-1 text-[11px] leading-snug text-slate-500 dark:text-muted-foreground">
+            <span>Remaining </span><strong className="font-black text-red-700 dark:text-red-400">₱{amountLeftToPay.toLocaleString()}</strong>
             {isManual ? (
-              <><span className="text-slate-300"> · </span><span>Paid </span><strong className="font-black text-slate-900">₱{totalPaid.toLocaleString()}</strong></>
+              <><span className="text-slate-300 dark:text-border"> · </span><span>Paid </span><strong className="font-black text-slate-900 dark:text-foreground">₱{totalPaid.toLocaleString()}</strong></>
             ) : (
-              <><span className="text-slate-300"> · </span><span>Collected </span><strong className="font-black text-green-700">₱{totalPaid.toLocaleString()}</strong><span className="text-slate-300"> · </span><span>Profit </span><strong className="font-black text-slate-900">₱{Math.round(profitToMake).toLocaleString()}</strong><span className="text-slate-300"> · </span><strong className="font-black text-slate-900">₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}</strong><span>/pay</span></>
+              <><span className="text-slate-300 dark:text-border"> · </span><span>Collected </span><strong className="font-black text-green-700 dark:text-green-400">₱{totalPaid.toLocaleString()}</strong><span className="text-slate-300 dark:text-border"> · </span><span>Profit </span><strong className="font-black text-slate-900 dark:text-foreground">₱{Math.round(profitToMake).toLocaleString()}</strong><span className="text-slate-300 dark:text-border"> · </span><strong className="font-black text-slate-900 dark:text-foreground">₱{Math.round(profitToMake / perPayrollDivisor).toLocaleString()}</strong><span>/pay</span></>
             )}
           </p>
         )}
 
         {/* Row 4: next collection */}
         {!isManual && nextCollectionDate && (
-          <p className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] leading-snug text-slate-500">
+          <p className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] leading-snug text-slate-500 dark:text-muted-foreground">
             <span>Next </span>
-            <strong className="font-black text-slate-900">{new Date(nextCollectionDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</strong>
-            <strong className="font-black tabular-nums text-slate-700">₱{nextCollectionAmount.toLocaleString()}</strong>
+            <strong className="font-black text-slate-900 dark:text-foreground">{new Date(nextCollectionDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</strong>
+            <strong className="font-black tabular-nums text-slate-700 dark:text-foreground">₱{nextCollectionAmount.toLocaleString()}</strong>
             {nextCollectionStatus === "partial" && nextCollectionAmountDue > nextCollectionAmount && (
-              <span className="text-slate-400">of ₱{nextCollectionAmountDue.toLocaleString()}</span>
+              <span className="text-slate-400 dark:text-muted-foreground">of ₱{nextCollectionAmountDue.toLocaleString()}</span>
             )}
             {nextCollectionStatus && (
-              <span className={`text-[7px] font-black px-1 py-0.5 border border-slate-900 uppercase ${
-                nextCollectionStatus === "overdue" ? "bg-red-300 text-red-900"
-                  : nextCollectionStatus === "paid" ? "bg-emerald-300 text-emerald-900"
-                  : nextCollectionStatus === "pending" ? "bg-yellow-300 text-yellow-900"
-                  : nextCollectionStatus === "partial" ? "bg-purple-300 text-purple-900"
-                  : "bg-blue-300 text-blue-900"
+              <span className={`text-[7px] font-black px-1 py-0.5 border border-slate-900 dark:border-border uppercase ${
+                nextCollectionStatus === "overdue" ? "bg-red-300 text-red-900 dark:bg-red-700/50 dark:text-red-200"
+                  : nextCollectionStatus === "paid" ? "bg-emerald-300 text-emerald-900 dark:bg-emerald-700/50 dark:text-emerald-200"
+                  : nextCollectionStatus === "pending" ? "bg-yellow-300 text-yellow-900 dark:bg-yellow-700/50 dark:text-yellow-200"
+                  : nextCollectionStatus === "partial" ? "bg-purple-300 text-purple-900 dark:bg-purple-700/50 dark:text-purple-200"
+                  : "bg-blue-300 text-blue-900 dark:bg-blue-700/50 dark:text-blue-200"
               }`}>{nextCollectionStatus}</span>
             )}
           </p>
@@ -308,24 +308,24 @@ function AccountCard({
 
         {/* Overdue */}
         {hasOverdue && (
-          <div className="mt-3  bg-red-100 p-1 rounded-sm border-red-400 border">
+          <div className="mt-3 bg-red-100 p-1 rounded-sm border-red-400 border dark:border-red-800 dark:bg-red-900/30">
             <button
               type="button"
               data-prevent-account-open
               onClick={() => setOverdueExpanded((v) => !v)}
               className="flex w-full items-center gap-1 text-[11px]"
             >
-              <span className="font-black text-red-600">⚠ {overdueCount} overdue</span>
-              <span className="font-black tabular-nums text-red-800">₱{overdueTotal.toLocaleString()}</span>
-              <ChevronDown className={`ml-auto size-3 text-red-600 transition-transform duration-200 ${overdueExpanded ? "rotate-180" : ""}`} />
+              <span className="font-black text-red-600 dark:text-red-300">⚠ {overdueCount} overdue</span>
+              <span className="font-black tabular-nums text-red-800 dark:text-red-300">₱{overdueTotal.toLocaleString()}</span>
+              <ChevronDown className={`ml-auto size-3 text-red-600 dark:text-red-400 transition-transform duration-200 ${overdueExpanded ? "rotate-180" : ""}`} />
             </button>
             <div className={`grid transition-[grid-template-rows] duration-200 ${overdueExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
               <div className="overflow-hidden">
                 <div className="mt-0.5 space-y-0.5 pl-1">
                   {(metrics?.overdueSchedules ?? []).map((os, i) => (
                     <div key={i} className="flex items-center justify-between gap-2 text-[10px]">
-                      <span className="text-slate-600">{new Date(os.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
-                      <span className="font-black text-red-700">₱{os.amount.toLocaleString()}</span>
+                      <span className="text-slate-600 dark:text-muted-foreground">{new Date(os.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
+                      <span className="font-black text-red-700 dark:text-red-300">₱{os.amount.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -337,10 +337,10 @@ function AccountCard({
         {/* Progress bar */}
         {totalDue > 0 && (
           <div className="mt-1.5 flex items-center gap-1.5">
-            <div className="h-1 flex-1 overflow-hidden bg-slate-100" role="progressbar" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}>
+            <div className="h-1 flex-1 overflow-hidden bg-slate-100 dark:bg-muted" role="progressbar" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}>
               <div className="h-full bg-emerald-400 transition-all duration-500" style={{ width: `${progressPct}%` }} />
             </div>
-            <span className="shrink-0 text-[9px] tabular-nums text-slate-400">{progressPct}%</span>
+            <span className="shrink-0 text-[9px] tabular-nums text-slate-400 dark:text-muted-foreground">{progressPct}%</span>
           </div>
         )}
       </div>

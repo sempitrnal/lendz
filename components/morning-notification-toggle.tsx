@@ -80,7 +80,7 @@ export default function MorningNotificationToggle() {
   if (status === "unsupported") return null;
 
   return (
-    <div className="flex items-center justify-between rounded-xl border-2 border-slate-900 bg-white px-4 py-3 shadow-[3px_3px_0px_0px_#0f172a]">
+    <div className="flex items-center justify-between rounded-xl border-2 border-slate-900 bg-white px-4 py-3 shadow-[3px_3px_0px_0px_#0f172a] dark:border-border dark:bg-card dark:shadow-none">
       <div className="flex items-center gap-3">
         {status === "on" ? (
           <Bell className="size-5 text-emerald-600" strokeWidth={2.5} />
@@ -88,8 +88,8 @@ export default function MorningNotificationToggle() {
           <BellOff className="size-5 text-slate-400" strokeWidth={2} />
         )}
         <div>
-          <p className="text-sm font-black text-slate-900">Morning reminder</p>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-sm font-black text-slate-900 dark:text-foreground">Morning reminder</p>
+          <p className="text-[11px] text-slate-500 dark:text-muted-foreground">
             {status === "on"
               ? "You'll get a good morning at 8 AM"
               : status === "denied"
@@ -104,10 +104,10 @@ export default function MorningNotificationToggle() {
           type="button"
           disabled={busy}
           onClick={status === "on" ? disable : enable}
-          className={`shrink-0 rounded-lg border-2 border-slate-900 px-3 py-1.5 text-xs font-black uppercase tracking-wide shadow-[2px_2px_0px_0px_#0f172a] transition active:shadow-none disabled:opacity-50 ${
+          className={`shrink-0 rounded-lg border-2 border-slate-900 px-3 py-1.5 text-xs font-black uppercase tracking-wide shadow-[2px_2px_0px_0px_#0f172a] transition active:shadow-none disabled:opacity-50 dark:border-border dark:shadow-none ${
             status === "on"
-              ? "bg-red-100 text-red-700 hover:bg-red-200"
-              : "bg-emerald-200 text-slate-900 hover:bg-emerald-300"
+              ? "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/40"
+              : "bg-emerald-200 text-slate-900 hover:bg-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
           }`}
         >
           {busy ? "…" : status === "on" ? "Turn off" : "Turn on"}

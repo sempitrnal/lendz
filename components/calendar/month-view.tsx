@@ -41,11 +41,11 @@ function getFirstDayOfMonth(year: number, month: number) {
 function statusColor(status: string) {
   switch (status) {
     case "completed":
-      return "bg-emerald-100 text-emerald-900 border-emerald-400";
+      return "bg-emerald-100 text-emerald-900 border-emerald-400 dark:bg-[#0f2417] dark:text-[#56d364] dark:border-[#2ea043]";
     case "cancelled":
-      return "bg-slate-100 text-slate-500 border-slate-300 line-through";
+      return "bg-slate-100 text-slate-500 border-slate-300 line-through dark:bg-[#21262d] dark:text-[#8b949e] dark:border-[#30363d]";
     default:
-      return "bg-sky-100 text-sky-900 border-sky-400";
+      return "bg-sky-100 text-sky-900 border-sky-400 dark:bg-[#0c1d2b] dark:text-[#79c0ff] dark:border-[#58a6ff]";
   }
 }
 
@@ -199,14 +199,14 @@ export default function MonthView({
     <div className="flex flex-col gap-4">
       {/* Desktop month header */}
       <div className="hidden sm:flex items-center justify-between">
-        <h1 className="text-xl font-black uppercase tracking-wide text-slate-900">
+        <h1 className="text-xl font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
           {MONTH_NAMES[month - 1]} {year}
         </h1>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={prevMonth}
-            className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+            className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
           >
             <ChevronLeft className="size-5" />
           </button>
@@ -216,20 +216,20 @@ export default function MonthView({
               const n = new Date();
               router.push(`/calendar?year=${n.getFullYear()}&month=${n.getMonth() + 1}`);
             }}
-            className="rounded-lg border-2 border-slate-900 bg-white px-3 py-1 text-xs font-black uppercase tracking-wider text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+            className="rounded-lg border-2 border-slate-900 bg-white px-3 py-1 text-xs font-black uppercase tracking-wider text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
           >
             today
           </button>
           <button
             type="button"
             onClick={nextMonth}
-            className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+            className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
           >
             <ChevronRight className="size-5" />
           </button>
           <label
             htmlFor="calendar-date-picker"
-            className="cursor-pointer rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+            className="cursor-pointer rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
             aria-label="Jump to date"
           >
             <CalendarDays className="size-5" />
@@ -242,21 +242,21 @@ export default function MonthView({
         <button
           type="button"
           onClick={prevWeek}
-          className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+          className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
         >
           <ChevronLeft className="size-5" />
         </button>
         <div className="text-center">
-          <h1 className="text-lg font-black uppercase tracking-wide text-slate-900">
+          <h1 className="text-lg font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
             {MONTH_NAMES[month - 1]} {year}
           </h1>
           <div className="flex items-center justify-center gap-1.5">
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
               week {activeWeek + 1} of {weeks.length}
             </p>
             <label
               htmlFor="calendar-date-picker"
-              className="cursor-pointer rounded border border-slate-300 p-0.5 text-slate-500 transition hover:border-slate-600 hover:text-slate-900"
+              className="cursor-pointer rounded border border-slate-300 p-0.5 text-slate-500 transition hover:border-slate-600 hover:text-slate-900 dark:border-border dark:text-muted-foreground"
               aria-label="Jump to date"
             >
               <CalendarDays className="size-3" />
@@ -266,7 +266,7 @@ export default function MonthView({
         <button
           type="button"
           onClick={nextWeek}
-          className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+          className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
         >
           <ChevronRight className="size-5" />
         </button>
@@ -290,27 +290,27 @@ export default function MonthView({
           return (
             <div
               key={idx}
-              className={`rounded-xl border-2 p-3 shadow-[2px_2px_0px_0px_#0f172a] ${
-                day ? "border-slate-900 bg-white" : "border-slate-200 bg-slate-50"
+              className={`rounded-xl border-2 p-3 shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-none ${
+                day ? "border-slate-900 bg-white dark:border-border dark:bg-card" : "border-slate-200 bg-slate-50 dark:border-border/30 dark:bg-muted"
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
                   {WEEKDAYS[idx]}
                 </span>
                 {day ? (
                   <span
                     className={`inline-flex size-6 items-center justify-center rounded-full text-xs font-bold ${
-                      isTodayDay ? "bg-slate-900 text-white" : "text-slate-900"
+                      isTodayDay ? "bg-slate-900 text-white dark:bg-foreground dark:text-background" : "text-slate-900 dark:text-foreground"
                     }`}
                   >
                     {day}
                   </span>
                 ) : (
-                  <span className="text-xs text-slate-300">—</span>
+                  <span className="text-xs text-slate-300 dark:text-muted-foreground">—</span>
                 )}
                 {isTodayDay && (
-                  <span className="rounded bg-slate-900 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-white">
+                  <span className="rounded bg-slate-900 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-white dark:bg-foreground dark:text-background">
                     today
                   </span>
                 )}
@@ -340,7 +340,7 @@ export default function MonthView({
                                 e.stopPropagation();
                                 handleDelete(evt.id);
                               }}
-                              className="shrink-0 rounded-full p-1 text-slate-900/60 hover:bg-red-200 hover:text-red-700"
+                              className="shrink-0 rounded-full p-1 text-slate-900/60 hover:bg-red-200 hover:text-red-700 dark:text-foreground/60 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                               aria-label="Delete event"
                             >
                               <X className="size-3" />
@@ -371,7 +371,7 @@ export default function MonthView({
                 </div>
               )}
               {day && dayEvents.length === 0 && (
-                <p className="mt-2 text-xs text-slate-300">No events</p>
+                <p className="mt-2 text-xs text-slate-300 dark:text-muted-foreground">No events</p>
               )}
             </div>
           );
@@ -379,12 +379,12 @@ export default function MonthView({
       </div>
 
       {/* Desktop month grid */}
-      <div className="hidden rounded-xl border-2 border-slate-900 bg-white shadow-[4px_4px_0px_0px_#0f172a] sm:block">
-        <div className="grid grid-cols-7 border-b-2 border-slate-900">
+      <div className="hidden rounded-xl border-2 border-slate-900 bg-white shadow-[4px_4px_0px_0px_#0f172a] sm:block dark:border-border dark:bg-card">
+        <div className="grid grid-cols-7 border-b-2 border-slate-900 dark:border-border">
           {WEEKDAYS.map((wd) => (
             <div
               key={wd}
-              className="px-2 py-2 text-center text-[11px] font-black uppercase tracking-wider text-slate-500"
+              className="px-2 py-2 text-center text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-muted-foreground"
             >
               {wd}
             </div>
@@ -398,9 +398,9 @@ export default function MonthView({
             return (
               <div
                 key={idx}
-                className={`min-h-[120px] border-r border-b border-slate-200 p-1.5 last:border-r-0 ${
-                  day ? "bg-white" : "bg-slate-50/50"
-                } ${isToday(day ?? 0) ? "bg-green-50" : ""}`}
+                className={`min-h-[120px] border-r border-b border-slate-200 p-1.5 last:border-r-0 dark:border-border/30 ${
+                  day ? "bg-white dark:bg-card" : "bg-slate-50/50 dark:bg-muted/50"
+                } ${isToday(day ?? 0) ? "bg-green-50 dark:bg-emerald-900/20" : ""}`}
               >
                 {day ? (
                   <div className="flex h-full flex-col">
@@ -417,8 +417,8 @@ export default function MonthView({
                       <span
                         className={`inline-flex size-6 items-center justify-center rounded-full text-xs font-bold ${
                           isToday(day)
-                            ? "bg-slate-900 text-white"
-                            : "text-slate-700"
+                            ? "bg-slate-900 text-white dark:bg-foreground dark:text-background"
+                            : "text-slate-700 dark:text-foreground"
                         }`}
                       >
                         {day}
@@ -464,7 +464,7 @@ export default function MonthView({
                             setSelectedDay(day);
                             setDayDialogOpen(true);
                           }}
-                          className="mt-auto rounded-md border border-dashed border-slate-300 py-1 text-center text-[10px] font-bold text-slate-400 transition hover:border-slate-400 hover:text-slate-600"
+                          className="mt-auto rounded-md border border-dashed border-slate-300 py-1 text-center text-[10px] font-bold text-slate-400 transition hover:border-slate-400 hover:text-slate-600 dark:border-border dark:text-muted-foreground dark:hover:border-border dark:hover:text-foreground"
                         >
                           +{moreCount} more
                         </button>
@@ -481,24 +481,24 @@ export default function MonthView({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm font-black uppercase tracking-wide text-slate-900">
+            <DialogTitle className="text-sm font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
               {selectedEvent?.title || "scheduled event"}
             </DialogTitle>
           </DialogHeader>
 
           {selectedEvent && (
-            <div className="flex flex-col gap-2 text-sm text-slate-700">
+            <div className="flex flex-col gap-2 text-sm text-slate-700 dark:text-muted-foreground">
               {selectedEvent.account?.status === "pending" && (
-                <div className="rounded-lg border-2 border-amber-600 bg-amber-50 p-2 text-center">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-800">pending loan</p>
-                  <p className="text-xs font-bold text-amber-700">
+                <div className="rounded-lg border-2 border-amber-600 bg-amber-50 p-2 text-center dark:border-amber-700 dark:bg-amber-900/30">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-800 dark:text-amber-300">pending loan</p>
+                  <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
                     ₱{Number(selectedEvent.account.principal_amount ?? 0).toLocaleString()} principal
                   </p>
                 </div>
               )}
               <p>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">borrower</span>
-                <span className="ml-2 font-black text-slate-900">{borrowerName(selectedEvent)}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">borrower</span>
+                <span className="ml-2 font-black text-slate-900 dark:text-foreground">{borrowerName(selectedEvent)}</span>
               </p>
               {(() => {
                 const cats = selectedEvent ? borrowerCategories(selectedEvent) : [];
@@ -518,19 +518,19 @@ export default function MonthView({
                 );
               })()}
               <p>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">date</span>
-                <span className="ml-2 font-bold text-slate-900">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">date</span>
+                <span className="ml-2 font-bold text-slate-900 dark:text-foreground">
                   {new Date(selectedEvent.event_date).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}
                 </span>
               </p>
               {selectedEvent.amount > 0 ? (
                 <p>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">amount</span>
-                  <span className="ml-2 font-bold text-slate-900">₱{selectedEvent.amount.toLocaleString()}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">amount</span>
+                  <span className="ml-2 font-bold text-slate-900 dark:text-foreground">₱{selectedEvent.amount.toLocaleString()}</span>
                 </p>
               ) : null}
               {selectedEvent.note ? (
-                <p className="text-xs text-slate-500">{selectedEvent.note}</p>
+                <p className="text-xs text-slate-500 dark:text-muted-foreground">{selectedEvent.note}</p>
               ) : null}
             </div>
           )}
@@ -576,7 +576,7 @@ export default function MonthView({
       <Dialog open={dayDialogOpen} onOpenChange={setDayDialogOpen}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm font-black uppercase tracking-wide text-slate-900">
+            <DialogTitle className="text-sm font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
               {selectedDay
                 ? new Date(`${year}-${String(month).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`).toLocaleDateString(undefined, {
                     month: "long",
@@ -590,7 +590,7 @@ export default function MonthView({
           {selectedDay && (
             <div className="flex flex-col gap-3">
               {(eventsByDay[selectedDay] ?? []).length === 0 ? (
-                <p className="text-center text-sm text-slate-400">No events for this day</p>
+                <p className="text-center text-sm text-slate-400 dark:text-muted-foreground">No events for this day</p>
               ) : (
                 (eventsByDay[selectedDay] ?? []).map((evt) => {
                   const isDeleting = deletingIds.has(evt.id);
@@ -610,12 +610,12 @@ export default function MonthView({
                           }}
                           className="min-w-0 flex-1 text-left"
                         >
-                          <p className="text-sm font-black text-slate-900">{borrowerName(evt)}</p>
+                          <p className="text-sm font-black text-slate-900 dark:text-foreground">{borrowerName(evt)}</p>
                           {evt.title ? (
-                            <p className="text-xs font-bold text-slate-500">{evt.title}</p>
+                            <p className="text-xs font-bold text-slate-500 dark:text-muted-foreground">{evt.title}</p>
                           ) : null}
                           {evt.amount > 0 ? (
-                            <p className="mt-1 text-xs font-black text-slate-900">
+                            <p className="mt-1 text-xs font-black text-slate-900 dark:text-foreground">
                               ₱{evt.amount.toLocaleString()}
                             </p>
                           ) : null}
@@ -638,7 +638,7 @@ export default function MonthView({
                             type="button"
                             onClick={() => handleDelete(evt.id)}
                             disabled={isDeleting}
-                            className="shrink-0 rounded-full p-1 text-slate-400 transition hover:bg-red-100 hover:text-red-600"
+                            className="shrink-0 rounded-full p-1 text-slate-400 transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30"
                             aria-label="Delete event"
                           >
                             <X className="size-4" />
@@ -652,7 +652,7 @@ export default function MonthView({
                             router.push(`/accounts/${evt.account_id}`);
                             setDayDialogOpen(false);
                           }}
-                          className="mt-2 w-full rounded-md border-2 border-amber-600 bg-amber-50 py-1.5 text-center text-[10px] font-black uppercase tracking-wider text-amber-800 transition hover:bg-amber-100"
+                          className="mt-2 w-full rounded-md border-2 border-amber-600 bg-amber-50 py-1.5 text-center text-[10px] font-black uppercase tracking-wider text-amber-800 transition hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
                         >
                           activate pending loan
                         </button>

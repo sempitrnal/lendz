@@ -30,20 +30,20 @@ export default function CategoryCard({ category, openEditModal, deleteCategory, 
         setIsLoading(true);
         router.push(`/categories/${category.id}`);
       }}
-      className="relative h-24 cursor-pointer rounded-xl border-2 border-slate-900 bg-linear-to-br from-indigo-50 via-white to-orange-50 px-4 py-3 transition shadow-[4px_4px_0px_0px_#0f172a] hover:-translate-y-0.5"
+      className="relative h-24 cursor-pointer rounded-xl border-2 border-slate-900 bg-linear-to-br from-indigo-50 via-white to-orange-50 px-4 py-3 transition shadow-[4px_4px_0px_0px_#0f172a] hover:-translate-y-0.5 dark:border-border dark:from-indigo-950/20 dark:via-card dark:to-orange-950/20 dark:bg-card"
     >
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-stone-900 border-t-transparent" />
+        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-sm dark:bg-card/70">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-stone-900 border-t-transparent dark:border-foreground dark:border-t-transparent" />
         </div>
       )}
       <div className="flex justify-between">
         <div className="flex items-center gap-3">
           <span
-            className="h-4 w-4 translate-y-[0.6px] rounded-full border-2 border-slate-900"
+            className="h-4 w-4 translate-y-[0.6px] rounded-full border-2 border-slate-900 dark:border-border"
             style={{ backgroundColor: category.color ?? "#cbd5e1" }}
           />
-          <p className="font-black  lowercase text-slate-900">{category.name}</p>
+          <p className="font-black lowercase text-slate-900 dark:text-foreground">{category.name}</p>
         </div>
         <div className="relative">
           <DropdownMenu>
@@ -53,7 +53,7 @@ export default function CategoryCard({ category, openEditModal, deleteCategory, 
                 onClick={(e) => {
                   e.stopPropagation();
                 }}
-                className="flex h-8 w-8 items-center justify-center rounded-md border-2 border-slate-900  text-sm font-bold"
+                className="flex h-8 w-8 items-center justify-center rounded-md border-2 border-slate-900 text-sm font-bold dark:border-border dark:text-foreground"
               >
                 <BsThreeDotsVertical />
               </button>
@@ -84,7 +84,7 @@ export default function CategoryCard({ category, openEditModal, deleteCategory, 
         </div>
       </div>
       <div className="mt-2 flex items-center gap-3">
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-stone-500 dark:text-muted-foreground">
           {borrower_count === 1
             ? borrower_count + " borrower"
             : borrower_count > 1

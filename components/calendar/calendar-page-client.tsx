@@ -43,7 +43,7 @@ export default function CalendarPageClient({
   return (
     <div className="flex flex-col gap-4 px-2 sm:gap-6 sm:px-0">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-black uppercase tracking-wide text-slate-900 sm:text-2xl">
+        <h1 className="text-xl font-black uppercase tracking-wide text-slate-900 dark:text-foreground sm:text-2xl">
           calendar
         </h1>
         <NeobrutButton variant="green" onClick={() => setModalOpen(true)}>

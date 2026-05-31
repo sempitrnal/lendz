@@ -31,7 +31,7 @@ export function ScheduleMobileCard({
   return (
     <li
       id={id}
-      className={`${className} ${selected ? "outline-dashed outline-4 outline-offset-[-2px] outline-blue-500 bg-yellow-100" : ""}`}
+      className={`${className} ${selected ? "outline-dashed outline-4 outline-offset-[-2px] outline-blue-500 bg-yellow-100 dark:outline-blue-400 dark:bg-yellow-900/20" : ""}`}
     >
       <div
         onClick={handleTap}
