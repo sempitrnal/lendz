@@ -113,6 +113,7 @@ export function BorrowerCard({
       <div
         role="button"
         tabIndex={isPending ? -1 : 0}
+        onPointerEnter={() => router.prefetch(`/borrowers/${borrower.id}`)}
         onClick={openBorrower}
         onKeyDown={(e) => {
           if (isPending) return;
@@ -230,6 +231,9 @@ export function BorrowerCard({
                       type="button"
                       data-prevent-borrower-card-open
                       className="relative block w-full touch-manipulation rounded-lg text-left transition hover:bg-black/5 dark:hover:bg-white/5 -mx-1 px-1"
+                      onPointerEnter={() => {
+                        if (schedule.account_id) router.prefetch(`/accounts/${schedule.account_id}`);
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (didScroll.current) return;

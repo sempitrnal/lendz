@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useTransition, useState } from "react";
+import { useTransition, useState, useEffect } from "react";
 import { LayoutDashboard, Users, Tag, ClipboardCheck, CalendarDays, Loader2 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -18,6 +18,11 @@ export default function BottomNav() {
   const [isPending, startTransition] = useTransition();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
+  useEffect(() => {
+    NAV_ITEMS.forEach(({ href }) => router.prefetch(href));
+    router.prefetch("/accounts");
+  }, [router]);
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-900 bg-white shadow-[0_-2px_0_0_#0f172a] dark:border-border/50 dark:bg-background dark:shadow-[0_-2px_0_0_#0f172a] sm:hidden print:hidden">
       <ul className="flex h-[52px] items-stretch">
@@ -31,6 +36,7 @@ export default function BottomNav() {
             >
               <button
                 type="button"
+                onPointerEnter={() => router.prefetch(href)}
                 onPointerDown={() => {
                   setPendingHref(href);
                   startTransition(() => {

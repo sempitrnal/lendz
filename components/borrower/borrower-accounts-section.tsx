@@ -161,6 +161,7 @@ function AccountCard({
   account,
   isOpening,
   onOpen,
+  onPrefetch,
   onEdit,
   onActivate,
   metrics,
@@ -169,6 +170,7 @@ function AccountCard({
   account: AccountRow;
   isOpening: boolean;
   onOpen: (id: string) => void;
+  onPrefetch?: (id: string) => void;
   onEdit: (account: AccountRow) => void;
   onActivate?: (account: AccountRow) => void;
   metrics?: AccountComputedMetrics;
@@ -227,6 +229,7 @@ function AccountCard({
       <div
         role="button"
         tabIndex={isOpening ? -1 : 0}
+        onPointerEnter={() => onPrefetch?.(account.id)}
         onClick={tryOpenAccount}
         onKeyDown={(e) => {
           if (isOpening) return;
@@ -424,6 +427,9 @@ export default function BorrowerAccountsSection({
     setOpeningAccountId(id);
     router.push(`/accounts/${id}`);
   };
+  const handlePrefetchAccount = (id: string) => {
+    router.prefetch(`/accounts/${id}`);
+  };
 
 
   const fetchAccountMetrics = async () => {
@@ -604,6 +610,7 @@ export default function BorrowerAccountsSection({
                     account={account}
                     isOpening={openingAccountId === account.id}
                     onOpen={handleOpenAccount}
+                    onPrefetch={handlePrefetchAccount}
                     onEdit={(acc) => {
                       setEditingAccount(acc);
                       setIsAccountDialogOpen(true);

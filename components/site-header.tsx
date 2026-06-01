@@ -47,6 +47,10 @@ export default function SiteHeader({
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    DESKTOP_LINKS.forEach(({ href }) => router.prefetch(href));
+  }, [router]);
+
   if (pathname === "/login") return null;
 
   function closeModal() {
@@ -62,6 +66,7 @@ export default function SiteHeader({
         <div className="flex items-center gap-5">
           <button
             type="button"
+            onMouseEnter={() => router.prefetch("/")}
             onClick={() => {
               setPendingHref("/");
               startTransition(() => router.push("/"));
@@ -84,6 +89,7 @@ export default function SiteHeader({
                 <button
                   key={href}
                   type="button"
+                  onMouseEnter={() => router.prefetch(href)}
                   onClick={() => {
                     setPendingHref(href);
                     startTransition(() => router.push(href));
