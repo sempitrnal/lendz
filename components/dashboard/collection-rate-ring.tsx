@@ -1,6 +1,7 @@
 "use client";
 
 import { PieChart, Pie, Cell, Label, ResponsiveContainer } from "recharts";
+import { useTheme } from "next-themes";
 
 export type RingData = {
   collected: number;
@@ -26,6 +27,12 @@ function formatCurrency(v: number) {
 
 export default function CollectionRateRing({ data }: { data: RingData }) {
   const { collected, expectedSoFar, profit, expectedProfit, expectedProfitSoFar, isComplete, monthLabel } = data;
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const stroke = isDark ? "#30363d" : "#0f172a";
+  const track = isDark ? "#21262d" : "#e2e8f0";
+  const labelMain = isDark ? "#c9d1d9" : "#0f172a";
+  const labelSub = isDark ? "#8b949e" : "#64748b";
 
   const pct =
     expectedSoFar > 0
@@ -43,10 +50,10 @@ export default function CollectionRateRing({ data }: { data: RingData }) {
   return (
     <div className="flex flex-col">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-muted-foreground">
           collection rate
         </p>
-        <span className="rounded border-2 border-slate-900 bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide shadow-[2px_2px_0px_0px_#0f172a]">
+        <span className="rounded border-2 border-slate-900 bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-muted dark:text-foreground dark:shadow-none">
           {isComplete ? monthLabel : `${monthLabel} so far`}
         </span>
       </div>
@@ -66,8 +73,8 @@ export default function CollectionRateRing({ data }: { data: RingData }) {
               strokeWidth={0}
               isAnimationActive
             >
-              <Cell fill={fill} stroke="#0f172a" strokeWidth={2} />
-              <Cell fill="#e2e8f0" stroke="#0f172a" strokeWidth={2} />
+              <Cell fill={fill} stroke={stroke} strokeWidth={2} />
+              <Cell fill={track} stroke={stroke} strokeWidth={2} />
               <Label
                 content={({ viewBox }) => {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,7 +85,7 @@ export default function CollectionRateRing({ data }: { data: RingData }) {
                         x={cx}
                         y={cy - 6}
                         textAnchor="middle"
-                        fill="#0f172a"
+                        fill={labelMain}
                         fontSize={20}
                         fontWeight={900}
                         fontFamily="inherit"
@@ -89,7 +96,7 @@ export default function CollectionRateRing({ data }: { data: RingData }) {
                         x={cx}
                         y={cy + 14}
                         textAnchor="middle"
-                        fill="#64748b"
+                        fill={labelSub}
                         fontSize={9}
                         fontWeight={700}
                         fontFamily="inherit"
@@ -107,24 +114,24 @@ export default function CollectionRateRing({ data }: { data: RingData }) {
       </div>
 
       <div className="mt-2 space-y-1.5">
-        <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-slate-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a]">
-          <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">Collected</span>
-          <span className="text-xs font-black tabular-nums text-slate-900">{formatCurrency(collected)}</span>
+        <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-slate-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-muted dark:shadow-none">
+          <span className="text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-muted-foreground">Collected</span>
+          <span className="text-xs font-black tabular-nums text-slate-900 dark:text-foreground">{formatCurrency(collected)}</span>
         </div>
-        <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-slate-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a]">
-          <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">Expected so far</span>
-          <span className="text-xs font-black tabular-nums text-slate-900">{formatCurrency(expectedSoFar)}</span>
+        <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-slate-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-muted dark:shadow-none">
+          <span className="text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-muted-foreground">Expected so far</span>
+          <span className="text-xs font-black tabular-nums text-slate-900 dark:text-foreground">{formatCurrency(expectedSoFar)}</span>
         </div>
         {isComplete && expectedProfit > 0 && (
-          <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-amber-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a]">
-            <span className="text-[10px] font-black uppercase tracking-wide text-amber-700">Interest rate</span>
-            <span className="text-xs font-black tabular-nums text-amber-800">{profitPct}%</span>
+          <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-amber-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-[#241a00] dark:shadow-none">
+            <span className="text-[10px] font-black uppercase tracking-wide text-amber-700 dark:text-[#e3b341]">Interest rate</span>
+            <span className="text-xs font-black tabular-nums text-amber-800 dark:text-[#e3b341]">{profitPct}%</span>
           </div>
         )}
         {!isComplete && expectedProfitSoFar > 0 && (
-          <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-amber-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a]">
-            <span className="text-[10px] font-black uppercase tracking-wide text-amber-700">Exp. interest so far</span>
-            <span className="text-xs font-black tabular-nums text-amber-800">{formatCurrency(expectedProfitSoFar)}</span>
+          <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-amber-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-[#241a00] dark:shadow-none">
+            <span className="text-[10px] font-black uppercase tracking-wide text-amber-700 dark:text-[#e3b341]">Exp. interest so far</span>
+            <span className="text-xs font-black tabular-nums text-amber-800 dark:text-[#e3b341]">{formatCurrency(expectedProfitSoFar)}</span>
           </div>
         )}
       </div>

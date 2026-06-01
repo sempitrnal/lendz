@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { useTheme } from "next-themes";
 
 export type OverdueCategoryEntry = {
   name: string;
@@ -81,9 +82,15 @@ export default function OverdueByCategoryChart({
 }: {
   data: OverdueCategoryEntry[];
 }) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const axisStroke = isDark ? "#30363d" : "#0f172a";
+  const yTickFill = isDark ? "#c9d1d9" : "#0f172a";
+  const xTickFill = isDark ? "#8b949e" : "#64748b";
+
   if (data.length === 0) {
     return (
-      <div className="flex h-full min-h-32 items-center justify-center rounded border-2 border-dashed border-slate-900 bg-emerald-50 text-sm font-black uppercase text-emerald-700">
+      <div className="flex h-full min-h-32 items-center justify-center rounded border-2 border-dashed border-slate-900 bg-emerald-50 text-sm font-black uppercase text-emerald-700 dark:border-border dark:bg-[#0f2417] dark:text-[#56d364]">
         no overdue accounts
       </div>
     );
@@ -95,16 +102,16 @@ export default function OverdueByCategoryChart({
   return (
     <div className="flex flex-col h-full">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-muted-foreground">
           overdue by category
         </p>
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400">
-            <span className="inline-block size-2.5 border border-slate-900 bg-slate-200" />
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 dark:text-muted-foreground">
+            <span className="inline-block size-2.5 border border-slate-900 bg-slate-200 dark:border-border" />
             Principal
           </span>
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600">
-            <span className="inline-block size-2.5 border border-slate-900 bg-amber-300" />
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-[#e3b341]">
+            <span className="inline-block size-2.5 border border-slate-900 bg-amber-300 dark:border-border" />
             Interest
           </span>
         </div>
@@ -120,16 +127,16 @@ export default function OverdueByCategoryChart({
             <XAxis
               type="number"
               tickFormatter={(v) => formatCurrency(Number(v))}
-              tick={{ fontSize: 9, fontWeight: 700, fill: "#64748b", fontFamily: "inherit" }}
-              axisLine={{ stroke: "#0f172a", strokeWidth: 2 }}
+              tick={{ fontSize: 9, fontWeight: 700, fill: xTickFill, fontFamily: "inherit" }}
+              axisLine={{ stroke: axisStroke, strokeWidth: 2 }}
               tickLine={false}
             />
             <YAxis
               type="category"
               dataKey="name"
               width={76}
-              tick={{ fontSize: 10, fontWeight: 900, fill: "#0f172a", fontFamily: "inherit" }}
-              axisLine={{ stroke: "#0f172a", strokeWidth: 2 }}
+              tick={{ fontSize: 10, fontWeight: 900, fill: yTickFill, fontFamily: "inherit" }}
+              axisLine={{ stroke: axisStroke, strokeWidth: 2 }}
               tickLine={false}
             />
             <Tooltip

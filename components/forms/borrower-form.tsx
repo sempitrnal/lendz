@@ -15,6 +15,7 @@ import {
 import { formatContactNumber } from "@/lib/format-contact-number";
 import { supabase } from "@/lib/supabase/client";
 import { fetchCategoriesAction } from "@/lib/actions/categories";
+import { revalidateBorrowersPage } from "@/lib/actions/borrowers";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import NeobrutButton from "../neobrut-button";
@@ -78,6 +79,8 @@ export default function BorrowerForm({ onSuccess }: {
         return;
       }
     }
+
+    await revalidateBorrowersPage();
 
     router.refresh()
     reset();

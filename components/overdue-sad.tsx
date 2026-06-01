@@ -26,7 +26,7 @@ export default function OverdueSad() {
         }
       `}</style>
 
-      <span className="relative ml-2 inline-flex items-center justify-center">
+      <span className="relative ml-2 inline-flex items-center justify-center translate-y-1">
         <svg
           viewBox="0 0 24 24"
           className="relative z-10"

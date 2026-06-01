@@ -3,14 +3,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import { fetchCategoriesAction } from "@/lib/actions/categories";
 import { formFieldInputClassName } from "@/lib/form-field-classes";
-import {
-  mapAccountIdToNextDueSchedule,
-  remainingOnInstallment,
-} from "@/lib/payment-schedule/schedule-balances";
+
 import AddBorrowerModal from "./add-borrower-modal";
 import { BorrowerCard } from "./borrower-card";
 import { BsChevronDown, BsChevronLeft, BsChevronRight } from "react-icons/bs";
@@ -186,7 +182,7 @@ export default function BorrowersList({
           type="button"
           onClick={openAddBorrowerModal}
           aria-label="Add borrower"
-          className="fixed bottom-[76px] right-4 z-[9999] flex size-14 items-center justify-center rounded-full border-2 border-slate-900 bg-slate-900 text-white shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform duration-200 active:scale-95"
+          className="fixed bottom-[76px] right-4 z-[2] flex size-14 items-center justify-center rounded-full border-2 border-slate-900 bg-green-400 text-white shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform duration-200 active:scale-95 dark:border-border dark:bg-green-400 dark:text-background dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
         >
           <FaPlus className="size-5" />
         </button>,
@@ -248,7 +244,7 @@ export default function BorrowersList({
         </div>
 
         <div className="relative">
-          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-muted-foreground">
             Categories
           </p>
           <button
@@ -256,15 +252,15 @@ export default function BorrowersList({
             aria-expanded={isCategoryDropdownOpen}
             aria-haspopup="listbox"
             onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
-            className="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-900/90 bg-white px-4 py-3 text-left shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition hover:bg-slate-50/90 active:translate-y-px active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)]"
+            className="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-900/90 bg-white px-4 py-3 text-left shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition hover:bg-slate-50/90 active:translate-y-px active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)] dark:border-border dark:bg-card dark:shadow-none dark:hover:bg-muted"
           >
-            <span className="text-sm font-bold uppercase tracking-wide text-slate-900">
+            <span className="text-sm font-bold uppercase tracking-wide text-slate-900 dark:text-foreground">
               {selectedCategoryIds.length > 0
                 ? `${selectedCategoryIds.length} selected`
                 : "All categories"}
             </span>
 
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-900/20 bg-slate-50 text-slate-700">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-900/20 bg-slate-50 text-slate-700 dark:border-border dark:bg-muted dark:text-muted-foreground">
               <BsChevronDown
                 className={`size-3.5 transition-transform ${isCategoryDropdownOpen ? "rotate-180" : ""}`}
                 aria-hidden
@@ -276,7 +272,7 @@ export default function BorrowersList({
             <div
               role="listbox"
               aria-multiselectable
-              className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border-2 border-slate-900/90 bg-white p-2 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.18)]"
+              className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border-2 border-slate-900/90 bg-white p-2 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.18)] dark:border-border dark:bg-card dark:shadow-none"
             >
               <div className="flex flex-col gap-1.5">
                 {categories.map((category) => {
@@ -296,13 +292,13 @@ export default function BorrowersList({
                         navigateCategories(next);
                       }}
                       className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition ${isSelected
-                        ? "border-2 border-slate-900 bg-slate-900 text-white shadow-[1px_1px_0px_0px_rgb(15_23_42/0.5)]"
-                        : "border border-slate-900/15 bg-slate-50/60 text-slate-800 shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] hover:border-slate-900/35 hover:bg-white"
+                        ? "border-2 border-slate-900 bg-slate-900 text-white shadow-[1px_1px_0px_0px_rgb(15_23_42/0.5)] dark:border-border dark:bg-foreground dark:text-background dark:shadow-none"
+                        : "border border-slate-900/15 bg-slate-50/60 text-slate-800 shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] hover:border-slate-900/35 hover:bg-white dark:border-border dark:bg-muted dark:text-foreground dark:shadow-none dark:hover:border-border dark:hover:bg-muted/70"
                         }`}
                     >
                       <div className="flex min-w-0 items-center gap-2.5">
                         <span
-                          className="size-3 shrink-0 rounded-full border-2 border-slate-900/25"
+                          className="size-3 shrink-0 rounded-full border-2 border-slate-900/25 dark:border-border"
                           style={{
                             backgroundColor: category.color ?? "#cbd5e1",
                           }}
@@ -328,7 +324,7 @@ export default function BorrowersList({
                     setSelectedCategoryIds([]);
                     navigateCategories([]);
                   }}
-                  className="mt-2 w-full rounded-lg border-2 border-rose-800/35 bg-rose-50 px-3 py-2 text-center text-xs font-black uppercase tracking-wide text-rose-900 shadow-[1px_1px_0px_0px_rgb(190_18_60/0.25)] transition hover:bg-rose-100/90"
+                  className="mt-2 w-full rounded-lg border-2 border-rose-800/35 bg-rose-50 px-3 py-2 text-center text-xs font-black uppercase tracking-wide text-rose-900 shadow-[1px_1px_0px_0px_rgb(190_18_60/0.25)] transition hover:bg-rose-100/90 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300 dark:shadow-none dark:hover:bg-rose-950/50"
                 >
                   Clear filters
                 </button>
@@ -362,32 +358,32 @@ export default function BorrowersList({
           {currentPage > 1 ? (
             <Link
               href={buildBorrowersUrl(currentPage - 1, initialSearchQuery, selectedCategoryIds)}
-              className="flex items-center gap-1.5 rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:bg-slate-50 active:translate-y-0 active:shadow-[1px_1px_0px_0px_#0f172a]"
+              className="flex items-center gap-1.5 rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:bg-slate-50 active:translate-y-0 active:shadow-[1px_1px_0px_0px_#0f172a] dark:border-border dark:bg-card dark:text-foreground dark:shadow-none dark:hover:bg-muted"
             >
               <BsChevronLeft className="size-3" aria-hidden />
               Prev
             </Link>
           ) : (
-            <span className="flex items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-400 cursor-not-allowed">
+            <span className="flex items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-400 cursor-not-allowed dark:border-border/50 dark:bg-muted dark:text-muted-foreground">
               <BsChevronLeft className="size-3" aria-hidden />
               Prev
             </span>
           )}
 
-          <span className="rounded-lg border-2 border-slate-900 bg-slate-900 px-4 py-2 text-sm font-black tabular-nums text-white shadow-[2px_2px_0px_0px_rgb(15_23_42/0.3)]">
+          <span className="rounded-lg border-2 border-slate-900 bg-slate-900 px-4 py-2 text-sm font-black tabular-nums text-white shadow-[2px_2px_0px_0px_rgb(15_23_42/0.3)] dark:border-border dark:bg-foreground dark:text-background dark:shadow-none">
             {currentPage} / {totalPages}
           </span>
 
           {currentPage < totalPages ? (
             <Link
               href={buildBorrowersUrl(currentPage + 1, initialSearchQuery, selectedCategoryIds)}
-              className="flex items-center gap-1.5 rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:bg-slate-50 active:translate-y-0 active:shadow-[1px_1px_0px_0px_#0f172a]"
+              className="flex items-center gap-1.5 rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:bg-slate-50 active:translate-y-0 active:shadow-[1px_1px_0px_0px_#0f172a] dark:border-border dark:bg-card dark:text-foreground dark:shadow-none dark:hover:bg-muted"
             >
               Next
               <BsChevronRight className="size-3" aria-hidden />
             </Link>
           ) : (
-            <span className="flex items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-400 cursor-not-allowed">
+            <span className="flex items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-400 cursor-not-allowed dark:border-border/50 dark:bg-muted dark:text-muted-foreground">
               Next
               <BsChevronRight className="size-3" aria-hidden />
             </span>

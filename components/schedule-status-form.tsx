@@ -1,8 +1,16 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
+import { Clock, Check, TriangleAlert, ChartPie, Loader2, type LucideIcon } from "lucide-react";
 
 const scheduleStatuses = ["pending", "paid", "overdue", "partial"] as const;
+
+const statusIcons: Record<string, LucideIcon> = {
+  pending: Clock,
+  paid: Check,
+  overdue: TriangleAlert,
+  partial: ChartPie,
+};
 
 type Props = {
   scheduleId: string;
@@ -27,12 +35,36 @@ export default function ScheduleStatusForm({
     return dueDate ?? new Date().toISOString().split("T")[0];
   });
   const [paidAmount, setPaidAmount] = useState("");
+  const [submittingStatus, setSubmittingStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
 
   const visibleStatuses = scheduleStatuses.filter(
     (s) => !(isRollingManual && s === "partial")
   );
+
+  function getStatusClasses(status: string, isActive: boolean) {
+    const map: Record<string, { active: string; idle: string }> = {
+      paid: {
+        active: "border-emerald-500 bg-emerald-300 text-emerald-950 shadow-[2px_2px_0px_0px_#047857] dark:border-emerald-400/50 dark:bg-emerald-400/25 dark:text-emerald-200 dark:shadow-none",
+        idle: "border-slate-900 bg-white text-slate-600 hover:bg-emerald-50 hover:text-emerald-900 hover:border-emerald-500 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-emerald-400/10 dark:hover:text-emerald-300",
+      },
+      partial: {
+        active: "border-violet-500 bg-violet-300 text-violet-950 shadow-[2px_2px_0px_0px_#6d28d9] dark:border-violet-400/50 dark:bg-violet-400/25 dark:text-violet-200 dark:shadow-none",
+        idle: "border-slate-900 bg-white text-slate-600 hover:bg-violet-50 hover:text-violet-900 hover:border-violet-500 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-violet-400/10 dark:hover:text-violet-300",
+      },
+      overdue: {
+        active: "border-rose-500 bg-rose-300 text-rose-950 shadow-[2px_2px_0px_0px_#be123c] dark:border-rose-400/50 dark:bg-rose-400/25 dark:text-rose-200 dark:shadow-none",
+        idle: "border-slate-900 bg-white text-slate-600 hover:bg-rose-50 hover:text-rose-900 hover:border-rose-500 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-rose-400/10 dark:hover:text-rose-300",
+      },
+      pending: {
+        active: "border-amber-500 bg-amber-300 text-amber-950 shadow-[2px_2px_0px_0px_#b45309] dark:border-amber-400/50 dark:bg-amber-400/25 dark:text-amber-200 dark:shadow-none",
+        idle: "border-slate-900 bg-white text-slate-600 hover:bg-amber-50 hover:text-amber-900 hover:border-amber-500 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-amber-400/10 dark:hover:text-amber-300",
+      },
+    };
+    const c = map[status] ?? map.pending;
+    return isActive ? c.active : c.idle;
+  }
 
   function handleClick(status: string) {
     if (currentStatus === status) return;
@@ -46,13 +78,16 @@ export default function ScheduleStatusForm({
     const fd = new FormData();
     fd.set("scheduleId", scheduleId);
     fd.set("status", status);
+    setSubmittingStatus(status);
     startTransition(() => {
-      updateScheduleStatus(fd);
+      updateScheduleStatus(fd).finally(() => setSubmittingStatus(null));
     });
   }
 
   function handleDateConfirm() {
     if (!pendingStatus) return;
+
+    setSubmittingStatus(pendingStatus);
 
     if (isRollingManual && applyPartialPayment) {
       const fd = new FormData();
@@ -60,10 +95,11 @@ export default function ScheduleStatusForm({
       fd.set("paymentAmount", paidAmount);
       fd.set("paymentDate", paidDate);
       startTransition(() => {
-        applyPartialPayment(fd).then(() => {
+        applyPartialPayment(fd).finally(() => {
           setShowDatePicker(false);
           setPendingStatus(null);
           setPaidAmount("");
+          setSubmittingStatus(null);
         });
       });
       return;
@@ -74,9 +110,10 @@ export default function ScheduleStatusForm({
     fd.set("status", pendingStatus);
     fd.set("paidDate", paidDate);
     startTransition(() => {
-      updateScheduleStatus(fd).then(() => {
+      updateScheduleStatus(fd).finally(() => {
         setShowDatePicker(false);
         setPendingStatus(null);
+        setSubmittingStatus(null);
       });
     });
   }
@@ -89,13 +126,13 @@ export default function ScheduleStatusForm({
 
   return (
     <div className="flex flex-col gap-2">
-      <form ref={formRef} className="inline-flex w-max overflow-hidden rounded-lg border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-card">
+      <form ref={formRef} className="flex flex-wrap gap-1.5">
         <input type="hidden" name="scheduleId" value={scheduleId} />
-        {visibleStatuses.map((status, i) => {
+        {visibleStatuses.map((status) => {
           const isActive = currentStatus === status;
-          const isFirst = i === 0;
-          const isLast = i === visibleStatuses.length - 1;
+          const isSubmitting = submittingStatus === status;
           const isDisabled = isActive || isPending;
+          const Icon = statusIcons[status] ?? Clock;
           return (
             <button
               key={status}
@@ -103,13 +140,14 @@ export default function ScheduleStatusForm({
               onClick={() => handleClick(status)}
               disabled={isDisabled}
               aria-pressed={isActive}
-              className={`min-h-9 min-w-14 px-1.5 py-1.5 text-xs font-semibold capitalize tracking-wide transition sm:min-w-17 sm:px-2.5 border-slate-900 dark:border-border ${!isFirst ? "border-l-2 dark:border-l-border" : ""} ${isFirst ? "rounded-l-[5px]" : ""} ${isLast ? "rounded-r-[5px]" : ""} ${
-                isActive
-                  ? "bg-slate-900 text-white dark:bg-foreground dark:text-background"
-                  : "bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:bg-card dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-foreground"
-              } ${isDisabled ? "cursor-not-allowed opacity-80" : "cursor-pointer"}`}
+              className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border-2 px-2 py-1 text-[10px] font-bold capitalize tracking-wide transition active:translate-x-px active:translate-y-px active:shadow-none sm:min-h-9 sm:gap-1.5 sm:rounded-lg sm:px-2.5 sm:py-1.5 sm:text-xs ${getStatusClasses(status, isActive)} ${isDisabled ? (isActive ? "cursor-default" : "cursor-not-allowed opacity-60") : "cursor-pointer"}`}
             >
-              {status}
+              {isSubmitting ? (
+                <Loader2 className="size-3 shrink-0 animate-spin sm:size-3.5" aria-hidden />
+              ) : (
+                <Icon className="size-3 shrink-0 sm:size-3.5" aria-hidden />
+              )}
+              <span>{status}</span>
             </button>
           );
         })}

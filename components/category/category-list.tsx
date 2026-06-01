@@ -183,7 +183,7 @@ export default function CategoryList() {
           type="button"
           onClick={openAddDialog}
           aria-label="Add category"
-          className="fixed bottom-[76px] right-4 z-[9999] flex size-14 items-center justify-center rounded-full border-2 border-slate-900 bg-slate-900 text-white shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform duration-200 active:scale-95"
+          className="fixed bottom-[76px] right-4 z-[9999] flex size-14 items-center justify-center rounded-full border-2 border-slate-900 bg-green-400 text-white shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform duration-200 active:scale-95 dark:border-border dark:bg-green-400 dark:text-background dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
         >
           <FaPlus className="size-5" />
         </button>,

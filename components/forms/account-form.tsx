@@ -10,6 +10,7 @@ import {
   type AccountFormValues,
 } from "@/lib/validations/account";
 import { logAuditAction } from "@/app/actions/audit";
+import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
 import {
   formFieldErrorClassName,
   formFieldInputClassName,
@@ -258,6 +259,7 @@ export default function AccountForm({
       : "Account created." + (values.schedule_mode === "manual" ? (values.interest_type === "rolling" ? " First rolling schedule generated." : " Add schedules manually.") : "");
     toast.success(msg);
 
+    await revalidateBorrowerDetailPage(values.borrower_id);
     router.refresh();
     onSuccess?.();
   };
@@ -302,10 +304,10 @@ export default function AccountForm({
           <label className={formFieldLabelClassName}>Account status</label>
           <div className="flex gap-3">
             <label
-              className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition ${
+              className={`flex cursor-pointer items-center gap-2 dark:text-slate-800 rounded-lg dark border-2 border-slate-900 px-3 py-2 text-sm font-bold transition ${
                 !isPending
-                  ? "bg-emerald-200 shadow-[2px_2px_0px_0px_#0f172a]"
-                  : "bg-white hover:bg-slate-50"
+                  ? "bg-emerald-300 dark:bg-emerald-400 shadow-[2px_2px_0px_0px_#0f172a] "
+                  : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
               }`}
             >
               <input
@@ -317,10 +319,10 @@ export default function AccountForm({
               <span>active</span>
             </label>
             <label
-              className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition ${
+              className={`flex cursor-pointer items-center dark:text-slate-800 gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition ${
                 isPending
-                  ? "bg-amber-200 shadow-[2px_2px_0px_0px_#0f172a]"
-                  : "bg-white hover:bg-slate-50"
+                  ? "bg-amber-300  shadow-[2px_2px_0px_0px_#0f172a]"
+                  : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
               }`}
             >
               <input
@@ -347,10 +349,10 @@ export default function AccountForm({
             {(["flat", "rolling"] as const).map((type) => (
               <label
                 key={type}
-                className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition ${
+                className={`flex cursor-pointer dark:text-slate-800 items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition ${
                   interestType === type
-                    ? "bg-violet-200 shadow-[2px_2px_0px_0px_#0f172a]"
-                    : "bg-white hover:bg-slate-50"
+                    ? "bg-violet-300 shadow-[2px_2px_0px_0px_#0f172a]"
+                    : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
                 }`}
               >
                 <input

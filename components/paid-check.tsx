@@ -28,7 +28,7 @@ export default function PaidCheck() {
         }
       `}</style>
 
-      <span className="relative ml-2 inline-flex items-center justify-center">
+      <span className="relative ml-2 inline-flex items-center justify-center translate-y-1">
         {/* Radiating rays */}
         <svg
           viewBox="0 0 48 48"

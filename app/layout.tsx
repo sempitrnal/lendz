@@ -96,7 +96,7 @@ export default function RootLayout({
             <MobileTopBar />
           </Suspense>
           <Toaster />
-          <footer className="border-t border-slate-200 dark:border-border print:hidden">
+          {/* <footer className="border-t border-slate-200 dark:border-border print:hidden">
             <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4 text-sm text-slate-600 dark:text-muted-foreground">
               <p>© 2026 Lendz. All rights reserved.</p>
               <div className="flex items-center gap-4">
@@ -104,7 +104,7 @@ export default function RootLayout({
                 <Link href="/terms">Terms</Link>
               </div>
             </div>
-          </footer>
+          </footer> */}
         </ThemeProvider>
       </body>
     </html>

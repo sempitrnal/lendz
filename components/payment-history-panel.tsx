@@ -1,6 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export type SchedulePayment = {
   id: string;
@@ -39,7 +46,7 @@ function PaymentRow({
   updatePayment: (formData: FormData) => Promise<void>;
   deletePayment: (formData: FormData) => Promise<void>;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState(String(payment.amount));
   const [date, setDate] = useState(payment.payment_date ?? "");
   const [note, setNote] = useState(payment.note ?? "");
@@ -52,7 +59,7 @@ function PaymentRow({
     fd.set("paymentDate", date);
     fd.set("note", note);
     startTransition(() => {
-      updatePayment(fd).then(() => setEditing(false));
+      updatePayment(fd).then(() => setOpen(false));
     });
   }
 
@@ -62,110 +69,103 @@ function PaymentRow({
     fd.set("paymentId", payment.id);
     fd.set("scheduleId", payment.schedule_id);
     startTransition(() => {
-      deletePayment(fd);
+      deletePayment(fd).then(() => setOpen(false));
     });
   }
 
-  if (editing) {
-    return (
-      <li className="flex flex-col gap-2 rounded-lg border-2 border-violet-400 bg-violet-50 p-3">
-        <div className="flex flex-wrap gap-2">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black uppercase tracking-wide text-slate-600">
-              Amount
-            </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-24 rounded-md border-2 border-slate-900 bg-white px-2 py-1 text-sm font-semibold tabular-nums text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black uppercase tracking-wide text-slate-600">
-              Date
-            </label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-36 min-w-0 rounded-md border-2 border-slate-900 bg-white px-2 py-1 text-sm font-semibold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black uppercase tracking-wide text-slate-600">
-              Note
-            </label>
-            <input
-              type="text"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={500}
-              placeholder="—"
-              className="w-28 rounded-md border-2 border-slate-900 bg-white px-2 py-1 text-sm text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-            />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isPending}
-            className="rounded-md border-2 border-slate-900 bg-emerald-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] transition hover:bg-emerald-300 disabled:opacity-70 cursor-pointer"
-          >
-            {isPending ? "…" : "Save"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setEditing(false)}
-            disabled={isPending}
-            className="rounded-md border-2 border-slate-900 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] transition hover:bg-slate-50 disabled:opacity-70 cursor-pointer"
-          >
-            Cancel
-          </button>
+  return (
+    <>
+      <li
+        onClick={() => setOpen(true)}
+        className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-slate-200 bg-green-300 px-3 py-2 transition hover:bg-green-400 dark:border-border dark:bg-card dark:hover:bg-muted"
+      >
+        <div className="min-w-0 flex-1">
+          <span className="font-black tabular-nums text-slate-900 dark:text-foreground">
+            {formatMoney(payment.amount)}
+          </span>
+          <span className="mx-1.5 text-slate-300 dark:text-border">·</span>
+          <span className="text-xs font-semibold text-slate-600 dark:text-muted-foreground">
+            {formatDate(payment.payment_date)}
+          </span>
+          {payment.note ? (
+            <>
+              <span className="mx-1.5 text-slate-300 dark:text-border">·</span>
+              <span className="text-xs text-slate-500 truncate dark:text-muted-foreground">{payment.note}</span>
+            </>
+          ) : null}
         </div>
       </li>
-    );
-  }
 
-  return (
-    <li className="flex items-center justify-between gap-2 rounded-lg border-2 border-slate-900 bg-white px-3 py-2">
-      <div className="min-w-0 flex-1">
-        <span className="font-black tabular-nums text-slate-900">
-          {formatMoney(payment.amount)}
-        </span>
-        <span className="mx-1.5 text-slate-300">·</span>
-        <span className="text-xs font-semibold text-slate-600">
-          {formatDate(payment.payment_date)}
-        </span>
-        {payment.note ? (
-          <>
-            <span className="mx-1.5 text-slate-300">·</span>
-            <span className="text-xs text-slate-500 truncate">{payment.note}</span>
-          </>
-        ) : null}
-      </div>
-      <div className="flex shrink-0 gap-1">
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="rounded-md border-2 border-slate-900 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={isPending}
-          className="rounded-md border-2 border-rose-300 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-600 transition hover:bg-rose-50 hover:text-rose-900 disabled:opacity-70 cursor-pointer"
-        >
-          {isPending ? "…" : "Del"}
-        </button>
-      </div>
-    </li>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
+              Payment Details
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
+                Amount
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold tabular-nums text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
+                Date
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
+                Note
+              </label>
+              <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                maxLength={500}
+                placeholder="—"
+                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-row gap-2 border-t-0 bg-transparent pt-0 sm:justify-between">
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isPending}
+              className="rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-wide text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-70 cursor-pointer dark:border-rose-400/40 dark:bg-card dark:text-rose-300 dark:hover:bg-rose-400/10 dark:hover:text-rose-200"
+            >
+              {isPending ? "…" : "Delete"}
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isPending}
+              className="rounded-md border border-slate-300 bg-emerald-100 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-emerald-900 transition hover:bg-emerald-200 disabled:opacity-70 cursor-pointer dark:border-border dark:bg-emerald-400/25 dark:text-emerald-100 dark:hover:bg-emerald-400/40"
+            >
+              {isPending ? "…" : "Save"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -180,9 +180,9 @@ export default function PaymentHistoryPanel({
 
   return (
     <div className="mt-2">
-      <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600">
+      <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
         Payment history
-        <span className="ml-2 font-semibold text-slate-500">
+        <span className="ml-2 font-semibold text-slate-500 dark:text-muted-foreground">
           ({payments.length} payment{payments.length !== 1 ? "s" : ""} · total {formatMoney(total)})
         </span>
       </p>

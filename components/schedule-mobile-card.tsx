@@ -8,6 +8,7 @@ export function ScheduleMobileCard({
   scheduleId,
   children,
   actions,
+  footer,
   className,
   id,
   defaultOpen = false,
@@ -15,6 +16,7 @@ export function ScheduleMobileCard({
   scheduleId: string;
   children: React.ReactNode;
   actions?: React.ReactNode;
+  footer?: React.ReactNode;
   className?: string;
   id?: string;
   defaultOpen?: boolean;
@@ -31,7 +33,7 @@ export function ScheduleMobileCard({
   return (
     <li
       id={id}
-      className={`${className} ${selected ? "outline-dashed outline-4 outline-offset-[-2px] outline-blue-500 bg-yellow-100 dark:outline-blue-400 dark:bg-yellow-900/20" : ""}`}
+      className={`${className} ${selected ? "bg-cyan-300 dark:bg-cyan-900/20" : ""}`}
     >
       <div
         onClick={handleTap}
@@ -52,10 +54,16 @@ export function ScheduleMobileCard({
           }`}
         >
           <div className="overflow-hidden">
-            <div className="border-t-2 border-dashed border-slate-200 pt-3 mt-3">
+            <div className="border-t-2 border-dashed border-slate-200 dark:border-slate-900 pt-3 mt-3">
               {actions}
             </div>
           </div>
+        </div>
+      )}
+
+      {footer && (
+        <div className="border-t-2 border-dashed border-slate-200 dark:border-slate-900 pt-3 mt-3">
+          {footer}
         </div>
       )}
     </li>
