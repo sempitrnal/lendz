@@ -182,7 +182,7 @@ export default function BorrowersList({
           type="button"
           onClick={openAddBorrowerModal}
           aria-label="Add borrower"
-          className="fixed bottom-[76px] right-4 z-[2] flex size-14 items-center justify-center rounded-full border-2 border-slate-900 bg-green-400 text-white shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform duration-200 active:scale-95 dark:border-border dark:bg-green-400 dark:text-background dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+          className="fixed bottom-[76px] right-4 z-[2] flex size-14 items-center justify-center rounded-full border-2 border-slate-900 bg-green-400 text-slate-900 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform duration-200 active:scale-95 dark:border-border dark:bg-green-400 dark:text-background dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
         >
           <FaPlus className="size-5" />
         </button>,
@@ -223,7 +223,7 @@ export default function BorrowersList({
                   key={s.id}
                   type="button"
                   onMouseDown={(e) => { e.preventDefault(); setShowSuggestions(false); router.push(`/borrowers/${s.id}`); }}
-                  className={`flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 transition-colors ${
+                  className={`flex w-full bg-[#fffefa] items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 transition-colors ${
                     i === activeSuggestion ? "bg-slate-900 text-white" : "hover:bg-slate-50"
                   }`}
                 >
@@ -252,7 +252,7 @@ export default function BorrowersList({
             aria-expanded={isCategoryDropdownOpen}
             aria-haspopup="listbox"
             onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
-            className="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-900/90 bg-white px-4 py-3 text-left shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition hover:bg-slate-50/90 active:translate-y-px active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)] dark:border-border dark:bg-card dark:shadow-none dark:hover:bg-muted"
+            className="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-900/90 px-4 py-3 text-left shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition  active:translate-y-px active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)] dark:border-border dark:shadow-none dark:hover:bg-muted"
           >
             <span className="text-sm font-bold uppercase tracking-wide text-slate-900 dark:text-foreground">
               {selectedCategoryIds.length > 0

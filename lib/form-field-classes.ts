@@ -1,6 +1,6 @@
 /** Shared text input styling for app forms */
 export const formFieldInputClassName =
-  "w-full rounded-lg border border-slate-900 bg-white px-3 py-2 text-slate-900 outline-none transition focus:-translate-y-0.5 focus:translate-x-0.5 focus:shadow-[4px_4px_0px_0px_#334155] dark:border-border dark:bg-card dark:text-foreground";
+  "w-full rounded-lg border border-slate-900 bg-[#fffefa] px-3 py-2 text-slate-900 outline-none transition focus:-translate-y-0.5 focus:translate-x-0.5 focus:shadow-[4px_4px_0px_0px_#334155] dark:border-border dark:bg-card dark:text-foreground";
 
 /** Shared label styling for app forms */
 export const formFieldLabelClassName =

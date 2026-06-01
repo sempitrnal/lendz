@@ -75,11 +75,11 @@ export function BorrowerCard({
     <div
       onTouchStart={(e) => { touchStartY.current = e.touches[0].clientY; didScroll.current = false; }}
       onTouchMove={(e) => { if (Math.abs(e.touches[0].clientY - touchStartY.current) > 8) didScroll.current = true; }}
-      className={`relative  w-full min-w-0 max-w-full overflow-hidden rounded-xl border-2 bg-white text-left transition-all duration-150 dark:bg-background ${
+      className={`relative  w-full min-w-0 max-w-full overflow-hidden rounded-xl border-2 bg-[#fffef5] text-left transition-all duration-150 dark:bg-background ${
         hasOverdue
           ? "border-red-700 shadow-[4px_4px_0px_0px_#b91c1c]"
-          : "border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] dark:border-border"
-      } ${isPending ? "" : " active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#0f172a]"}`}
+          : "border-slate-900 shadow-[4px_4px_0px_0px_#341153] dark:border-border"
+      } ${isPending ? "" : " active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#1c132f]"}`}
       aria-busy={isPending}
     >
       {/* Prefetch borrower detail page for instant navigation */}
