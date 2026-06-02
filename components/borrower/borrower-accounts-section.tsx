@@ -2,7 +2,13 @@
 
 import { FaPlus } from "react-icons/fa6";
 import { ChevronDown } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type SyntheticEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -50,15 +56,15 @@ function StickyBorrowerStrip({
   const [open, setOpen] = useState(false);
   if (!borrower) return null;
   return (
-    <div className="sticky top-10 md:top-16 z-30 -mx-4 bg-background backdrop-blur relative dark:bg-background/95">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2 dark:border-border/50">
+    <div className="bg-background dark:bg-background/95 relative sticky top-10 z-30 -mx-4 backdrop-blur md:top-16">
+      <div className="dark:border-border/50 flex items-center justify-between border-b border-slate-200 px-4 py-2">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
+            <p className="dark:text-foreground truncate text-sm font-black tracking-wide text-slate-900 uppercase">
               {borrower.first_name} {borrower.last_name}
             </p>
             {borrower.category && borrower.category.length > 0 && (
@@ -66,51 +72,110 @@ function StickyBorrowerStrip({
                 {borrower.category.map((c) => (
                   <span
                     key={c.id}
-                    className={`text-[9px] font-black px-1.5 py-0.5 rounded border border-slate-900/30 ${isDarkColor(c.color) ? "text-white" : "text-slate-900"}`}
+                    className={`rounded border border-slate-900/30 px-1.5 py-0.5 text-[9px] font-black ${isDarkColor(c.color) ? "text-white" : "text-slate-900"}`}
                     style={{ backgroundColor: c.color }}
-                  >{c.name}</span>
+                  >
+                    {c.name}
+                  </span>
                 ))}
               </div>
             )}
-            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500 dark:text-muted-foreground">
-              <span>Loaned <strong className="text-slate-700 dark:text-foreground">₱{Math.round(totalLoaned).toLocaleString()}</strong></span>
-              <span>Collected <strong className="text-emerald-700 dark:text-emerald-400">₱{Math.round(totalAmountCollected).toLocaleString()}</strong></span>
-              <span>Remaining <strong className="text-rose-700 dark:text-rose-400">₱{Math.round(totalRemaining).toLocaleString()}</strong></span>
+            <div className="dark:text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+              <span>
+                Loaned{" "}
+                <strong className="dark:text-foreground text-slate-700">
+                  ₱{Math.round(totalLoaned).toLocaleString()}
+                </strong>
+              </span>
+              <span>
+                Collected{" "}
+                <strong className="text-emerald-700 dark:text-emerald-400">
+                  ₱{Math.round(totalAmountCollected).toLocaleString()}
+                </strong>
+              </span>
+              <span>
+                Remaining{" "}
+                <strong className="text-rose-700 dark:text-rose-400">
+                  ₱{Math.round(totalRemaining).toLocaleString()}
+                </strong>
+              </span>
             </div>
           </div>
-          <ChevronDown className={`ml-1 size-4 shrink-0 text-slate-500 dark:text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+          <ChevronDown
+            className={`dark:text-muted-foreground ml-1 size-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          />
         </button>
         <div className="ml-2 shrink-0" data-prevent-strip-open>
           <BorrowerDetailMenu borrowerId={borrower.id} />
         </div>
       </div>
-      <div className={`absolute left-0 right-0 top-full z-30 grid overflow-hidden bg-white/95 backdrop-blur shadow-[0_4px_0_0_#0f172a] dark:bg-background/95 dark:shadow-[0_4px_0_0_#0f172a] transition-[grid-template-rows] duration-300 ease-in-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+      <div
+        className={`dark:bg-background/95 absolute top-full right-0 left-0 z-30 grid overflow-hidden bg-white/95 shadow-[0_4px_0_0_#0f172a] backdrop-blur transition-[grid-template-rows] duration-300 ease-in-out dark:shadow-[0_4px_0_0_#0f172a] ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+      >
         <div className="overflow-hidden">
           <div className="px-4 pb-3">
             <div className="grid grid-cols-2 gap-2 text-[11px]">
-              {([
-                { label: "Total Loaned",      value: totalLoaned,             bg: "bg-sky-100 dark:bg-sky-900/30" },
-                { label: "Money Collected",   value: totalAmountCollected,    bg: "bg-teal-100 dark:bg-teal-900/30" },
-                { label: "Remaining",         value: totalRemaining,          bg: "bg-rose-100 dark:bg-rose-900/30" },
-                { label: "Profit Expected",   value: totalExpected,           bg: "bg-amber-100 dark:bg-amber-900/30" },
-                { label: "Profit Collected",  value: totalCollected,          bg: "bg-emerald-100 dark:bg-emerald-900/30" },
-                { label: "Profit / Schedule", value: profitPerSchedule,       bg: "bg-violet-100 dark:bg-violet-900/30" },
-              ] as const).map(({ label, value, bg }, i) => (
+              {(
+                [
+                  {
+                    label: "Total Loaned",
+                    value: totalLoaned,
+                    bg: "bg-sky-100 dark:bg-sky-900/30",
+                  },
+                  {
+                    label: "Money Collected",
+                    value: totalAmountCollected,
+                    bg: "bg-teal-100 dark:bg-teal-900/30",
+                  },
+                  {
+                    label: "Remaining",
+                    value: totalRemaining,
+                    bg: "bg-rose-100 dark:bg-rose-900/30",
+                  },
+                  {
+                    label: "Profit Expected",
+                    value: totalExpected,
+                    bg: "bg-amber-100 dark:bg-amber-900/30",
+                  },
+                  {
+                    label: "Profit Collected",
+                    value: totalCollected,
+                    bg: "bg-emerald-100 dark:bg-emerald-900/30",
+                  },
+                  {
+                    label: "Profit / Schedule",
+                    value: profitPerSchedule,
+                    bg: "bg-violet-100 dark:bg-violet-900/30",
+                  },
+                ] as const
+              ).map(({ label, value, bg }, i) => (
                 <div
                   key={label}
-                  className={`border-2 border-slate-900 dark:border-border ${bg} px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] transition-all duration-200 ${open ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"}`}
+                  className={`dark:border-border border-2 border-slate-900 ${bg} px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] transition-all duration-200 ${open ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"}`}
                   style={{ transitionDelay: open ? `${i * 40}ms` : "0ms" }}
                 >
-                  <p className="font-black uppercase tracking-wide text-slate-500 dark:text-muted-foreground">{label}</p>
-                  <p className="mt-0.5 font-black tabular-nums text-slate-900 dark:text-foreground">₱{Math.round(value).toLocaleString()}</p>
+                  <p className="dark:text-muted-foreground font-black tracking-wide text-slate-500 uppercase">
+                    {label}
+                  </p>
+                  <p className="dark:text-foreground mt-0.5 font-black text-slate-900 tabular-nums">
+                    ₱{Math.round(value).toLocaleString()}
+                  </p>
                 </div>
               ))}
             </div>
-            <div className={`mt-2 flex items-center gap-2 transition-all duration-200 ${open ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: open ? "160ms" : "0ms" }}>
-              <div className="h-2 flex-1 overflow-hidden rounded-sm border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-card">
-                <div className="h-full bg-emerald-400 transition-[width] duration-500 ease-out" style={{ width: open ? `${collectedPct}%` : "0%" }} />
+            <div
+              className={`mt-2 flex items-center gap-2 transition-all duration-200 ${open ? "opacity-100" : "opacity-0"}`}
+              style={{ transitionDelay: open ? "160ms" : "0ms" }}
+            >
+              <div className="dark:border-border dark:bg-card h-2 flex-1 overflow-hidden rounded-sm border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]">
+                <div
+                  className="h-full bg-emerald-400 transition-[width] duration-500 ease-out"
+                  style={{ width: open ? `${collectedPct}%` : "0%" }}
+                />
               </div>
-              <span className="shrink-0 text-[10px] font-black tabular-nums text-slate-700 dark:text-foreground">{collectedPct}%</span>
+              <span className="dark:text-foreground shrink-0 text-[10px] font-black text-slate-700 tabular-nums">
+                {collectedPct}%
+              </span>
             </div>
           </div>
         </div>
@@ -147,8 +212,8 @@ export type AccountComputedMetrics = {
   overdueSchedules: { due_date: string; amount: number }[];
   totalDue: number;
   totalPaid: number;
-  term_months?: string| number| null;
-  term_installments?: string| number| null;
+  term_months?: string | number | null;
+  term_installments?: string | number | null;
   schedule_mode?: string | null;
 };
 
@@ -166,14 +231,16 @@ export default function BorrowerAccountsSection({
   initialMetrics,
 }: BorrowerAccountsSectionProps) {
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
-  const [editingAccount, setEditingAccount] = useState<AccountRow | null>(
-    null
-  );
+  const [editingAccount, setEditingAccount] = useState<AccountRow | null>(null);
   const [openingAccountId, setOpeningAccountId] = useState<string | null>(null);
-  const [activatingAccount, setActivatingAccount] = useState<AccountRow | null>(null);
+  const [activatingAccount, setActivatingAccount] = useState<AccountRow | null>(
+    null,
+  );
   const [fabOpen, setFabOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => { setIsMounted(true); }, []);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   const [markingNextPaidScheduleId, setMarkingNextPaidScheduleId] = useState<
     string | null
   >(null);
@@ -200,9 +267,7 @@ export default function BorrowerAccountsSection({
     setNotes(data || []);
   };
   const deleteNote = async (id: string) => {
-    const confirmed = window.confirm(
-      "Delete this note?"
-    );
+    const confirmed = window.confirm("Delete this note?");
 
     if (!confirmed) return;
 
@@ -216,18 +281,14 @@ export default function BorrowerAccountsSection({
       return;
     }
 
-    setNotes((prev) =>
-      prev.filter((n) => n.id !== id)
-    );
+    setNotes((prev) => prev.filter((n) => n.id !== id));
 
     setIsNotesOpen(false);
     setSelectedNote(null);
   };
-  const [selectedNote, setSelectedNote] =
-    useState<any | null>(null);
+  const [selectedNote, setSelectedNote] = useState<any | null>(null);
 
-  const [isNotesOpen, setIsNotesOpen] =
-    useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
   const handleOpenAccount = (id: string) => {
     setOpeningAccountId(id);
     router.push(`/accounts/${id}`);
@@ -235,7 +296,6 @@ export default function BorrowerAccountsSection({
   const handlePrefetchAccount = (id: string) => {
     router.prefetch(`/accounts/${id}`);
   };
-
 
   const fetchAccountMetrics = async () => {
     if (!accounts || accounts.length === 0) {
@@ -247,7 +307,7 @@ export default function BorrowerAccountsSection({
     const { data: schedulesData, error } = await supabase
       .from("payment_schedules")
       .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status"
+        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
       )
       .in("account_id", accountIds)
       .order("due_date", { ascending: true });
@@ -271,15 +331,15 @@ export default function BorrowerAccountsSection({
       const rows = byAccount.get(account.id) ?? [];
       const totalPayment = rows.reduce(
         (sum, row) => sum + Number(row.amount_due ?? 0),
-        0
+        0,
       );
       const amountPaid = rows.reduce(
         (sum, row) => sum + amountPaidOnInstallment(row),
-        0
+        0,
       );
       const amountLeftToPayRaw = rows.reduce(
         (sum, row) => sum + remainingOnInstallment(row),
-        0
+        0,
       );
       const amountLeftToPayRolling = rows
         .filter((row) => row.status !== "partial")
@@ -289,7 +349,9 @@ export default function BorrowerAccountsSection({
       const isManual = account.schedule_mode === "manual";
       const isRolling = isManual && account.interest_type === "rolling";
       const isFlatManual = isManual && !isRolling;
-      const manualFlatTotal = isFlatManual ? principal * (1 + interestRate / 100) : 0;
+      const manualFlatTotal = isFlatManual
+        ? principal * (1 + interestRate / 100)
+        : 0;
       const amountLeftToPay = isFlatManual
         ? Math.max(0, manualFlatTotal - amountPaid)
         : isRolling
@@ -303,22 +365,32 @@ export default function BorrowerAccountsSection({
           : Math.max(0, totalPayment - principal);
       const nextUnpaid = nextDueScheduleForCollection(rows);
       const overdueRows = rows.filter(
-        (row) => row.status === "overdue" && !isInstallmentFullyPaid(row)
+        (row) => row.status === "overdue" && !isInstallmentFullyPaid(row),
       );
       console.log(account);
       computed[account.id] = {
         amountLeftToPay,
         profitToMake,
         nextCollectionDate: nextUnpaid?.due_date ?? null,
-        nextCollectionAmount: nextUnpaid ? remainingOnInstallment(nextUnpaid) : 0,
-        nextCollectionAmountDue: nextUnpaid ? Math.max(0, Number(nextUnpaid.amount_due ?? 0)) : 0,
+        nextCollectionAmount: nextUnpaid
+          ? remainingOnInstallment(nextUnpaid)
+          : 0,
+        nextCollectionAmountDue: nextUnpaid
+          ? Math.max(0, Number(nextUnpaid.amount_due ?? 0))
+          : 0,
         nextCollectionStatus: nextUnpaid?.status ?? null,
         nextUnpaidScheduleId: nextUnpaid?.id ?? null,
         overdueCount: overdueRows.length,
-        overdueTotal: overdueRows.reduce((sum, row) => sum + remainingOnInstallment(row), 0),
+        overdueTotal: overdueRows.reduce(
+          (sum, row) => sum + remainingOnInstallment(row),
+          0,
+        ),
         overdueSchedules: [...overdueRows]
           .sort((a, b) => a.due_date.localeCompare(b.due_date))
-          .map((row) => ({ due_date: row.due_date, amount: remainingOnInstallment(row) })),
+          .map((row) => ({
+            due_date: row.due_date,
+            amount: remainingOnInstallment(row),
+          })),
         totalDue: isFlatManual ? manualFlatTotal : totalPayment,
         totalPaid: amountPaid,
         term_months: account.term_months,
@@ -336,13 +408,25 @@ export default function BorrowerAccountsSection({
 
   const summaryStats = useMemo(() => {
     if (!accounts || accounts.length === 0) return null;
-    const totalLoaned = accounts.reduce((s, a) => s + Number(a.principal_amount ?? 0), 0);
+    const totalLoaned = accounts.reduce(
+      (s, a) => s + Number(a.principal_amount ?? 0),
+      0,
+    );
     const metricsArr = Object.values(accountMetricsById);
     const totalExpected = metricsArr.reduce((s, m) => s + m.profitToMake, 0);
-    const totalAmountCollected = metricsArr.reduce((s, m) => s + m.totalPaid, 0);
-    const totalRemaining = metricsArr.reduce((s, m) => s + m.amountLeftToPay, 0);
-    const totalCollected = metricsArr.reduce((s, m) =>
-      s + (m.totalDue > 0 ? m.profitToMake * (m.totalPaid / m.totalDue) : 0), 0);
+    const totalAmountCollected = metricsArr.reduce(
+      (s, m) => s + m.totalPaid,
+      0,
+    );
+    const totalRemaining = metricsArr.reduce(
+      (s, m) => s + m.amountLeftToPay,
+      0,
+    );
+    const totalCollected = metricsArr.reduce(
+      (s, m) =>
+        s + (m.totalDue > 0 ? m.profitToMake * (m.totalPaid / m.totalDue) : 0),
+      0,
+    );
     let profitPerSchedule = 0;
     for (const a of accounts) {
       const m = accountMetricsById[a.id];
@@ -361,15 +445,26 @@ export default function BorrowerAccountsSection({
               : termMonths || 1;
       profitPerSchedule += m.profitToMake / installments;
     }
-    const collectedPct = totalExpected > 0 ? Math.min(100, Math.round((totalCollected / totalExpected) * 100)) : 0;
-    return { totalLoaned, totalExpected, totalCollected, totalAmountCollected, totalRemaining, profitPerSchedule, collectedPct };
+    const collectedPct =
+      totalExpected > 0
+        ? Math.min(100, Math.round((totalCollected / totalExpected) * 100))
+        : 0;
+    return {
+      totalLoaned,
+      totalExpected,
+      totalCollected,
+      totalAmountCollected,
+      totalRemaining,
+      profitPerSchedule,
+      collectedPct,
+    };
   }, [accounts, accountMetricsById]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
   return (
-    <div className="rounded-lg  ">
+    <div className="rounded-lg">
       {borrower && (
         <StickyBorrowerStrip
           borrower={borrower}
@@ -387,87 +482,274 @@ export default function BorrowerAccountsSection({
         <div className="rounded-xl border border-dashed p-10 text-center">
           <p className="text-gray-500">No accounts yet</p>
         </div>
-      ) : (() => {
-        const sortByRelease = (group: typeof accounts) =>
-          [...group].sort((a, b) => {
-            const da = a.release_date ? new Date(a.release_date).getTime() : 0;
-            const db = b.release_date ? new Date(b.release_date).getTime() : 0;
-            return db - da;
-          });
-        const activeLoans = sortByRelease(accounts.filter((a) => a.status !== "pending" && a.type !== "cash_advance"));
-        const activeCashAdvances = sortByRelease(accounts.filter((a) => a.status !== "pending" && a.type === "cash_advance"));
-        const pendingLoans = sortByRelease(accounts.filter((a) => a.status === "pending" && a.type !== "cash_advance"));
-        const pendingCashAdvances = sortByRelease(accounts.filter((a) => a.status === "pending" && a.type === "cash_advance"));
-        const pendingAll = [...pendingLoans, ...pendingCashAdvances];
-        const renderGroup = (group: typeof accounts, label: string, accent: string) =>
-          group.length === 0 ? null : (
-            <div>
-              <div className="mb-3 flex items-center gap-2 mt-10">
-                <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border-2 border-slate-900 shadow-[2px_2px_0px_0px_#0f172a] ${accent}`}>
-                  {label}
-                </span>
-                <span className="text-xs font-semibold text-slate-400">{group.length} account{group.length === 1 ? "" : "s"}</span>
+      ) : (
+        (() => {
+          const sortByRelease = (group: typeof accounts) =>
+            [...group].sort((a, b) => {
+              const da = a.release_date
+                ? new Date(a.release_date).getTime()
+                : 0;
+              const db = b.release_date
+                ? new Date(b.release_date).getTime()
+                : 0;
+              return db - da;
+            });
+          const activeAutoLoans = sortByRelease(
+            accounts.filter(
+              (a) =>
+                a.status !== "pending" &&
+                a.type !== "cash_advance" &&
+                a.schedule_mode !== "manual",
+            ),
+          );
+          const activeManualFlatLoans = sortByRelease(
+            accounts.filter(
+              (a) =>
+                a.status !== "pending" &&
+                a.type !== "cash_advance" &&
+                a.schedule_mode === "manual" &&
+                (a as any).interest_type !== "rolling",
+            ),
+          );
+          const activeManualRollingLoans = sortByRelease(
+            accounts.filter(
+              (a) =>
+                a.status !== "pending" &&
+                a.type !== "cash_advance" &&
+                a.schedule_mode === "manual" &&
+                (a as any).interest_type === "rolling",
+            ),
+          );
+          const activeAutoCashAdvances = sortByRelease(
+            accounts.filter(
+              (a) =>
+                a.status !== "pending" &&
+                a.type === "cash_advance" &&
+                a.schedule_mode !== "manual",
+            ),
+          );
+          const activeManualFlatCashAdvances = sortByRelease(
+            accounts.filter(
+              (a) =>
+                a.status !== "pending" &&
+                a.type === "cash_advance" &&
+                a.schedule_mode === "manual" &&
+                (a as any).interest_type !== "rolling",
+            ),
+          );
+          const activeManualRollingCashAdvances = sortByRelease(
+            accounts.filter(
+              (a) =>
+                a.status !== "pending" &&
+                a.type === "cash_advance" &&
+                a.schedule_mode === "manual" &&
+                (a as any).interest_type === "rolling",
+            ),
+          );
+          const pendingAutoLoans = sortByRelease(
+            accounts.filter(
+              (a) =>
+                a.status === "pending" &&
+                a.type !== "cash_advance" &&
+                a.schedule_mode !== "manual",
+            ),
+          );
+          const pendingManualFlatLoans = sortByRelease(
+            accounts.filter(
+              (a) =>
+                a.status === "pending" &&
+                a.type !== "cash_advance" &&
+                a.schedule_mode === "manual" &&
+                (a as any).interest_type !== "rolling",
+            ),
+          );
+          const pendingManualRollingLoans = sortByRelease(
+            accounts.filter(
+              (a) =>
+                a.status === "pending" &&
+                a.type !== "cash_advance" &&
+                a.schedule_mode === "manual" &&
+                (a as any).interest_type === "rolling",
+            ),
+          );
+          const pendingAutoCashAdvances = sortByRelease(
+            accounts.filter(
+              (a) =>
+                a.status === "pending" &&
+                a.type === "cash_advance" &&
+                a.schedule_mode !== "manual",
+            ),
+          );
+          const pendingManualFlatCashAdvances = sortByRelease(
+            accounts.filter(
+              (a) =>
+                a.status === "pending" &&
+                a.type === "cash_advance" &&
+                a.schedule_mode === "manual" &&
+                (a as any).interest_type !== "rolling",
+            ),
+          );
+          const pendingManualRollingCashAdvances = sortByRelease(
+            accounts.filter(
+              (a) =>
+                a.status === "pending" &&
+                a.type === "cash_advance" &&
+                a.schedule_mode === "manual" &&
+                (a as any).interest_type === "rolling",
+            ),
+          );
+          const pendingAutoAll = [
+            ...pendingAutoLoans,
+            ...pendingAutoCashAdvances,
+          ];
+          const pendingManualFlatAll = [
+            ...pendingManualFlatLoans,
+            ...pendingManualFlatCashAdvances,
+          ];
+          const pendingManualRollingAll = [
+            ...pendingManualRollingLoans,
+            ...pendingManualRollingCashAdvances,
+          ];
+          let nextCollectionShown = 0;
+          const renderGroup = (
+            group: typeof accounts,
+            label: string,
+            accent: string,
+          ) =>
+            group.length === 0 ? null : (
+              <div>
+                <div className="mt-10 mb-3 flex items-center gap-2">
+                  <span
+                    className={`rounded-full border-2 border-slate-900 px-2.5 py-1 text-[10px] font-black tracking-widest uppercase shadow-[2px_2px_0px_0px_#0f172a] ${accent}`}
+                  >
+                    {label}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-400">
+                    {group.length} account{group.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {group.map((account) => {
+                    const m = accountMetricsById[account.id];
+                    const hasNext = m?.nextCollectionDate != null;
+                    const isManual = account.schedule_mode === "manual";
+                    const isRolling =
+                      isManual && (account as any).interest_type === "rolling";
+                    const showNext = hasNext && (!isManual || isRolling);
+                    if (showNext) nextCollectionShown++;
+                    return (
+                      <AccountCard
+                        key={account.id}
+                        account={account}
+                        isOpening={openingAccountId === account.id}
+                        onOpen={handleOpenAccount}
+                        onPrefetch={handlePrefetchAccount}
+                        onEdit={(acc) => {
+                          setEditingAccount(acc);
+                          setIsAccountDialogOpen(true);
+                        }}
+                        onActivate={(acc) => setActivatingAccount(acc)}
+                        metrics={m}
+                        collapseNext={showNext && nextCollectionShown > 2}
+                      />
+                    );
+                  })}
+                </div>
               </div>
-              <div className="space-y-3">
-                {group.map((account) => (
-                  <AccountCard  
-                    key={account.id}
-                    account={account}
-                    isOpening={openingAccountId === account.id}
-                    onOpen={handleOpenAccount}
-                    onPrefetch={handlePrefetchAccount}
-                    onEdit={(acc) => {
-                      setEditingAccount(acc);
-                      setIsAccountDialogOpen(true);
-                    }}
-                    onActivate={(acc) => setActivatingAccount(acc)}
-                    metrics={accountMetricsById[account.id]}
-                  />
-                ))}
-              </div>
+            );
+          return (
+            <div className="space-y-8">
+              {renderGroup(
+                activeAutoLoans,
+                "loans",
+                "bg-violet-200 text-violet-900",
+              )}
+              {renderGroup(
+                activeManualFlatLoans,
+                "manual flat loans",
+                "bg-lime-200 text-lime-900",
+              )}
+              {renderGroup(
+                activeManualRollingLoans,
+                "manual rolling loans",
+                "bg-cyan-200 text-cyan-900",
+              )}
+              {renderGroup(
+                activeAutoCashAdvances,
+                "cash advances",
+                "bg-amber-200 text-amber-900",
+              )}
+              {renderGroup(
+                activeManualFlatCashAdvances,
+                "manual flat cash advances",
+                "bg-yellow-200 text-yellow-900",
+              )}
+              {renderGroup(
+                activeManualRollingCashAdvances,
+                "manual rolling cash advances",
+                "bg-teal-200 text-teal-900",
+              )}
+              {renderGroup(
+                pendingAutoAll,
+                "pending",
+                "bg-amber-50 text-amber-800",
+              )}
+              {renderGroup(
+                pendingManualFlatAll,
+                "manual flat pending",
+                "bg-emerald-50 text-emerald-800",
+              )}
+              {renderGroup(
+                pendingManualRollingAll,
+                "manual rolling pending",
+                "bg-cyan-50 text-cyan-800",
+              )}
             </div>
           );
-        return (
-          <div className="space-y-8">
-            {renderGroup(activeLoans, "loans", "bg-violet-200 text-violet-900")}
-            {renderGroup(activeCashAdvances, "cash advances", "bg-amber-200 text-amber-900")}
-            {renderGroup(pendingAll, "pending", "bg-amber-50 text-amber-800")}
-          </div>
-        );
-      })()}
+        })()
+      )}
 
       {/* Speed-dial FAB — portalled to body to escape PageTransition transform stacking context */}
-      {isMounted && createPortal(
-        <div className="fixed bottom-[76px] right-4 z-[2] flex flex-col items-end gap-2">
-          {fabOpen && (
-            <>
-              <button
-                type="button"
-                onClick={() => { setFabOpen(false); setSelectedNote(null); setIsNotesOpen(true); }}
-                className="flex items-center gap-2 rounded-full border-2 border-slate-900 bg-yellow-300 px-4 py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a] transition active:translate-y-px active:shadow-[1px_1px_0px_0px_#0f172a] dark:border-border dark:bg-yellow-500 dark:text-slate-900 dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
-              >
-                <FaPlus className="size-3" /> note
-              </button>
-              <button
-                type="button"
-                onClick={() => { setFabOpen(false); setEditingAccount(null); setIsAccountDialogOpen(true); }}
-                className="flex items-center gap-2 rounded-full border-2 border-slate-900 bg-emerald-300 px-4 py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a] transition active:translate-y-px active:shadow-[1px_1px_0px_0px_#0f172a] dark:border-border dark:bg-emerald-600 dark:text-white dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
-              >
-                <FaPlus className="size-3" /> loan
-              </button>
-            </>
-          )}
-          <button
-            type="button"
-            onClick={() => setFabOpen((v) => !v)}
-            aria-label={fabOpen ? "Close actions" : "Open actions"}
-            className={`flex size-14 items-center justify-center rounded-full border-2 border-slate-900 text-slate-900 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-all duration-300 active:scale-95 dark:border-border dark:text-background dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)] ${fabOpen ? "rotate-45 bg-red-400 dark:bg-red-500" : "bg-green-300 dark:bg-green-400"}`}
-          >
-            <FaPlus className="size-5" />
-          </button>
-        </div>,
-        document.body
-      )}
+      {isMounted &&
+        createPortal(
+          <div className="fixed right-4 bottom-[76px] z-[2] flex flex-col items-end gap-2">
+            {fabOpen && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFabOpen(false);
+                    setSelectedNote(null);
+                    setIsNotesOpen(true);
+                  }}
+                  className="dark:border-border flex items-center gap-2 rounded-full border-2 border-slate-900 bg-yellow-300 px-4 py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a] transition active:translate-y-px active:shadow-[1px_1px_0px_0px_#0f172a] dark:bg-yellow-500 dark:text-slate-900 dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+                >
+                  <FaPlus className="size-3" /> note
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFabOpen(false);
+                    setEditingAccount(null);
+                    setIsAccountDialogOpen(true);
+                  }}
+                  className="dark:border-border flex items-center gap-2 rounded-full border-2 border-slate-900 bg-emerald-300 px-4 py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a] transition active:translate-y-px active:shadow-[1px_1px_0px_0px_#0f172a] dark:bg-emerald-600 dark:text-white dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+                >
+                  <FaPlus className="size-3" /> loan
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => setFabOpen((v) => !v)}
+              aria-label={fabOpen ? "Close actions" : "Open actions"}
+              className={`dark:border-border dark:text-background flex size-14 items-center justify-center rounded-full border-2 border-slate-900 text-slate-900 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-all duration-300 active:scale-95 dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)] ${fabOpen ? "rotate-45 bg-red-400 dark:bg-red-500" : "bg-green-300 dark:bg-green-400"}`}
+            >
+              <FaPlus className="size-5" />
+            </button>
+          </div>,
+          document.body,
+        )}
 
       <Dialog
         open={isAccountDialogOpen}
@@ -507,14 +789,19 @@ export default function BorrowerAccountsSection({
         initialValues={
           activatingAccount
             ? {
-                principal_amount: Number(activatingAccount.principal_amount ?? 0),
+                principal_amount: Number(
+                  activatingAccount.principal_amount ?? 0,
+                ),
                 interest_rate: Number(activatingAccount.interest_rate ?? 0),
                 release_date: activatingAccount.release_date ?? "",
                 first_payment_date: activatingAccount.first_payment_date ?? "",
-                payment_frequency: (activatingAccount.payment_frequency as any) ?? "bimonthly",
+                payment_frequency:
+                  (activatingAccount.payment_frequency as any) ?? "bimonthly",
                 term_months: Number(activatingAccount.term_months ?? 1),
-                schedule_mode: (activatingAccount.schedule_mode as any) ?? "auto",
-                interest_type: (activatingAccount.interest_type as any) ?? "flat",
+                schedule_mode:
+                  (activatingAccount.schedule_mode as any) ?? "auto",
+                interest_type:
+                  (activatingAccount.interest_type as any) ?? "flat",
               }
             : {}
         }
@@ -522,17 +809,13 @@ export default function BorrowerAccountsSection({
 
       {/* <NotesCanvas borrowerId={borrowerId} initialData={borrower?.notes_canvas} /> */}
       <div className="mt-10">
-       {notes.length === 0 ? null : (
-        <div className="mb-4">
-          <h2 className="text-xl font-black uppercase">Notes</h2>
-        </div>
-       )}
+        {notes.length === 0 ? null : (
+          <div className="mb-4">
+            <h2 className="text-xl font-black uppercase">Notes</h2>
+          </div>
+        )}
 
-        <div
-          className="
-    w-full
-    "
-        >
+        <div className="w-full">
           {notes.map((note, i) => (
             <button
               key={note.id}
@@ -540,26 +823,19 @@ export default function BorrowerAccountsSection({
                 setSelectedNote(note);
                 setIsNotesOpen(true);
               }}
-              style={{
-                // left: note.x,
-                // top: note.y,
-                // rotate: `${i % 2 === 0 ? -2 : 2}deg`,
-              }}
-              className="
-          overflow-hidden
-          rounded-sm
-          w-full
-          p-3
-          
-          shadow-md
-          transition
-          hover:scale-[1.02]
-        "
+              style={
+                {
+                  // left: note.x,
+                  // top: note.y,
+                  // rotate: `${i % 2 === 0 ? -2 : 2}deg`,
+                }
+              }
+              className="w-full overflow-hidden rounded-sm p-3 shadow-md transition hover:scale-[1.02]"
             >
               {note.preview_img_url ? (
                 <img
                   src={note.preview_img_url}
-                  className="pointer-events-none rounded w-full"
+                  className="pointer-events-none w-full rounded"
                 />
               ) : (
                 <div className="h-20" />
@@ -569,60 +845,41 @@ export default function BorrowerAccountsSection({
         </div>
       </div>
 
-      <Dialog
-        open={isNotesOpen}
-        onOpenChange={setIsNotesOpen}
-      >
-        <DialogContent className="top-0 translate-y-0 h-[100svh] max-h-[100svh] max-w-full rounded-none sm:top-1/2 sm:-translate-y-1/2 sm:h-auto sm:max-h-[95svh] sm:max-w-5xl sm:rounded-xl">
-          <div className="flex items-center justify-between mt-10">
+      <Dialog open={isNotesOpen} onOpenChange={setIsNotesOpen}>
+        <DialogContent className="top-0 h-[100svh] max-h-[100svh] max-w-full translate-y-0 rounded-none sm:top-1/2 sm:h-auto sm:max-h-[95svh] sm:max-w-5xl sm:-translate-y-1/2 sm:rounded-xl">
+          <div className="mt-10 flex items-center justify-between">
             <DialogHeader className="">
               <DialogTitle>
-                {selectedNote
-                  ? "Edit note"
-                  : "New note"}
+                {selectedNote ? "Edit note" : "New note"}
               </DialogTitle>
             </DialogHeader>
 
             {selectedNote && (
               <button
-                onClick={() =>
-                  deleteNote(selectedNote.id)
-                }
-                className="
-        rounded-md
-        border
-        border-red-200
-        bg-red-50
-        px-3
-        py-1
-        text-sm
-        text-red-600
-        hover:bg-red-100
-      "
+                onClick={() => deleteNote(selectedNote.id)}
+                className="rounded-md border border-red-200 bg-red-50 px-3 py-1 text-sm text-red-600 hover:bg-red-100"
               >
                 Delete
               </button>
             )}
           </div>
 
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <NotesCanvas
-            borrowerId={borrowerId}
-            note={selectedNote}
-            onSaved={(newNote) => {
-              if (selectedNote) {
-                setNotes((prev) =>
-                  prev.map((n) =>
-                    n.id === newNote.id ? newNote : n
-                  )
-                );
-              } else {
-                setNotes((prev) => [...prev, newNote]);
-              }
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <NotesCanvas
+              borrowerId={borrowerId}
+              note={selectedNote}
+              onSaved={(newNote) => {
+                if (selectedNote) {
+                  setNotes((prev) =>
+                    prev.map((n) => (n.id === newNote.id ? newNote : n)),
+                  );
+                } else {
+                  setNotes((prev) => [...prev, newNote]);
+                }
 
-              setIsNotesOpen(false);
-            }}
-          />
+                setIsNotesOpen(false);
+              }}
+            />
           </div>
         </DialogContent>
       </Dialog>

@@ -39,6 +39,7 @@ export function BorrowerCard({
   >({});
   const toggleOverdue = (i: number, defaultOpen: boolean) =>
     setExpandedOverdue((prev) => ({ ...prev, [i]: !(prev[i] ?? defaultOpen) }));
+  const [showAllSchedules, setShowAllSchedules] = useState(false);
   const categories = [...(borrower.borrower_categories ?? [])].sort((a, b) =>
     a.category.name.localeCompare(b.category.name),
   );
@@ -255,262 +256,289 @@ export function BorrowerCard({
                   <div className="mt-2 space-y-1.5">
                     <div>
                       <p className="text-[10px] font-bold tracking-wide text-slate-500 uppercase"></p>
-                      {schedules
-                        ? schedules.map((schedule, i) => {
-                            const isThisAccountPending =
-                              isAccountPending &&
-                              pendingAccountId === schedule.account_id;
-                            return (
-                              <button
-                                key={i}
-                                type="button"
-                                data-prevent-borrower-card-open
-                                className="relative -mx-1 block w-full touch-manipulation rounded-lg px-1 text-left transition hover:bg-black/5 dark:hover:bg-white/5"
-                                onPointerEnter={() => {
-                                  if (schedule.account_id)
-                                    router.prefetch(
-                                      `/accounts/${schedule.account_id}`,
-                                    );
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (didScroll.current) return;
-                                  if (!schedule.account_id) return;
-                                  setPendingAccountId(schedule.account_id);
-                                  startAccountTransition(() => {
-                                    router.push(
-                                      `/accounts/${schedule.account_id}`,
-                                    );
-                                  });
-                                }}
-                              >
-                                <div className="flex flex-col gap-2">
-                                  <p className="dark:text-foreground mt-2 flex items-center gap-2 text-sm font-black text-slate-900">
-                                    {new Date(
-                                      schedule.due_date,
-                                    ).toLocaleDateString(undefined, {
-                                      month: "short",
-                                      day: "numeric",
-                                      year: "numeric",
-                                    })}
-                                    {schedules.length > 1 ? (
-                                      <span className="w-max text-xs font-bold text-stone-500">
-                                        ₱{schedule.amount.toLocaleString()}
-                                        {schedule.status === "partial" &&
-                                        schedule.amount_due_per_schedule &&
-                                        schedule.amount_due_per_schedule >
-                                          schedule.amount ? (
-                                          <span className="dark:text-muted-foreground font-normal text-slate-400">
-                                            {" "}
-                                            of ₱
-                                            {Number(
-                                              schedule.amount_due_per_schedule,
-                                            ).toLocaleString()}
-                                          </span>
-                                        ) : null}
-                                      </span>
-                                    ) : null}
-                                    {schedule.status ? (
-                                      <span
-                                        className={`dark:border-border ml-1 rounded-xs border border-slate-900 px-1 text-[8px] font-black text-black uppercase shadow-[2px_2px_0px_0px_#333] ${schedule.status === "overdue" ? "bg-red-500/70" : schedule.status === "paid" ? "bg-green-500/70" : schedule.status === "pending" ? "bg-yellow-500/70" : schedule.status === "partial" ? "bg-purple-500/70" : "bg-blue-500/70"}`}
-                                      >
-                                        {schedule.status}
-                                      </span>
-                                    ) : null}
-                                  </p>{" "}
-                                  <div className="flex flex-col items-start gap-2">
-                                    {(() => {
-                                      const isManual =
-                                        schedule.schedule_mode === "manual";
-                                      const principal = Number(
-                                        schedule.principal_amount ?? 0,
+                      {(() => {
+                        const visibleSchedules =
+                          showAllSchedules || schedules.length <= 2
+                            ? schedules
+                            : schedules.slice(0, 2);
+                        const hiddenCount =
+                          schedules.length - visibleSchedules.length;
+                        return (
+                          <>
+                            {visibleSchedules.map((schedule, i) => {
+                              const isThisAccountPending =
+                                isAccountPending &&
+                                pendingAccountId === schedule.account_id;
+                              return (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  data-prevent-borrower-card-open
+                                  className="relative -mx-1 block w-full touch-manipulation rounded-lg px-1 text-left transition hover:bg-black/5 dark:hover:bg-white/5"
+                                  onPointerEnter={() => {
+                                    if (schedule.account_id)
+                                      router.prefetch(
+                                        `/accounts/${schedule.account_id}`,
                                       );
-                                      const totalSched =
-                                        schedule.total_schedules || 1;
-                                      const amtDue = Number(
-                                        schedule.amount_due_per_schedule ?? 0,
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (didScroll.current) return;
+                                    if (!schedule.account_id) return;
+                                    setPendingAccountId(schedule.account_id);
+                                    startAccountTransition(() => {
+                                      router.push(
+                                        `/accounts/${schedule.account_id}`,
                                       );
-                                      const isPartial =
-                                        schedule.status === "partial";
-                                      const partialPaid =
-                                        isPartial && amtDue > 0
-                                          ? amtDue - schedule.amount
-                                          : 0;
-                                      const partialFraction =
-                                        isPartial && amtDue > 0
-                                          ? partialPaid / amtDue
-                                          : 0;
-                                      const pct = isManual
-                                        ? Math.min(
-                                            100,
-                                            Math.round(
-                                              ((schedule.amount_paid_total ??
-                                                0) /
-                                                (principal || 1)) *
-                                                100,
-                                            ),
-                                          )
-                                        : Math.min(
-                                            100,
-                                            Math.round(
-                                              (((schedule.paid_schedules_count ??
-                                                0) +
-                                                partialFraction) /
-                                                totalSched) *
-                                                100,
-                                            ),
-                                          );
-                                      const principalPerSched =
-                                        principal / totalSched;
-                                      const interestPerSched =
-                                        amtDue > 0
-                                          ? amtDue - principalPerSched
-                                          : null;
-                                      return (
-                                        <>
-                                          <div
-                                            className="dark:border-border dark:bg-card h-2 w-full overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] md:w-40"
-                                            role="progressbar"
-                                            aria-valuenow={pct}
-                                            aria-valuemin={0}
-                                            aria-valuemax={100}
-                                            aria-label="Payment progress"
-                                          >
+                                    });
+                                  }}
+                                >
+                                  <div className="flex flex-col gap-2">
+                                    <p className="dark:text-foreground mt-2 flex items-center gap-2 text-sm font-black text-slate-900">
+                                      {new Date(
+                                        schedule.due_date,
+                                      ).toLocaleDateString(undefined, {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      })}
+                                      {schedules.length > 1 ? (
+                                        <span className="w-max text-xs font-bold text-stone-500">
+                                          ₱{schedule.amount.toLocaleString()}
+                                          {schedule.status === "partial" &&
+                                          schedule.amount_due_per_schedule &&
+                                          schedule.amount_due_per_schedule >
+                                            schedule.amount ? (
+                                            <span className="dark:text-muted-foreground font-normal text-slate-400">
+                                              {" "}
+                                              of ₱
+                                              {Number(
+                                                schedule.amount_due_per_schedule,
+                                              ).toLocaleString()}
+                                            </span>
+                                          ) : null}
+                                        </span>
+                                      ) : null}
+                                      {schedule.status ? (
+                                        <span
+                                          className={`dark:border-border ml-1 rounded-xs border border-slate-900 px-1 text-[8px] font-black text-black uppercase shadow-[2px_2px_0px_0px_#333] ${schedule.status === "overdue" ? "bg-red-500/70" : schedule.status === "paid" ? "bg-green-500/70" : schedule.status === "pending" ? "bg-yellow-500/70" : schedule.status === "partial" ? "bg-purple-500/70" : "bg-blue-500/70"}`}
+                                        >
+                                          {schedule.status}
+                                        </span>
+                                      ) : null}
+                                    </p>{" "}
+                                    <div className="flex flex-col items-start gap-2">
+                                      {(() => {
+                                        const isManual =
+                                          schedule.schedule_mode === "manual";
+                                        const principal = Number(
+                                          schedule.principal_amount ?? 0,
+                                        );
+                                        const totalSched =
+                                          schedule.total_schedules || 1;
+                                        const amtDue = Number(
+                                          schedule.amount_due_per_schedule ?? 0,
+                                        );
+                                        const isPartial =
+                                          schedule.status === "partial";
+                                        const partialPaid =
+                                          isPartial && amtDue > 0
+                                            ? amtDue - schedule.amount
+                                            : 0;
+                                        const partialFraction =
+                                          isPartial && amtDue > 0
+                                            ? partialPaid / amtDue
+                                            : 0;
+                                        const pct = isManual
+                                          ? Math.min(
+                                              100,
+                                              Math.round(
+                                                ((schedule.amount_paid_total ??
+                                                  0) /
+                                                  (principal || 1)) *
+                                                  100,
+                                              ),
+                                            )
+                                          : Math.min(
+                                              100,
+                                              Math.round(
+                                                (((schedule.paid_schedules_count ??
+                                                  0) +
+                                                  partialFraction) /
+                                                  totalSched) *
+                                                  100,
+                                              ),
+                                            );
+                                        const principalPerSched =
+                                          principal / totalSched;
+                                        const interestPerSched =
+                                          amtDue > 0
+                                            ? amtDue - principalPerSched
+                                            : null;
+                                        return (
+                                          <>
                                             <div
-                                              className="h-full bg-emerald-400"
-                                              style={{ width: `${pct}%` }}
-                                            />
-                                          </div>
-                                          <p className="dark:text-foreground text-xs font-black text-stone-800">
-                                            {isManual
-                                              ? `₱${(schedule.amount_paid_total ?? 0).toLocaleString()} paid of ₱${principal.toLocaleString()}`
-                                              : isPartial
-                                                ? `${schedule.paid_schedules_count} paid · ₱${partialPaid.toLocaleString()} of ₱${amtDue.toLocaleString()} on current`
-                                                : `${schedule.paid_schedules_count} paid out of ${schedule.total_schedules} schedule${schedule.total_schedules === 1 ? "" : "s"}`}
-                                          </p>
-                                          {!isManual && principal > 0 && (
-                                            <div className="mt-0.5 flex flex-wrap gap-3 gap-y-1">
-                                              <span className="dark:text-muted-foreground text-[10px] text-slate-500">
-                                                <span className="dark:text-foreground font-black text-slate-700">
-                                                  Principal
-                                                </span>{" "}
-                                                ₱{principal.toLocaleString()}
-                                              </span>
-                                              {schedule.interest_rate !=
-                                                null && (
+                                              className="dark:border-border dark:bg-card h-2 w-full overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] md:w-40"
+                                              role="progressbar"
+                                              aria-valuenow={pct}
+                                              aria-valuemin={0}
+                                              aria-valuemax={100}
+                                              aria-label="Payment progress"
+                                            >
+                                              <div
+                                                className="h-full bg-emerald-400"
+                                                style={{ width: `${pct}%` }}
+                                              />
+                                            </div>
+                                            <p className="dark:text-foreground text-xs font-black text-stone-800">
+                                              {isManual
+                                                ? `₱${(schedule.amount_paid_total ?? 0).toLocaleString()} paid of ₱${principal.toLocaleString()}`
+                                                : isPartial
+                                                  ? `${schedule.paid_schedules_count} paid · ₱${partialPaid.toLocaleString()} of ₱${amtDue.toLocaleString()} on current`
+                                                  : `${schedule.paid_schedules_count} paid out of ${schedule.total_schedules} schedule${schedule.total_schedules === 1 ? "" : "s"}`}
+                                            </p>
+                                            {!isManual && principal > 0 && (
+                                              <div className="mt-0.5 flex flex-wrap gap-3 gap-y-1">
                                                 <span className="dark:text-muted-foreground text-[10px] text-slate-500">
                                                   <span className="dark:text-foreground font-black text-slate-700">
-                                                    Interest
+                                                    Principal
                                                   </span>{" "}
-                                                  {schedule.interest_rate}%
+                                                  ₱{principal.toLocaleString()}
                                                 </span>
-                                              )}
-                                              {interestPerSched != null &&
-                                                interestPerSched > 0 && (
+                                                {schedule.interest_rate !=
+                                                  null && (
                                                   <span className="dark:text-muted-foreground text-[10px] text-slate-500">
                                                     <span className="dark:text-foreground font-black text-slate-700">
-                                                      per payroll
+                                                      Interest
                                                     </span>{" "}
-                                                    ₱
-                                                    {interestPerSched.toLocaleString(
-                                                      undefined,
-                                                      {
-                                                        maximumFractionDigits: 2,
-                                                      },
-                                                    )}
+                                                    {schedule.interest_rate}%
                                                   </span>
                                                 )}
-                                            </div>
-                                          )}
-                                          {schedule.overdue_schedules &&
-                                            schedule.overdue_schedules.length >
-                                              0 &&
-                                            (() => {
-                                              const defaultOpen =
-                                                schedule.overdue_schedules
-                                                  .length <= 6;
-                                              const isOpen =
-                                                expandedOverdue[i] ??
-                                                defaultOpen;
-                                              return (
-                                                <div className="mt-1 w-full rounded-md border-2 border-red-900 bg-red-50/80 px-2 py-1.5 dark:border-red-800 dark:bg-red-900/30">
-                                                  <button
-                                                    type="button"
-                                                    data-prevent-borrower-card-open
-                                                    onClick={(e) => {
-                                                      e.preventDefault();
-                                                      e.stopPropagation();
-                                                      toggleOverdue(
-                                                        i,
-                                                        defaultOpen,
-                                                      );
-                                                    }}
-                                                    className="flex w-full items-center justify-between gap-2"
-                                                  >
-                                                    <span className="text-[9px] font-black tracking-wide text-red-700 uppercase dark:text-red-300">
-                                                      Overdue installments ·{" "}
-                                                      {
-                                                        schedule
-                                                          .overdue_schedules
-                                                          .length
-                                                      }
+                                                {interestPerSched != null &&
+                                                  interestPerSched > 0 && (
+                                                    <span className="dark:text-muted-foreground text-[10px] text-slate-500">
+                                                      <span className="dark:text-foreground font-black text-slate-700">
+                                                        per payroll
+                                                      </span>{" "}
+                                                      ₱
+                                                      {interestPerSched.toLocaleString(
+                                                        undefined,
+                                                        {
+                                                          maximumFractionDigits: 2,
+                                                        },
+                                                      )}
                                                     </span>
-                                                    <ChevronDown
-                                                      className={`size-3 text-red-600 transition-transform duration-200 dark:text-red-400 ${isOpen ? "rotate-180" : ""}`}
-                                                    />
-                                                  </button>
-                                                  <div
-                                                    className={`grid transition-[grid-template-rows] duration-200 ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
-                                                  >
-                                                    <div className="overflow-hidden">
-                                                      <div className="mt-1 space-y-0.5">
-                                                        {schedule.overdue_schedules.map(
-                                                          (os, oi) => (
-                                                            <div
-                                                              key={oi}
-                                                              className="flex items-center justify-between gap-2"
-                                                            >
-                                                              <span className="dark:text-foreground text-[10px] font-semibold text-slate-700">
-                                                                {new Date(
-                                                                  os.due_date,
-                                                                ).toLocaleDateString(
-                                                                  undefined,
-                                                                  {
-                                                                    month:
-                                                                      "short",
-                                                                    day: "numeric",
-                                                                    year: "numeric",
-                                                                  },
-                                                                )}
-                                                              </span>
-                                                              <span className="text-[10px] font-black text-red-700 dark:text-red-300">
-                                                                ₱
-                                                                {os.amount.toLocaleString()}
-                                                              </span>
-                                                            </div>
-                                                          ),
-                                                        )}
+                                                  )}
+                                              </div>
+                                            )}
+                                            {schedule.overdue_schedules &&
+                                              schedule.overdue_schedules
+                                                .length > 0 &&
+                                              (() => {
+                                                const defaultOpen =
+                                                  schedule.overdue_schedules
+                                                    .length <= 6;
+                                                const isOpen =
+                                                  expandedOverdue[i] ??
+                                                  defaultOpen;
+                                                return (
+                                                  <div className="mt-1 w-full rounded-md border-2 border-red-900 bg-red-50/80 px-2 py-1.5 dark:border-red-800 dark:bg-red-900/30">
+                                                    <button
+                                                      type="button"
+                                                      data-prevent-borrower-card-open
+                                                      onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        toggleOverdue(
+                                                          i,
+                                                          defaultOpen,
+                                                        );
+                                                      }}
+                                                      className="flex w-full items-center justify-between gap-2"
+                                                    >
+                                                      <span className="text-[9px] font-black tracking-wide text-red-700 uppercase dark:text-red-300">
+                                                        Overdue installments ·{" "}
+                                                        {
+                                                          schedule
+                                                            .overdue_schedules
+                                                            .length
+                                                        }
+                                                      </span>
+                                                      <ChevronDown
+                                                        className={`size-3 text-red-600 transition-transform duration-200 dark:text-red-400 ${isOpen ? "rotate-180" : ""}`}
+                                                      />
+                                                    </button>
+                                                    <div
+                                                      className={`grid transition-[grid-template-rows] duration-200 ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+                                                    >
+                                                      <div className="overflow-hidden">
+                                                        <div className="mt-1 space-y-0.5">
+                                                          {schedule.overdue_schedules.map(
+                                                            (os, oi) => (
+                                                              <div
+                                                                key={oi}
+                                                                className="flex items-center justify-between gap-2"
+                                                              >
+                                                                <span className="dark:text-foreground text-[10px] font-semibold text-slate-700">
+                                                                  {new Date(
+                                                                    os.due_date,
+                                                                  ).toLocaleDateString(
+                                                                    undefined,
+                                                                    {
+                                                                      month:
+                                                                        "short",
+                                                                      day: "numeric",
+                                                                      year: "numeric",
+                                                                    },
+                                                                  )}
+                                                                </span>
+                                                                <span className="text-[10px] font-black text-red-700 dark:text-red-300">
+                                                                  ₱
+                                                                  {os.amount.toLocaleString()}
+                                                                </span>
+                                                              </div>
+                                                            ),
+                                                          )}
+                                                        </div>
                                                       </div>
                                                     </div>
                                                   </div>
-                                                </div>
-                                              );
-                                            })()}
-                                        </>
-                                      );
-                                    })()}
+                                                );
+                                              })()}
+                                          </>
+                                        );
+                                      })()}
+                                    </div>
+                                    <div className="dark:bg-border my-2 h-px bg-slate-800" />
                                   </div>
-                                  <div className="dark:bg-border my-2 h-px bg-slate-800" />
-                                </div>
-                                {isThisAccountPending && (
-                                  <div className="dark:bg-card/60 pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-white/60">
-                                    <Loader2 className="dark:text-muted-foreground size-4 animate-spin text-slate-500" />
-                                  </div>
-                                )}
+                                  {isThisAccountPending && (
+                                    <div className="dark:bg-card/60 pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-white/60">
+                                      <Loader2 className="dark:text-muted-foreground size-4 animate-spin text-slate-500" />
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
+                            {hiddenCount > 0 && (
+                              <button
+                                type="button"
+                                data-prevent-borrower-card-open
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowAllSchedules(true);
+                                }}
+                                className="flex w-full items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-bold text-slate-500 transition hover:bg-black/5 dark:text-zinc-400 dark:hover:bg-white/5"
+                              >
+                                <span>
+                                  + {hiddenCount} more account
+                                  {hiddenCount === 1 ? "" : "s"}
+                                </span>
+                                <ChevronDown className="size-3" />
                               </button>
-                            );
-                          })
-                        : null}
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                     <div>
                       <p className="dark:text-muted-foreground text-[10px] font-bold tracking-wide text-slate-500 uppercase">

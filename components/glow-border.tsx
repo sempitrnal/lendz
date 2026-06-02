@@ -36,7 +36,7 @@ export function GlowBorder({ duration = 4 }: { duration?: number }) {
         }}
         style={{
           boxShadow:
-            "0 0 10px 2px rgba(56,189,248,0.7), 0 0 24px 6px rgba(56,189,248,0.35), 0 0 48px 12px rgba(14,165,233,0.18)",
+            "0 0 10px 2px rgba(56,189,248,0.7),  0 0 35px 12px rgba(14,165,233,0.18)",
         }}
       />
       <motion.span
@@ -49,17 +49,6 @@ export function GlowBorder({ duration = 4 }: { duration?: number }) {
           WebkitMaskComposite: "destination-out",
           maskComposite: "exclude",
           padding: "2px",
-        }}
-      />
-      <motion.span
-        aria-hidden
-        className="pointer-events-none absolute inset-[-40%] z-10 opacity-70 blur-2xl"
-        style={{
-          backgroundImage: gradient,
-          maskImage:
-            "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 50%, black 100%)",
-          WebkitMaskImage:
-            "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 50%, black 100%)",
         }}
       />
     </>

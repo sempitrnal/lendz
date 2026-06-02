@@ -756,6 +756,10 @@ export default async function AccountDetailPage({
     (sum, { s }) => sum + amountPaidOnInstallment(s),
     0,
   );
+  const totalRemaining = schedules.reduce(
+    (sum, s) => sum + remainingOnInstallment(s),
+    0,
+  );
 
   const renderDesktopLi = (schedule: PaymentScheduleRow, i: number) => {
     const st = getScheduleStatusClasses(schedule.status);
@@ -1272,9 +1276,12 @@ export default async function AccountDetailPage({
                 </div>
               ) : (
                 <>
-                  {otherIndexed.length === 0 && paidIndexed.length > 0 && (
-                    <ImpasNaBanner />
-                  )}
+                  {totalRemaining === 0 &&
+                    otherIndexed.length === 0 &&
+                    schedules.length > 0 &&
+                    !isManual && (
+                      <ImpasNaBanner profit={paidTotalAmount - principal} />
+                    )}
                   {/* mobile view */}
                   <div className="lg:hidden print:hidden">
                     {paidIndexed.length > 0 && (
