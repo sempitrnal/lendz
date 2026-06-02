@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -36,7 +42,20 @@ export type Borrower = {
   overdue_total?: number;
   overdue_count?: number;
   accounts_count?: number;
-  account_schedules?: { account_id?: string; due_date: string; amount: number; status: string; total_schedules?: number; paid_schedules_count?: number; schedule_mode?: string | null; principal_amount?: number | null; amount_paid_total?: number; interest_rate?: number | null; amount_due_per_schedule?: number | null; overdue_schedules?: { due_date: string; amount: number }[] }[];
+  account_schedules?: {
+    account_id?: string;
+    due_date: string;
+    amount: number;
+    status: string;
+    total_schedules?: number;
+    paid_schedules_count?: number;
+    schedule_mode?: string | null;
+    principal_amount?: number | null;
+    amount_paid_total?: number;
+    interest_rate?: number | null;
+    amount_due_per_schedule?: number | null;
+    overdue_schedules?: { due_date: string; amount: number }[];
+  }[];
   overdue_schedules?: { due_date: string; amount: number; status: string }[];
   manual_total_principal?: number;
   manual_total_paid?: number;
@@ -53,7 +72,11 @@ type BorrowersListProps = {
   initialCategoryIds?: string[];
 };
 
-function buildBorrowersUrl(page: number, q: string, categoryIds: string[] = []): string {
+function buildBorrowersUrl(
+  page: number,
+  q: string,
+  categoryIds: string[] = [],
+): string {
   const params = new URLSearchParams();
   if (page > 1) params.set("page", String(page));
   if (q) params.set("q", q);
@@ -74,12 +97,23 @@ export default function BorrowersList({
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [suggestions, setSuggestions] = useState<{ id: string; first_name: string; last_name: string; contact: string | null }[]>([]);
+  const [suggestions, setSuggestions] = useState<
+    {
+      id: string;
+      first_name: string;
+      last_name: string;
+      contact: string | null;
+      borrower_categories: {
+        category: { id: string; name: string; color: string | null };
+      }[];
+    }[]
+  >([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
 
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(initialCategoryIds);
+  const [selectedCategoryIds, setSelectedCategoryIds] =
+    useState<string[]>(initialCategoryIds);
 
   const navigateSearch = useCallback(
     (q: string) => {
@@ -88,26 +122,47 @@ export default function BorrowersList({
         router.push(buildBorrowersUrl(1, q, selectedCategoryIds));
       }, 400);
     },
-    [router, selectedCategoryIds]
+    [router, selectedCategoryIds],
   );
 
   const fetchSuggestions = useCallback(async (q: string) => {
-    if (q.trim().length === 0) { setSuggestions([]); setShowSuggestions(false); return; }
+    if (q.trim().length === 0) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
     const pattern = `%${q.trim()}%`;
     const { data } = await supabase
       .from("borrowers")
-      .select("id, first_name, last_name, contact")
-      .or(`first_name.ilike.${pattern},last_name.ilike.${pattern},contact.ilike.${pattern}`)
+      .select(
+        "id, first_name, last_name, contact, borrower_categories(category:categories(id, name, color))",
+      )
+      .or(
+        `first_name.ilike.${pattern},last_name.ilike.${pattern},contact.ilike.${pattern}`,
+      )
       .order("first_name", { ascending: true })
       .limit(6);
-    setSuggestions((data ?? []) as { id: string; first_name: string; last_name: string; contact: string | null }[]);
+    setSuggestions(
+      (data ?? []) as unknown as {
+        id: string;
+        first_name: string;
+        last_name: string;
+        contact: string | null;
+        borrower_categories: {
+          category: { id: string; name: string; color: string | null };
+        }[];
+      }[],
+    );
     setShowSuggestions(true);
     setActiveSuggestion(-1);
   }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(e.target as Node)
+      ) {
         setShowSuggestions(false);
       }
     };
@@ -125,9 +180,11 @@ export default function BorrowersList({
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isAddBorrowerModalOpen, setIsAddBorrowerModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => { setIsMounted(true); }, []);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   const [updatingBorrowerId, setUpdatingBorrowerId] = useState<string | null>(
-    null
+    null,
   );
 
   function openAddBorrowerModal() {
@@ -141,12 +198,11 @@ export default function BorrowersList({
     router.refresh();
   }
 
-
   const navigateCategories = useCallback(
     (newCategoryIds: string[]) => {
       router.push(buildBorrowersUrl(1, searchQuery.trim(), newCategoryIds));
     },
-    [router, searchQuery]
+    [router, searchQuery],
   );
 
   const [categories, setCategories] = useState<
@@ -155,7 +211,9 @@ export default function BorrowersList({
 
   useEffect(() => {
     fetchCategoriesAction().then((rows) => {
-      setCategories(rows.map((c) => ({ id: c.id, name: c.name, color: c.color })));
+      setCategories(
+        rows.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+      );
     });
   }, []);
 
@@ -177,17 +235,18 @@ export default function BorrowersList({
         </div>
       </div>
 
-      {isMounted && createPortal(
-        <button
-          type="button"
-          onClick={openAddBorrowerModal}
-          aria-label="Add borrower"
-          className="fixed bottom-[76px] right-4 z-[2] flex size-14 items-center justify-center rounded-full border-2 border-slate-900 bg-green-400 text-slate-900 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform duration-200 active:scale-95 dark:border-border dark:bg-green-400 dark:text-background dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
-        >
-          <FaPlus className="size-5" />
-        </button>,
-        document.body
-      )}
+      {isMounted &&
+        createPortal(
+          <button
+            type="button"
+            onClick={openAddBorrowerModal}
+            aria-label="Add borrower"
+            className="dark:border-border dark:text-background fixed right-4 bottom-[76px] z-[2] flex size-14 items-center justify-center rounded-full border-2 border-slate-900 bg-green-400 text-slate-900 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform duration-200 active:scale-95 dark:bg-green-400 dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+          >
+            <FaPlus className="size-5" />
+          </button>,
+          document.body,
+        )}
 
       <div className="mb-6 flex flex-col gap-3">
         <div ref={searchWrapperRef} className="relative">
@@ -198,16 +257,34 @@ export default function BorrowersList({
               const v = e.target.value;
               setSearchQuery(v);
               navigateSearch(v.trim());
-              if (suggestDebounceRef.current) clearTimeout(suggestDebounceRef.current);
-              suggestDebounceRef.current = setTimeout(() => fetchSuggestions(v), 200);
+              if (suggestDebounceRef.current)
+                clearTimeout(suggestDebounceRef.current);
+              suggestDebounceRef.current = setTimeout(
+                () => fetchSuggestions(v),
+                200,
+              );
             }}
-            onFocus={() => { if (searchQuery.trim() && suggestions.length > 0) setShowSuggestions(true); }}
+            onFocus={() => {
+              if (searchQuery.trim() && suggestions.length > 0)
+                setShowSuggestions(true);
+            }}
             onKeyDown={(e) => {
               if (!showSuggestions || suggestions.length === 0) return;
-              if (e.key === "ArrowDown") { e.preventDefault(); setActiveSuggestion((p) => Math.min(p + 1, suggestions.length - 1)); }
-              else if (e.key === "ArrowUp") { e.preventDefault(); setActiveSuggestion((p) => Math.max(p - 1, -1)); }
-              else if (e.key === "Enter" && activeSuggestion >= 0) { e.preventDefault(); setShowSuggestions(false); router.push(`/borrowers/${suggestions[activeSuggestion].id}`); }
-              else if (e.key === "Escape") { setShowSuggestions(false); }
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActiveSuggestion((p) =>
+                  Math.min(p + 1, suggestions.length - 1),
+                );
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActiveSuggestion((p) => Math.max(p - 1, -1));
+              } else if (e.key === "Enter" && activeSuggestion >= 0) {
+                e.preventDefault();
+                setShowSuggestions(false);
+                router.push(`/borrowers/${suggestions[activeSuggestion].id}`);
+              } else if (e.key === "Escape") {
+                setShowSuggestions(false);
+              }
             }}
             placeholder="Search by name or contact"
             className={formFieldInputClassName}
@@ -217,25 +294,64 @@ export default function BorrowersList({
             autoComplete="off"
           />
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border-2 border-slate-900 bg-white shadow-[3px_3px_0px_0px_#0f172a]">
+            <div className="absolute top-full right-0 left-0 z-30 mt-1 overflow-hidden rounded-xl border-2 border-slate-900 bg-white shadow-[3px_3px_0px_0px_#0f172a]">
               {suggestions.map((s, i) => (
                 <button
                   key={s.id}
                   type="button"
-                  onMouseDown={(e) => { e.preventDefault(); setShowSuggestions(false); router.push(`/borrowers/${s.id}`); }}
-                  className={`flex w-full bg-[#fffefa] items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 transition-colors ${
-                    i === activeSuggestion ? "bg-slate-900 text-white" : "hover:bg-slate-50"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setShowSuggestions(false);
+                    router.push(`/borrowers/${s.id}`);
+                  }}
+                  className={`dark:bg-background flex w-full items-center justify-between gap-3 border-b border-slate-100 bg-[#fffefa] px-3 py-2.5 text-left transition-colors last:border-b-0 dark:text-white ${
+                    i === activeSuggestion
+                      ? "bg-slate-900 text-white"
+                      : "hover:bg-slate-50"
                   }`}
                 >
-                  <span className={`text-sm font-black uppercase ${
-                    i === activeSuggestion ? "text-white" : "text-slate-900"
-                  }`}>
-                    {s.first_name} {s.last_name}
+                  <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate">
+                    <span
+                      className={`text-sm font-black uppercase ${
+                        i === activeSuggestion
+                          ? "text-white"
+                          : "text-slate-900 dark:text-white"
+                      }`}
+                    >
+                      {s.first_name} {s.last_name}
+                    </span>
+                    {s.borrower_categories?.[0]?.category && (
+                      <span className="flex shrink-0 items-center gap-1">
+                        <span
+                          className="size-2 shrink-0 rounded-full"
+                          style={{
+                            backgroundColor:
+                              s.borrower_categories[0].category.color ??
+                              "#cbd5e1",
+                          }}
+                        />
+                        <span
+                          className={`text-[10px] font-semibold capitalize ${
+                            i === activeSuggestion
+                              ? "text-slate-300"
+                              : "text-slate-400 dark:text-slate-400"
+                          }`}
+                        >
+                          {s.borrower_categories[0].category.name}
+                        </span>
+                      </span>
+                    )}
                   </span>
                   {s.contact && (
-                    <span className={`shrink-0 text-[10px] tabular-nums ${
-                      i === activeSuggestion ? "text-slate-300" : "text-slate-400"
-                    }`}>{s.contact}</span>
+                    <span
+                      className={`shrink-0 text-[10px] tabular-nums ${
+                        i === activeSuggestion
+                          ? "text-slate-300"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {s.contact}
+                    </span>
                   )}
                 </button>
               ))}
@@ -244,7 +360,7 @@ export default function BorrowersList({
         </div>
 
         <div className="relative">
-          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-muted-foreground">
+          <p className="dark:text-muted-foreground mb-1.5 text-[10px] font-bold tracking-[0.14em] text-slate-500 uppercase">
             Categories
           </p>
           <button
@@ -252,15 +368,15 @@ export default function BorrowersList({
             aria-expanded={isCategoryDropdownOpen}
             aria-haspopup="listbox"
             onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
-            className="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-900/90 px-4 py-3 text-left shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition  active:translate-y-px active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)] dark:border-border dark:shadow-none dark:hover:bg-muted"
+            className="dark:border-border dark:hover:bg-muted flex w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-900/90 px-4 py-3 text-left shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition active:translate-y-px active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)] dark:shadow-none"
           >
-            <span className="text-sm font-bold uppercase tracking-wide text-slate-900 dark:text-foreground">
+            <span className="dark:text-foreground text-sm font-bold tracking-wide text-slate-900 uppercase">
               {selectedCategoryIds.length > 0
                 ? `${selectedCategoryIds.length} selected`
                 : "All categories"}
             </span>
 
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-900/20 bg-slate-50 text-slate-700 dark:border-border dark:bg-muted dark:text-muted-foreground">
+            <span className="dark:border-border dark:bg-muted dark:text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-900/20 bg-slate-50 text-slate-700">
               <BsChevronDown
                 className={`size-3.5 transition-transform ${isCategoryDropdownOpen ? "rotate-180" : ""}`}
                 aria-hidden
@@ -272,7 +388,7 @@ export default function BorrowersList({
             <div
               role="listbox"
               aria-multiselectable
-              className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border-2 border-slate-900/90 bg-white p-2 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.18)] dark:border-border dark:bg-card dark:shadow-none"
+              className="dark:border-border dark:bg-card absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border-2 border-slate-900/90 bg-white p-2 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.18)] dark:shadow-none"
             >
               <div className="flex flex-col gap-1.5">
                 {categories.map((category) => {
@@ -286,29 +402,37 @@ export default function BorrowersList({
                       aria-selected={isSelected}
                       onClick={() => {
                         const next = isSelected
-                          ? selectedCategoryIds.filter((id) => id !== category.id)
+                          ? selectedCategoryIds.filter(
+                              (id) => id !== category.id,
+                            )
                           : [...selectedCategoryIds, category.id];
                         setSelectedCategoryIds(next);
                         navigateCategories(next);
                       }}
-                      className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition ${isSelected
-                        ? "border-2 border-slate-900 bg-slate-900 text-white shadow-[1px_1px_0px_0px_rgb(15_23_42/0.5)] dark:border-border dark:bg-foreground dark:text-background dark:shadow-none"
-                        : "border border-slate-900/15 bg-slate-50/60 text-slate-800 shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] hover:border-slate-900/35 hover:bg-white dark:border-border dark:bg-muted dark:text-foreground dark:shadow-none dark:hover:border-border dark:hover:bg-muted/70"
-                        }`}
+                      className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition ${
+                        isSelected
+                          ? "dark:border-border dark:bg-foreground dark:text-background border-2 border-slate-900 bg-slate-900 text-white shadow-[1px_1px_0px_0px_rgb(15_23_42/0.5)] dark:shadow-none"
+                          : "dark:border-border dark:bg-muted dark:text-foreground dark:hover:border-border dark:hover:bg-muted/70 border border-slate-900/15 bg-slate-50/60 text-slate-800 shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] hover:border-slate-900/35 hover:bg-white dark:shadow-none"
+                      }`}
                     >
                       <div className="flex min-w-0 items-center gap-2.5">
                         <span
-                          className="size-3 shrink-0 rounded-full border-2 border-slate-900/25 dark:border-border"
+                          className="dark:border-border size-3 shrink-0 rounded-full border-2 border-slate-900/25"
                           style={{
                             backgroundColor: category.color ?? "#cbd5e1",
                           }}
                         />
 
-                        <span className="truncate capitalize">{category.name}</span>
+                        <span className="truncate capitalize">
+                          {category.name}
+                        </span>
                       </div>
 
                       {isSelected ? (
-                        <span className="shrink-0 text-xs font-black" aria-hidden>
+                        <span
+                          className="shrink-0 text-xs font-black"
+                          aria-hidden
+                        >
                           ✓
                         </span>
                       ) : null}
@@ -324,7 +448,7 @@ export default function BorrowersList({
                     setSelectedCategoryIds([]);
                     navigateCategories([]);
                   }}
-                  className="mt-2 w-full rounded-lg border-2 border-rose-800/35 bg-rose-50 px-3 py-2 text-center text-xs font-black uppercase tracking-wide text-rose-900 shadow-[1px_1px_0px_0px_rgb(190_18_60/0.25)] transition hover:bg-rose-100/90 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300 dark:shadow-none dark:hover:bg-rose-950/50"
+                  className="mt-2 w-full rounded-lg border-2 border-rose-800/35 bg-rose-50 px-3 py-2 text-center text-xs font-black tracking-wide text-rose-900 uppercase shadow-[1px_1px_0px_0px_rgb(190_18_60/0.25)] transition hover:bg-rose-100/90 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300 dark:shadow-none dark:hover:bg-rose-950/50"
                 >
                   Clear filters
                 </button>
@@ -357,33 +481,41 @@ export default function BorrowersList({
         >
           {currentPage > 1 ? (
             <Link
-              href={buildBorrowersUrl(currentPage - 1, initialSearchQuery, selectedCategoryIds)}
-              className="flex items-center gap-1.5 rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:bg-slate-50 active:translate-y-0 active:shadow-[1px_1px_0px_0px_#0f172a] dark:border-border dark:bg-card dark:text-foreground dark:shadow-none dark:hover:bg-muted"
+              href={buildBorrowersUrl(
+                currentPage - 1,
+                initialSearchQuery,
+                selectedCategoryIds,
+              )}
+              className="dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted flex items-center gap-1.5 rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:bg-slate-50 active:translate-y-0 active:shadow-[1px_1px_0px_0px_#0f172a] dark:shadow-none"
             >
               <BsChevronLeft className="size-3" aria-hidden />
               Prev
             </Link>
           ) : (
-            <span className="flex items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-400 cursor-not-allowed dark:border-border/50 dark:bg-muted dark:text-muted-foreground">
+            <span className="dark:border-border/50 dark:bg-muted dark:text-muted-foreground flex cursor-not-allowed items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-400">
               <BsChevronLeft className="size-3" aria-hidden />
               Prev
             </span>
           )}
 
-          <span className="rounded-lg border-2 border-slate-900 bg-slate-900 px-4 py-2 text-sm font-black tabular-nums text-white shadow-[2px_2px_0px_0px_rgb(15_23_42/0.3)] dark:border-border dark:bg-foreground dark:text-background dark:shadow-none">
+          <span className="dark:border-border dark:bg-foreground dark:text-background rounded-lg border-2 border-slate-900 bg-slate-900 px-4 py-2 text-sm font-black text-white tabular-nums shadow-[2px_2px_0px_0px_rgb(15_23_42/0.3)] dark:shadow-none">
             {currentPage} / {totalPages}
           </span>
 
           {currentPage < totalPages ? (
             <Link
-              href={buildBorrowersUrl(currentPage + 1, initialSearchQuery, selectedCategoryIds)}
-              className="flex items-center gap-1.5 rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:bg-slate-50 active:translate-y-0 active:shadow-[1px_1px_0px_0px_#0f172a] dark:border-border dark:bg-card dark:text-foreground dark:shadow-none dark:hover:bg-muted"
+              href={buildBorrowersUrl(
+                currentPage + 1,
+                initialSearchQuery,
+                selectedCategoryIds,
+              )}
+              className="dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted flex items-center gap-1.5 rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:bg-slate-50 active:translate-y-0 active:shadow-[1px_1px_0px_0px_#0f172a] dark:shadow-none"
             >
               Next
               <BsChevronRight className="size-3" aria-hidden />
             </Link>
           ) : (
-            <span className="flex items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-400 cursor-not-allowed dark:border-border/50 dark:bg-muted dark:text-muted-foreground">
+            <span className="dark:border-border/50 dark:bg-muted dark:text-muted-foreground flex cursor-not-allowed items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-400">
               Next
               <BsChevronRight className="size-3" aria-hidden />
             </span>
@@ -422,7 +554,7 @@ function MasonryGrid({
 
   if (colCount === 0) {
     return (
-      <div className="flex flex-col gap-4 w-full">
+      <div className="flex w-full flex-col gap-4">
         {borrowers.map((borrower) => (
           <BorrowerCard
             key={borrower.id}
@@ -439,9 +571,9 @@ function MasonryGrid({
   borrowers.forEach((b, i) => columns[i % colCount].push(b));
 
   return (
-    <div className="flex gap-4 items-start w-full">
+    <div className="flex w-full items-start gap-4">
       {columns.map((col, ci) => (
-        <div key={ci} className="flex flex-col gap-4 flex-1 min-w-0">
+        <div key={ci} className="flex min-w-0 flex-1 flex-col gap-4">
           {col.map((borrower) => (
             <BorrowerCard
               key={borrower.id}
