@@ -34,6 +34,7 @@ import PartialPie from "@/components/partial-pie";
 import PendingActivationBanner from "@/components/accounts/pending-activation-banner";
 import { PaidSchedulesSection } from "@/components/paid-schedules-section";
 import { GlowBorder } from "@/components/glow-border";
+import { ImpasNaBanner } from "@/components/impas-na-banner";
 import type { ActivateAccountData } from "@/app/actions/accounts";
 import {
   amountPaidOnInstallment,
@@ -1271,6 +1272,9 @@ export default async function AccountDetailPage({
                 </div>
               ) : (
                 <>
+                  {otherIndexed.length === 0 && paidIndexed.length > 0 && (
+                    <ImpasNaBanner />
+                  )}
                   {/* mobile view */}
                   <div className="lg:hidden print:hidden">
                     {paidIndexed.length > 0 && (

@@ -13,7 +13,7 @@ import { OfflineBanner } from "@/components/offline-banner";
 import { OfflineSyncManager } from "@/components/offline-sync-manager";
 import { ThemeProvider } from "./providers";
 import "./globals.css";
-import { Toaster } from "@/components/ui/sonner"
+import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
 import Loading from "./(dashboard)/loading";
 
@@ -58,7 +58,7 @@ async function AuthHeaderAndNav() {
   return (
     <>
       <SiteHeader isLoggedIn={Boolean(user)} logoutAction={logout} />
-      <OfflineBanner />
+      {/* <OfflineBanner /> */}
       {Boolean(user) && <BottomNav />}
     </>
   );
@@ -73,25 +73,29 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased `}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="bg-background text-foreground flex min-h-full flex-col">
         <ThemeProvider>
           <Suspense fallback={null}>
             <ScrollRestoration />
           </Suspense>
           <ServiceWorkerRegistrar />
           <OfflineSyncManager />
-          <Suspense fallback={<div className="h-16 bg-white border-b border-slate-200 dark:bg-card dark:border-border" />}>
+          <Suspense
+            fallback={
+              <div className="dark:bg-card dark:border-border h-16 border-b border-slate-200 bg-white" />
+            }
+          >
             <AuthHeaderAndNav />
           </Suspense>
 
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 md:px-6 py-10  sm:mt-0 ">
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:mt-0 md:px-6">
             <Suspense fallback={<Loading />}>
               <PageTransition>{children}</PageTransition>
             </Suspense>
           </main>
-          
+
           <Suspense fallback={null}>
             <MobileTopBar />
           </Suspense>
