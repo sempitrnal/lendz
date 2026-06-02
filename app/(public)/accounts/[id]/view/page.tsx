@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getAccountDetailPageData } from "@/lib/cache/accounts";
 import {
@@ -46,6 +48,58 @@ function statusRowClasses(status: string) {
     default:
       return "bg-white dark:bg-zinc-900/40";
   }
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+
+  let data;
+  try {
+    data = await getAccountDetailPageData(id);
+  } catch {
+    return { title: "Loan Details | Utangz" };
+  }
+
+  const { account, borrower, schedules } = data;
+  const borrowerName = borrower
+    ? `${borrower.first_name} ${borrower.last_name}`
+    : "Borrower";
+  const typeLabel = account.type.replace("_", " ");
+  const principal = Number(account.principal_amount ?? 0);
+  const paidTotal = schedules.reduce(
+    (sum, s) => sum + amountPaidOnInstallment(s),
+    0,
+  );
+  const totalDue = schedules.reduce(
+    (sum, s) => sum + Number(s.amount_due ?? 0),
+    0,
+  );
+  const progressPct =
+    totalDue > 0 ? Math.round((paidTotal / totalDue) * 100) : 0;
+
+  const title = `${borrowerName} - ${typeLabel} | Utangz`;
+  const description = `₱${principal.toLocaleString()} ${typeLabel} · ${progressPct}% paid · ${schedules.length} installments`;
+
+  const headersList = await headers();
+  const host = headersList.get("host") || "localhost:3000";
+  const protocol = host.includes("localhost") ? "http" : "https";
+
+  return {
+    title,
+    description,
+    metadataBase: new URL(`${protocol}://${host}`),
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      url: `/accounts/${id}/view`,
+    },
+    twitter: {
+      card: "summary",
+      title,
+      description,
+    },
+  };
 }
 
 export default async function PublicAccountViewPage({ params }: Props) {
