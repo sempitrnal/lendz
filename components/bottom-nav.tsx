@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition, useState, useEffect } from "react";
-import { useTheme } from "next-themes";
+import ThemeToggle from "@/components/theme-toggle";
 import {
   LayoutDashboard,
   Users,
@@ -10,8 +10,6 @@ import {
   ClipboardCheck,
   CalendarDays,
   Loader2,
-  Moon,
-  Sun,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -27,16 +25,11 @@ export default function BottomNav() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
-  const { resolvedTheme, setTheme } = useTheme();
 
   useEffect(() => {
     NAV_ITEMS.forEach(({ href }) => router.prefetch(href));
     router.prefetch("/accounts");
   }, [router]);
-
-  function toggleDark() {
-    setTheme(resolvedTheme === "dark" ? "light" : "dark");
-  }
 
   return (
     <nav className="bg-background dark:border-border/50 dark:bg-background fixed right-0 bottom-0 left-0 z-50 border-t border-slate-900 shadow-[0_-2px_0_0_#0f172a] sm:hidden dark:shadow-[0_-2px_0_0_#0f172a] print:hidden">
@@ -81,19 +74,11 @@ export default function BottomNav() {
             </li>
           );
         })}
-        <li className="dark:border-border flex w-12 shrink-0 border-l border-slate-900">
-          <button
-            type="button"
-            onClick={toggleDark}
-            aria-label="Toggle dark mode"
-            className="dark:bg-card dark:text-muted-foreground dark:active:bg-muted bg-background flex flex-1 items-center justify-center text-slate-400 transition-colors active:bg-slate-100"
-          >
-            {resolvedTheme === "dark" ? (
-              <Sun className="size-5" strokeWidth={1.75} />
-            ) : (
-              <Moon className="size-5" strokeWidth={1.75} />
-            )}
-          </button>
+        <li className="dark:border-border flex w-12 shrink-0 items-center justify-center border-l border-slate-900">
+          <ThemeToggle
+            size="icon-sm"
+            className="border-0 shadow-none hover:bg-transparent dark:hover:bg-transparent"
+          />
         </li>
       </ul>
     </nav>

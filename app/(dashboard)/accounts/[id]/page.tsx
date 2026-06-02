@@ -980,36 +980,12 @@ export default async function AccountDetailPage({
         <header className={`overflow-hidden`}>
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">
-              <h1 className="mt-1 font-black tracking-tight text-slate-900 uppercase sm:text-xl">
-                {/* {accountRow.type.replace("_", " ")} */}
-              </h1>
-              {/* {borrower ? (
-                <p className="mt-3  text-4xl font-black uppercase leading-tight text-slate-900 sm:text-3xl">
-                  <Link
-                    href={`/borrowers/${borrower.id}`}
-                    className="transition hover:text-violet-800 hover:underline"
-                  >
-                    {borrowerName}
-                  </Link>
-                </p>
-              ) : (
-                <p className="mt-3 text-2xl font-black uppercase text-slate-900 sm:text-3xl">
-                  {borrowerName}
-                </p>
-              )} */}
-              {/* <p className="mt-3 text-sm text-slate-600">
-                Released{" "}
-                <span className="font-semibold text-slate-900">
-                  {accountRow.release_date
-                    ? formatScheduleDate(accountRow.release_date)
-                    : "—"}
-                </span>
-              </p> */}
+              <h1 className="mt-1 font-black tracking-tight text-slate-900 uppercase sm:text-xl"></h1>
             </div>
             <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-4 lg:flex-col lg:items-end print:items-end">
               <div className="flex gap-2 print:hidden">
                 {/* <PrintButton /> */}
-                <ShareScheduleButton
+                {/* <ShareScheduleButton
                   borrowerName={borrowerName}
                   accountType={accountRow.type}
                   releaseDate={accountRow.release_date}
@@ -1031,7 +1007,7 @@ export default async function AccountDetailPage({
                         paid_date: s.paid_date,
                       }) as ShareSchedule,
                   )}
-                />
+                /> */}
                 <ShareScheduleButton
                   noDetails
                   borrowerName={borrowerName}

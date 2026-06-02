@@ -41,9 +41,12 @@ function formatDate(iso: string) {
 }
 
 function statusColor(status: string) {
-  if (status === "paid") return { bg: "#d1fae5", border: "#059669", text: "#064e3b" };
-  if (status === "partial") return { bg: "#ede9fe", border: "#7c3aed", text: "#2e1065" };
-  if (status === "overdue") return { bg: "#ffe4e6", border: "#e11d48", text: "#881337" };
+  if (status === "paid")
+    return { bg: "#d1fae5", border: "#059669", text: "#064e3b" };
+  if (status === "partial")
+    return { bg: "#ede9fe", border: "#7c3aed", text: "#2e1065" };
+  if (status === "overdue")
+    return { bg: "#ffe4e6", border: "#e11d48", text: "#881337" };
   return { bg: "#fef3c7", border: "#d97706", text: "#78350f" };
 }
 
@@ -94,7 +97,7 @@ export default function ShareScheduleButton({
         const file = new File(
           [blob],
           `${borrowerName.replace(/\s+/g, "-")}-schedule.png`,
-          { type: "image/png" }
+          { type: "image/png" },
         );
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
@@ -132,14 +135,14 @@ export default function ShareScheduleButton({
         type="button"
         onClick={capture}
         disabled={rendering}
-        className="flex items-center gap-2 rounded-lg border-2 border-slate-900 bg-violet-200 px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition cursor-pointer hover:bg-violet-300 active:translate-y-0 active:shadow-[1px_1px_0px_0px_#0f172a] disabled:cursor-wait disabled:opacity-70"
+        className="dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted flex items-center gap-1.5 rounded border-2 border-slate-900 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-slate-50 active:translate-y-px active:shadow-none"
       >
         {rendering ? (
           <span className="animate-spin">⏳</span>
         ) : (
           <Share2 className="size-3.5" />
         )}
-        {rendering ? "Generating…" : noDetails ? "Share (no details)" : "Share"}
+        {rendering ? "Generating…" : noDetails ? "share" : "Share"}
       </button>
 
       {/* Off-screen card used for image capture */}
@@ -231,15 +234,18 @@ export default function ShareScheduleButton({
                       { label: "Principal", value: principal, bg: "#e0f2fe" },
                       { label: "Collected", value: collected, bg: "#d1fae5" },
                       { label: "Remaining", value: remaining, bg: "#ffe4e6" },
-                      { label: "Profit", value: Math.max(0, profit), bg: "#fef3c7" },
+                      {
+                        label: "Profit",
+                        value: Math.max(0, profit),
+                        bg: "#fef3c7",
+                      },
                     ].map((item, i) => (
                       <div
                         key={i}
                         style={{
                           padding: "14px 16px",
                           backgroundColor: item.bg,
-                          borderRight:
-                            i < 3 ? "3px solid #0f172a" : "none",
+                          borderRight: i < 3 ? "3px solid #0f172a" : "none",
                         }}
                       >
                         <div
@@ -273,48 +279,48 @@ export default function ShareScheduleButton({
               )}
 
               {!noDetails && (
-              <div
-                style={{
-                  padding: "12px 24px",
-                  borderBottom: "3px solid #0f172a",
-                  backgroundColor: "#f8fafc",
-                }}
-              >
                 <div
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: 10,
-                    fontWeight: 900,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.1em",
-                    color: "#334155",
-                    marginBottom: 6,
-                  }}
-                >
-                  <span>Progress</span>
-                  <span>{progressPct}%</span>
-                </div>
-                <div
-                  style={{
-                    height: 12,
-                    borderRadius: 6,
-                    border: "2px solid #0f172a",
-                    backgroundColor: "white",
-                    overflow: "hidden",
-                    boxShadow: "2px 2px 0px 0px #0f172a",
+                    padding: "12px 24px",
+                    borderBottom: "3px solid #0f172a",
+                    backgroundColor: "#f8fafc",
                   }}
                 >
                   <div
                     style={{
-                      height: "100%",
-                      width: `${progressPct}%`,
-                      backgroundColor: "#34d399",
-                      borderRadius: 4,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: 10,
+                      fontWeight: 900,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.1em",
+                      color: "#334155",
+                      marginBottom: 6,
                     }}
-                  />
+                  >
+                    <span>Progress</span>
+                    <span>{progressPct}%</span>
+                  </div>
+                  <div
+                    style={{
+                      height: 12,
+                      borderRadius: 6,
+                      border: "2px solid #0f172a",
+                      backgroundColor: "white",
+                      overflow: "hidden",
+                      boxShadow: "2px 2px 0px 0px #0f172a",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${progressPct}%`,
+                        backgroundColor: "#34d399",
+                        borderRadius: 4,
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
               )}
 
               {/* Schedule table */}
@@ -327,28 +333,33 @@ export default function ShareScheduleButton({
               >
                 <thead>
                   <tr>
-                    {["#", "Due Date", "Due", "Paid", "Left", "Status", "Paid Date"].map(
-                      (h, i) => (
-                        <th
-                          key={i}
-                          style={{
-                            borderBottom: "3px solid #0f172a",
-                            borderRight:
-                              i < 6 ? "2px solid #0f172a" : "none",
-                            backgroundColor: "#e2e8f0",
-                            padding: "10px 12px",
-                            textAlign: i >= 2 && i <= 4 ? "right" : "left",
-                            fontSize: 10,
-                            fontWeight: 900,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.1em",
-                            color: "#0f172a",
-                          }}
-                        >
-                          {h}
-                        </th>
-                      )
-                    )}
+                    {[
+                      "#",
+                      "Due Date",
+                      "Due",
+                      "Paid",
+                      "Left",
+                      "Status",
+                      "Paid Date",
+                    ].map((h, i) => (
+                      <th
+                        key={i}
+                        style={{
+                          borderBottom: "3px solid #0f172a",
+                          borderRight: i < 6 ? "2px solid #0f172a" : "none",
+                          backgroundColor: "#e2e8f0",
+                          padding: "10px 12px",
+                          textAlign: i >= 2 && i <= 4 ? "right" : "left",
+                          fontSize: 10,
+                          fontWeight: 900,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.1em",
+                          color: "#0f172a",
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>

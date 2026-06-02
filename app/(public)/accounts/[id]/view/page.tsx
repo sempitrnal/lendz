@@ -7,6 +7,7 @@ import {
   remainingOnInstallment,
   isInstallmentFullyPaid,
 } from "@/lib/payment-schedule/schedule-balances";
+import ThemeToggle from "@/components/theme-toggle";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -140,7 +141,10 @@ export default async function PublicAccountViewPage({ params }: Props) {
     : "Borrower";
 
   return (
-    <div className="space-y-4 sm:space-y-5 lg:grid lg:grid-cols-12 lg:gap-8 lg:space-y-0">
+    <div className="relative space-y-4 sm:space-y-5 lg:grid lg:grid-cols-12 lg:gap-8 lg:space-y-0">
+      <div className="absolute top-0 right-0 md:-top-10 md:-right-24">
+        <ThemeToggle />
+      </div>
       {/* Left sidebar — summary */}
       <div className="space-y-3 sm:space-y-4 lg:col-span-4 lg:space-y-5">
         {/* Header */}

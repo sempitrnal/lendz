@@ -29,7 +29,7 @@ export function CopyPublicLinkButton({ accountId }: { accountId: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="dark:border-border flex items-center gap-1.5 rounded border-2 border-slate-900 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-slate-50 active:translate-y-px active:shadow-none dark:bg-card dark:text-foreground dark:hover:bg-muted"
+      className="dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted flex items-center gap-1.5 rounded border-2 border-slate-900 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-slate-50 active:translate-y-px active:shadow-none"
       title="Copy public view link"
     >
       {copied ? (
@@ -37,7 +37,7 @@ export function CopyPublicLinkButton({ accountId }: { accountId: string }) {
       ) : (
         <Link2 className="size-3.5" />
       )}
-      <span>{copied ? "Copied!" : "Public link"}</span>
+      <span>{copied ? "copied!" : "public link"}</span>
     </button>
   );
 }
