@@ -1,11 +1,6 @@
 import type { Metadata } from "next";
 import { PageTransition } from "@/components/page-transition";
-import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
-import { redirect } from "next/navigation";
-import { createSupabaseServer } from "@/lib/supabase/server";
-import SiteHeader from "@/components/site-header";
-import BottomNav from "@/components/bottom-nav";
 import MobileTopBar from "@/components/mobile-top-bar";
 import { ScrollRestoration } from "@/components/scroll-restoration";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
@@ -41,29 +36,6 @@ export const metadata: Metadata = {
   },
 };
 
-async function AuthHeaderAndNav() {
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  async function logout() {
-    "use server";
-
-    const supabase = await createSupabaseServer();
-    await supabase.auth.signOut();
-    redirect("/login");
-  }
-
-  return (
-    <>
-      <SiteHeader isLoggedIn={Boolean(user)} logoutAction={logout} />
-      {/* <OfflineBanner /> */}
-      {Boolean(user) && <BottomNav />}
-    </>
-  );
-}
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -82,13 +54,6 @@ export default function RootLayout({
           </Suspense>
           <ServiceWorkerRegistrar />
           <OfflineSyncManager />
-          <Suspense
-            fallback={
-              <div className="dark:bg-card dark:border-border h-16 border-b border-slate-200 bg-white" />
-            }
-          >
-            <AuthHeaderAndNav />
-          </Suspense>
 
           <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:mt-0 md:px-6">
             <Suspense fallback={<Loading />}>

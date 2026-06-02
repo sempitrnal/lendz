@@ -26,6 +26,7 @@ import BatchScheduleToolbar from "@/components/batch-schedule-toolbar";
 import type { PaidDateStrategy } from "@/components/batch-schedule-toolbar";
 import ShareScheduleButton from "@/components/share-schedule-button";
 import type { ShareSchedule } from "@/components/share-schedule-button";
+import { CopyPublicLinkButton } from "@/components/copy-public-link-button";
 import AnimatedNumber from "@/components/animated-number";
 import NextScheduleScroller from "@/components/next-schedule-scroller";
 import PaidCheck from "@/components/paid-check";
@@ -1055,6 +1056,7 @@ export default async function AccountDetailPage({
                       }) as ShareSchedule,
                   )}
                 />
+                <CopyPublicLinkButton accountId={id} />
               </div>
               {/* <span
                 className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide ${accountStatusClasses.badge}`}
