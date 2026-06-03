@@ -78,8 +78,9 @@ export default async function Dashboard() {
   const startOfMonthIso = `${startOfMonthDate}T00:00:00+08:00`;
   const lastDay = new Date(phtYear, phtMonth, 0).getDate();
   const endOfMonthDate = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
-  const weekAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    .toLocaleDateString("en-CA", { timeZone: TZ });
+  const weekAgoDate = new Date(
+    now.getTime() - 7 * 24 * 60 * 60 * 1000,
+  ).toLocaleDateString("en-CA", { timeZone: TZ });
 
   // 6-month window for chart
   const sixMonthsAgoDate = (() => {
@@ -105,22 +106,24 @@ export default async function Dashboard() {
       .from("accounts")
       .select("*", { count: "exact", head: true })
       .gte("release_date", startOfMonthIso),
-    supabase.from("accounts").select("id, principal_amount, release_date, term_months, payment_frequency"),
+    supabase
+      .from("accounts")
+      .select(
+        "id, principal_amount, release_date, term_months, payment_frequency",
+      ),
     getAllPaymentSchedules(),
   ]);
 
   const unpaidSchedules = allSchedules.filter((row) => row.status !== "paid");
   const thisMonthSchedules = allSchedules.filter(
-    (row) => row.due_date >= startOfMonthDate && row.due_date <= endOfMonthDate
+    (row) => row.due_date >= startOfMonthDate && row.due_date <= endOfMonthDate,
   );
   const sixMonthSchedules = allSchedules.filter(
-    (row) => row.due_date >= sixMonthsAgoDate && row.due_date <= endOfMonthDate
+    (row) => row.due_date >= sixMonthsAgoDate && row.due_date <= endOfMonthDate,
   );
 
   const dueSchedules = unpaidSchedules
-    .filter(
-      (row) => row.due_date === todayIso && !isInstallmentFullyPaid(row)
-    )
+    .filter((row) => row.due_date === todayIso && !isInstallmentFullyPaid(row))
     .sort((a, b) => a.id.localeCompare(b.id))
     .slice(0, 8);
 
@@ -134,7 +137,7 @@ export default async function Dashboard() {
     for (const list of byAccount.values()) {
       list.sort(
         (a, b) =>
-          a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id)
+          a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id),
       );
     }
     return [...byAccount.values()]
@@ -142,15 +145,15 @@ export default async function Dashboard() {
       .filter((row): row is ScheduleAggRow => Boolean(row))
       .sort(
         (a, b) =>
-          a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id)
+          a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id),
       );
   };
 
   const pastOverdueCandidates = nextPerAccount(
-    unpaidSchedules.filter((row) => row.due_date < todayIso)
+    unpaidSchedules.filter((row) => row.due_date < todayIso),
   );
   const futureCandidates = nextPerAccount(
-    unpaidSchedules.filter((row) => row.due_date >= todayIso)
+    unpaidSchedules.filter((row) => row.due_date >= todayIso),
   );
 
   /** Earliest due date among future unpaid schedules. */
@@ -163,19 +166,19 @@ export default async function Dashboard() {
 
   const dueTotalToday = dueSchedules.reduce(
     (sum, row) => sum + remainingOnInstallment(row),
-    0
+    0,
   );
   const principalTotal = accountTotals.reduce(
     (sum, row) => sum + Number(row.principal_amount ?? 0),
-    0
+    0,
   );
   const newBorrowersWeekCount = new Set(
     newBorrowerAccountsWeek
       .map((row) => row.borrower_id)
-      .filter((id): id is string => Boolean(id))
+      .filter((id): id is string => Boolean(id)),
   ).size;
   const principalByAccountId = new Map(
-    accountTotals.map((a) => [a.id, Number(a.principal_amount ?? 0)])
+    accountTotals.map((a) => [a.id, Number(a.principal_amount ?? 0)]),
   );
   const totalInstallmentsByAccount = new Map(
     accountTotals.map((a) => {
@@ -185,12 +188,15 @@ export default async function Dashboard() {
       if (freq === "weekly") n = term * 4;
       else if (freq === "bimonthly") n = term * 2;
       return [a.id, Math.max(1, n)];
-    })
+    }),
   );
   const unpaidThisMonthCountByAccount = new Map<string, number>();
   for (const s of thisMonthSchedules) {
     if (!isInstallmentFullyPaid(s)) {
-      unpaidThisMonthCountByAccount.set(s.account_id, (unpaidThisMonthCountByAccount.get(s.account_id) ?? 0) + 1);
+      unpaidThisMonthCountByAccount.set(
+        s.account_id,
+        (unpaidThisMonthCountByAccount.get(s.account_id) ?? 0) + 1,
+      );
     }
   }
   const unpaidThisMonthAccountIds = [...unpaidThisMonthCountByAccount.keys()];
@@ -201,7 +207,7 @@ export default async function Dashboard() {
       const unpaid = unpaidThisMonthCountByAccount.get(accountId) ?? 0;
       return sum + principal * (unpaid / total);
     },
-    0
+    0,
   );
   const nextCollectionTotal = nextCollectionDate
     ? futureCandidates
@@ -209,7 +215,8 @@ export default async function Dashboard() {
         .reduce((sum, row) => sum + remainingOnInstallment(row), 0)
     : 0;
   const nextCollectionCount = nextCollectionDate
-    ? futureCandidates.filter((row) => row.due_date === nextCollectionDate).length
+    ? futureCandidates.filter((row) => row.due_date === nextCollectionDate)
+        .length
     : 0;
   const formattedToday = now.toLocaleDateString(undefined, {
     weekday: "long",
@@ -224,7 +231,17 @@ export default async function Dashboard() {
   // Build 6-month chart data: expected = sum of amount_due, collected = sum of amount_paid
   // profit = amount_paid − principal_per_installment (interest collected)
   const monthlyChartData = (() => {
-    const months: { label: string; fullLabel: string; expected: number; expectedSoFar: number; collected: number; profit: number; expectedProfit: number; expectedProfitSoFar: number; isComplete: boolean }[] = [];
+    const months: {
+      label: string;
+      fullLabel: string;
+      expected: number;
+      expectedSoFar: number;
+      collected: number;
+      profit: number;
+      expectedProfit: number;
+      expectedProfitSoFar: number;
+      isComplete: boolean;
+    }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now);
       d.setMonth(d.getMonth() - i);
@@ -232,7 +249,10 @@ export default async function Dashboard() {
       const m = d.getMonth() + 1;
       const monthKey = `${y}-${String(m).padStart(2, "0")}`;
       const label = d.toLocaleDateString("en-US", { month: "short" });
-      const fullLabel = d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      const fullLabel = d.toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
 
       let expected = 0;
       let expectedSoFar = 0;
@@ -248,13 +268,25 @@ export default async function Dashboard() {
         if (row.due_date <= todayIso) expectedSoFar += due;
         collected += paid;
         const principal = principalByAccountId.get(row.account_id) ?? 0;
-        const totalInstallments = totalInstallmentsByAccount.get(row.account_id) ?? 1;
+        const totalInstallments =
+          totalInstallmentsByAccount.get(row.account_id) ?? 1;
         const principalPerInstallment = principal / totalInstallments;
         profit += Math.max(0, paid - principalPerInstallment);
         expectedProfit += Math.max(0, due - principalPerInstallment);
-        if (row.due_date <= todayIso) expectedProfitSoFar += Math.max(0, due - principalPerInstallment);
+        if (row.due_date <= todayIso)
+          expectedProfitSoFar += Math.max(0, due - principalPerInstallment);
       }
-      months.push({ label, fullLabel, expected: Math.round(expected), expectedSoFar: Math.round(expectedSoFar), collected: Math.round(collected), profit: Math.round(profit), expectedProfit: Math.round(expectedProfit), expectedProfitSoFar: Math.round(expectedProfitSoFar), isComplete: i > 0 });
+      months.push({
+        label,
+        fullLabel,
+        expected: Math.round(expected),
+        expectedSoFar: Math.round(expectedSoFar),
+        collected: Math.round(collected),
+        profit: Math.round(profit),
+        expectedProfit: Math.round(expectedProfit),
+        expectedProfitSoFar: Math.round(expectedProfitSoFar),
+        isComplete: i > 0,
+      });
     }
     return months;
   })();
@@ -266,7 +298,11 @@ export default async function Dashboard() {
     ...new Set(pastOverdueCandidates.map((row) => row.account_id)),
   ];
   const accountIdsForBorrowerLookup = [
-    ...new Set([...dueAccountIds, ...nextCollectionAccountIds, ...overdueAccountIds]),
+    ...new Set([
+      ...dueAccountIds,
+      ...nextCollectionAccountIds,
+      ...overdueAccountIds,
+    ]),
   ];
 
   let accountsById = new Map<string, AccountRef>();
@@ -285,7 +321,8 @@ export default async function Dashboard() {
     if (borrowerIds.length > 0) {
       const { data: borrowersData } = await supabase
         .from("borrowers")
-        .select(`
+        .select(
+          `
           id,
           first_name,
           last_name,
@@ -297,7 +334,8 @@ export default async function Dashboard() {
               color
             )
           )
-        `)
+        `,
+        )
         .in("id", borrowerIds);
       const borrowers = (borrowersData ?? []) as BorrowerRef[];
       borrowersById = new Map(borrowers.map((row) => [row.id, row]));
@@ -316,7 +354,10 @@ export default async function Dashboard() {
 
     const label =
       entries.length > 0
-        ? entries.map((entry) => entry.name).filter(Boolean).join(" / ")
+        ? entries
+            .map((entry) => entry.name)
+            .filter(Boolean)
+            .join(" / ")
         : "uncategorized";
     const color = entries.find((entry) => entry.color)?.color ?? null;
     const id = entries.find((entry) => entry.id)?.id ?? null;
@@ -347,7 +388,11 @@ export default async function Dashboard() {
         category: string;
         categoryColor: string | null;
         categoryId: string | null;
-        schedules: Array<{ id: string; amountDue: number | null; amount: number }>;
+        schedules: Array<{
+          id: string;
+          amountDue: number | null;
+          amount: number;
+        }>;
       }
     >();
 
@@ -435,18 +480,24 @@ export default async function Dashboard() {
       }
     }
 
-    return Array.from(grouped.values()).map(({ seenAccountIds, ...rest }) => rest);
+    return Array.from(grouped.values()).map(
+      ({ seenAccountIds, ...rest }) => rest,
+    );
   })();
 
   const overdueByCategory = (() => {
-    const map = new Map<string, { color: string | null; total: number; principal: number; profit: number }>();
+    const map = new Map<
+      string,
+      { color: string | null; total: number; principal: number; profit: number }
+    >();
     for (const schedule of pastOverdueCandidates) {
       const account = accountsById.get(schedule.account_id);
       const borrower = account ? borrowersById.get(account.borrower_id) : null;
       const meta = borrowerCategoryMeta(borrower ?? null);
       const remaining = remainingOnInstallment(schedule);
       const accPrincipal = principalByAccountId.get(schedule.account_id) ?? 0;
-      const totalInstallments = totalInstallmentsByAccount.get(schedule.account_id) ?? 1;
+      const totalInstallments =
+        totalInstallmentsByAccount.get(schedule.account_id) ?? 1;
       const principalPerInstallment = accPrincipal / totalInstallments;
       const principalPortion = Math.min(remaining, principalPerInstallment);
       const profitPortion = Math.max(0, remaining - principalPerInstallment);
@@ -456,16 +507,31 @@ export default async function Dashboard() {
         existing.principal += principalPortion;
         existing.profit += profitPortion;
       } else {
-        map.set(meta.label, { color: meta.color, total: remaining, principal: principalPortion, profit: profitPortion });
+        map.set(meta.label, {
+          color: meta.color,
+          total: remaining,
+          principal: principalPortion,
+          profit: profitPortion,
+        });
       }
     }
     return Array.from(map.entries())
-      .map(([name, g]) => ({ name, color: g.color, total: Math.round(g.total), principal: Math.round(g.principal), profit: Math.round(g.profit) }))
+      .map(([name, g]) => ({
+        name,
+        color: g.color,
+        total: Math.round(g.total),
+        principal: Math.round(g.principal),
+        profit: Math.round(g.profit),
+      }))
       .sort((a, b) => b.total - a.total);
   })();
 
-  const totalProfit6Months = monthlyChartData.reduce((s, m) => s + m.profit, 0);
-  const avgMonthlyProfit = Math.round(totalProfit6Months / monthlyChartData.length);
+  const completeMonths = monthlyChartData.filter((m) => m.isComplete);
+  const totalProfitComplete = completeMonths.reduce((s, m) => s + m.profit, 0);
+  const avgMonthlyProfit =
+    completeMonths.length > 0
+      ? Math.round(totalProfitComplete / completeMonths.length)
+      : 0;
 
   const summaryCards = [
     {
@@ -474,6 +540,7 @@ export default async function Dashboard() {
       delta: `+${newBorrowersWeekCount ?? 0} this week`,
       icon: HandCoins,
       tone: "bg-emerald-100 dark:bg-emerald-900/50",
+      bg: "from-emerald-50 via-stone-50 to-emerald-100",
     },
     {
       label: "next collection",
@@ -485,13 +552,15 @@ export default async function Dashboard() {
         : "no upcoming unpaid schedule",
       icon: CalendarClock,
       tone: "bg-lime-100 dark:bg-lime-900/50",
+      bg: "from-lime-50 via-stone-50 to-yellow-100",
     },
     {
       label: "dues today",
       value: `PHP ${dueTotalToday.toLocaleString()}`,
       delta: `${dueTodayRows.length} schedule${dueTodayRows.length === 1 ? "" : "s"}`,
       icon: Coins,
-      tone: "bg-blue-100 dark:bg-blue-900/50",
+      tone: "bg-orange-100 dark:bg-orange-900/50",
+      bg: "from-rose-50 via-stone-50 to-orange-100",
     },
     {
       label: "avg monthly profit",
@@ -499,25 +568,27 @@ export default async function Dashboard() {
       delta: `${monthlyChartData.length}-month average`,
       icon: TrendingUp,
       tone: "bg-amber-100 dark:bg-amber-900/50",
+      bg: "from-amber-50 via-stone-50 to-amber-100",
     },
   ] as const;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-1 py-2 sm:px-0">
-      <section className="mb-4 rounded-xl border-2 border-slate-900 bg-linear-to-r from-indigo-50 via-white to-sky-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] dark:border-border dark:from-indigo-950/50 dark:via-card dark:to-sky-950/30 sm:mb-6 sm:p-6">
+      <section className="dark:border-border dark:via-card mb-4 rounded-xl border-2 border-slate-900 bg-linear-to-r from-amber-50 via-stone-50 to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:mb-6 sm:p-6 dark:from-amber-950/50 dark:to-orange-950/30">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-muted-foreground">
+            <p className="dark:text-muted-foreground text-xs font-semibold tracking-wider text-slate-600 uppercase">
               {formattedToday}
             </p>
-            <h1 className="mt-1 text-2xl font-black lowercase text-slate-900 dark:text-foreground sm:text-3xl">
+            <h1 className="dark:text-foreground mt-1 text-2xl font-black text-slate-900 lowercase sm:text-3xl">
               utangz dashboard
             </h1>
           </div>
           <ThemeToggle />
         </div>
-        <p className="mt-2 text-sm text-slate-700 dark:text-muted-foreground sm:max-w-xl">
-          Quick glance on active collections, upcoming dues, and account movement.
+        <p className="dark:text-muted-foreground mt-2 text-sm text-slate-700 sm:max-w-xl">
+          Quick glance on active collections, upcoming dues, and account
+          movement.
         </p>
       </section>
 
@@ -525,20 +596,22 @@ export default async function Dashboard() {
         {summaryCards.map((card) => (
           <article
             key={card.label}
-            className="min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br from-white via-slate-50 to-slate-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] dark:border-border dark:from-card dark:via-card dark:to-muted"
+            className={`dark:border-border dark:from-card dark:via-card dark:to-muted min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br ${card.bg} p-4 shadow-[4px_4px_0px_0px_#0f172a]`}
           >
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
+              <span className="dark:text-muted-foreground text-xs font-bold tracking-wide text-slate-600 uppercase">
                 {card.label}
               </span>
               <span
-                className={`rounded-md border border-slate-900 p-1.5 text-slate-900 dark:border-border dark:text-foreground ${card.tone}`}
+                className={`dark:border-border dark:text-foreground rounded-md border border-slate-900 p-1.5 text-slate-900 ${card.tone}`}
               >
                 <card.icon className="size-4" />
               </span>
             </div>
-            <p className="text-2xl font-black text-slate-900 dark:text-foreground">{card.value}</p>
-            <p className="mt-1 wrap-break-word text-xs font-semibold text-slate-600 dark:text-muted-foreground">
+            <p className="dark:text-foreground text-2xl font-black text-slate-900">
+              {card.value}
+            </p>
+            <p className="dark:text-muted-foreground mt-1 text-xs font-semibold wrap-break-word text-slate-600">
               {card.delta}
             </p>
           </article>
@@ -546,13 +619,13 @@ export default async function Dashboard() {
       </section>
 
       <section className="mt-4 lg:mt-6">
-        <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] dark:border-border dark:bg-card sm:p-5">
+        <article className="dark:border-border dark:bg-card bg-background min-w-0 rounded-xl border-2 border-slate-900 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="rounded-md border border-slate-900 bg-emerald-100 p-1.5 text-slate-900 dark:border-border dark:bg-emerald-900/50 dark:text-foreground">
+              <span className="dark:border-border dark:text-foreground rounded-md border border-slate-900 bg-emerald-100 p-1.5 text-slate-900 dark:bg-emerald-900/50">
                 <TrendingUp className="size-4" />
               </span>
-              <h2 className="text-base font-black lowercase text-slate-900 dark:text-foreground">
+              <h2 className="dark:text-foreground text-base font-black text-slate-900 lowercase">
                 monthly collections
               </h2>
             </div>
@@ -560,17 +633,23 @@ export default async function Dashboard() {
           <MonthlyCollectionsChart data={monthlyChartData} />
 
           {/* Profit per month list */}
-          <div className="mt-4 border-t-2 border-slate-200 pt-3 dark:border-border">
-            <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-muted-foreground">profit per month</p>
+          <div className="dark:border-border mt-4 border-t-2 border-slate-200 pt-3">
+            <p className="dark:text-muted-foreground mb-2 text-[10px] font-black tracking-widest text-slate-400 uppercase">
+              profit per month
+            </p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               {monthlyChartData.map((m) => (
                 <div
                   key={m.label}
-                  className="rounded-lg border-2 border-slate-900 bg-amber-50 px-2.5 py-2 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-amber-900/30"
+                  className="dark:border-border rounded-lg border-2 border-slate-900 bg-amber-50 px-2.5 py-2 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-amber-900/30"
                 >
-                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-muted-foreground">{m.fullLabel}</p>
-                  <p className="mt-0.5 text-sm font-black tabular-nums text-slate-900 dark:text-foreground">₱{m.profit.toLocaleString()}</p>
-                  <p className="text-[10px] font-semibold text-slate-500 dark:text-muted-foreground">
+                  <p className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-500 uppercase">
+                    {m.fullLabel}
+                  </p>
+                  <p className="dark:text-foreground mt-0.5 text-sm font-black text-slate-900 tabular-nums">
+                    ₱{m.profit.toLocaleString()}
+                  </p>
+                  <p className="dark:text-muted-foreground text-[10px] font-semibold text-slate-500">
                     expected ₱{m.expectedProfit.toLocaleString()}
                   </p>
                 </div>
@@ -581,31 +660,34 @@ export default async function Dashboard() {
       </section>
 
       <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1fr_1.6fr]">
-        <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] dark:border-border dark:bg-card sm:p-5">
+        <article className="dark:border-border dark:bg-card bg-background min-w-0 rounded-xl border-2 border-slate-900 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
           <CollectionRateRing
             data={{
               collected: monthlyChartData[5]?.collected ?? 0,
               expectedSoFar: monthlyChartData[5]?.expectedSoFar ?? 0,
               profit: monthlyChartData[5]?.profit ?? 0,
               expectedProfit: monthlyChartData[5]?.expectedProfit ?? 0,
-              expectedProfitSoFar: monthlyChartData[5]?.expectedProfitSoFar ?? 0,
+              expectedProfitSoFar:
+                monthlyChartData[5]?.expectedProfitSoFar ?? 0,
               isComplete: monthlyChartData[5]?.isComplete ?? false,
               monthLabel: monthlyChartData[5]?.label ?? "",
             }}
           />
         </article>
-        <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0px_0px_#0f172a] dark:border-border dark:bg-card sm:p-5">
+        <article className="dark:border-border dark:bg-card bg-background min-w-0 rounded-xl border-2 border-slate-900 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
           <OverdueByCategoryChart data={overdueByCategory} />
         </article>
       </section>
 
       <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1.3fr_1fr]">
-        <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br from-cyan-50 via-white to-blue-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] dark:border-border dark:from-cyan-950/30 dark:via-card dark:to-blue-950/30 sm:p-5">
+        <article className="dark:border-border dark:via-card min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br from-cyan-50 via-stone-100 to-blue-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5 dark:from-cyan-950/30 dark:to-blue-950/30">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-black lowercase text-slate-900 dark:text-foreground">due today</h2>
+            <h2 className="dark:text-foreground text-base font-black text-slate-900 lowercase">
+              due today
+            </h2>
             <Link
               href="/borrowers"
-              className="inline-flex items-center gap-1 rounded-md border-2 border-slate-900 bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-900 transition hover:bg-slate-200 dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted/80"
+              className="dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted/80 inline-flex items-center gap-1 rounded-md border-2 border-slate-900 bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-900 transition hover:bg-slate-200"
             >
               view all
               <ArrowUpRight className="size-3.5" />
@@ -613,31 +695,35 @@ export default async function Dashboard() {
           </div>
           <ul className="space-y-2">
             {dueTodayRows.length === 0 ? (
-              <li className="rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 p-3 text-sm text-slate-600 dark:border-muted-foreground/40 dark:bg-muted dark:text-muted-foreground">
+              <li className="dark:border-muted-foreground/40 dark:bg-muted dark:text-muted-foreground rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 p-3 text-sm text-slate-600">
                 No schedules due today.
               </li>
             ) : (
               dueTodayRows.map((entry) => (
                 <li
                   key={entry.id}
-                  className="rounded-lg border-2 border-slate-900 bg-slate-50 p-3 dark:border-border dark:bg-muted"
+                  className="dark:border-border dark:bg-muted rounded-lg border-2 border-slate-900 bg-slate-50 p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold lowercase text-slate-900 dark:text-foreground">{entry.name}</p>
-                    <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-xs font-bold uppercase text-slate-600 dark:bg-card dark:text-muted-foreground">
+                    <p className="dark:text-foreground font-bold text-slate-900 lowercase">
+                      {entry.name}
+                    </p>
+                    <span className="dark:bg-card dark:text-muted-foreground inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-600 uppercase">
                       <span
-                        className="size-2 shrink-0 rounded-full border border-slate-900/25 dark:border-border"
-                        style={{ backgroundColor: entry.categoryColor ?? "#cbd5e1" }}
+                        className="dark:border-border size-2 shrink-0 rounded-full border border-slate-900/25"
+                        style={{
+                          backgroundColor: entry.categoryColor ?? "#cbd5e1",
+                        }}
                         aria-hidden
                       />
                       {entry.category}
                     </span>
                   </div>
                   <div className="mt-1 flex items-center justify-between text-sm">
-                    <p className="font-semibold text-slate-700 dark:text-foreground">
+                    <p className="dark:text-foreground font-semibold text-slate-700">
                       PHP {entry.amount.toLocaleString()}
                     </p>
-                    <p className="text-xs font-semibold uppercase text-slate-600 dark:text-muted-foreground">
+                    <p className="dark:text-muted-foreground text-xs font-semibold text-slate-600 uppercase">
                       {entry.status}
                     </p>
                   </div>
@@ -648,15 +734,15 @@ export default async function Dashboard() {
         </article>
 
         <div className="min-w-0 space-y-4">
-          <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br from-emerald-50 via-white to-lime-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] dark:border-border dark:from-emerald-950/30 dark:via-card dark:to-lime-950/30 sm:p-5">
+          <article className="dark:border-border dark:via-card min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br from-emerald-50 via-stone-100 to-lime-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5 dark:from-emerald-950/30 dark:to-lime-950/30">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-base font-black lowercase text-slate-900 dark:text-foreground">
+              <h2 className="dark:text-foreground text-base font-black text-slate-900 lowercase">
                 next collection
               </h2>
               {nextCollectionSchedules.length > 0 ? (
                 <Link
                   href="/next-collection"
-                  className="inline-flex items-center gap-1 rounded-md border-2 border-slate-900 bg-emerald-200 px-2.5 py-1 text-xs font-bold text-slate-900 transition hover:bg-emerald-300 dark:border-border dark:bg-emerald-800/50 dark:text-foreground dark:hover:bg-emerald-800"
+                  className="dark:border-border dark:text-foreground inline-flex items-center gap-1 rounded-md border-2 border-slate-900 bg-emerald-200 px-2.5 py-1 text-xs font-bold text-slate-900 transition hover:bg-emerald-300 dark:bg-emerald-800/50 dark:hover:bg-emerald-800"
                 >
                   view all
                   <ArrowUpRight className="size-3.5" />
@@ -664,19 +750,27 @@ export default async function Dashboard() {
               ) : null}
             </div>
             {nextCollectionDate ? (
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
+              <p className="dark:text-muted-foreground mb-3 text-xs font-semibold tracking-wide text-slate-600 uppercase">
                 {new Date(nextCollectionDate).toLocaleDateString()} • PHP{" "}
                 {nextCollectionTotal.toLocaleString()}
               </p>
             ) : null}
             {nextCollectionRows.length === 0 ? (
-              <div className="rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-muted-foreground/40 dark:bg-muted dark:text-muted-foreground">
+              <div className="dark:border-muted-foreground/40 dark:bg-muted dark:text-muted-foreground rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 px-3 py-2 text-sm text-slate-600">
                 No upcoming unpaid schedule.
               </div>
             ) : (
               <div className="space-y-2">
                 {(() => {
-                  const groups = new Map<string, { color: string | null; categoryId: string | null; accountCount: number; total: number }>();
+                  const groups = new Map<
+                    string,
+                    {
+                      color: string | null;
+                      categoryId: string | null;
+                      accountCount: number;
+                      total: number;
+                    }
+                  >();
                   for (const entry of nextCollectionRows) {
                     const existing = groups.get(entry.category);
                     if (existing) {
@@ -693,28 +787,32 @@ export default async function Dashboard() {
                   }
                   return Array.from(groups.entries()).map(([category, g]) => {
                     const inner = (
-                      <div className="flex items-center justify-between gap-2 rounded-lg border-2 border-slate-900 bg-slate-50 px-3 py-2 dark:border-border dark:bg-muted">
+                      <div className="dark:border-border dark:bg-muted flex items-center justify-between gap-2 rounded-lg border-2 border-slate-900 bg-slate-50 px-3 py-2">
                         <div className="flex items-center gap-2">
                           <span
-                            className="size-2.5 shrink-0 rounded-full border border-slate-900/25 dark:border-border"
+                            className="dark:border-border size-2.5 shrink-0 rounded-full border border-slate-900/25"
                             style={{ backgroundColor: g.color ?? "#cbd5e1" }}
                             aria-hidden
                           />
-                          <span className="text-xs font-black uppercase tracking-wide text-slate-700 dark:text-foreground">
+                          <span className="dark:text-foreground text-xs font-black tracking-wide text-slate-700 uppercase">
                             {category}
                           </span>
-                          <span className="rounded-md border border-slate-900/20 bg-white px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600 dark:border-border dark:bg-card dark:text-muted-foreground">
+                          <span className="dark:border-border dark:bg-card dark:text-muted-foreground rounded-md border border-slate-900/20 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-600 tabular-nums">
                             {g.accountCount}
                           </span>
                         </div>
-                        <span className="text-xs font-semibold text-slate-600 dark:text-muted-foreground">
+                        <span className="dark:text-muted-foreground text-xs font-semibold text-slate-600">
                           PHP {g.total.toLocaleString()}
                         </span>
                       </div>
                     );
                     if (g.categoryId) {
                       return (
-                        <Link key={category} href={`/categories/${g.categoryId}`} className="block transition hover:opacity-80">
+                        <Link
+                          key={category}
+                          href={`/categories/${g.categoryId}`}
+                          className="block transition hover:opacity-80"
+                        >
                           {inner}
                         </Link>
                       );
@@ -722,47 +820,48 @@ export default async function Dashboard() {
                     return <div key={category}>{inner}</div>;
                   });
                 })()}
-                <div className="flex items-center justify-between rounded-lg border-2 border-slate-900 bg-slate-900 px-3 py-2 dark:border-border dark:bg-foreground">
-                  <span className="text-xs font-black uppercase tracking-wide text-white dark:text-background">
+                <div className="dark:border-border dark:bg-foreground flex items-center justify-between rounded-lg border-2 border-slate-900 bg-slate-900 px-3 py-2">
+                  <span className="dark:text-background text-xs font-black tracking-wide text-white uppercase">
                     Total
                   </span>
-                  <span className="text-xs font-black tabular-nums text-white dark:text-background">
-                    {nextCollectionCount} account{nextCollectionCount === 1 ? "" : "s"} • PHP {nextCollectionTotal.toLocaleString()}
+                  <span className="dark:text-background text-xs font-black text-white tabular-nums">
+                    {nextCollectionCount} account
+                    {nextCollectionCount === 1 ? "" : "s"} • PHP{" "}
+                    {nextCollectionTotal.toLocaleString()}
                   </span>
                 </div>
               </div>
             )}
           </article>
 
-          <article className="rounded-xl border-2 border-slate-900 bg-linear-to-br from-amber-50 via-white to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] dark:border-border dark:from-amber-950/30 dark:via-card dark:to-orange-950/30 sm:p-5">
-            <h2 className="mb-3 text-base font-black lowercase text-slate-900 dark:text-foreground">
+          <article className="dark:border-border dark:via-card rounded-xl border-2 border-slate-900 bg-linear-to-br from-amber-50 via-stone-100 to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5 dark:from-amber-950/30 dark:to-orange-950/30">
+            <h2 className="dark:text-foreground mb-3 text-base font-black text-slate-900 lowercase">
               quick actions
             </h2>
             <div className="space-y-2">
               <Link
                 href="/borrowers"
-                className="flex items-center justify-between rounded-lg border-2 border-slate-900 bg-emerald-100 px-3 py-2 text-sm font-bold lowercase text-slate-900 transition hover:bg-emerald-200 dark:border-border dark:bg-emerald-900/40 dark:text-foreground dark:hover:bg-emerald-900/60"
+                className="dark:border-border dark:text-foreground flex items-center justify-between rounded-lg border-2 border-slate-900 bg-emerald-100 px-3 py-2 text-sm font-bold text-slate-900 lowercase transition hover:bg-emerald-200 dark:bg-emerald-900/40 dark:hover:bg-emerald-900/60"
               >
                 add borrower
                 <UserRoundPlus className="size-4" />
               </Link>
               <Link
                 href="/categories"
-                className="flex items-center justify-between rounded-lg border-2 border-slate-900 bg-sky-100 px-3 py-2 text-sm font-bold lowercase text-slate-900 transition hover:bg-sky-200 dark:border-border dark:bg-sky-900/40 dark:text-foreground dark:hover:bg-sky-900/60"
+                className="dark:border-border dark:text-foreground flex items-center justify-between rounded-lg border-2 border-slate-900 bg-sky-100 px-3 py-2 text-sm font-bold text-slate-900 lowercase transition hover:bg-sky-200 dark:bg-sky-900/40 dark:hover:bg-sky-900/60"
               >
                 manage categories
                 <Plus className="size-4" />
               </Link>
               <Link
                 href="/audit"
-                className="flex items-center justify-between rounded-lg border-2 border-slate-900 bg-slate-100 px-3 py-2 text-sm font-bold lowercase text-slate-900 transition hover:bg-slate-200 dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted/80"
+                className="dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted/80 flex items-center justify-between rounded-lg border-2 border-slate-900 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-900 lowercase transition hover:bg-slate-200"
               >
                 audit trail
                 <ClipboardList className="size-4" />
               </Link>
             </div>
           </article>
-
         </div>
       </section>
 

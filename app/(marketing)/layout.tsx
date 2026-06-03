@@ -4,13 +4,12 @@ import { Geist, Geist_Mono } from "next/font/google";
 import MobileTopBar from "@/components/mobile-top-bar";
 import { ScrollRestoration } from "@/components/scroll-restoration";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
-import { OfflineBanner } from "@/components/offline-banner";
 import { OfflineSyncManager } from "@/components/offline-sync-manager";
-import { ThemeProvider } from "./providers";
-import "./globals.css";
+import { ThemeProvider } from "../providers";
+import "../globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
-import Loading from "./(dashboard)/loading";
+import Loading from "../(dashboard)/loading";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,7 +35,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default function MarketingLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -55,9 +54,11 @@ export default function RootLayout({
           <ServiceWorkerRegistrar />
           <OfflineSyncManager />
 
-          <Suspense fallback={<Loading />}>
-            <PageTransition>{children}</PageTransition>
-          </Suspense>
+          <main className="flex-1">
+            <Suspense fallback={<Loading />}>
+              <PageTransition>{children}</PageTransition>
+            </Suspense>
+          </main>
 
           <Suspense fallback={null}>
             <MobileTopBar />

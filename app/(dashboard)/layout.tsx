@@ -29,7 +29,9 @@ export default async function DashboardLayout({
     <>
       <SiteHeader isLoggedIn={Boolean(user)} logoutAction={logout} />
       <BottomNav />
-      <div className="pb-[52px] sm:pb-0">{children}</div>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:mt-0 md:px-6">
+        <div className="pb-[52px] sm:pb-0">{children}</div>
+      </main>
     </>
   );
 }

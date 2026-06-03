@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
+import { flushSync } from "react-dom";
 import { toPng } from "html-to-image";
-import { Download, Share2 } from "lucide-react";
+import { Share2 } from "lucide-react";
 
 export type ShareSchedule = {
   index: number;
@@ -40,15 +41,98 @@ function formatDate(iso: string) {
   });
 }
 
-function statusColor(status: string) {
+function statusPalette(status: string, dark: boolean) {
+  if (dark) {
+    if (status === "paid")
+      return {
+        rowBg: "#132a21",
+        badgeBorder: "#059669",
+        badgeBg: "#1a3d30",
+        badgeText: "#6ee7b7",
+      };
+    if (status === "partial")
+      return {
+        rowBg: "#1f1b33",
+        badgeBorder: "#7c3aed",
+        badgeBg: "#2e2652",
+        badgeText: "#c4b5fd",
+      };
+    if (status === "overdue")
+      return {
+        rowBg: "#2a1518",
+        badgeBorder: "#e11d48",
+        badgeBg: "#3d1e24",
+        badgeText: "#fda4af",
+      };
+    return {
+      rowBg: "#27272a",
+      badgeBorder: "#d97706",
+      badgeBg: "#2e2618",
+      badgeText: "#fcd34d",
+    };
+  }
   if (status === "paid")
-    return { bg: "#d1fae5", border: "#059669", text: "#064e3b" };
+    return {
+      rowBg: "#ecfdf5",
+      badgeBorder: "#059669",
+      badgeBg: "#d1fae5",
+      badgeText: "#064e3b",
+    };
   if (status === "partial")
-    return { bg: "#ede9fe", border: "#7c3aed", text: "#2e1065" };
+    return {
+      rowBg: "#f5f3ff",
+      badgeBorder: "#7c3aed",
+      badgeBg: "#ede9fe",
+      badgeText: "#2e1065",
+    };
   if (status === "overdue")
-    return { bg: "#ffe4e6", border: "#e11d48", text: "#881337" };
-  return { bg: "#fef3c7", border: "#d97706", text: "#78350f" };
+    return {
+      rowBg: "#fff1f2",
+      badgeBorder: "#e11d48",
+      badgeBg: "#ffe4e6",
+      badgeText: "#881337",
+    };
+  return {
+    rowBg: "#ffffff",
+    badgeBorder: "#d97706",
+    badgeBg: "#fef3c7",
+    badgeText: "#78350f",
+  };
 }
+
+const light = {
+  pageBg: "#fffefa",
+  cardBg: "#ffffff",
+  cardBorder: "#0f172a",
+  cardShadow: "#0f172a",
+  textPrimary: "#0f172a",
+  textSecondary: "#94a3b8",
+  textMuted: "#64748b",
+  progressBg: "#f1f5f9",
+  progressFill: "#34d399",
+  footerBorder: "#e2e8f0",
+  watermark: "#cbd5e1",
+  collected: "#059669",
+  partialPct: "#d97706",
+  paidDate: "#059669",
+};
+
+const dark = {
+  pageBg: "#18181b",
+  cardBg: "#27272a",
+  cardBorder: "#3f3f46",
+  cardShadow: "#18181b",
+  textPrimary: "#f4f4f5",
+  textSecondary: "#71717a",
+  textMuted: "#a1a1aa",
+  progressBg: "#27272a",
+  progressFill: "#34d399",
+  footerBorder: "#3f3f46",
+  watermark: "#52525b",
+  collected: "#34d399",
+  partialPct: "#fcd34d",
+  paidDate: "#6ee7b7",
+};
 
 export default function ShareScheduleButton({
   borrowerName,
@@ -66,12 +150,22 @@ export default function ShareScheduleButton({
   const cardRef = useRef<HTMLDivElement>(null);
   const [rendering, setRendering] = useState(false);
   const [showCard, setShowCard] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  const p = isDark ? dark : light;
 
   const capture = useCallback(async () => {
-    setShowCard(true);
-    setRendering(true);
+    const darkActive =
+      typeof document !== "undefined" &&
+      document.documentElement.classList.contains("dark");
 
-    // Wait for the hidden card to render
+    flushSync(() => {
+      setIsDark(darkActive);
+      setShowCard(true);
+      setRendering(true);
+    });
+
+    // Wait for fonts/layout to settle
     await new Promise((r) => setTimeout(r, 100));
 
     if (!cardRef.current) {
@@ -83,7 +177,7 @@ export default function ShareScheduleButton({
     try {
       const dataUrl = await toPng(cardRef.current, {
         pixelRatio: 2,
-        backgroundColor: "#fffefa",
+        backgroundColor: darkActive ? "#18181b" : "#fffefa",
       });
 
       // Try Web Share API first (mobile), fall back to download
@@ -164,107 +258,92 @@ export default function ShareScheduleButton({
               padding: 32,
               fontFamily:
                 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-              backgroundColor: "#fffefa",
+              backgroundColor: p.pageBg,
             }}
           >
             {/* Header */}
-            <div
-              style={{
-                borderRadius: 16,
-                border: "3px solid #0f172a",
-                overflow: "hidden",
-                boxShadow: "6px 6px 0px 0px #0f172a",
-              }}
-            >
-              {/* Title bar */}
+            <div style={{ marginBottom: 24 }}>
               <div
                 style={{
-                  background: "#ffffec",
-                  borderBottom: "3px solid #0f172a",
-                  padding: "20px 24px",
+                  fontSize: 10,
+                  fontWeight: 900,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.2em",
+                  color: p.textSecondary,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 900,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.12em",
-                    color: "#334155",
-                  }}
-                >
-                  {accountType.replace("_", " ")}
-                </div>
-                <div
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 900,
-                    textTransform: "uppercase",
-                    color: "#0f172a",
-                    marginTop: 4,
-                  }}
-                >
-                  {borrowerName}
-                </div>
-                {releaseDate ? (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "#475569",
-                      marginTop: 6,
-                      fontWeight: 600,
-                    }}
-                  >
-                    Released {formatDate(releaseDate)}
-                  </div>
-                ) : null}
+                {accountType.replace("_", " ")}
               </div>
+              <div
+                style={{
+                  fontSize: 32,
+                  fontWeight: 900,
+                  textTransform: "uppercase",
+                  color: p.textPrimary,
+                  marginTop: 4,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {borrowerName}
+              </div>
+              {releaseDate ? (
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "#64748b",
+                    marginTop: 6,
+                    fontWeight: 600,
+                  }}
+                >
+                  Released {formatDate(releaseDate)}
+                </div>
+              ) : null}
+            </div>
 
-              {!noDetails && (
-                <>
-                  {/* Balances grid */}
+            {!noDetails && (
+              <>
+                {/* Summary Card */}
+                <div
+                  style={{
+                    borderRadius: 12,
+                    border: `2px solid ${p.cardBorder}`,
+                    backgroundColor: p.cardBg,
+                    padding: 16,
+                    boxShadow: `3px 3px 0px 0px ${p.cardShadow}`,
+                    marginBottom: 16,
+                  }}
+                >
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 1fr 1fr 1fr",
-                      borderBottom: "3px solid #0f172a",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 12,
                     }}
                   >
                     {[
-                      { label: "Principal", value: principal, bg: "#e0f2fe" },
-                      { label: "Collected", value: collected, bg: "#d1fae5" },
-                      { label: "Remaining", value: remaining, bg: "#ffe4e6" },
-                      {
-                        label: "Profit",
-                        value: Math.max(0, profit),
-                        bg: "#fef3c7",
-                      },
-                    ].map((item, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          padding: "14px 16px",
-                          backgroundColor: item.bg,
-                          borderRight: i < 3 ? "3px solid #0f172a" : "none",
-                        }}
-                      >
+                      { label: "Principal", value: principal },
+                      { label: "Collected", value: collected },
+                      { label: "Remaining", value: remaining },
+                      { label: "Profit", value: Math.max(0, profit) },
+                    ].map((item) => (
+                      <div key={item.label}>
                         <div
                           style={{
                             fontSize: 9,
                             fontWeight: 900,
                             textTransform: "uppercase",
                             letterSpacing: "0.12em",
-                            color: "#64748b",
+                            color: p.textSecondary,
                           }}
                         >
                           {item.label}
                         </div>
                         <div
                           style={{
-                            fontSize: 18,
+                            fontSize: 20,
                             fontWeight: 900,
-                            color: "#0f172a",
-                            marginTop: 4,
+                            color: p.textPrimary,
+                            marginTop: 2,
                             fontVariantNumeric: "tabular-nums",
                           }}
                         >
@@ -273,240 +352,241 @@ export default function ShareScheduleButton({
                       </div>
                     ))}
                   </div>
+                </div>
 
-                  {/* Progress bar */}
-                </>
-              )}
-
-              {!noDetails && (
+                {/* Progress Card */}
                 <div
                   style={{
-                    padding: "12px 24px",
-                    borderBottom: "3px solid #0f172a",
-                    backgroundColor: "#f8fafc",
+                    borderRadius: 12,
+                    border: `2px solid ${p.cardBorder}`,
+                    backgroundColor: p.cardBg,
+                    padding: 16,
+                    boxShadow: `3px 3px 0px 0px ${p.cardShadow}`,
+                    marginBottom: 24,
                   }}
                 >
                   <div
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
-                      fontSize: 10,
-                      fontWeight: 900,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.1em",
-                      color: "#334155",
-                      marginBottom: 6,
+                      alignItems: "flex-start",
                     }}
                   >
-                    <span>Progress</span>
-                    <span>{progressPct}%</span>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 900,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.12em",
+                          color: p.textSecondary,
+                        }}
+                      >
+                        Progress
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 36,
+                          fontWeight: 900,
+                          color: p.textPrimary,
+                          marginTop: 2,
+                        }}
+                      >
+                        {progressPct}%
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 900,
+                          color: p.collected,
+                        }}
+                      >
+                        {formatMoney(collected)}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: p.textSecondary,
+                        }}
+                      >
+                        of {formatMoney(totalPayment)}
+                      </div>
+                    </div>
                   </div>
                   <div
                     style={{
+                      marginTop: 10,
                       height: 12,
-                      borderRadius: 6,
-                      border: "2px solid #0f172a",
-                      backgroundColor: "white",
+                      borderRadius: 999,
+                      border: `2px solid ${p.cardBorder}`,
+                      backgroundColor: p.progressBg,
                       overflow: "hidden",
-                      boxShadow: "2px 2px 0px 0px #0f172a",
                     }}
                   >
                     <div
                       style={{
                         height: "100%",
                         width: `${progressPct}%`,
-                        backgroundColor: "#34d399",
-                        borderRadius: 4,
+                        backgroundColor: p.progressFill,
+                        borderRadius: 999,
                       }}
                     />
                   </div>
                 </div>
-              )}
+              </>
+            )}
 
-              {/* Schedule table */}
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: 13,
-                }}
-              >
-                <thead>
-                  <tr>
-                    {[
-                      "#",
-                      "Due Date",
-                      "Due",
-                      "Paid",
-                      "Left",
-                      "Status",
-                      "Paid Date",
-                    ].map((h, i) => (
-                      <th
-                        key={i}
-                        style={{
-                          borderBottom: "3px solid #0f172a",
-                          borderRight: i < 6 ? "2px solid #0f172a" : "none",
-                          backgroundColor: "#e2e8f0",
-                          padding: "10px 12px",
-                          textAlign: i >= 2 && i <= 4 ? "right" : "left",
-                          fontSize: 10,
-                          fontWeight: 900,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.1em",
-                          color: "#0f172a",
-                        }}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {schedules.map((s) => {
-                    const sc = statusColor(s.status);
-                    return (
-                      <tr key={s.index}>
-                        {[
-                          {
-                            content: String(s.index),
-                            align: "left" as const,
-                          },
-                          {
-                            content: formatDate(s.due_date),
-                            align: "left" as const,
-                          },
-                          {
-                            content: formatMoney(s.amount_due),
-                            align: "right" as const,
-                          },
-                          {
-                            content: formatMoney(s.amount_paid),
-                            align: "right" as const,
-                          },
-                          {
-                            content: formatMoney(s.remaining),
-                            align: "right" as const,
-                          },
-                        ].map((cell, ci) => (
-                          <td
-                            key={ci}
-                            style={{
-                              borderBottom: "2px solid #0f172a",
-                              borderRight: "2px solid #0f172a",
-                              padding: "10px 12px",
-                              fontWeight: 700,
-                              fontVariantNumeric: "tabular-nums",
-                              color: "#0f172a",
-                              textAlign: cell.align,
-                              backgroundColor:
-                                s.status === "paid"
-                                  ? "#ecfdf5"
-                                  : s.status === "overdue"
-                                    ? "#fff1f2"
-                                    : s.status === "partial"
-                                      ? "#f5f3ff"
-                                      : "#fffbeb",
-                            }}
-                          >
-                            {cell.content}
-                          </td>
-                        ))}
-                        {/* Status badge */}
-                        <td
-                          style={{
-                            borderBottom: "2px solid #0f172a",
-                            borderRight: "2px solid #0f172a",
-                            padding: "10px 12px",
-                            backgroundColor:
-                              s.status === "paid"
-                                ? "#ecfdf5"
-                                : s.status === "overdue"
-                                  ? "#fff1f2"
-                                  : s.status === "partial"
-                                    ? "#f5f3ff"
-                                    : "#fffbeb",
-                          }}
-                        >
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "3px 10px",
-                              borderRadius: 999,
-                              border: `2px solid ${sc.border}`,
-                              backgroundColor: sc.bg,
-                              color: sc.text,
-                              fontSize: 10,
-                              fontWeight: 900,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.05em",
-                              boxShadow: "2px 2px 0px 0px #0f172a",
-                            }}
-                          >
-                            {s.status}
-                          </span>
-                        </td>
-                        {/* Paid date */}
-                        <td
-                          style={{
-                            borderBottom: "2px solid #0f172a",
-                            padding: "10px 12px",
-                            fontWeight: 600,
-                            color: "#475569",
-                            backgroundColor:
-                              s.status === "paid"
-                                ? "#ecfdf5"
-                                : s.status === "overdue"
-                                  ? "#fff1f2"
-                                  : s.status === "partial"
-                                    ? "#f5f3ff"
-                                    : "#fffbeb",
-                          }}
-                        >
-                          {s.paid_date ? formatDate(s.paid_date) : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            {/* Schedule label */}
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 900,
+                textTransform: "uppercase",
+                letterSpacing: "0.2em",
+                color: p.textSecondary,
+                marginBottom: 12,
+              }}
+            >
+              Payment Schedule
+            </div>
 
-              {/* Footer */}
-              <div
-                style={{
-                  padding: "14px 24px",
-                  backgroundColor: "#f1f5f9",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                {!noDetails ? (
+            {/* Schedule Cards */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {schedules.map((s) => {
+                const st = statusPalette(s.status, isDark);
+                const partialPct =
+                  s.amount_due > 0
+                    ? Math.min(
+                        100,
+                        Math.round((s.amount_paid / s.amount_due) * 100),
+                      )
+                    : 0;
+                return (
                   <div
+                    key={s.index}
                     style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: "#475569",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: "8px 12px",
+                      borderRadius: 8,
+                      border: `2px solid ${p.cardBorder}`,
+                      padding: "10px 12px",
+                      boxShadow: `2px 2px 0px 0px ${p.cardShadow}`,
+                      backgroundColor: st.rowBg,
                     }}
                   >
-                    Total :{" "}
-                    <span style={{ fontWeight: 900, color: "#0f172a" }}>
-                      {formatMoney(totalPayment)}
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 900,
+                        color: p.textSecondary,
+                      }}
+                    >
+                      #{s.index}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 900,
+                        color: p.textPrimary,
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {formatMoney(s.amount_due)}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: p.textMuted,
+                      }}
+                    >
+                      {formatDate(s.due_date)}
+                    </span>
+                    {s.status === "partial" && (
+                      <span
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 700,
+                          color: p.partialPct,
+                        }}
+                      >
+                        {partialPct}%
+                      </span>
+                    )}
+                    {s.status === "paid" && s.paid_date && (
+                      <span
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 600,
+                          color: p.paidDate,
+                        }}
+                      >
+                        {formatDate(s.paid_date)}
+                      </span>
+                    )}
+                    <span
+                      style={{
+                        marginLeft: "auto",
+                        display: "inline-block",
+                        padding: "2px 10px",
+                        borderRadius: 999,
+                        border: `2px solid ${st.badgeBorder}`,
+                        backgroundColor: st.badgeBg,
+                        color: st.badgeText,
+                        fontSize: 9,
+                        fontWeight: 900,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      {s.status}
                     </span>
                   </div>
-                ) : (
-                  <div />
-                )}
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                marginTop: 24,
+                paddingTop: 16,
+                borderTop: `2px dashed ${p.footerBorder}`,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              {!noDetails ? (
                 <div
                   style={{
-                    fontSize: 11,
-                    fontWeight: 900,
-                    color: "#94a3b8",
-                    letterSpacing: "0.08em",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: p.textMuted,
                   }}
                 >
-                  *utangz
+                  Total:{" "}
+                  <span style={{ fontWeight: 900, color: p.textPrimary }}>
+                    {formatMoney(totalPayment)}
+                  </span>
                 </div>
+              ) : (
+                <div />
+              )}
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 900,
+                  color: p.watermark,
+                  letterSpacing: "0.08em",
+                }}
+              >
+                *utangz
               </div>
             </div>
           </div>
