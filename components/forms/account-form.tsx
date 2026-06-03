@@ -68,12 +68,12 @@ export type AccountEditableRow = {
 };
 
 export function accountRowToFormInitial(
-  account: AccountEditableRow
+  account: AccountEditableRow,
 ): Partial<AccountFormValues> {
   const frequencies = ["weekly", "monthly", "bimonthly", "custom"] as const;
   const raw = account.payment_frequency ?? "";
   const payment_frequency = frequencies.includes(
-    raw as (typeof frequencies)[number]
+    raw as (typeof frequencies)[number],
   )
     ? (raw as AccountFormValues["payment_frequency"])
     : "bimonthly";
@@ -92,7 +92,8 @@ export function accountRowToFormInitial(
     payment_frequency,
     schedule_mode: scheduleMode,
     interest_type: account.interest_type === "rolling" ? "rolling" : "flat",
-    status: (account.status as AccountFormValues["status"] | undefined) ?? "active",
+    status:
+      (account.status as AccountFormValues["status"] | undefined) ?? "active",
   } as Partial<AccountFormValues>;
 }
 
@@ -146,9 +147,12 @@ export default function AccountForm({
           term_installments: isCustomFreq ? values.term_months : null,
           release_date: values.release_date || null,
           first_payment_date: values.first_payment_date || null,
-          payment_frequency: values.schedule_mode === 'manual' ? 'bisag kanus-a' : values.payment_frequency,
+          payment_frequency:
+            values.schedule_mode === "manual"
+              ? "bisag kanus-a"
+              : values.payment_frequency,
           schedule_mode: values.schedule_mode,
-          interest_type: values.interest_type ?? 'flat',
+          interest_type: values.interest_type ?? "flat",
           status: values.status,
         })
         .eq("id", accountId);
@@ -164,7 +168,7 @@ export default function AccountForm({
           .delete()
           .eq("account_id", accountId)
           .select();
-        console.log(delError, delData)
+        console.log(delError, delData);
         if (delError) {
           toast.error(delError.message);
           return;
@@ -179,8 +183,24 @@ export default function AccountForm({
           return;
         }
       }
-      await logAuditAction("account.updated", "account", accountId!, `Account updated (${values.type}, ₱${values.principal_amount.toLocaleString()})`, { type: values.type, principal: values.principal_amount, interest_rate: values.interest_rate }, accountId);
-      toast.success("Account updated." + (values.schedule_mode === "manual" ? " Schedules not regenerated (manual mode)." : ""));
+      await logAuditAction(
+        "account.updated",
+        "account",
+        accountId!,
+        `Account updated (${values.type}, ₱${values.principal_amount.toLocaleString()})`,
+        {
+          type: values.type,
+          principal: values.principal_amount,
+          interest_rate: values.interest_rate,
+        },
+        accountId,
+      );
+      toast.success(
+        "Account updated." +
+          (values.schedule_mode === "manual"
+            ? " Schedules not regenerated (manual mode)."
+            : ""),
+      );
 
       router.refresh();
       onSuccess?.();
@@ -206,16 +226,20 @@ export default function AccountForm({
     }
 
     if (values.status === "pending" && values.release_date) {
-      const { error: evtError } = await supabase.from("calendar_events").insert({
-        borrower_id: values.borrower_id,
-        account_id: account.id,
-        event_date: values.release_date,
-        title: "Activate account",
-        amount: values.principal_amount,
-        status: "scheduled",
-      });
+      const { error: evtError } = await supabase
+        .from("calendar_events")
+        .insert({
+          borrower_id: values.borrower_id,
+          account_id: account.id,
+          event_date: values.release_date,
+          title: "Activate account",
+          amount: values.principal_amount,
+          status: "scheduled",
+        });
       if (evtError) {
-        toast.error("Account created but calendar event failed: " + evtError.message);
+        toast.error(
+          "Account created but calendar event failed: " + evtError.message,
+        );
       }
     }
 
@@ -232,10 +256,17 @@ export default function AccountForm({
       }
     }
 
-    if (values.status !== "pending" && values.schedule_mode === "manual" && values.interest_type === "rolling" && values.interest_rate > 0) {
+    if (
+      values.status !== "pending" &&
+      values.schedule_mode === "manual" &&
+      values.interest_type === "rolling" &&
+      values.interest_rate > 0
+    ) {
       const principal = values.principal_amount;
-      const firstDue = Math.round(principal * (1 + values.interest_rate / 100) * 100) / 100;
-      const dueDate = values.release_date || new Date().toISOString().split("T")[0];
+      const firstDue =
+        Math.round(principal * (1 + values.interest_rate / 100) * 100) / 100;
+      const dueDate =
+        values.release_date || new Date().toISOString().split("T")[0];
       const { error: scheduleError } = await supabase
         .from("payment_schedules")
         .insert({
@@ -252,15 +283,38 @@ export default function AccountForm({
       }
     }
 
-    await logAuditAction("account.created", "account", account.id, `Account created (${values.type}, ₱${values.principal_amount.toLocaleString()})`, { type: values.type, principal: values.principal_amount, interest_rate: values.interest_rate, schedule_mode: values.schedule_mode, interest_type: values.interest_type, status: values.status }, account.id);
+    await logAuditAction(
+      "account.created",
+      "account",
+      account.id,
+      `Account created (${values.type}, ₱${values.principal_amount.toLocaleString()})`,
+      {
+        type: values.type,
+        principal: values.principal_amount,
+        interest_rate: values.interest_rate,
+        schedule_mode: values.schedule_mode,
+        interest_type: values.interest_type,
+        status: values.status,
+      },
+      account.id,
+    );
     reset(emptyDefaults(borrowerId));
-    const msg = values.status === "pending"
-      ? "Pending account created. A calendar event was scheduled for activation."
-      : "Account created." + (values.schedule_mode === "manual" ? (values.interest_type === "rolling" ? " First rolling schedule generated." : " Add schedules manually.") : "");
+    const msg =
+      values.status === "pending"
+        ? "Pending account created. A calendar event was scheduled for activation."
+        : "Account created." +
+          (values.schedule_mode === "manual"
+            ? values.interest_type === "rolling"
+              ? " First rolling schedule generated."
+              : " Add schedules manually."
+            : "");
     toast.success(msg);
 
     await revalidateBorrowerDetailPage(values.borrower_id);
     router.refresh();
+    if (!isEdit) {
+      router.push(`/borrowers/${values.borrower_id}`);
+    }
     onSuccess?.();
   };
 
@@ -295,7 +349,9 @@ export default function AccountForm({
           className={formFieldInputClassName}
         >
           <option value="auto">auto (generate schedules)</option>
-          <option value="manual">manual (I&apos;ll add schedules myself)</option>
+          <option value="manual">
+            manual (I&apos;ll add schedules myself)
+          </option>
         </select>
       </div>
 
@@ -304,9 +360,9 @@ export default function AccountForm({
           <label className={formFieldLabelClassName}>Account status</label>
           <div className="flex gap-3">
             <label
-              className={`flex cursor-pointer items-center gap-2 dark:text-slate-800 rounded-lg dark border-2 border-slate-900 px-3 py-2 text-sm font-bold transition ${
+              className={`dark flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
                 !isPending
-                  ? "bg-emerald-300 dark:bg-emerald-400 shadow-[2px_2px_0px_0px_#0f172a] "
+                  ? "bg-emerald-300 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-emerald-400"
                   : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
               }`}
             >
@@ -319,9 +375,9 @@ export default function AccountForm({
               <span>active</span>
             </label>
             <label
-              className={`flex cursor-pointer items-center dark:text-slate-800 gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition ${
+              className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
                 isPending
-                  ? "bg-amber-300  shadow-[2px_2px_0px_0px_#0f172a]"
+                  ? "bg-amber-300 shadow-[2px_2px_0px_0px_#0f172a]"
                   : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
               }`}
             >
@@ -336,7 +392,8 @@ export default function AccountForm({
           </div>
           {isPending && (
             <p className="mt-1 text-[10px] text-slate-500">
-              Payment schedules will be created when this account is activated. A calendar event will be added using the release date.
+              Payment schedules will be created when this account is activated.
+              A calendar event will be added using the release date.
             </p>
           )}
         </div>
@@ -349,7 +406,7 @@ export default function AccountForm({
             {(["flat", "rolling"] as const).map((type) => (
               <label
                 key={type}
-                className={`flex cursor-pointer dark:text-slate-800 items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition ${
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
                   interestType === type
                     ? "bg-violet-300 shadow-[2px_2px_0px_0px_#0f172a]"
                     : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
@@ -370,17 +427,15 @@ export default function AccountForm({
           </div>
           {isRolling && (
             <p className="mt-1 text-[10px] text-slate-500">
-              First schedule auto-created on save. Each partial payment generates the next cycle with interest on remaining balance.
+              First schedule auto-created on save. Each partial payment
+              generates the next cycle with interest on remaining balance.
             </p>
           )}
         </div>
       )}
 
       <div>
-        <label
-          className={formFieldLabelClassName}
-          htmlFor="principal_amount"
-        >
+        <label className={formFieldLabelClassName} htmlFor="principal_amount">
           Principal amount
         </label>
         <input
@@ -388,14 +443,9 @@ export default function AccountForm({
           type="text"
           inputMode="decimal"
           {...register("principal_amount", {
-            setValueAs: (v) =>
-              Number(String(v).replace(/,/g, "")),
+            setValueAs: (v) => Number(String(v).replace(/,/g, "")),
           })}
-          value={
-            value
-              ? Number(value).toLocaleString()
-              : ""
-          }
+          value={value ? Number(value).toLocaleString() : ""}
           onChange={(e) => {
             const raw = e.target.value.replace(/,/g, "");
 
@@ -442,10 +492,7 @@ export default function AccountForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="min-w-0">
-          <label
-            className={formFieldLabelClassName}
-            htmlFor="release_date"
-          >
+          <label className={formFieldLabelClassName} htmlFor="release_date">
             Release date
           </label>
 
@@ -503,9 +550,7 @@ export default function AccountForm({
               className={formFieldInputClassName}
             >
               <option value="weekly">weekly</option>
-              <option value="bimonthly">
-                bimonthly
-              </option>
+              <option value="bimonthly">bimonthly</option>
               <option value="monthly">monthly</option>
               <option value="custom">custom</option>
             </select>
@@ -555,4 +600,3 @@ export default function AccountForm({
     </form>
   );
 }
-

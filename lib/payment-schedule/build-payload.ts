@@ -1,7 +1,4 @@
-import {
-  bimonthlyLegacyInstallmentAmount,
-  generateLegacyBimonthlyDueDates,
-} from "./bimonthly-legacy";
+import { generateLegacyBimonthlyDueDates } from "./bimonthly-legacy";
 import { addOneMonthAnchored } from "./monthly-anchor";
 
 function formatLocalISODate(d: Date): string {
@@ -25,54 +22,38 @@ export type ScheduleInput = {
   release_date?: string;
 };
 
-function countSkippedSchedules(
-  releaseDateStr: string | undefined,
-  firstPaymentDateStr: string,
-  paymentFrequency: string,
-  termMonths: number,
-): number {
-  if (!releaseDateStr || !firstPaymentDateStr) return 0;
-
-  const release = parseDateInput(releaseDateStr);
-  const firstPayment = parseDateInput(firstPaymentDateStr);
-
-  if (release.getTime() >= firstPayment.getTime()) return 0;
-
-  let expectedDates: Date[] = [];
-  const buffer = termMonths + 12;
-
-  if (paymentFrequency === "bimonthly" || paymentFrequency === "custom") {
-    expectedDates = generateLegacyBimonthlyDueDates(release, buffer);
-  } else if (paymentFrequency === "monthly") {
-    let current = new Date(release);
-    for (let i = 0; i < buffer; i++) {
-      current = addOneMonthAnchored(current, release.getDate());
-      expectedDates.push(new Date(current));
-    }
-  } else if (paymentFrequency === "weekly") {
-    let current = new Date(release);
-    for (let i = 0; i < buffer * 2; i++) {
-      current.setDate(current.getDate() + 7);
-      expectedDates.push(new Date(current));
-    }
-  }
-
-  return expectedDates.filter(
-    (d) =>
-      d.getTime() > release.getTime() && d.getTime() < firstPayment.getTime(),
-  ).length;
+function differenceInDays(a: Date, b: Date): number {
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const utcB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((utcA - utcB) / msPerDay);
 }
 
-function additionalPerSchedule(
+function computeTimeBasedScheduleAmount(
   principal: number,
   interestRate: number,
-  skippedSchedules: number,
+  termMonths: number,
   totalSchedules: number,
+  releaseDateStr: string | undefined,
+  firstPaymentDateStr: string,
 ): number {
-  if (skippedSchedules <= 0 || totalSchedules <= 0) return 0;
+  if (totalSchedules <= 0) return 0;
+
   const monthlyInterest = principal * (interestRate / 100);
-  const additionalInterest = monthlyInterest * skippedSchedules;
-  return Number((additionalInterest / totalSchedules).toFixed(2));
+  const baseInterest = monthlyInterest * termMonths;
+  let extraInterest = 0;
+
+  if (releaseDateStr && firstPaymentDateStr) {
+    const release = parseDateInput(releaseDateStr);
+    const firstPayment = parseDateInput(firstPaymentDateStr);
+    const delayDays = Math.max(0, differenceInDays(firstPayment, release));
+    const dailyInterest = monthlyInterest / 30;
+    extraInterest = dailyInterest * delayDays;
+  }
+
+  const totalInterest = baseInterest + extraInterest;
+  const totalPayable = principal + totalInterest;
+  return Number((totalPayable / totalSchedules).toFixed(2));
 }
 
 export function buildSchedulesPayload(
@@ -97,36 +78,25 @@ export function buildSchedulesPayload(
     note: null;
   }> = [];
 
-  const skipped = countSkippedSchedules(
-    values.release_date,
-    values.first_payment_date,
-    values.payment_frequency,
-    values.term_months,
-  );
-
   if (values.payment_frequency === "bimonthly") {
     const start = parseDateInput(values.first_payment_date);
     const dueDates = generateLegacyBimonthlyDueDates(start, values.term_months);
-    const pay = bimonthlyLegacyInstallmentAmount(
+    const scheduleAmount = computeTimeBasedScheduleAmount(
       values.principal_amount,
       values.interest_rate,
       values.term_months,
-    );
-    const addPer = additionalPerSchedule(
-      values.principal_amount,
-      values.interest_rate,
-      skipped,
       dueDates.length,
+      values.release_date,
+      values.first_payment_date,
     );
-    const adjustedPay = Number((pay + addPer).toFixed(2));
 
     for (const d of dueDates) {
       schedules.push({
         account_id: accountId,
         due_date: formatLocalISODate(d),
-        amount_due: adjustedPay,
+        amount_due: scheduleAmount,
         amount_paid: 0,
-        remaining_amount: adjustedPay,
+        remaining_amount: scheduleAmount,
         status: "pending",
         note: null,
       });
@@ -140,21 +110,14 @@ export function buildSchedulesPayload(
     if (isCustom) {
       const numberOfSchedules = Math.round(values.term_months);
       const equivalentMonths = numberOfSchedules / 2;
-      const totalInterest =
-        values.principal_amount *
-        (values.interest_rate / 100) *
-        equivalentMonths;
-      const totalPayment = values.principal_amount + totalInterest;
-      const installmentAmount = Number(
-        (totalPayment / numberOfSchedules).toFixed(2),
-      );
-      const addPer = additionalPerSchedule(
+      const scheduleAmount = computeTimeBasedScheduleAmount(
         values.principal_amount,
         values.interest_rate,
-        skipped,
+        equivalentMonths,
         numberOfSchedules,
+        values.release_date,
+        values.first_payment_date,
       );
-      const adjusted = Number((installmentAmount + addPer).toFixed(2));
 
       const monthsNeeded = Math.ceil(numberOfSchedules / 2);
       const dueDates = generateLegacyBimonthlyDueDates(
@@ -166,9 +129,9 @@ export function buildSchedulesPayload(
         schedules.push({
           account_id: accountId,
           due_date: formatLocalISODate(dueDates[i]),
-          amount_due: adjusted,
+          amount_due: scheduleAmount,
           amount_paid: 0,
-          remaining_amount: adjusted,
+          remaining_amount: scheduleAmount,
           status: "pending",
           note: null,
         });
@@ -179,28 +142,22 @@ export function buildSchedulesPayload(
           ? Math.round(values.term_months * 4)
           : Math.round(values.term_months);
 
-      const totalInterest =
-        values.principal_amount *
-        (values.interest_rate / 100) *
-        values.term_months;
-      const totalPayment = values.principal_amount + totalInterest;
-      const installmentAmount = totalPayment / numberOfSchedules;
-      const addPer = additionalPerSchedule(
+      const scheduleAmount = computeTimeBasedScheduleAmount(
         values.principal_amount,
         values.interest_rate,
-        skipped,
+        values.term_months,
         numberOfSchedules,
+        values.release_date,
+        values.first_payment_date,
       );
-      const baseAmt = Number(installmentAmount.toFixed(2));
-      const adjustedAmt = Number((baseAmt + addPer).toFixed(2));
 
       for (let i = 0; i < numberOfSchedules; i++) {
         schedules.push({
           account_id: accountId,
           due_date: formatLocalISODate(currentDate),
-          amount_due: adjustedAmt,
+          amount_due: scheduleAmount,
           amount_paid: 0,
-          remaining_amount: adjustedAmt,
+          remaining_amount: scheduleAmount,
           status: "pending",
           note: null,
         });

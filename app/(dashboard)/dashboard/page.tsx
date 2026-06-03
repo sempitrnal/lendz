@@ -21,6 +21,7 @@ import MonthlyCollectionsChart from "@/components/dashboard/monthly-collections-
 import CollectionRateRing from "@/components/dashboard/collection-rate-ring";
 import OverdueByCategoryChart from "@/components/dashboard/overdue-by-category-chart";
 import ThemeToggle from "@/components/theme-toggle";
+import ResetCacheButton from "@/components/reset-cache-button";
 
 type ScheduleAggRow = {
   id: string;
@@ -902,6 +903,10 @@ export default async function Dashboard() {
           </article>
         </section>
       ) : null} */}
+
+      <section className="mt-4 flex justify-end lg:mt-6">
+        <ResetCacheButton />
+      </section>
     </main>
   );
 }
