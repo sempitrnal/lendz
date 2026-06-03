@@ -5,7 +5,7 @@ import {
   formFieldInputClassName,
   formFieldLabelClassName,
 } from "@/lib/form-field-classes";
-import { supabase } from "@/lib/supabase/client";
+import { loginAction } from "@/app/actions/auth";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -13,32 +13,29 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const login = async () => {
     if (isLoading) return;
-
+    setError(null);
     setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
 
-      if (!error) {
+    try {
+      const result = await loginAction(email, password);
+
+      if (!result.error) {
         router.replace("/dashboard");
         router.refresh();
       } else {
-        alert(error.message);
+        setError(result.error);
       }
     } finally {
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 1000);
+      setTimeout(() => setIsLoading(false), 1000);
     }
   };
 
   return (
-    <div className="grid min-h-[70vh] place-items-center w-full">
+    <div className="grid min-h-[70vh] w-full place-items-center">
       <form
         className="flex w-full max-w-md flex-col gap-4 rounded-md p-4 py-8 shadow-md"
         onSubmit={(e) => {
@@ -64,10 +61,7 @@ export default function LoginPage() {
         </div>
 
         <div>
-          <label
-            htmlFor="login-password"
-            className={formFieldLabelClassName}
-          >
+          <label htmlFor="login-password" className={formFieldLabelClassName}>
             password
           </label>
           <input
@@ -81,9 +75,15 @@ export default function LoginPage() {
           />
         </div>
 
+        {error && (
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300">
+            {error}
+          </p>
+        )}
+
         <button
           type="submit"
-          className="bg-stone-900 text-white rounded-md p-2 transition-colors disabled:opacity-70 enabled:cursor-pointer enabled:hover:bg-stone-800"
+          className="rounded-md bg-stone-900 p-2 text-white transition-colors enabled:cursor-pointer enabled:hover:bg-stone-800 disabled:opacity-70"
           disabled={isLoading}
         >
           {isLoading ? (
