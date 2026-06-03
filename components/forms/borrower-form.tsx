@@ -2,10 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  borrowerSchema,
-  BorrowerFormValues,
-} from "@/lib/validations/borrower";
+import { borrowerSchema, BorrowerFormValues } from "@/lib/validations/borrower";
 
 import {
   formFieldErrorClassName,
@@ -19,6 +16,7 @@ import { revalidateBorrowersPage } from "@/lib/actions/borrowers";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import NeobrutButton from "../neobrut-button";
+import { toast } from "sonner";
 
 type CategoryOption = {
   id: string;
@@ -26,9 +24,7 @@ type CategoryOption = {
   color: string | null;
 };
 
-export default function BorrowerForm({ onSuccess }: {
-  onSuccess: any
-}) {
+export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
@@ -44,12 +40,17 @@ export default function BorrowerForm({ onSuccess }: {
     resolver: zodResolver(borrowerSchema),
   });
 
-  const { ref: contactRef, onChange: contactOnChange, ...contactRest } =
-    register("contact");
+  const {
+    ref: contactRef,
+    onChange: contactOnChange,
+    ...contactRest
+  } = register("contact");
 
   useEffect(() => {
     fetchCategoriesAction().then((rows) => {
-      setCategories(rows.map((c) => ({ id: c.id, name: c.name, color: c.color })));
+      setCategories(
+        rows.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+      );
     });
   }, []);
 
@@ -82,17 +83,17 @@ export default function BorrowerForm({ onSuccess }: {
 
     await revalidateBorrowersPage();
 
-    router.refresh()
+    router.refresh();
     reset();
     setSelectedCategoryIds([]);
 
-    onSuccess?.()
-    router.refresh()
-
+    toast.success("Borrower created successfully");
+    onSuccess?.();
+    router.refresh();
   };
 
   const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(categorySearch.trim().toLowerCase())
+    category.name.toLowerCase().includes(categorySearch.trim().toLowerCase()),
   );
 
   const selectedCategoryNames = categories
@@ -103,20 +104,17 @@ export default function BorrowerForm({ onSuccess }: {
     setSelectedCategoryIds((prev) =>
       prev.includes(categoryId)
         ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
+        : [...prev, categoryId],
     );
   };
 
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className=" border-slate-900  p-6 pb-20 "
+      className="border-slate-900 p-6 pb-20"
     >
       <div className="">
-        <label
-          htmlFor="first_name"
-          className={formFieldLabelClassName}
-        >
+        <label htmlFor="first_name" className={formFieldLabelClassName}>
           First Name
         </label>
         <input
@@ -125,16 +123,11 @@ export default function BorrowerForm({ onSuccess }: {
           {...register("first_name")}
           className={formFieldInputClassName}
         />
-        <p className={formFieldErrorClassName}>
-          {errors.first_name?.message}
-        </p>
+        <p className={formFieldErrorClassName}>{errors.first_name?.message}</p>
       </div>
 
       <div className="">
-        <label
-          htmlFor="last_name"
-          className={formFieldLabelClassName}
-        >
+        <label htmlFor="last_name" className={formFieldLabelClassName}>
           Last Name
         </label>
         <input
@@ -143,16 +136,11 @@ export default function BorrowerForm({ onSuccess }: {
           {...register("last_name")}
           className={formFieldInputClassName}
         />
-        <p className={formFieldErrorClassName}>
-          {errors.last_name?.message}
-        </p>
+        <p className={formFieldErrorClassName}>{errors.last_name?.message}</p>
       </div>
 
       <div className="mb-2">
-        <label
-          htmlFor="contact"
-          className={formFieldLabelClassName}
-        >
+        <label htmlFor="contact" className={formFieldLabelClassName}>
           Contact Number
         </label>
         <input
@@ -227,7 +215,9 @@ export default function BorrowerForm({ onSuccess }: {
                         />
                         <span
                           className="h-3 w-3 rounded-full border"
-                          style={{ backgroundColor: category.color ?? "#cbd5e1" }}
+                          style={{
+                            backgroundColor: category.color ?? "#cbd5e1",
+                          }}
                         />
                         <span className="text-sm">{category.name}</span>
                       </label>
@@ -237,28 +227,28 @@ export default function BorrowerForm({ onSuccess }: {
               </div>
 
               <div className="mt-2 flex justify-end">
-                <NeobrutButton variant="white"
-
+                <NeobrutButton
+                  variant="white"
                   onClick={() => setIsCategoryDropdownOpen(false)}
                 >
                   done
                 </NeobrutButton>
-
               </div>
             </div>
           ) : null}
         </div>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="mt-1 text-xs text-gray-500">
           Search and tick one or more categories.
         </p>
       </div>
-      <NeobrutButton disabled={isSubmitting}
-        type="submit" variant="green" className="w-full mt-5">
-
+      <NeobrutButton
+        disabled={isSubmitting}
+        type="submit"
+        variant="green"
+        className="mt-5 w-full"
+      >
         {isSubmitting ? "Creating..." : "Create Borrower"}
-
       </NeobrutButton>
-
     </form>
   );
 }

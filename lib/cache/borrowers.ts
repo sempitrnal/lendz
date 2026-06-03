@@ -8,7 +8,10 @@ import {
   nextDueScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
-import type { AccountRow, AccountComputedMetrics } from "@/components/borrower/borrower-accounts-section";
+import type {
+  AccountRow,
+  AccountComputedMetrics,
+} from "@/components/borrower/borrower-accounts-section";
 
 const PAGE_SIZE = 20;
 
@@ -17,19 +20,16 @@ function createSupabaseAdmin() {
   if (!serviceRoleKey) {
     return createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
   }
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey
-  );
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey);
 }
 
 export async function getBorrowersPageData(
   currentPage: number,
   searchQuery: string,
-  categoryIds: string[]
+  categoryIds: string[],
 ) {
   "use cache";
   cacheTag("borrowers");
@@ -38,23 +38,43 @@ export async function getBorrowersPageData(
   if (categoryIds.length > 0) {
     cacheTag(`borrowers-categories-${categoryIds.join(",")}`);
   }
+  if (!searchQuery) cacheTag("borrowers-has-accounts");
 
   const from = (currentPage - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
   const supabase = createSupabaseAdmin();
 
+  let borrowerIdsWithAccounts: string[] | undefined;
+  if (!searchQuery) {
+    const { data: accountRows } = await supabase
+      .from("accounts")
+      .select("borrower_id")
+      .not("borrower_id", "is", null);
+    borrowerIdsWithAccounts = [
+      ...new Set((accountRows ?? []).map((a) => a.borrower_id).filter(Boolean)),
+    ] as string[];
+  }
+
   let query = supabase
     .from("borrowers")
     .select(
       `*, borrower_categories ( category:categories ( id, name, color ) )`,
-      { count: "exact" }
+      { count: "exact" },
     );
+
+  if (!searchQuery && borrowerIdsWithAccounts) {
+    if (borrowerIdsWithAccounts.length > 0) {
+      query = query.in("id", borrowerIdsWithAccounts);
+    } else {
+      query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+    }
+  }
 
   if (searchQuery) {
     const pattern = `%${searchQuery}%`;
     query = query.or(
-      `first_name.ilike.${pattern},last_name.ilike.${pattern},contact.ilike.${pattern}`
+      `first_name.ilike.${pattern},last_name.ilike.${pattern},contact.ilike.${pattern}`,
     );
   }
 
@@ -71,9 +91,11 @@ export async function getBorrowersPageData(
     }
   }
 
-  const { data: borrowerRows, error: borrowerError, count } = await query
-    .order("created_at", { ascending: false })
-    .range(from, to);
+  const {
+    data: borrowerRows,
+    error: borrowerError,
+    count,
+  } = await query.order("created_at", { ascending: false }).range(from, to);
 
   if (borrowerError) {
     throw borrowerError;
@@ -94,7 +116,9 @@ export async function getBorrowersPageData(
   if (borrowerIds.length > 0) {
     const { data: accountRows } = await supabase
       .from("accounts")
-      .select("id, borrower_id, principal_amount, schedule_mode, interest_rate, status")
+      .select(
+        "id, borrower_id, principal_amount, schedule_mode, interest_rate, status",
+      )
       .in("borrower_id", borrowerIds);
 
     const accounts = (accountRows ?? []) as Array<{
@@ -123,7 +147,7 @@ export async function getBorrowersPageData(
       const { data: scheduleRows } = await supabase
         .from("payment_schedules")
         .select(
-          "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status"
+          "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
         )
         .in("account_id", allAccountIds)
         .order("due_date", { ascending: true })
@@ -181,15 +205,20 @@ export async function getBorrowersPageData(
       const nextById = computeBorrowerNextCollectionById(
         borrowerIds,
         accounts,
-        schedules
+        schedules,
       );
 
       enrichedBorrowers = rawBorrowers.map((b) => {
         const accIds = accountIdsByBorrower.get(b.id) ?? [];
         const borrowerAccounts = accountsByBorrower.get(b.id) ?? [];
-        const allPending = borrowerAccounts.length > 0 && borrowerAccounts.every((a) => a.status === "pending");
+        const allPending =
+          borrowerAccounts.length > 0 &&
+          borrowerAccounts.every((a) => a.status === "pending");
         const pendingPrincipal = allPending
-          ? borrowerAccounts.reduce((sum, a) => sum + Number(a.principal_amount ?? 0), 0)
+          ? borrowerAccounts.reduce(
+              (sum, a) => sum + Number(a.principal_amount ?? 0),
+              0,
+            )
           : 0;
         const overdue = overdueByBorrower.get(b.id) ?? {
           total: 0,
@@ -252,7 +281,7 @@ export async function getBorrowerById(id: string) {
       `
       *,
       category:categories(*)
-    `
+    `,
     )
     .eq("id", id)
     .single();
@@ -284,9 +313,12 @@ export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
     const { data: schedulesData } = await supabase
       .from("payment_schedules")
       .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status"
+        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
       )
-      .in("account_id", accountList.map((a) => a.id))
+      .in(
+        "account_id",
+        accountList.map((a) => a.id),
+      )
       .order("due_date", { ascending: true });
 
     const scheduleRows = schedulesData ?? [];
@@ -301,15 +333,15 @@ export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
       const rows = byAccount.get(account.id) ?? [];
       const totalPayment = rows.reduce(
         (sum, row) => sum + Number(row.amount_due ?? 0),
-        0
+        0,
       );
       const amountPaid = rows.reduce(
         (sum, row) => sum + amountPaidOnInstallment(row),
-        0
+        0,
       );
       const amountLeftToPayRaw = rows.reduce(
         (sum, row) => sum + remainingOnInstallment(row),
-        0
+        0,
       );
       const amountLeftToPayRolling = rows
         .filter((row) => row.status !== "partial")
@@ -335,13 +367,15 @@ export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
           : Math.max(0, totalPayment - principal);
       const nextUnpaid = nextDueScheduleForCollection(rows);
       const overdueRows = rows.filter(
-        (row) => row.status === "overdue" && !isInstallmentFullyPaid(row)
+        (row) => row.status === "overdue" && !isInstallmentFullyPaid(row),
       );
       initialMetrics[account.id] = {
         amountLeftToPay,
         profitToMake,
         nextCollectionDate: nextUnpaid?.due_date ?? null,
-        nextCollectionAmount: nextUnpaid ? remainingOnInstallment(nextUnpaid) : 0,
+        nextCollectionAmount: nextUnpaid
+          ? remainingOnInstallment(nextUnpaid)
+          : 0,
         nextCollectionAmountDue: nextUnpaid
           ? Math.max(0, Number(nextUnpaid.amount_due ?? 0))
           : 0,
@@ -350,7 +384,7 @@ export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
         overdueCount: overdueRows.length,
         overdueTotal: overdueRows.reduce(
           (sum, row) => sum + remainingOnInstallment(row),
-          0
+          0,
         ),
         overdueSchedules: [...overdueRows]
           .sort((a, b) => a.due_date.localeCompare(b.due_date))
