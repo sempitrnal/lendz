@@ -190,64 +190,140 @@ export function BorrowerCard({
           </div>
         ) : null}
 
-        {showScheduleSummary && hasManual && schedules.length > 0 ? (
-          <div className="dark:border-border mt-3 w-full min-w-0 rounded-lg border-2 border-slate-900 bg-violet-50 p-2.5 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-violet-900/30">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="dark:text-muted-foreground text-[9px] font-black tracking-wider text-slate-500 uppercase">
-                  manual
-                </p>
-                <p className="dark:text-foreground text-xs font-black text-slate-900 tabular-nums">
-                  ₱{manualPrincipal.toLocaleString()}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-[9px] font-black tracking-wider text-emerald-600 uppercase dark:text-emerald-400">
-                  paid
-                </p>
-                <p className="text-xs font-black text-emerald-700 tabular-nums dark:text-emerald-300">
-                  ₱{manualPaid.toLocaleString()}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-[9px] font-black tracking-wider text-rose-600 uppercase dark:text-rose-400">
-                  left
-                </p>
-                <p className="text-xs font-black text-rose-700 tabular-nums dark:text-rose-300">
-                  ₱{manualRemaining.toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            {manualPrincipal > 0 &&
-              (() => {
-                const pct = Math.min(
-                  100,
-                  Math.round((manualPaid / manualPrincipal) * 100),
-                );
-                return (
-                  <div className="mt-2 flex items-center gap-2">
-                    <div
-                      className="dark:border-border dark:bg-card h-1.5 flex-1 overflow-hidden rounded border border-slate-900 bg-white"
-                      role="progressbar"
-                      aria-valuenow={pct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label="Manual payment progress"
-                    >
+        {showScheduleSummary && hasManual && schedules.length > 0
+          ? (() => {
+              const manualSchedules = schedules.filter(
+                (s) => s.schedule_mode === "manual",
+              );
+              const groups: {
+                key: string;
+                label: string;
+                accent: string;
+                bg: string;
+                items: typeof manualSchedules;
+              }[] = [
+                {
+                  key: "flat-loan",
+                  label: "manual flat",
+                  accent: "text-lime-700",
+                  bg: "bg-lime-50 dark:bg-lime-900/20",
+                  items: manualSchedules.filter(
+                    (s) =>
+                      s.type !== "cash_advance" &&
+                      s.interest_type !== "rolling",
+                  ),
+                },
+                {
+                  key: "rolling-loan",
+                  label: "manual rolling",
+                  accent: "text-cyan-700",
+                  bg: "bg-cyan-50 dark:bg-cyan-900/20",
+                  items: manualSchedules.filter(
+                    (s) =>
+                      s.type !== "cash_advance" &&
+                      s.interest_type === "rolling",
+                  ),
+                },
+                {
+                  key: "flat-ca",
+                  label: "manual flat ca",
+                  accent: "text-yellow-700",
+                  bg: "bg-yellow-50 dark:bg-yellow-900/20",
+                  items: manualSchedules.filter(
+                    (s) =>
+                      s.type === "cash_advance" &&
+                      s.interest_type !== "rolling",
+                  ),
+                },
+                {
+                  key: "rolling-ca",
+                  label: "manual rolling ca",
+                  accent: "text-teal-700",
+                  bg: "bg-teal-50 dark:bg-teal-900/20",
+                  items: manualSchedules.filter(
+                    (s) =>
+                      s.type === "cash_advance" &&
+                      s.interest_type === "rolling",
+                  ),
+                },
+              ];
+              return (
+                <>
+                  {groups.map((g) => {
+                    if (g.items.length === 0) return null;
+                    const principal = g.items.reduce(
+                      (sum, s) => sum + Number(s.principal_amount ?? 0),
+                      0,
+                    );
+                    const paid = g.items.reduce(
+                      (sum, s) => sum + Number(s.amount_paid_total ?? 0),
+                      0,
+                    );
+                    const remaining = Math.max(0, principal - paid);
+                    const pct =
+                      principal > 0
+                        ? Math.min(100, Math.round((paid / principal) * 100))
+                        : 0;
+                    return (
                       <div
-                        className="h-full bg-emerald-400"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <p className="dark:text-foreground shrink-0 text-[9px] font-black text-stone-700">
-                      {pct}%
-                    </p>
-                  </div>
-                );
-              })()}
-          </div>
-        ) : null}
+                        key={g.key}
+                        className={`dark:border-border mt-2 w-full min-w-0 rounded-lg border-2 border-slate-900 p-2.5 shadow-[2px_2px_0px_0px_#0f172a] ${g.bg}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p
+                              className={`text-[9px] font-black tracking-wider uppercase ${g.accent} dark:text-opacity-80`}
+                            >
+                              {g.label}
+                            </p>
+                            <p className="dark:text-foreground text-xs font-black text-slate-900 tabular-nums">
+                              ₱{principal.toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[9px] font-black tracking-wider text-emerald-600 uppercase dark:text-emerald-400">
+                              paid
+                            </p>
+                            <p className="text-xs font-black text-emerald-700 tabular-nums dark:text-emerald-300">
+                              ₱{paid.toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[9px] font-black tracking-wider text-rose-600 uppercase dark:text-rose-400">
+                              left
+                            </p>
+                            <p className="text-xs font-black text-rose-700 tabular-nums dark:text-rose-300">
+                              ₱{remaining.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        {principal > 0 && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <div
+                              className="dark:border-border dark:bg-card h-1.5 flex-1 overflow-hidden rounded border border-slate-900 bg-white"
+                              role="progressbar"
+                              aria-valuenow={pct}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                              aria-label={`${g.label} payment progress`}
+                            >
+                              <div
+                                className="h-full bg-emerald-400"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <p className="dark:text-foreground shrink-0 text-[9px] font-black text-stone-700">
+                              {pct}%
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </>
+              );
+            })()
+          : null}
 
         {showScheduleSummary &&
         hasAccounts &&

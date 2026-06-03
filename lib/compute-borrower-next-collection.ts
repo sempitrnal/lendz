@@ -22,6 +22,8 @@ export type AccountScheduleEntry = {
   interest_rate?: number | null;
   amount_due_per_schedule?: number | null;
   overdue_schedules?: { due_date: string; amount: number }[];
+  type?: string | null;
+  interest_type?: string | null;
 };
 
 export type BorrowerNextCollection = {
@@ -40,7 +42,15 @@ export type BorrowerNextCollection = {
   manual_accounts_count: number;
 };
 
-type AccountRow = { id: string; borrower_id: string; principal_amount?: number | null; schedule_mode?: string | null; interest_rate?: number | null };
+type AccountRow = {
+  id: string;
+  borrower_id: string;
+  principal_amount?: number | null;
+  schedule_mode?: string | null;
+  interest_rate?: number | null;
+  type?: string | null;
+  interest_type?: string | null;
+};
 type ScheduleRow = ScheduleBalanceInput & {
   account_id: string;
   due_date: string;
@@ -49,11 +59,24 @@ type ScheduleRow = ScheduleBalanceInput & {
 export function computeBorrowerNextCollectionById(
   borrowerIds: string[],
   accountRows: AccountRow[],
-  scheduleRows: ScheduleRow[]
+  scheduleRows: ScheduleRow[],
 ): Record<string, BorrowerNextCollection> {
   const out: Record<string, BorrowerNextCollection> = {};
   for (const id of borrowerIds) {
-    out[id] = { next_collection_date: null, next_collection_amount: 0, next_collection_status: null, overdue_count: 0, overdue_total: 0, overdue_schedules: [], accounts_count: 0, account_schedules: [], manual_total_principal: 0, manual_total_paid: 0, manual_total_remaining: 0, manual_accounts_count: 0 };
+    out[id] = {
+      next_collection_date: null,
+      next_collection_amount: 0,
+      next_collection_status: null,
+      overdue_count: 0,
+      overdue_total: 0,
+      overdue_schedules: [],
+      accounts_count: 0,
+      account_schedules: [],
+      manual_total_principal: 0,
+      manual_total_paid: 0,
+      manual_total_remaining: 0,
+      manual_accounts_count: 0,
+    };
   }
   if (borrowerIds.length === 0 || accountRows.length === 0) {
     return out;
@@ -75,19 +98,19 @@ export function computeBorrowerNextCollectionById(
     byAccount.set(s.account_id, list);
   }
   const scheduleStatsByAccount = new Map<
-  string,
-  {
-    total_schedules: number;
-    paid_schedules_count: number;
-  }
->();
+    string,
+    {
+      total_schedules: number;
+      paid_schedules_count: number;
+    }
+  >();
 
-for (const [accountId, rows] of byAccount) {
-  scheduleStatsByAccount.set(accountId, {
-    total_schedules: rows.length,
-    paid_schedules_count: rows.filter((r) => r.status === "paid").length,
-  });
-}
+  for (const [accountId, rows] of byAccount) {
+    scheduleStatsByAccount.set(accountId, {
+      total_schedules: rows.length,
+      paid_schedules_count: rows.filter((r) => r.status === "paid").length,
+    });
+  }
   for (const list of byAccount.values()) {
     list.sort((a, b) => a.due_date.localeCompare(b.due_date));
   }
@@ -127,16 +150,22 @@ for (const [accountId, rows] of byAccount) {
       if (!nu) continue;
       amounts.push(nu.remaining);
       statuses.add(nu.status);
-      
+
       const stats = scheduleStatsByAccount.get(accId);
       const acc = accountById.get(accId);
       const accRows = byAccount.get(accId) ?? [];
-      const accAmountPaid = accRows.reduce((sum, r) => sum + Number((r as any).amount_paid ?? 0), 0);
+      const accAmountPaid = accRows.reduce(
+        (sum, r) => sum + Number((r as any).amount_paid ?? 0),
+        0,
+      );
 
       const accOverdueSchedules = accRows
         .filter((r) => r.status === "overdue" && !isInstallmentFullyPaid(r))
         .sort((a, b) => a.due_date.localeCompare(b.due_date))
-        .map((r) => ({ due_date: r.due_date, amount: remainingOnInstallment(r) }));
+        .map((r) => ({
+          due_date: r.due_date,
+          amount: remainingOnInstallment(r),
+        }));
 
       accountSchedules.push({
         account_id: accId,
@@ -150,9 +179,41 @@ for (const [accountId, rows] of byAccount) {
         amount_paid_total: accAmountPaid,
         interest_rate: (acc as any)?.interest_rate ?? null,
         amount_due_per_schedule: nu.amount_due,
-        overdue_schedules: accOverdueSchedules.length > 0 ? accOverdueSchedules : undefined,
+        overdue_schedules:
+          accOverdueSchedules.length > 0 ? accOverdueSchedules : undefined,
+        type: acc?.type ?? null,
+        interest_type: acc?.interest_type ?? null,
       });
     }
+
+    // Include manual accounts that have no unpaid schedule so they still show on cards
+    const seenAccountIds = new Set(accountSchedules.map((s) => s.account_id));
+    for (const accId of accIds) {
+      const acc = accountById.get(accId);
+      if (!acc || acc.schedule_mode !== "manual") continue;
+      if (seenAccountIds.has(accId)) continue;
+      const accRows = byAccount.get(accId) ?? [];
+      const accAmountPaid = accRows.reduce(
+        (sum, r) => sum + Number((r as any).amount_paid ?? 0),
+        0,
+      );
+      accountSchedules.push({
+        account_id: accId,
+        due_date: "9999-12-31",
+        amount: 0,
+        status: "paid",
+        total_schedules: accRows.length,
+        paid_schedules_count: accRows.filter((r) => r.status === "paid").length,
+        schedule_mode: acc.schedule_mode ?? null,
+        principal_amount: acc.principal_amount ?? null,
+        amount_paid_total: accAmountPaid,
+        interest_rate: (acc as any)?.interest_rate ?? null,
+        amount_due_per_schedule: 0,
+        type: acc.type ?? null,
+        interest_type: acc.interest_type ?? null,
+      });
+    }
+
     accountSchedules.sort((a, b) => a.due_date.localeCompare(b.due_date));
 
     let overdueCount = 0;
@@ -165,7 +226,11 @@ for (const [accountId, rows] of byAccount) {
           overdueCount += 1;
           const remaining = remainingOnInstallment(row);
           overdueTotal += remaining;
-          overdueSchedules.push({ due_date: row.due_date, amount: remaining, status: row.status });
+          overdueSchedules.push({
+            due_date: row.due_date,
+            amount: remaining,
+            status: row.status,
+          });
         }
       }
     }
@@ -189,7 +254,11 @@ for (const [accountId, rows] of byAccount) {
       next_collection_date: bestDate,
       next_collection_amount: amounts.reduce((sum, value) => sum + value, 0),
       next_collection_amounts: amounts.length > 1 ? amounts : undefined,
-      next_collection_status: statuses.has("overdue") ? "overdue" : (statuses.size > 0 ? [...statuses][0] : null),
+      next_collection_status: statuses.has("overdue")
+        ? "overdue"
+        : statuses.size > 0
+          ? [...statuses][0]
+          : null,
       overdue_count: overdueCount,
       overdue_total: overdueTotal,
       overdue_schedules: overdueSchedules,
@@ -197,7 +266,10 @@ for (const [accountId, rows] of byAccount) {
       account_schedules: accountSchedules,
       manual_total_principal: manualTotalPrincipal,
       manual_total_paid: manualTotalPaid,
-      manual_total_remaining: Math.max(0, manualTotalPrincipal - manualTotalPaid),
+      manual_total_remaining: Math.max(
+        0,
+        manualTotalPrincipal - manualTotalPaid,
+      ),
       manual_accounts_count: manualAccountsCount,
     };
   }

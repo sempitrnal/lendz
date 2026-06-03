@@ -55,6 +55,8 @@ export type Borrower = {
     interest_rate?: number | null;
     amount_due_per_schedule?: number | null;
     overdue_schedules?: { due_date: string; amount: number }[];
+    type?: string | null;
+    interest_type?: string | null;
   }[];
   overdue_schedules?: { due_date: string; amount: number; status: string }[];
   manual_total_principal?: number;

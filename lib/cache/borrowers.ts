@@ -117,7 +117,7 @@ export async function getBorrowersPageData(
     const { data: accountRows } = await supabase
       .from("accounts")
       .select(
-        "id, borrower_id, principal_amount, schedule_mode, interest_rate, status",
+        "id, borrower_id, principal_amount, schedule_mode, interest_rate, status, type, interest_type",
       )
       .in("borrower_id", borrowerIds);
 
@@ -128,6 +128,8 @@ export async function getBorrowersPageData(
       schedule_mode: string | null;
       interest_rate: number | null;
       status: string | null;
+      type: string | null;
+      interest_type: string | null;
     }>;
     const accountsByBorrower = new Map<string, typeof accounts>();
     for (const a of accounts) {

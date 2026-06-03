@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState, SyntheticEvent } from "react";
+import { motion } from "framer-motion";
 import AccountCardMenu from "./account-card-menu";
 import {
   AccountRow,
@@ -66,17 +67,43 @@ export function AccountCard({
     : "bg-violet-200 text-violet-900";
   const hasOverdue = overdueCount > 0;
 
+  const typeLabel = isManual
+    ? isRolling
+      ? "rolling"
+      : "flat"
+    : isCashAdvance
+      ? "ca"
+      : "loan";
+  const typeBadgeBg = isManual
+    ? isRolling
+      ? "bg-cyan-200 text-cyan-900"
+      : "bg-lime-200 text-lime-900"
+    : badgeBg;
+
   return (
-    <div
+    <motion.div
       className={`bg-solar dark:bg-card relative overflow-hidden rounded-xl border-2 transition-all duration-150 ${
         hasOverdue
           ? "border-red-700 shadow-[4px_4px_0px_0px_#b91c1c]"
           : "dark:border-border border-slate-900 shadow-[4px_4px_0px_0px_#0f172a]"
-      } ${
+      } ${isOpening ? "scale-[0.98] opacity-60" : ""}`}
+      whileHover={
         isOpening
-          ? "scale-[0.98] opacity-60"
-          : "hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#0f172a]"
-      }`}
+          ? undefined
+          : {
+              y: -3,
+              transition: {
+                type: "spring" as const,
+                stiffness: 400,
+                damping: 20,
+              },
+            }
+      }
+      whileTap={
+        isOpening
+          ? undefined
+          : { scale: 0.98, y: 0, transition: { duration: 0.1 } }
+      }
     >
       {/* Left accent strip */}
       <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${accentStrip}`} />
@@ -101,9 +128,11 @@ export function AccountCard({
       >
         {/* Row 1: type badge + principal + status */}
         <div className="flex items-center gap-1.5">
-          {/* <span className={`shrink-0 text-[9px] font-black uppercase border border-slate-900 px-1.5 py-0.5 ${badgeBg}`}>
-            {isCashAdvance ? "ca" : "loan"}
-          </span> */}
+          <span
+            className={`shrink-0 rounded-full border border-slate-900 px-1.5 py-0.5 text-[9px] font-black uppercase ${typeBadgeBg}`}
+          >
+            {typeLabel}
+          </span>
           <span className="dark:text-foreground text-lg leading-none font-black text-slate-900 tabular-nums">
             ₱{Number(account.principal_amount ?? 0).toLocaleString()}
           </span>
@@ -126,7 +155,9 @@ export function AccountCard({
             ? `${account.payment_frequency} · ${account.term_months}mo · `
             : account.status === "pending"
               ? "pending · "
-              : "manual · "}
+              : isRolling
+                ? "manual rolling · "
+                : "manual flat · "}
           {account.interest_rate}%
           {account.release_date &&
             ` · ${new Date(account.release_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
@@ -332,6 +363,6 @@ export function AccountCard({
           onEdit={() => onEdit(account)}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }

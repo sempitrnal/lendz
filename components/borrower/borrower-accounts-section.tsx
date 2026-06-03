@@ -33,6 +33,64 @@ import BorrowerDetailMenu from "./borrower-detail-menu";
 import ActivateAccountDialog from "./activate-account-dialog";
 import { isDarkColor } from "@/lib/utils";
 import { AccountCard } from "./account-card";
+import { motion } from "framer-motion";
+
+const stripVariants = {
+  hidden: { opacity: 0, y: -20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring" as const, stiffness: 300, damping: 25 },
+  },
+};
+
+const pageVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
+  },
+};
+
+const groupVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring" as const, stiffness: 300, damping: 24 },
+  },
+};
+
+const cardContainerVariants = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.05 },
+  },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 12, scale: 0.98 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: "spring" as const, stiffness: 400, damping: 25 },
+  },
+};
+
+const notesVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: "spring" as const,
+      stiffness: 300,
+      damping: 25,
+      delay: 0.2,
+    },
+  },
+};
 
 function StickyBorrowerStrip({
   borrower,
@@ -466,22 +524,29 @@ export default function BorrowerAccountsSection({
   return (
     <div className="rounded-lg">
       {borrower && (
-        <StickyBorrowerStrip
-          borrower={borrower}
-          totalLoaned={summaryStats?.totalLoaned ?? 0}
-          totalExpected={summaryStats?.totalExpected ?? 0}
-          totalCollected={summaryStats?.totalCollected ?? 0}
-          totalAmountCollected={summaryStats?.totalAmountCollected ?? 0}
-          totalRemaining={summaryStats?.totalRemaining ?? 0}
-          profitPerSchedule={summaryStats?.profitPerSchedule ?? 0}
-          collectedPct={summaryStats?.collectedPct ?? 0}
-        />
+        <motion.div initial="hidden" animate="visible" variants={stripVariants}>
+          <StickyBorrowerStrip
+            borrower={borrower}
+            totalLoaned={summaryStats?.totalLoaned ?? 0}
+            totalExpected={summaryStats?.totalExpected ?? 0}
+            totalCollected={summaryStats?.totalCollected ?? 0}
+            totalAmountCollected={summaryStats?.totalAmountCollected ?? 0}
+            totalRemaining={summaryStats?.totalRemaining ?? 0}
+            profitPerSchedule={summaryStats?.profitPerSchedule ?? 0}
+            collectedPct={summaryStats?.collectedPct ?? 0}
+          />
+        </motion.div>
       )}
 
       {!accounts || accounts.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-10 text-center">
+        <motion.div
+          className="rounded-xl border border-dashed p-10 text-center"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        >
           <p className="text-gray-500">No accounts yet</p>
-        </div>
+        </motion.div>
       ) : (
         (() => {
           const sortByRelease = (group: typeof accounts) =>
@@ -617,7 +682,12 @@ export default function BorrowerAccountsSection({
             accent: string,
           ) =>
             group.length === 0 ? null : (
-              <div>
+              <motion.div
+                variants={groupVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-60px" }}
+              >
                 <div className="mt-10 mb-3 flex items-center gap-2">
                   <span
                     className={`rounded-full border-2 border-slate-900 px-2.5 py-1 text-[10px] font-black tracking-widest uppercase shadow-[2px_2px_0px_0px_#0f172a] ${accent}`}
@@ -628,7 +698,10 @@ export default function BorrowerAccountsSection({
                     {group.length} account{group.length === 1 ? "" : "s"}
                   </span>
                 </div>
-                <div className="space-y-3">
+                <motion.div
+                  className="space-y-3"
+                  variants={cardContainerVariants}
+                >
                   {group.map((account) => {
                     const m = accountMetricsById[account.id];
                     const hasNext = m?.nextCollectionDate != null;
@@ -638,24 +711,25 @@ export default function BorrowerAccountsSection({
                     const showNext = hasNext && (!isManual || isRolling);
                     if (showNext) nextCollectionShown++;
                     return (
-                      <AccountCard
-                        key={account.id}
-                        account={account}
-                        isOpening={openingAccountId === account.id}
-                        onOpen={handleOpenAccount}
-                        onPrefetch={handlePrefetchAccount}
-                        onEdit={(acc) => {
-                          setEditingAccount(acc);
-                          setIsAccountDialogOpen(true);
-                        }}
-                        onActivate={(acc) => setActivatingAccount(acc)}
-                        metrics={m}
-                        collapseNext={showNext && nextCollectionShown > 2}
-                      />
+                      <motion.div key={account.id} variants={cardVariants}>
+                        <AccountCard
+                          account={account}
+                          isOpening={openingAccountId === account.id}
+                          onOpen={handleOpenAccount}
+                          onPrefetch={handlePrefetchAccount}
+                          onEdit={(acc) => {
+                            setEditingAccount(acc);
+                            setIsAccountDialogOpen(true);
+                          }}
+                          onActivate={(acc) => setActivatingAccount(acc)}
+                          metrics={m}
+                          collapseNext={showNext && nextCollectionShown > 2}
+                        />
+                      </motion.div>
                     );
                   })}
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
             );
           return (
             <div className="space-y-8">
@@ -808,29 +882,47 @@ export default function BorrowerAccountsSection({
       />
 
       {/* <NotesCanvas borrowerId={borrowerId} initialData={borrower?.notes_canvas} /> */}
-      <div className="mt-10">
+      <motion.div
+        className="mt-10"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-60px" }}
+        variants={notesVariants}
+      >
         {notes.length === 0 ? null : (
-          <div className="mb-4">
+          <motion.div
+            className="mb-4"
+            initial={{ opacity: 0, x: -10 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{
+              type: "spring" as const,
+              stiffness: 300,
+              damping: 25,
+            }}
+          >
             <h2 className="text-xl font-black uppercase">Notes</h2>
-          </div>
+          </motion.div>
         )}
 
-        <div className="w-full">
+        <motion.div
+          className="w-full"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={cardContainerVariants}
+        >
           {notes.map((note, i) => (
-            <button
+            <motion.button
               key={note.id}
               onClick={() => {
                 setSelectedNote(note);
                 setIsNotesOpen(true);
               }}
-              style={
-                {
-                  // left: note.x,
-                  // top: note.y,
-                  // rotate: `${i % 2 === 0 ? -2 : 2}deg`,
-                }
-              }
-              className="w-full overflow-hidden rounded-sm p-3 shadow-md transition hover:scale-[1.02]"
+              variants={cardVariants}
+              whileHover={{ scale: 1.02, transition: { duration: 0.15 } }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full overflow-hidden rounded-sm p-3 shadow-md"
             >
               {note.preview_img_url ? (
                 <img
@@ -840,10 +932,10 @@ export default function BorrowerAccountsSection({
               ) : (
                 <div className="h-20" />
               )}
-            </button>
+            </motion.button>
           ))}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       <Dialog open={isNotesOpen} onOpenChange={setIsNotesOpen}>
         <DialogContent className="top-0 h-[100svh] max-h-[100svh] max-w-full translate-y-0 rounded-none sm:top-1/2 sm:h-auto sm:max-h-[95svh] sm:max-w-5xl sm:-translate-y-1/2 sm:rounded-xl">
