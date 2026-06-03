@@ -18,15 +18,13 @@ export type ActivateAccountData = {
 
 export async function activateAccountAction(
   accountId: string,
-  data: ActivateAccountData
+  data: ActivateAccountData,
 ): Promise<{ error?: string }> {
   const sb = await createSupabaseServer();
 
   const { data: account, error: fetchError } = await sb
     .from("accounts")
-    .select(
-      "id, borrower_id, status"
-    )
+    .select("id, borrower_id, status")
     .eq("id", accountId)
     .single();
 
@@ -66,6 +64,7 @@ export async function activateAccountAction(
       term_months: data.term_months,
       first_payment_date: data.first_payment_date,
       payment_frequency: data.payment_frequency,
+      release_date: data.release_date,
     });
 
     const { error: scheduleError } = await sb
@@ -86,18 +85,15 @@ export async function activateAccountAction(
     const principal = data.principal_amount;
     const firstDue =
       Math.round(principal * (1 + data.interest_rate / 100) * 100) / 100;
-    const dueDate =
-      data.release_date || new Date().toISOString().split("T")[0];
-    const { error: scheduleError } = await sb
-      .from("payment_schedules")
-      .insert({
-        account_id: accountId,
-        due_date: dueDate,
-        amount_due: firstDue,
-        amount_paid: 0,
-        remaining_amount: firstDue,
-        status: "pending",
-      });
+    const dueDate = data.release_date || new Date().toISOString().split("T")[0];
+    const { error: scheduleError } = await sb.from("payment_schedules").insert({
+      account_id: accountId,
+      due_date: dueDate,
+      amount_due: firstDue,
+      amount_paid: 0,
+      remaining_amount: firstDue,
+      status: "pending",
+    });
     if (scheduleError) {
       return { error: scheduleError.message };
     }
