@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition, useState, useRef, type SyntheticEvent } from "react";
+import { useTheme } from "next-themes";
 import { isDarkColor } from "@/lib/utils";
 import { ChevronDown, Loader2, Phone } from "lucide-react";
 import Link from "next/link";
@@ -28,6 +29,8 @@ export function BorrowerCard({
   onBorrowerUpdated,
 }: BorrowerCardProps) {
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
   const [isPending, startTransition] = useTransition();
   const [isAccountPending, startAccountTransition] = useTransition();
   const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
@@ -43,6 +46,7 @@ export function BorrowerCard({
   const categories = [...(borrower.borrower_categories ?? [])].sort((a, b) =>
     a.category.name.localeCompare(b.category.name),
   );
+  const firstCategoryColor = categories[0]?.category?.color;
 
   const hasOverdue = (borrower.overdue_count ?? 0) > 0;
   const hasAccounts = borrower.has_accounts === true;
@@ -82,11 +86,19 @@ export function BorrowerCard({
         if (Math.abs(e.touches[0].clientY - touchStartY.current) > 8)
           didScroll.current = true;
       }}
-      className={`dark:bg-background relative w-full max-w-full min-w-0 overflow-hidden rounded-xl border-2 bg-[#fffef5] text-left transition-all duration-150 ${
+      className={`relative w-full max-w-full min-w-0 overflow-hidden rounded-xl border-2 text-left transition-all duration-150 ${
         hasOverdue
           ? "border-red-700 shadow-[4px_4px_0px_0px_#b91c1c]"
-          : "dark:border-border border-slate-900 shadow-[4px_4px_0px_0px_#341153]"
+          : isDark
+            ? "border-zinc-700 shadow-[4px_4px_0px_0px_#18181b]"
+            : "border-slate-900 shadow-[4px_4px_0px_0px_#341153]"
       } ${isPending ? "" : "active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#1c132f]"}`}
+      style={{
+        backgroundImage: firstCategoryColor
+          ? `linear-gradient(135deg, color-mix(in srgb, ${firstCategoryColor} ${isDark ? "10%" : "12%"}, ${isDark ? "#18181b" : "#fffef5"}), ${isDark ? "#18181b" : "#fffef5"})`
+          : undefined,
+        backgroundColor: isDark ? "#18181b" : "#fffef5",
+      }}
       aria-busy={isPending}
     >
       {/* Prefetch borrower detail page for instant navigation */}

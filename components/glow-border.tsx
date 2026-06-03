@@ -26,7 +26,7 @@ export function GlowBorder({ duration = 4 }: { duration?: number }) {
     <>
       <motion.span
         aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-xl"
+        className="pointer-events-none absolute inset-[-3px] rounded-[14px]"
         initial={{ opacity: 0 }}
         animate={{ opacity: [0.45, 1, 0.45] }}
         transition={{
@@ -36,19 +36,19 @@ export function GlowBorder({ duration = 4 }: { duration?: number }) {
         }}
         style={{
           boxShadow:
-            "0 0 10px 2px rgba(56,189,248,0.7),  0 0 35px 12px rgba(14,165,233,0.18)",
+            "0 0 14px 3px rgba(56,189,248,0.7), 0 0 40px 14px rgba(14,165,233,0.18)",
         }}
       />
       <motion.span
         aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-xl"
+        className="pointer-events-none absolute inset-[-3px] rounded-[14px]"
         style={{
           backgroundImage: gradient,
           WebkitMask:
             "linear-gradient(black, black) content-box, linear-gradient(black, black)",
           WebkitMaskComposite: "destination-out",
           maskComposite: "exclude",
-          padding: "2px",
+          padding: "3px",
         }}
       />
     </>

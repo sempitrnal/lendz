@@ -782,11 +782,7 @@ export default async function AccountDetailPage({
         id={isNext ? "next-schedule" : undefined}
         className={`dark:border-border/30 flex break-inside-avoid flex-col rounded-xl border-2 p-4 transition-colors duration-700 ${st.row} ${
           isNext
-            ? schedules.length > 2
-              ? i == 0
-                ? "relative mb-5"
-                : "relative my-5"
-              : "relative"
+            ? "relative mb-5"
             : "m-1 mb-4 border-slate-900 shadow-[4px_4px_0px_0px_#0f172a]"
         }`}
       >
@@ -1645,13 +1641,13 @@ export default async function AccountDetailPage({
                         count={paidIndexed.length}
                         totalPaid={paidTotalAmount}
                       >
-                        <ul className="columns-1 gap-4 p-4 xl:columns-2">
+                        <ul className="grid grid-cols-1 gap-4 p-4 xl:grid-cols-2 xl:p-8">
                           {paidIndexed.map(({ s, i }) => renderDesktopLi(s, i))}
                         </ul>
                       </PaidSchedulesSection>
                     )}
                     {otherIndexed.length > 0 && (
-                      <ul className="columns-1 gap-4 p-4 xl:columns-2">
+                      <ul className="grid grid-cols-1 gap-4 p-4 xl:grid-cols-2 xl:p-8">
                         {otherIndexed.map(({ s, i }) => renderDesktopLi(s, i))}
                       </ul>
                     )}

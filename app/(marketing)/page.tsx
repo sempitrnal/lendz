@@ -81,7 +81,7 @@ function NeobrutCard({
           : "bg-white dark:bg-card";
   return (
     <div
-      className={`rounded-xl border-2 border-slate-900 p-6 shadow-[6px_6px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 dark:border-zinc-700 dark:shadow-[6px_6px_0px_0px_#18181b] ${bg} ${className}`}
+      className={`rounded-xl border-2 border-slate-900 p-8 shadow-[6px_6px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 dark:border-zinc-700 dark:shadow-[6px_6px_0px_0px_#18181b] ${bg} ${className}`}
     >
       {children}
     </div>
@@ -159,6 +159,7 @@ export default function Home() {
             whileInView="visible"
             viewport={{ once: true, margin: "-80px" }}
             variants={staggerContainer}
+            className="mx-auto max-w-7xl px-4 sm:px-6"
           >
             <motion.p
               variants={fadeUp}
@@ -250,6 +251,7 @@ export default function Home() {
             whileInView="visible"
             viewport={{ once: true, margin: "-80px" }}
             variants={staggerContainer}
+            className="mx-auto max-w-7xl px-4 sm:px-6"
           >
             <motion.p
               variants={fadeUp}
