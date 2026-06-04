@@ -6,13 +6,10 @@ function createSupabaseAdmin() {
   if (!serviceRoleKey) {
     return createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
   }
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey
-  );
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey);
 }
 
 type AccountRow = {
@@ -66,7 +63,7 @@ export type AccountDetailData = {
 };
 
 export async function getAccountDetailPageData(
-  id: string
+  id: string,
 ): Promise<AccountDetailData> {
   "use cache";
   cacheTag("account");
@@ -77,9 +74,10 @@ export async function getAccountDetailPageData(
   const { data: account, error: accountError } = await supabase
     .from("accounts")
     .select(
-      "id, borrower_id, type, status, release_date, principal_amount, interest_rate, term_months, payment_frequency, schedule_mode, interest_type, created_at"
+      "id, borrower_id, type, status, release_date, principal_amount, interest_rate, term_months, payment_frequency, schedule_mode, interest_type, first_payment_date, created_at",
     )
     .eq("id", id)
+    .is("deleted_at", null)
     .single();
 
   if (accountError || !account) {
@@ -97,7 +95,7 @@ export async function getAccountDetailPageData(
     const res = await supabase
       .from("payment_schedules")
       .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, paid_date, status"
+        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, paid_date, status",
       )
       .eq("account_id", account.id)
       .order("due_date", { ascending: true });
@@ -105,7 +103,7 @@ export async function getAccountDetailPageData(
       const fb1 = await supabase
         .from("payment_schedules")
         .select(
-          "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, status"
+          "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, status",
         )
         .eq("account_id", account.id)
         .order("due_date", { ascending: true });
@@ -124,7 +122,9 @@ export async function getAccountDetailPageData(
     }
   }
 
-  const scheduleIds = ((schedulesData ?? []) as { id: string }[]).map((s) => s.id);
+  const scheduleIds = ((schedulesData ?? []) as { id: string }[]).map(
+    (s) => s.id,
+  );
   const paymentsMap = new Map<string, SchedulePaymentRow[]>();
   if (scheduleIds.length > 0) {
     const { data: paymentsData } = await supabase

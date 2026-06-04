@@ -64,19 +64,9 @@ export default function AccountCardMenu({
   async function confirmDelete() {
     setIsDeleting(true);
     try {
-      const { error: schedulesError } = await supabase
-        .from("payment_schedules")
-        .delete()
-        .eq("account_id", accountId);
-
-      if (schedulesError) {
-        alert(schedulesError.message);
-        return;
-      }
-
       const { error } = await supabase
         .from("accounts")
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq("id", accountId);
 
       if (error) {
@@ -88,7 +78,7 @@ export default function AccountCardMenu({
         "account.deleted",
         "account",
         accountId,
-        "Account deleted",
+        "Account soft-deleted",
         { accountId },
         accountId,
       );
@@ -180,8 +170,8 @@ export default function AccountCardMenu({
             <DialogTitle>Delete account</DialogTitle>
           </DialogHeader>
           <p className="text-stone-700">
-            This will permanently remove this account and its payment schedules.
-            This cannot be undone.
+            This account will be moved to "recently deleted" and hidden from the
+            main list. You can restore it anytime.
           </p>
           <div className="flex justify-end gap-4">
             <NeobrutButton

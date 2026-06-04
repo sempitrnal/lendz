@@ -12,7 +12,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import NeobrutButton from "@/components/neobrut-button";
-import { activateAccountAction, type ActivateAccountData } from "@/app/actions/accounts";
+import {
+  activateAccountAction,
+  type ActivateAccountData,
+} from "@/app/actions/accounts";
 
 type ActivateAccountDialogProps = {
   open: boolean;
@@ -22,7 +25,7 @@ type ActivateAccountDialogProps = {
 };
 
 const inputClass =
-  "mt-1 w-full rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2 focus:ring-green-300";
+  "mt-1 w-full rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2 focus:ring-green-300 dark:border-border dark:bg-card dark:text-foreground dark:shadow-none";
 
 export default function ActivateAccountDialog({
   open,
@@ -32,31 +35,51 @@ export default function ActivateAccountDialog({
 }: ActivateAccountDialogProps) {
   const router = useRouter();
 
-  const [principal, setPrincipal] = useState(initialValues.principal_amount ?? 0);
-  const [interestRate, setInterestRate] = useState(initialValues.interest_rate ?? 0);
-  const [releaseDate, setReleaseDate] = useState(initialValues.release_date ?? "");
-  const [firstPaymentDate, setFirstPaymentDate] = useState(initialValues.first_payment_date ?? "");
-  const [paymentFrequency, setPaymentFrequency] = useState<ActivateAccountData["payment_frequency"]>(
-    initialValues.payment_frequency ?? "bimonthly"
+  const [principal, setPrincipal] = useState<number>(
+    initialValues.principal_amount ?? 0,
   );
-  const [termMonths, setTermMonths] = useState(initialValues.term_months ?? 1);
-  const [scheduleMode, setScheduleMode] = useState<ActivateAccountData["schedule_mode"]>(
-    initialValues.schedule_mode ?? "auto"
+  const [principalText, setPrincipalText] = useState(
+    initialValues.principal_amount
+      ? Number(initialValues.principal_amount).toLocaleString()
+      : "",
   );
-  const [interestType, setInterestType] = useState<ActivateAccountData["interest_type"]>(
-    initialValues.interest_type ?? "flat"
+  const [interestRate, setInterestRate] = useState<number | "">(
+    initialValues.interest_rate ?? "",
   );
+  const [releaseDate, setReleaseDate] = useState(
+    initialValues.release_date ?? "",
+  );
+  const [firstPaymentDate, setFirstPaymentDate] = useState(
+    initialValues.first_payment_date ?? "",
+  );
+  const [paymentFrequency, setPaymentFrequency] = useState<
+    ActivateAccountData["payment_frequency"]
+  >(initialValues.payment_frequency ?? "bimonthly");
+  const [termMonths, setTermMonths] = useState<number | "">(
+    initialValues.term_months ?? "",
+  );
+  const [scheduleMode, setScheduleMode] = useState<
+    ActivateAccountData["schedule_mode"]
+  >(initialValues.schedule_mode ?? "auto");
+  const [interestType, setInterestType] = useState<
+    ActivateAccountData["interest_type"]
+  >(initialValues.interest_type ?? "flat");
   const [isCustom, setIsCustom] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
       setPrincipal(initialValues.principal_amount ?? 0);
-      setInterestRate(initialValues.interest_rate ?? 0);
+      setPrincipalText(
+        initialValues.principal_amount
+          ? Number(initialValues.principal_amount).toLocaleString()
+          : "",
+      );
+      setInterestRate(initialValues.interest_rate ?? "");
       setReleaseDate(initialValues.release_date ?? "");
       setFirstPaymentDate(initialValues.first_payment_date ?? "");
       setPaymentFrequency(initialValues.payment_frequency ?? "bimonthly");
-      setTermMonths(initialValues.term_months ?? 1);
+      setTermMonths(initialValues.term_months ?? "");
       setScheduleMode(initialValues.schedule_mode ?? "auto");
       setInterestType(initialValues.interest_type ?? "flat");
       setIsCustom(initialValues.payment_frequency === "custom");
@@ -72,19 +95,25 @@ export default function ActivateAccountDialog({
       toast.error("First payment date is required");
       return;
     }
-    if (termMonths <= 0) {
+    const termNum = Number(termMonths);
+    if (!Number.isFinite(termNum) || termNum <= 0) {
       toast.error("Term must be greater than 0");
+      return;
+    }
+    const rateNum = Number(interestRate);
+    if (!Number.isFinite(rateNum) || rateNum < 0) {
+      toast.error("Interest rate must be a valid number");
       return;
     }
 
     setIsSubmitting(true);
     const result = await activateAccountAction(accountId, {
       principal_amount: principal,
-      interest_rate: interestRate,
+      interest_rate: rateNum,
       release_date: releaseDate,
       first_payment_date: firstPaymentDate,
       payment_frequency: paymentFrequency,
-      term_months: termMonths,
+      term_months: termNum,
       schedule_mode: scheduleMode,
       interest_type: interestType,
     });
@@ -104,7 +133,7 @@ export default function ActivateAccountDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-sm font-black uppercase tracking-wide text-slate-900">
+          <DialogTitle className="text-sm font-black tracking-wide text-slate-900 uppercase">
             activate account
           </DialogTitle>
         </DialogHeader>
@@ -112,38 +141,73 @@ export default function ActivateAccountDialog({
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           {/* Principal */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
               principal amount
             </label>
             <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={principal}
-              onChange={(e) => setPrincipal(Number(e.target.value))}
+              type="text"
+              inputMode="decimal"
+              value={principalText}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/,/g, "");
+                if (raw === "") {
+                  setPrincipalText("");
+                  setPrincipal(0);
+                  return;
+                }
+                const num = Number(raw);
+                if (!isNaN(num)) {
+                  setPrincipalText(num.toLocaleString());
+                  setPrincipal(num);
+                }
+              }}
               className={inputClass}
             />
           </div>
 
           {/* Interest rate */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
               interest rate (%)
             </label>
             <input
-              type="number"
-              min={0}
-              max={100}
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               value={interestRate}
-              onChange={(e) => setInterestRate(Number(e.target.value))}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "") {
+                  setInterestRate("");
+                  return;
+                }
+                const num = Number(v);
+                if (!isNaN(num)) {
+                  setInterestRate(num);
+                }
+              }}
               className={inputClass}
             />
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {[3.3, 3.8, 4, 5].map((rate) => (
+                <button
+                  key={rate}
+                  type="button"
+                  onClick={() => setInterestRate(rate)}
+                  className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                    interestRate === rate
+                      ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
+                      : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+                  }`}
+                >
+                  {rate}%
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Release date */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
               release date
             </label>
             <input
@@ -156,12 +220,16 @@ export default function ActivateAccountDialog({
 
           {/* Schedule mode */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
               schedule mode
             </label>
             <select
               value={scheduleMode}
-              onChange={(e) => setScheduleMode(e.target.value as ActivateAccountData["schedule_mode"])}
+              onChange={(e) =>
+                setScheduleMode(
+                  e.target.value as ActivateAccountData["schedule_mode"],
+                )
+              }
               className={inputClass}
             >
               <option value="auto">auto</option>
@@ -172,12 +240,16 @@ export default function ActivateAccountDialog({
           {/* Interest type (only when manual) */}
           {isManual && (
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
                 interest type
               </label>
               <select
                 value={interestType}
-                onChange={(e) => setInterestType(e.target.value as ActivateAccountData["interest_type"])}
+                onChange={(e) =>
+                  setInterestType(
+                    e.target.value as ActivateAccountData["interest_type"],
+                  )
+                }
                 className={inputClass}
               >
                 <option value="flat">flat</option>
@@ -189,7 +261,7 @@ export default function ActivateAccountDialog({
           {/* First payment date */}
           {!isManual && (
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
                 first payment date
               </label>
               <input
@@ -205,16 +277,16 @@ export default function ActivateAccountDialog({
           {/* Payment frequency */}
           {!isManual && (
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
                 payment frequency
               </label>
               <select
                 value={paymentFrequency}
                 onChange={(e) => {
-                  const val = e.target.value as ActivateAccountData["payment_frequency"];
+                  const val = e.target
+                    .value as ActivateAccountData["payment_frequency"];
                   setPaymentFrequency(val);
                   setIsCustom(val === "custom");
-                  if (val === "custom") setTermMonths(1);
                 }}
                 className={inputClass}
               >
@@ -229,16 +301,24 @@ export default function ActivateAccountDialog({
           {/* Term */}
           {!isManual && (
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
                 {isCustom ? "term installments (gives)" : "term (months)"}
               </label>
               <input
-                type="number"
+                type="text"
                 inputMode={isCustom ? "numeric" : "decimal"}
-                step={isCustom ? 1 : 0.5}
-                min={isCustom ? 1 : 0.5}
                 value={termMonths}
-                onChange={(e) => setTermMonths(Number(e.target.value))}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "") {
+                    setTermMonths("");
+                    return;
+                  }
+                  const num = Number(v);
+                  if (!isNaN(num)) {
+                    setTermMonths(num);
+                  }
+                }}
                 className={inputClass}
               />
             </div>
@@ -248,7 +328,11 @@ export default function ActivateAccountDialog({
             <Button variant="outline" type="button" onClick={onClose}>
               cancel
             </Button>
-            <NeobrutButton variant="green" type="submit" disabled={isSubmitting}>
+            <NeobrutButton
+              variant="green"
+              type="submit"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? "activating..." : "activate account"}
             </NeobrutButton>
           </DialogFooter>

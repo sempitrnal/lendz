@@ -26,6 +26,7 @@ export async function activateAccountAction(
     .from("accounts")
     .select("id, borrower_id, status")
     .eq("id", accountId)
+    .is("deleted_at", null)
     .single();
 
   if (fetchError || !account) {

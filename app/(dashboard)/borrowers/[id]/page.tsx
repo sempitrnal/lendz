@@ -1,5 +1,9 @@
 import BorrowerDetailView from "@/components/borrower/borrower-detail-view";
-import { getBorrowerById, getBorrowerAccountsWithSchedules } from "@/lib/cache/borrowers";
+import {
+  getBorrowerById,
+  getBorrowerAccountsWithSchedules,
+  getDeletedAccountsForBorrower,
+} from "@/lib/cache/borrowers";
 import { notFound } from "next/navigation";
 
 type BorrowerPageProps = {
@@ -8,23 +12,28 @@ type BorrowerPageProps = {
   }>;
 };
 
-export default async function BorrowerPage({
-  params,
-}: BorrowerPageProps) {
+export default async function BorrowerPage({ params }: BorrowerPageProps) {
   const { id } = await params;
 
   try {
-    const [borrower, { accountList, initialMetrics }] = await Promise.all([
-      getBorrowerById(id),
-      getBorrowerAccountsWithSchedules(id),
-    ]);
+    const [borrower, { accountList, initialMetrics }, deletedAccounts] =
+      await Promise.all([
+        getBorrowerById(id),
+        getBorrowerAccountsWithSchedules(id),
+        getDeletedAccountsForBorrower(id),
+      ]);
 
     if (!borrower) {
       notFound();
     }
 
     return (
-      <BorrowerDetailView borrower={borrower} accounts={accountList} initialMetrics={initialMetrics} />
+      <BorrowerDetailView
+        borrower={borrower}
+        accounts={accountList}
+        initialMetrics={initialMetrics}
+        deletedAccounts={deletedAccounts}
+      />
     );
   } catch {
     notFound();

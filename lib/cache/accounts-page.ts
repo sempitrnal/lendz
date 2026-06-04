@@ -7,13 +7,10 @@ function createSupabaseAdmin() {
   if (!serviceRoleKey) {
     return createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
   }
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey
-  );
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey);
 }
 
 const PAYMENT_SCHEDULE_PAGE_SIZE = 1000;
@@ -83,8 +80,9 @@ export async function getAccountsPageData(): Promise<AccountsPageData> {
           )
         )
       )
-    `
+    `,
     )
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -109,7 +107,9 @@ export async function getAccountsPageData(): Promise<AccountsPageData> {
           },
         };
       })
-      .filter(Boolean) as NonNullable<AccountListItem["borrower"]>["borrower_categories"];
+      .filter(Boolean) as NonNullable<
+      AccountListItem["borrower"]
+    >["borrower_categories"];
 
     return {
       ...row,
@@ -143,7 +143,7 @@ export async function getAccountsPageData(): Promise<AccountsPageData> {
         const { data: schedData, error: schedError } = await supabase
           .from("payment_schedules")
           .select(
-            "account_id, status, amount_due, amount_paid, remaining_amount"
+            "account_id, status, amount_due, amount_paid, remaining_amount",
           )
           .in("account_id", chunk)
           .range(from, from + PAYMENT_SCHEDULE_PAGE_SIZE - 1);

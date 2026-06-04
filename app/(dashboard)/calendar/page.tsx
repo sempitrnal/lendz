@@ -30,6 +30,7 @@ export default async function CalendarPage({
     .from("accounts")
     .select("id, borrower_id, principal_amount, status")
     .in("borrower_id", borrowerIds.length ? borrowerIds : [""])
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   const borrowers = (borrowersData ?? []).map((b) => ({
@@ -38,10 +39,17 @@ export default async function CalendarPage({
     last_name: b.last_name,
   }));
 
-  const accountsByBorrower: Record<string, Array<{ id: string; principal_amount: number | null; status: string }>> = {};
+  const accountsByBorrower: Record<
+    string,
+    Array<{ id: string; principal_amount: number | null; status: string }>
+  > = {};
   for (const a of accountsData ?? []) {
     const list = accountsByBorrower[a.borrower_id] ?? [];
-    list.push({ id: a.id, principal_amount: a.principal_amount, status: a.status });
+    list.push({
+      id: a.id,
+      principal_amount: a.principal_amount,
+      status: a.status,
+    });
     accountsByBorrower[a.borrower_id] = list;
   }
 
@@ -84,7 +92,11 @@ export default async function CalendarPage({
     if (!id) return { error: "Event ID is required" };
 
     const sb = await createSupabaseServer();
-    const { data: evt } = await sb.from("calendar_events").select("borrower_id").eq("id", id).single();
+    const { data: evt } = await sb
+      .from("calendar_events")
+      .select("borrower_id")
+      .eq("id", id)
+      .single();
     const { error } = await sb.from("calendar_events").delete().eq("id", id);
 
     if (error) return { error: error.message };
@@ -107,4 +119,3 @@ export default async function CalendarPage({
     />
   );
 }
-

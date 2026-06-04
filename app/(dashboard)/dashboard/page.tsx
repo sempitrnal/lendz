@@ -101,17 +101,20 @@ export default async function Dashboard() {
     supabase
       .from("accounts")
       .select("borrower_id")
+      .is("deleted_at", null)
       .gte("release_date", weekAgoDate)
       .lte("release_date", todayIso),
     supabase
       .from("accounts")
       .select("*", { count: "exact", head: true })
+      .is("deleted_at", null)
       .gte("release_date", startOfMonthIso),
     supabase
       .from("accounts")
       .select(
         "id, principal_amount, release_date, term_months, payment_frequency",
-      ),
+      )
+      .is("deleted_at", null),
     getAllPaymentSchedules(),
   ]);
 
@@ -313,7 +316,8 @@ export default async function Dashboard() {
     const { data: accountsData } = await supabase
       .from("accounts")
       .select("id, borrower_id, payment_frequency, principal_amount")
-      .in("id", accountIdsForBorrowerLookup);
+      .in("id", accountIdsForBorrowerLookup)
+      .is("deleted_at", null);
 
     const accounts = (accountsData ?? []) as AccountRef[];
     accountsById = new Map(accounts.map((row) => [row.id, row]));

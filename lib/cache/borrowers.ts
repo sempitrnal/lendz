@@ -51,7 +51,8 @@ export async function getBorrowersPageData(
     const { data: accountRows } = await supabase
       .from("accounts")
       .select("borrower_id")
-      .not("borrower_id", "is", null);
+      .not("borrower_id", "is", null)
+      .is("deleted_at", null);
     borrowerIdsWithAccounts = [
       ...new Set((accountRows ?? []).map((a) => a.borrower_id).filter(Boolean)),
     ] as string[];
@@ -120,7 +121,8 @@ export async function getBorrowersPageData(
       .select(
         "id, borrower_id, principal_amount, schedule_mode, interest_rate, status, type, interest_type",
       )
-      .in("borrower_id", borrowerIds);
+      .in("borrower_id", borrowerIds)
+      .is("deleted_at", null);
 
     const accounts = (accountRows ?? []) as Array<{
       id: string;
@@ -307,6 +309,7 @@ export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
     .from("accounts")
     .select("*")
     .eq("borrower_id", borrowerId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   const accountList = (accounts ?? []) as AccountRow[];
@@ -412,4 +415,21 @@ export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
   }
 
   return { accountList, initialMetrics };
+}
+
+export async function getDeletedAccountsForBorrower(borrowerId: string) {
+  "use cache";
+  cacheTag("borrower-accounts");
+  cacheTag(`borrower-accounts-${borrowerId}`);
+
+  const supabase = createSupabaseAdmin();
+
+  const { data: accounts } = await supabase
+    .from("accounts")
+    .select("*")
+    .eq("borrower_id", borrowerId)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+
+  return (accounts ?? []) as AccountRow[];
 }

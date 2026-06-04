@@ -44,7 +44,7 @@ const emptyDefaults = (borrowerId: string): AccountFormValues => ({
   type: "loan",
   principal_amount: 0,
   interest_rate: 0,
-  term_months: 1,
+  term_months: 0,
   release_date: "",
   first_payment_date: "",
   payment_frequency: "bimonthly",
@@ -124,6 +124,8 @@ export default function AccountForm({
   });
 
   const value = watch("principal_amount");
+  const interestRateValue = watch("interest_rate");
+  const termMonthsValue = watch("term_months");
   const frequency = watch("payment_frequency");
   const scheduleMode = watch("schedule_mode");
   const interestType = watch("interest_type");
@@ -476,14 +478,40 @@ export default function AccountForm({
         </label>
         <input
           id="interest_rate"
-          type="number"
+          type="text"
           inputMode="decimal"
           step="0.01"
-          min={0}
-          max={100}
-          {...register("interest_rate", { valueAsNumber: true })}
+          {...register("interest_rate")}
+          value={interestRateValue ? String(interestRateValue) : ""}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === "") {
+              setValue("interest_rate", 0);
+              return;
+            }
+            const num = Number(v);
+            if (!isNaN(num)) {
+              setValue("interest_rate", num);
+            }
+          }}
           className={formFieldInputClassName}
         />
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {[3.3, 3.8, 4, 5].map((rate) => (
+            <button
+              key={rate}
+              type="button"
+              onClick={() => setValue("interest_rate", rate)}
+              className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                interestRateValue === rate
+                  ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
+                  : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+              }`}
+            >
+              {rate}%
+            </button>
+          ))}
+        </div>
         {errors.interest_rate?.message ? (
           <p className={formFieldErrorClassName}>
             {errors.interest_rate.message}
@@ -568,11 +596,21 @@ export default function AccountForm({
             </label>
             <input
               id="term_months"
-              type="number"
+              type="text"
               inputMode={isCustom ? "numeric" : "decimal"}
-              step={isCustom ? 1 : 0.5}
-              min={isCustom ? 1 : 0.5}
-              {...register("term_months", { valueAsNumber: true })}
+              {...register("term_months")}
+              value={termMonthsValue ? String(termMonthsValue) : ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "") {
+                  setValue("term_months", 0);
+                  return;
+                }
+                const num = Number(v);
+                if (!isNaN(num)) {
+                  setValue("term_months", num);
+                }
+              }}
               className={formFieldInputClassName}
             />
             {errors.term_months?.message ? (

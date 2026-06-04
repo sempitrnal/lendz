@@ -10,13 +10,10 @@ function createSupabaseAdmin() {
   if (!serviceRoleKey) {
     return createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
   }
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey
-  );
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey);
 }
 
 type ScheduleAggRow = {
@@ -59,7 +56,7 @@ type BorrowerRef = {
 const SUPABASE_PAGE_SIZE = 1000;
 
 async function fetchAllSchedules(
-  supabase: ReturnType<typeof createSupabaseAdmin>
+  supabase: ReturnType<typeof createSupabaseAdmin>,
 ): Promise<ScheduleAggRow[]> {
   const allRows: ScheduleAggRow[] = [];
   let from = 0;
@@ -67,7 +64,7 @@ async function fetchAllSchedules(
     const { data, error } = await supabase
       .from("payment_schedules")
       .select(
-        "id, account_id, amount_due, amount_paid, remaining_amount, status, due_date"
+        "id, account_id, amount_due, amount_paid, remaining_amount, status, due_date",
       )
       .range(from, from + SUPABASE_PAGE_SIZE - 1);
     if (error || !data || data.length === 0) break;
@@ -97,7 +94,9 @@ export async function getNextCollectionPageData(): Promise<NextCollectionData> {
 
   const allSchedules = await fetchAllSchedules(supabase);
   const unpaidSchedules = allSchedules.filter((row) => row.status !== "paid");
-  const futureUnpaid = unpaidSchedules.filter((row) => row.due_date >= todayIso);
+  const futureUnpaid = unpaidSchedules.filter(
+    (row) => row.due_date >= todayIso,
+  );
 
   const byAccount = new Map<string, ScheduleAggRow[]>();
   for (const row of futureUnpaid) {
@@ -107,14 +106,16 @@ export async function getNextCollectionPageData(): Promise<NextCollectionData> {
   }
   for (const list of byAccount.values()) {
     list.sort(
-      (a, b) => a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id)
+      (a, b) =>
+        a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id),
     );
   }
   const futureCandidates = [...byAccount.values()]
     .map((list) => nextDueScheduleForCollection(list))
     .filter((row): row is ScheduleAggRow => Boolean(row))
     .sort(
-      (a, b) => a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id)
+      (a, b) =>
+        a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id),
     );
 
   const nextCollectionDate = futureCandidates[0]?.due_date ?? null;
@@ -124,10 +125,12 @@ export async function getNextCollectionPageData(): Promise<NextCollectionData> {
 
   const nextCollectionTotal = nextCollectionSchedules.reduce(
     (sum, row) => sum + remainingOnInstallment(row),
-    0
+    0,
   );
 
-  const accountIds = [...new Set(nextCollectionSchedules.map((row) => row.account_id))];
+  const accountIds = [
+    ...new Set(nextCollectionSchedules.map((row) => row.account_id)),
+  ];
   let accountsById = new Map<string, AccountRef>();
   let borrowersById = new Map<string, BorrowerRef>();
 
@@ -135,7 +138,8 @@ export async function getNextCollectionPageData(): Promise<NextCollectionData> {
     const { data: accountsData } = await supabase
       .from("accounts")
       .select("id, borrower_id, payment_frequency, principal_amount")
-      .in("id", accountIds);
+      .in("id", accountIds)
+      .is("deleted_at", null);
     const accounts = (accountsData ?? []) as AccountRef[];
     accountsById = new Map(accounts.map((row) => [row.id, row]));
 
@@ -143,7 +147,8 @@ export async function getNextCollectionPageData(): Promise<NextCollectionData> {
     if (borrowerIds.length > 0) {
       const { data: borrowersData } = await supabase
         .from("borrowers")
-        .select(`
+        .select(
+          `
           id,
           first_name,
           last_name,
@@ -154,7 +159,8 @@ export async function getNextCollectionPageData(): Promise<NextCollectionData> {
               color
             )
           )
-        `)
+        `,
+        )
         .in("id", borrowerIds);
       const borrowers = (borrowersData ?? []) as BorrowerRef[];
       borrowersById = new Map(borrowers.map((row) => [row.id, row]));

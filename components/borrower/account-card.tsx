@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { useState, SyntheticEvent } from "react";
+import { useState, SyntheticEvent, useRef } from "react";
 import { motion } from "framer-motion";
 import AccountCardMenu from "./account-card-menu";
 import {
@@ -15,6 +15,9 @@ export function AccountCard({
   onEdit,
   onActivate,
   metrics,
+  selectionMode,
+  selected,
+  onToggleSelect,
 }: {
   account: AccountRow;
   isOpening: boolean;
@@ -23,6 +26,9 @@ export function AccountCard({
   onEdit: (account: AccountRow) => void;
   onActivate?: (account: AccountRow) => void;
   metrics?: AccountComputedMetrics;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }) {
   const amountLeftToPay = metrics?.amountLeftToPay ?? 0;
   const profitToMake = metrics?.profitToMake ?? 0;
@@ -37,6 +43,7 @@ export function AccountCard({
   const overdueCount = metrics?.overdueCount ?? 0;
   const overdueTotal = metrics?.overdueTotal ?? 0;
   const [overdueExpanded, setOverdueExpanded] = useState(overdueCount <= 6);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isManual = account.schedule_mode === "manual";
   const isRolling = isManual && (account as any).interest_type === "rolling";
   const freq = account.payment_frequency;
@@ -54,7 +61,27 @@ export function AccountCard({
     if ((e.target as HTMLElement).closest("[data-prevent-account-open]")) {
       return;
     }
+    if (selectionMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      onToggleSelect?.(account.id);
+      return;
+    }
     onOpen(account.id);
+  }
+
+  function handlePointerDown() {
+    if (selectionMode) return;
+    longPressTimer.current = setTimeout(() => {
+      onToggleSelect?.(account.id);
+    }, 500);
+  }
+
+  function handlePointerUp() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
   }
 
   const isCashAdvance = account.type === "cash_advance";
@@ -83,7 +110,7 @@ export function AccountCard({
         hasOverdue
           ? "border-red-700 shadow-[4px_4px_0px_0px_#b91c1c]"
           : "dark:border-border border-slate-900 shadow-[4px_4px_0px_0px_#0f172a]"
-      } ${isOpening ? "scale-[0.98] opacity-60" : ""}`}
+      } ${isOpening ? "scale-[0.98] opacity-60" : ""} ${selectionMode && selected ? "ring-2 ring-slate-900 dark:ring-amber-400" : ""}`}
       whileHover={
         isOpening
           ? undefined
@@ -108,13 +135,21 @@ export function AccountCard({
       <div
         role="button"
         tabIndex={isOpening ? -1 : 0}
-        onPointerEnter={() => onPrefetch?.(account.id)}
+        onPointerEnter={() => !selectionMode && onPrefetch?.(account.id)}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
         onClick={tryOpenAccount}
         onKeyDown={(e) => {
           if (isOpening) return;
           if (e.key !== "Enter" && e.key !== " ") return;
           if ((e.target as HTMLElement).closest("[data-prevent-account-open]"))
             return;
+          if (selectionMode) {
+            e.preventDefault();
+            onToggleSelect?.(account.id);
+            return;
+          }
           e.preventDefault();
           onOpen(account.id);
         }}
@@ -326,13 +361,47 @@ export function AccountCard({
         )}
       </div>
 
-      <div className="absolute top-3 right-3" data-prevent-account-open>
-        <AccountCardMenu
-          accountId={account.id}
-          borrowerId={account.borrower_id}
-          onEdit={() => onEdit(account)}
-        />
-      </div>
+      {selectionMode ? (
+        <div className="absolute top-3 right-3" data-prevent-account-open>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSelect?.(account.id);
+            }}
+            className={`flex size-5 items-center justify-center rounded border-2 transition-colors ${
+              selected
+                ? "border-slate-900 bg-slate-900 dark:border-amber-400 dark:bg-amber-400"
+                : "dark:bg-card border-slate-300 bg-white dark:border-slate-600"
+            }`}
+            aria-label={selected ? "Deselect account" : "Select account"}
+          >
+            {selected && (
+              <svg
+                className="size-3 text-white dark:text-slate-900"
+                viewBox="0 0 14 14"
+                fill="none"
+              >
+                <path
+                  d="M2 7L5.5 10.5L12 3.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </button>
+        </div>
+      ) : (
+        <div className="absolute top-3 right-3" data-prevent-account-open>
+          <AccountCardMenu
+            accountId={account.id}
+            borrowerId={account.borrower_id}
+            onEdit={() => onEdit(account)}
+          />
+        </div>
+      )}
     </motion.div>
   );
 }

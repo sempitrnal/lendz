@@ -21,6 +21,7 @@ import AccountCardMenu from "@/components/borrower/account-card-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { BorrowerSummary } from "./borrower-detail-view";
 import { supabase } from "@/lib/supabase/client";
+import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
 import {
   amountPaidOnInstallment,
   isInstallmentFullyPaid,
@@ -287,6 +288,7 @@ type BorrowerAccountsSectionProps = {
   accounts: AccountRow[] | null;
   borrower?: BorrowerSummary;
   initialMetrics?: Record<string, AccountComputedMetrics>;
+  deletedAccounts?: AccountRow[];
 };
 
 export default function BorrowerAccountsSection({
@@ -294,6 +296,7 @@ export default function BorrowerAccountsSection({
   accounts,
   borrower,
   initialMetrics,
+  deletedAccounts = [],
 }: BorrowerAccountsSectionProps) {
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountRow | null>(null);
@@ -315,6 +318,12 @@ export default function BorrowerAccountsSection({
   const [accountMetricsById, setAccountMetricsById] = useState<
     Record<string, AccountComputedMetrics>
   >(initialMetrics ?? {});
+  const [restoringIds, setRestoringIds] = useState<Set<string>>(new Set());
+  const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const fetchNotes = async () => {
     const { data, error } = await supabase
       .from("borrower_notes")
@@ -357,6 +366,80 @@ export default function BorrowerAccountsSection({
   const handleOpenAccount = (id: string) => {
     setOpeningAccountId(id);
     router.push(`/accounts/${id}`);
+  };
+
+  const toggleAccountSelection = (accountId: string) => {
+    setSelectedAccountIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(accountId)) {
+        next.delete(accountId);
+        if (next.size === 0) {
+          setSelectionMode(false);
+        }
+      } else {
+        next.add(accountId);
+        if (!selectionMode) {
+          setSelectionMode(true);
+        }
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedAccountIds(new Set());
+    setSelectionMode(false);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedAccountIds.size === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const ids = Array.from(selectedAccountIds);
+      const { error } = await supabase
+        .from("accounts")
+        .update({ deleted_at: new Date().toISOString() })
+        .in("id", ids);
+
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      toast.success(
+        `Deleted ${ids.length} account${ids.length === 1 ? "" : "s"}`,
+      );
+      clearSelection();
+      await revalidateBorrowerDetailPage(borrowerId);
+      router.refresh();
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleRestoreAccount = async (accountId: string) => {
+    setRestoringIds((prev) => new Set(prev).add(accountId));
+    try {
+      const { error } = await supabase
+        .from("accounts")
+        .update({ deleted_at: null })
+        .eq("id", accountId);
+
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      toast.success("Account restored");
+      await revalidateBorrowerDetailPage(borrowerId);
+      router.refresh();
+    } finally {
+      setRestoringIds((prev) => {
+        const next = new Set(prev);
+        next.delete(accountId);
+        return next;
+      });
+    }
   };
   const handlePrefetchAccount = (id: string) => {
     router.prefetch(`/accounts/${id}`);
@@ -560,6 +643,35 @@ export default function BorrowerAccountsSection({
         </motion.div>
       )}
 
+      {selectionMode && (
+        <div className="dark:border-border dark:bg-card sticky top-[52px] z-40 -mx-4 mb-4 border-y-2 border-slate-900 bg-white px-4 py-2 shadow-sm md:top-[68px]">
+          <div className="flex items-center justify-between">
+            <span className="dark:text-foreground text-sm font-black text-slate-700">
+              {selectedAccountIds.size} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="dark:border-border dark:bg-card dark:text-foreground rounded-lg border-2 border-slate-900 bg-white px-3 py-1 text-xs font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 active:translate-y-px active:shadow-none"
+              >
+                cancel
+              </button>
+              <button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={handleBulkDelete}
+                className="rounded-lg border-2 border-slate-900 bg-red-400 px-3 py-1 text-xs font-bold text-white shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 active:translate-y-px active:shadow-none disabled:opacity-50 dark:border-red-500/50 dark:bg-red-500/80"
+              >
+                {isBulkDeleting
+                  ? "deleting..."
+                  : `delete ${selectedAccountIds.size}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!accounts || accounts.length === 0 ? (
         <motion.div
           className="rounded-xl border border-dashed p-10 text-center"
@@ -743,6 +855,9 @@ export default function BorrowerAccountsSection({
                           }}
                           onActivate={(acc) => setActivatingAccount(acc)}
                           metrics={m}
+                          selectionMode={selectionMode}
+                          selected={selectedAccountIds.has(account.id)}
+                          onToggleSelect={toggleAccountSelection}
                         />
                       </motion.div>
                     );
@@ -800,6 +915,50 @@ export default function BorrowerAccountsSection({
             </div>
           );
         })()
+      )}
+
+      {deletedAccounts.length > 0 && (
+        <div className="mt-10">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="rounded-full border-2 border-slate-900 bg-red-100 px-2.5 py-1 text-[10px] font-black tracking-widest text-red-800 uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:border-red-400/40 dark:bg-red-400/[0.15] dark:text-red-300">
+              recently deleted
+            </span>
+            <span className="text-xs font-semibold text-slate-400">
+              {deletedAccounts.length} account
+              {deletedAccounts.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="space-y-3">
+            {deletedAccounts.map((account) => {
+              const isRestoring = restoringIds.has(account.id);
+              const principal = Number(account.principal_amount ?? 0);
+              return (
+                <div
+                  key={account.id}
+                  className="dark:border-border dark:bg-card flex items-center justify-between rounded-xl border-2 border-slate-900/40 bg-slate-50 px-4 py-3 opacity-70 shadow-[1px_1px_0px_0px_rgb(15_23_42/0.2)] dark:shadow-none"
+                >
+                  <div>
+                    <p className="dark:text-foreground text-sm font-bold text-slate-700">
+                      {account.type.replace("_", " ")}
+                    </p>
+                    <p className="dark:text-muted-foreground text-xs text-slate-500">
+                      ₱{principal.toLocaleString()} ·{" "}
+                      {account.payment_frequency}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isRestoring}
+                    onClick={() => handleRestoreAccount(account.id)}
+                    className="dark:border-border dark:bg-card dark:text-foreground rounded-lg border-2 border-slate-900 bg-white px-3 py-1.5 text-xs font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 active:translate-y-px active:shadow-none disabled:opacity-50"
+                  >
+                    {isRestoring ? "restoring..." : "restore"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* Speed-dial FAB — portalled to body to escape PageTransition transform stacking context */}

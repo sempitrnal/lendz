@@ -43,8 +43,9 @@ import {
   isInstallmentNextHighlight,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
+import { countSkippedSchedules } from "@/lib/payment-schedule/build-payload";
 import { cn } from "@/lib/utils";
-import { Check } from "lucide-react";
+import { Check, Info } from "lucide-react";
 
 type AccountRow = {
   id: string;
@@ -1081,6 +1082,130 @@ export default async function AccountDetailPage({
             }}
           />
         ) : null}
+
+        {accountRow.status !== "pending" &&
+          accountRow.release_date &&
+          accountRow.first_payment_date &&
+          accountRow.payment_frequency &&
+          (() => {
+            const skipped = countSkippedSchedules(
+              accountRow.release_date,
+              accountRow.first_payment_date,
+              accountRow.payment_frequency as
+                | "weekly"
+                | "monthly"
+                | "bimonthly"
+                | "custom",
+            );
+            return skipped > 0 ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 rounded-xl border-2 border-amber-900/20 bg-amber-50/90 px-4 py-3 shadow-[2px_2px_0px_0px_rgb(15_23_42/0.1)] dark:border-amber-400/20 dark:bg-amber-400/[0.12]">
+                  <Info className="size-4 shrink-0 text-amber-700 dark:text-amber-300" />
+                  <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                    {skipped} payment schedule{skipped === 1 ? "" : "s"} skipped
+                    between release date and first payment date. Extra interest
+                    was added to each installment.
+                  </p>
+                </div>
+                {(() => {
+                  const p = Number(accountRow.principal_amount ?? 0);
+                  const r = Number(accountRow.interest_rate ?? 0);
+                  const t = Number(accountRow.term_months ?? 0);
+                  const monthlyInterest = p * (r / 100);
+                  const baseInterest = monthlyInterest * t;
+                  const dailyInterest = monthlyInterest / 30;
+                  const periodDays =
+                    accountRow.payment_frequency === "bimonthly" ||
+                    accountRow.payment_frequency === "custom"
+                      ? 15
+                      : accountRow.payment_frequency === "monthly"
+                        ? 30
+                        : 7;
+                  const extraPerSkip = dailyInterest * periodDays;
+                  const totalExtra = extraPerSkip * skipped;
+                  const totalInterest = baseInterest + totalExtra;
+                  const totalPayable = p + totalInterest;
+                  const schedulesCount =
+                    accountRow.payment_frequency === "bimonthly"
+                      ? Math.round(t * 2)
+                      : accountRow.payment_frequency === "weekly"
+                        ? Math.round(t * 4)
+                        : accountRow.payment_frequency === "custom"
+                          ? Math.round(t)
+                          : Math.round(t);
+                  const perInstallment =
+                    schedulesCount > 0
+                      ? Number((totalPayable / schedulesCount).toFixed(2))
+                      : 0;
+                  const basePerInstallment =
+                    schedulesCount > 0
+                      ? Number(((p + baseInterest) / schedulesCount).toFixed(2))
+                      : 0;
+                  return (
+                    <div
+                      className={`${nb.inset} px-4 py-3 text-[11px] leading-relaxed text-slate-700 dark:text-slate-300`}
+                    >
+                      <p className="dark:text-muted-foreground mb-1 text-[10px] font-black tracking-wide text-slate-500 uppercase">
+                        Interest breakdown
+                      </p>
+                      <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5">
+                        <span>
+                          Base interest ({t}mo × {r}%)
+                        </span>
+                        <span className="text-right font-bold tabular-nums">
+                          {formatMoney(baseInterest)}
+                        </span>
+                        <span>
+                          Extra per skipped schedule ({periodDays} days)
+                        </span>
+                        <span className="text-right font-bold tabular-nums">
+                          {formatMoney(extraPerSkip)}
+                        </span>
+                        <span>Skipped schedules</span>
+                        <span className="text-right font-bold tabular-nums">
+                          × {skipped}
+                        </span>
+                        <span className="border-t border-slate-200 pt-0.5 font-bold dark:border-slate-700">
+                          Total extra interest
+                        </span>
+                        <span className="border-t border-slate-200 pt-0.5 text-right font-bold tabular-nums dark:border-slate-700">
+                          {formatMoney(totalExtra)}
+                        </span>
+                        <span className="border-t border-slate-200 pt-0.5 font-bold dark:border-slate-700">
+                          Total interest
+                        </span>
+                        <span className="border-t border-slate-200 pt-0.5 text-right font-bold tabular-nums dark:border-slate-700">
+                          {formatMoney(totalInterest)}
+                        </span>
+                        <span className="border-t border-slate-200 pt-0.5 font-bold dark:border-slate-700">
+                          Total payable
+                        </span>
+                        <span className="border-t border-slate-200 pt-0.5 text-right font-bold tabular-nums dark:border-slate-700">
+                          {formatMoney(totalPayable)}
+                        </span>
+                        {schedulesCount > 0 && (
+                          <>
+                            <span className="pt-0.5">
+                              Per installment ({schedulesCount})
+                            </span>
+                            <span className="text-right font-bold tabular-nums">
+                              {formatMoney(perInstallment)}
+                            </span>
+                            <span className="dark:text-muted-foreground text-[10px] text-slate-500">
+                              Without skip
+                            </span>
+                            <span className="dark:text-muted-foreground text-right text-[10px] text-slate-500 tabular-nums">
+                              {formatMoney(basePerInstallment)}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : null;
+          })()}
 
         <section aria-labelledby="balances-heading" className="hidden sm:block">
           <h2 id="balances-heading" className={`mb-3 ${nb.label}`}>
