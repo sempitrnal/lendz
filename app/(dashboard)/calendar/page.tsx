@@ -23,6 +23,7 @@ export default async function CalendarPage({
   const { data: borrowersData } = await supabase
     .from("borrowers")
     .select("id, first_name, last_name")
+    .is("deleted_at", null)
     .order("last_name", { ascending: true });
 
   const borrowerIds = (borrowersData ?? []).map((b) => b.id);

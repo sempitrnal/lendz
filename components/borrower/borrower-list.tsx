@@ -142,6 +142,7 @@ export default function BorrowersList({
       .or(
         `first_name.ilike.${pattern},last_name.ilike.${pattern},contact.ilike.${pattern}`,
       )
+      .is("deleted_at", null)
       .order("first_name", { ascending: true })
       .limit(6);
     setSuggestions(

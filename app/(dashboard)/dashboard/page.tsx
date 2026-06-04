@@ -97,7 +97,10 @@ export default async function Dashboard() {
     { data: accountTotalsData },
     allSchedules,
   ] = await Promise.all([
-    supabase.from("borrowers").select("*", { count: "exact", head: true }),
+    supabase
+      .from("borrowers")
+      .select("*", { count: "exact", head: true })
+      .is("deleted_at", null),
     supabase
       .from("accounts")
       .select("borrower_id")
@@ -341,7 +344,8 @@ export default async function Dashboard() {
           )
         `,
         )
-        .in("id", borrowerIds);
+        .in("id", borrowerIds)
+        .is("deleted_at", null);
       const borrowers = (borrowersData ?? []) as BorrowerRef[];
       borrowersById = new Map(borrowers.map((row) => [row.id, row]));
     }

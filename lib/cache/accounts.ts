@@ -88,6 +88,7 @@ export async function getAccountDetailPageData(
     .from("borrowers")
     .select("id, first_name, last_name")
     .eq("id", account.borrower_id)
+    .is("deleted_at", null)
     .single();
 
   let schedulesData: unknown[] | null = null;

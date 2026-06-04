@@ -2,22 +2,23 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition, useState, useEffect } from "react";
-import ThemeToggle from "@/components/theme-toggle";
 import {
   LayoutDashboard,
   Users,
   Tag,
   ClipboardCheck,
   CalendarDays,
+  Trash2,
   Loader2,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
-  { href: "/borrowers", label: "Borrowers", Icon: Users },
   { href: "/calendar", label: "Calendar", Icon: CalendarDays },
+  { href: "/borrowers", label: "Borrowers", Icon: Users },
   { href: "/categories", label: "Categories", Icon: Tag },
   { href: "/daily-checklist", label: "Checklist", Icon: ClipboardCheck },
+  { href: "/deleted", label: "Trash", Icon: Trash2 },
 ];
 
 export default function BottomNav() {
@@ -29,6 +30,7 @@ export default function BottomNav() {
   useEffect(() => {
     NAV_ITEMS.forEach(({ href }) => router.prefetch(href));
     router.prefetch("/accounts");
+    router.prefetch("/deleted");
   }, [router]);
 
   return (
@@ -74,12 +76,6 @@ export default function BottomNav() {
             </li>
           );
         })}
-        <li className="dark:border-border flex w-12 shrink-0 items-center justify-center border-l border-slate-900">
-          <ThemeToggle
-            size="icon-sm"
-            className="border-0 shadow-none hover:bg-transparent dark:hover:bg-transparent"
-          />
-        </li>
       </ul>
     </nav>
   );

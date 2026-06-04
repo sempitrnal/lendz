@@ -6,6 +6,7 @@ import { useState } from "react";
 import { BsThreeDotsVertical } from "react-icons/bs";
 
 import { supabase } from "@/lib/supabase/client";
+import { revalidateBorrowersPage } from "@/lib/actions/borrowers";
 import NeobrutButton from "../neobrut-button";
 import {
   Dialog,
@@ -51,9 +52,24 @@ export default function BorrowerDetailMenu({
   async function confirmDelete() {
     setIsDeleting(true);
     try {
+      const now = new Date().toISOString();
+
+      // Cascade soft-delete all active accounts first
+      const { error: accountsError } = await supabase
+        .from("accounts")
+        .update({ deleted_at: now })
+        .eq("borrower_id", borrowerId)
+        .is("deleted_at", null);
+
+      if (accountsError) {
+        alert(accountsError.message);
+        return;
+      }
+
+      // Soft-delete the borrower
       const { error } = await supabase
         .from("borrowers")
-        .delete()
+        .update({ deleted_at: now })
         .eq("id", borrowerId);
 
       if (error) {
@@ -61,6 +77,7 @@ export default function BorrowerDetailMenu({
         return;
       }
 
+      await revalidateBorrowersPage();
       setDeleteModalOpen(false);
       if (onDeleted) {
         await Promise.resolve(onDeleted());
@@ -80,7 +97,7 @@ export default function BorrowerDetailMenu({
           <button
             type="button"
             aria-label="Borrower actions"
-            className="rounded-md p-1 text-gray-700 outline-none transition-colors hover:bg-gray-100 hover:text-gray-500 focus-visible:ring-2 focus-visible:ring-gray-400"
+            className="rounded-md p-1 text-gray-700 transition-colors outline-none hover:bg-gray-100 hover:text-gray-500 focus-visible:ring-2 focus-visible:ring-gray-400"
           >
             <BsThreeDotsVertical className="size-4 cursor-pointer" />
           </button>
@@ -103,7 +120,8 @@ export default function BorrowerDetailMenu({
             <DialogTitle>Delete borrower</DialogTitle>
           </DialogHeader>
           <DialogDescription>
-            This will permanently remove this borrower. This cannot be undone.
+            This borrower (and all their accounts) will be moved to deleted. You
+            can restore them later if needed.
           </DialogDescription>
           <DialogFooter>
             <div className="flex justify-end gap-4">

@@ -4,6 +4,7 @@ import {
   MdAccountBalanceWallet,
   MdCategory,
   MdChecklist,
+  MdDelete,
   MdLogout,
 } from "react-icons/md";
 import Link from "next/link";
@@ -40,6 +41,7 @@ const DESKTOP_LINKS = [
   { href: "/calendar", label: "calendar" },
   { href: "/categories", label: "categories" },
   { href: "/daily-checklist", label: "daily checklist" },
+  { href: "/deleted", label: "trash" },
 ];
 
 export default function SiteHeader({
@@ -195,6 +197,16 @@ export default function SiteHeader({
               <Link href="/daily-checklist">
                 {" "}
                 <MdChecklist /> daily checklist
+              </Link>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              asChild
+              className="dark:border-border dark:bg-card mb-2 cursor-pointer border border-indigo-950 bg-white text-xl shadow-[2px_2px_0px_0px_rgba(59,72,107,1)] dark:shadow-[2px_2px_0px_0px_#0f172a]"
+            >
+              <Link href="/deleted">
+                {" "}
+                <MdDelete /> trash
               </Link>
             </DropdownMenuItem>
 

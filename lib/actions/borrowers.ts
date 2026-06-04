@@ -10,6 +10,15 @@ export async function revalidateBorrowersPage() {
   updateTag("next-collection");
 }
 
+export async function revalidateDeletedPage() {
+  revalidatePath("/deleted");
+  updateTag("borrowers");
+  updateTag("deleted-borrowers");
+  updateTag("deleted-accounts");
+  updateTag("accounts-page");
+  updateTag("dashboard");
+}
+
 export async function revalidateBorrowerDetailPage(borrowerId: string) {
   revalidatePath(`/borrowers/${borrowerId}`);
   revalidatePath("/borrowers");

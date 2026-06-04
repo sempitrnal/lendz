@@ -63,7 +63,8 @@ export async function getBorrowersPageData(
     .select(
       `*, borrower_categories ( category:categories ( id, name, color ) )`,
       { count: "exact" },
-    );
+    )
+    .is("deleted_at", null);
 
   if (!searchQuery && borrowerIdsWithAccounts) {
     if (borrowerIdsWithAccounts.length > 0) {
@@ -289,6 +290,7 @@ export async function getBorrowerById(id: string) {
     `,
     )
     .eq("id", id)
+    .is("deleted_at", null)
     .single();
 
   if (error) {
@@ -415,6 +417,42 @@ export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
   }
 
   return { accountList, initialMetrics };
+}
+
+export async function getDeletedBorrowers() {
+  "use cache";
+  cacheTag("borrowers");
+  cacheTag("deleted-borrowers");
+
+  const supabase = createSupabaseAdmin();
+
+  const { data: borrowers } = await supabase
+    .from("borrowers")
+    .select("*")
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+
+  return (borrowers ?? []) as Borrower[];
+}
+
+export async function getAllDeletedAccounts() {
+  "use cache";
+  cacheTag("accounts");
+  cacheTag("deleted-accounts");
+
+  const supabase = createSupabaseAdmin();
+
+  const { data: accounts } = await supabase
+    .from("accounts")
+    .select("*, borrower:borrowers(id, first_name, last_name)")
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+
+  return (accounts ?? []) as Array<
+    AccountRow & {
+      borrower: { id: string; first_name: string; last_name: string } | null;
+    }
+  >;
 }
 
 export async function getDeletedAccountsForBorrower(borrowerId: string) {

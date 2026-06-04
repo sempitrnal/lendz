@@ -161,7 +161,8 @@ export async function getNextCollectionPageData(): Promise<NextCollectionData> {
           )
         `,
         )
-        .in("id", borrowerIds);
+        .in("id", borrowerIds)
+        .is("deleted_at", null);
       const borrowers = (borrowersData ?? []) as BorrowerRef[];
       borrowersById = new Map(borrowers.map((row) => [row.id, row]));
     }

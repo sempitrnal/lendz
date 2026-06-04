@@ -23,7 +23,7 @@ export function OfflineSyncManager() {
 
     const run = async () => {
       const [{ data: borrowers }, { data: accounts }] = await Promise.all([
-        supabase.from("borrowers").select("id"),
+        supabase.from("borrowers").select("id").is("deleted_at", null),
         supabase.from("accounts").select("id"),
       ]);
 

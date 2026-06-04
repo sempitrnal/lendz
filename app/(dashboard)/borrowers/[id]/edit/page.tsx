@@ -16,6 +16,7 @@ export default async function EditBorrowerPage({
     .from("borrowers")
     .select("*")
     .eq("id", id)
+    .is("deleted_at", null)
     .single();
 
   const { data: categoryLinks } = await supabase
