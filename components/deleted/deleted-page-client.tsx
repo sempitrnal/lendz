@@ -27,7 +27,7 @@ type DeletedBorrower = Borrower & {
 
 type DeletedAccount = AccountRow & {
   deleted_at?: string | null;
-  created_at: string;
+  created_at?: string | null;
   borrower: { id: string; first_name: string; last_name: string } | null;
 };
 
@@ -462,7 +462,7 @@ export default function DeletedPageClient({
                     <p className="text-xs text-slate-400">
                       deleted{" "}
                       {new Date(
-                        a.deleted_at ?? a.created_at,
+                        a.deleted_at ?? a.created_at ?? "",
                       ).toLocaleDateString()}{" "}
                       <span
                         className={`rounded px-1 py-px text-[10px] font-bold uppercase ${
