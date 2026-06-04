@@ -925,7 +925,7 @@ export default function BorrowerAccountsSection({
         )}
 
         <motion.div
-          className="w-full"
+          className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
@@ -939,17 +939,21 @@ export default function BorrowerAccountsSection({
                 setIsNotesOpen(true);
               }}
               variants={cardVariants}
+              initial="hidden"
+              animate="visible"
               whileHover={{ scale: 1.02, transition: { duration: 0.15 } }}
               whileTap={{ scale: 0.98 }}
-              className="w-full overflow-hidden rounded-sm p-3 shadow-md"
+              className="relative aspect-[9/16] w-full overflow-hidden rounded-sm shadow-md"
             >
               {note.preview_img_url ? (
                 <img
                   src={note.preview_img_url}
-                  className="pointer-events-none w-full rounded"
+                  className="pointer-events-none h-full w-full object-cover"
                 />
               ) : (
-                <div className="h-20" />
+                <div className="flex h-full w-full items-center justify-center bg-slate-100">
+                  <span className="text-xs text-slate-400">No preview</span>
+                </div>
               )}
             </motion.button>
           ))}
