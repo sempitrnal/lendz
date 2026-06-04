@@ -5,6 +5,7 @@ import type { Borrower } from "@/components/borrower/borrower-list";
 import {
   amountPaidOnInstallment,
   isInstallmentFullyPaid,
+  nextCollectionsForDisplay,
   nextDueScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
@@ -368,6 +369,12 @@ export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
           ? Math.max(0, rollingContract - principal)
           : Math.max(0, totalPayment - principal);
       const nextUnpaid = nextDueScheduleForCollection(rows);
+      const nextCollections = nextCollectionsForDisplay(rows).map((r) => ({
+        due_date: r.due_date,
+        amount: remainingOnInstallment(r),
+        amount_due: Math.max(0, Number(r.amount_due ?? 0)),
+        status: r.status,
+      }));
       const overdueRows = rows.filter(
         (row) => row.status === "overdue" && !isInstallmentFullyPaid(row),
       );
@@ -383,6 +390,7 @@ export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
           : 0,
         nextCollectionStatus: nextUnpaid?.status ?? null,
         nextUnpaidScheduleId: nextUnpaid?.id ?? null,
+        nextCollections,
         overdueCount: overdueRows.length,
         overdueTotal: overdueRows.reduce(
           (sum, row) => sum + remainingOnInstallment(row),

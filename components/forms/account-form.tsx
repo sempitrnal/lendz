@@ -202,6 +202,7 @@ export default function AccountForm({
             : ""),
       );
 
+      await revalidateBorrowerDetailPage(values.borrower_id);
       router.refresh();
       onSuccess?.();
       return;

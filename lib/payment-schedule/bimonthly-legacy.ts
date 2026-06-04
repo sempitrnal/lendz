@@ -31,7 +31,7 @@ function computePayroll1(day: number, currentMonth: number): number {
 function computePayroll2(
   payroll1: number,
   currentMonth: number,
-  currentYear: number
+  currentYear: number,
 ): number {
   if (payroll1 <= 15) {
     if (currentMonth === 1) {
@@ -52,7 +52,7 @@ function computePayroll2(
 export function bimonthlyLegacyInstallmentAmount(
   principal: number,
   interestRatePercent: number,
-  termMonths: number
+  termMonths: number,
 ): number {
   const interest = interestRatePercent / 100;
   const total =
@@ -61,99 +61,52 @@ export function bimonthlyLegacyInstallmentAmount(
 }
 
 /**
- * Produces exactly `2 * termMonths` due dates (two per month for `termMonths` months),
- * matching the original generator.
+ * Produces exactly `2 * termMonths` due dates (two per month for `termMonths` months).
+ * First date is always exactly the startDate (user's first_payment_date).
+ * Subsequent dates follow the 15th/30th payroll pattern.
  */
 export function generateLegacyBimonthlyDueDates(
   startDate: Date,
-  termMonths: number
+  termMonths: number,
 ): Date[] {
   const dates: Date[] = [];
 
-  const day = startDate.getDate();
+  // First date is exactly what the user entered
+  dates.push(new Date(startDate));
+
   let currentYear = startDate.getFullYear();
   let currentMonth = startDate.getMonth();
+  const day = startDate.getDate();
 
-  let payroll1 = computePayroll1(day, currentMonth);
-  let payroll2 = computePayroll2(payroll1, currentMonth, currentYear);
-
-  const monthChecker = day === payroll2;
-
-  dates.push(new Date(startDate));
-  if (monthChecker) {
+  // Determine the next date pattern
+  // If first date is on or before 15th, next is 15th of same month
+  // If first date is after 15th, next is 15th of NEXT month
+  let use15thNext = true;
+  if (day > 15) {
+    // Move to next month for the 15th
     currentMonth++;
-  }
-  dates.push(
-    new Date(
-      currentYear,
-      currentMonth,
-      monthChecker ? payroll1 : payroll2
-    )
-  );
-  if (!monthChecker) {
-    let temp = currentMonth;
-    currentMonth = (currentMonth % 12) + 1;
-    if (temp === 12) {
+    if (currentMonth > 11) {
+      currentMonth = 0;
       currentYear++;
     }
+  } else {
+    // First date is on or before 15th, so next should be end of same month
+    use15thNext = false;
   }
 
-  for (let i = 0; i < termMonths - 1; i++) {
-    if (day <= 15) {
-      payroll1 = day;
-    } else if (currentMonth === 1) {
-      if (day === 28) {
-        payroll1 = day - 13;
-      } else if (day === 29) {
-        payroll1 = day - 14;
-      } else {
-        payroll1 = day - 15;
-      }
-    } else if (day === 28) {
-      payroll1 = day - 13;
+  // Generate remaining dates in alternating 15th/30th pattern
+  for (let i = 0; i < termMonths * 2 - 1; i++) {
+    if (use15thNext) {
+      dates.push(new Date(currentYear, currentMonth, 15));
+      use15thNext = false;
     } else {
-      payroll1 = day - 15;
-    }
-
-    if (payroll1 <= 15) {
-      if (currentMonth === 1) {
-        if (payroll1 === 15) {
-          payroll2 = isLeapYear(currentYear) ? 29 : 28;
-        } else {
-          payroll2 = payroll1 + 15;
-        }
-      } else {
-        payroll2 = payroll1 + 15;
-      }
-    } else {
-      payroll2 = payroll1;
-    }
-
-    dates.push(
-      new Date(
-        currentYear,
-        currentMonth,
-        monthChecker ? payroll2 : payroll1
-      )
-    );
-    if (monthChecker) {
-      let temp = currentMonth;
-      currentMonth = (currentMonth % 12) + 1;
-      if (temp === 12) {
-        currentYear++;
-      }
-    }
-    dates.push(
-      new Date(
-        currentYear,
-        currentMonth,
-        monthChecker ? payroll1 : payroll2
-      )
-    );
-    if (!monthChecker) {
-      let temp = currentMonth;
-      currentMonth = (currentMonth % 12) + 1;
-      if (temp === 12) {
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      dates.push(new Date(currentYear, currentMonth, daysInMonth));
+      use15thNext = true;
+      // After end of month, move to next month
+      currentMonth++;
+      if (currentMonth > 11) {
+        currentMonth = 0;
         currentYear++;
       }
     }

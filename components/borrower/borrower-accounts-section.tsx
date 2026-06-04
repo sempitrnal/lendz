@@ -24,6 +24,7 @@ import { supabase } from "@/lib/supabase/client";
 import {
   amountPaidOnInstallment,
   isInstallmentFullyPaid,
+  nextCollectionsForDisplay,
   nextDueScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
@@ -265,6 +266,12 @@ export type AccountComputedMetrics = {
   nextCollectionAmountDue: number;
   nextCollectionStatus: string | null;
   nextUnpaidScheduleId: string | null;
+  nextCollections: {
+    due_date: string;
+    amount: number;
+    amount_due: number;
+    status: string;
+  }[];
   overdueCount: number;
   overdueTotal: number;
   overdueSchedules: { due_date: string; amount: number }[];
@@ -422,6 +429,12 @@ export default function BorrowerAccountsSection({
           ? Math.max(0, rollingContract - principal)
           : Math.max(0, totalPayment - principal);
       const nextUnpaid = nextDueScheduleForCollection(rows);
+      const nextCollections = nextCollectionsForDisplay(rows).map((r) => ({
+        due_date: r.due_date,
+        amount: remainingOnInstallment(r),
+        amount_due: Math.max(0, Number(r.amount_due ?? 0)),
+        status: r.status,
+      }));
       const overdueRows = rows.filter(
         (row) => row.status === "overdue" && !isInstallmentFullyPaid(row),
       );
@@ -438,6 +451,7 @@ export default function BorrowerAccountsSection({
           : 0,
         nextCollectionStatus: nextUnpaid?.status ?? null,
         nextUnpaidScheduleId: nextUnpaid?.id ?? null,
+        nextCollections,
         overdueCount: overdueRows.length,
         overdueTotal: overdueRows.reduce(
           (sum, row) => sum + remainingOnInstallment(row),
@@ -463,6 +477,14 @@ export default function BorrowerAccountsSection({
   useEffect(() => {
     fetchNotes();
   }, [borrowerId]);
+
+  useEffect(() => {
+    setAccountMetricsById(initialMetrics ?? {});
+  }, [initialMetrics]);
+
+  useEffect(() => {
+    fetchAccountMetrics();
+  }, [accounts]);
 
   const summaryStats = useMemo(() => {
     if (!accounts || accounts.length === 0) return null;
@@ -675,7 +697,6 @@ export default function BorrowerAccountsSection({
             ...pendingManualRollingLoans,
             ...pendingManualRollingCashAdvances,
           ];
-          let nextCollectionShown = 0;
           const renderGroup = (
             group: typeof accounts,
             label: string,
@@ -704,14 +725,13 @@ export default function BorrowerAccountsSection({
                 >
                   {group.map((account) => {
                     const m = accountMetricsById[account.id];
-                    const hasNext = m?.nextCollectionDate != null;
-                    const isManual = account.schedule_mode === "manual";
-                    const isRolling =
-                      isManual && (account as any).interest_type === "rolling";
-                    const showNext = hasNext && (!isManual || isRolling);
-                    if (showNext) nextCollectionShown++;
                     return (
-                      <motion.div key={account.id} variants={cardVariants}>
+                      <motion.div
+                        key={account.id}
+                        variants={cardVariants}
+                        initial="hidden"
+                        animate="visible"
+                      >
                         <AccountCard
                           account={account}
                           isOpening={openingAccountId === account.id}
@@ -723,7 +743,6 @@ export default function BorrowerAccountsSection({
                           }}
                           onActivate={(acc) => setActivatingAccount(acc)}
                           metrics={m}
-                          collapseNext={showNext && nextCollectionShown > 2}
                         />
                       </motion.div>
                     );

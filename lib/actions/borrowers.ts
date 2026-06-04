@@ -14,6 +14,8 @@ export async function revalidateBorrowerDetailPage(borrowerId: string) {
   revalidatePath(`/borrowers/${borrowerId}`);
   revalidatePath("/borrowers");
   updateTag("borrowers");
+  updateTag(`borrower-${borrowerId}`);
+  updateTag("borrower-accounts");
   updateTag(`borrower-accounts-${borrowerId}`);
   updateTag("accounts-page");
   updateTag("dashboard");

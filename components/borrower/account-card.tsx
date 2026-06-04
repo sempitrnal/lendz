@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useState, SyntheticEvent } from "react";
 import { motion } from "framer-motion";
 import AccountCardMenu from "./account-card-menu";
@@ -15,7 +15,6 @@ export function AccountCard({
   onEdit,
   onActivate,
   metrics,
-  collapseNext = false,
 }: {
   account: AccountRow;
   isOpening: boolean;
@@ -24,9 +23,7 @@ export function AccountCard({
   onEdit: (account: AccountRow) => void;
   onActivate?: (account: AccountRow) => void;
   metrics?: AccountComputedMetrics;
-  collapseNext?: boolean;
 }) {
-  const [nextExpanded, setNextExpanded] = useState(!collapseNext);
   const amountLeftToPay = metrics?.amountLeftToPay ?? 0;
   const profitToMake = metrics?.profitToMake ?? 0;
   const totalDue = metrics?.totalDue ?? 0;
@@ -213,80 +210,52 @@ export function AccountCard({
             )}
           </p>
         )}
+        <span className="text-sm lowercase">Next</span>
 
-        {/* Row 4: next collection */}
-        {(!isManual || isRolling) && nextCollectionDate && (
-          <div className="mt-1">
-            {nextExpanded ? (
-              <p className="dark:text-muted-foreground flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] leading-snug text-slate-500">
-                <span>Next </span>
-                <strong className="dark:text-foreground font-black text-slate-900">
-                  {new Date(nextCollectionDate).toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </strong>
-                <strong className="dark:text-foreground font-black text-slate-700 tabular-nums">
-                  ₱{nextCollectionAmount.toLocaleString()}
-                </strong>
-                {nextCollectionStatus === "partial" &&
-                  nextCollectionAmountDue > nextCollectionAmount && (
+        {/* Row 4: next collections (all partial + next pending) */}
+        {(!isManual || isRolling) &&
+          (metrics?.nextCollections?.length ?? 0) > 0 && (
+            <div className="mt-1 space-y-0.5">
+              {(metrics?.nextCollections ?? []).map((nc, i) => (
+                <p
+                  key={i}
+                  className="dark:text-muted-foreground flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] leading-snug text-slate-500"
+                >
+                  <strong className="dark:text-foreground w-12 font-black text-slate-900">
+                    {new Date(nc.due_date).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </strong>
+                  <strong className="dark:text-foreground font-black text-slate-700 tabular-nums">
+                    ₱{nc.amount.toLocaleString()}
+                  </strong>
+                  {nc.status === "partial" && nc.amount_due > nc.amount && (
                     <span className="dark:text-muted-foreground text-slate-400">
-                      of ₱{nextCollectionAmountDue.toLocaleString()}
+                      of ₱{nc.amount_due.toLocaleString()}
                     </span>
                   )}
-                {nextCollectionStatus && (
-                  <span
-                    className={`dark:border-border border border-slate-900 px-1 py-0.5 text-[7px] font-black uppercase ${
-                      nextCollectionStatus === "overdue"
-                        ? "bg-red-300 text-red-900 dark:bg-red-700/50 dark:text-red-200"
-                        : nextCollectionStatus === "paid"
-                          ? "bg-emerald-300 text-emerald-900 dark:bg-emerald-700/50 dark:text-emerald-200"
-                          : nextCollectionStatus === "pending"
-                            ? "bg-yellow-300 text-yellow-900 dark:bg-yellow-700/50 dark:text-yellow-200"
-                            : nextCollectionStatus === "partial"
-                              ? "bg-purple-300 text-purple-900 dark:bg-purple-700/50 dark:text-purple-200"
-                              : "bg-blue-300 text-blue-900 dark:bg-blue-700/50 dark:text-blue-200"
-                    }`}
-                  >
-                    {nextCollectionStatus}
-                  </span>
-                )}
-                {collapseNext && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setNextExpanded(false);
-                    }}
-                    className="ml-1 inline-flex items-center text-[9px] font-bold text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300"
-                  >
-                    <ChevronUp className="size-3" />
-                  </button>
-                )}
-              </p>
-            ) : (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setNextExpanded(true);
-                }}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-              >
-                <span>
-                  Next{" "}
-                  {new Date(nextCollectionDate).toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                  })}{" "}
-                  · ₱{nextCollectionAmount.toLocaleString()}
-                </span>
-                <ChevronDown className="size-3" />
-              </button>
-            )}
-          </div>
-        )}
+                  {nc.status && (
+                    <span
+                      className={`dark:border-border border border-slate-900 px-1 py-0.5 text-[7px] font-black uppercase ${
+                        nc.status === "overdue"
+                          ? "bg-red-300 text-red-900 dark:bg-red-700/50 dark:text-red-200"
+                          : nc.status === "paid"
+                            ? "bg-emerald-300 text-emerald-900 dark:bg-emerald-700/50 dark:text-emerald-200"
+                            : nc.status === "pending"
+                              ? "bg-yellow-300 text-yellow-900 dark:bg-yellow-700/50 dark:text-yellow-200"
+                              : nc.status === "partial"
+                                ? "bg-purple-300 text-purple-900 dark:bg-purple-700/50 dark:text-purple-200"
+                                : "bg-blue-300 text-blue-900 dark:bg-blue-700/50 dark:text-blue-200"
+                      }`}
+                    >
+                      {nc.status}
+                    </span>
+                  )}
+                </p>
+              ))}
+            </div>
+          )}
 
         {/* Overdue */}
         {hasOverdue && (
@@ -360,6 +329,7 @@ export function AccountCard({
       <div className="absolute top-3 right-3" data-prevent-account-open>
         <AccountCardMenu
           accountId={account.id}
+          borrowerId={account.borrower_id}
           onEdit={() => onEdit(account)}
         />
       </div>

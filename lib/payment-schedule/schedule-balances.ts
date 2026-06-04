@@ -22,26 +22,45 @@ export function remainingOnInstallment(row: ScheduleBalanceInput): number {
   return Math.max(0, due - paid);
 }
 
-
 export function isInstallmentFullyPaid(row: ScheduleBalanceInput): boolean {
   return row.status === "paid" || remainingOnInstallment(row) <= 0;
 }
 
 export function isInstallmentNextHighlight(row: ScheduleBalanceInput): boolean {
-  return row.status === "pending" ;
+  return row.status === "pending";
 }
 
 export function nextDueScheduleForCollection<
   T extends ScheduleBalanceInput & { due_date: string },
 >(schedulesSortedByDueDate: T[]): T | undefined {
   return schedulesSortedByDueDate.find(
-    (r) => r.status === "pending" || r.status === "partial"
+    (r) => r.status === "pending" || r.status === "partial",
   );
+}
+
+/** Returns all partial schedules plus the next pending schedule. */
+export function nextCollectionsForDisplay<
+  T extends ScheduleBalanceInput & { due_date: string },
+>(schedulesSortedByDueDate: T[]): T[] {
+  const partials = schedulesSortedByDueDate.filter(
+    (r) => r.status === "partial",
+  );
+  const firstPending = schedulesSortedByDueDate.find(
+    (r) => r.status === "pending",
+  );
+  if (firstPending) {
+    return [...partials, firstPending];
+  }
+  return partials;
 }
 
 /** Groups rows by `account_id`, sorts by due_date (optional `id` tiebreak), then picks next due per account. */
 export function mapAccountIdToNextDueSchedule<
-  T extends ScheduleBalanceInput & { account_id: string; due_date: string; id?: string },
+  T extends ScheduleBalanceInput & {
+    account_id: string;
+    due_date: string;
+    id?: string;
+  },
 >(rows: T[]): Map<string, T> {
   const byAccount = new Map<string, T[]>();
   for (const row of rows) {
