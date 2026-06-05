@@ -183,7 +183,7 @@ export function AccountCard({
         </div>
 
         {/* Row 2: meta */}
-        <p className="dark:text-muted-foreground mt-0.5 text-[10px] text-slate-400">
+        <p className="dark:text-muted-foreground mt-0.5 text-[12px] text-slate-400">
           {!isManual && account.status !== "pending"
             ? `${account.payment_frequency} · ${account.term_months}mo · `
             : account.status === "pending"
@@ -191,8 +191,10 @@ export function AccountCard({
               : isRolling
                 ? "manual rolling · "
                 : "manual flat · "}
-          {account.interest_rate}%
-          {account.release_date && ` · ${formatDate(account.release_date)}`}
+          {account.interest_rate}% · released on
+          <span className="font-bold text-amber-300">
+            {account.release_date && `  ${formatDate(account.release_date)}`}
+          </span>
         </p>
 
         {account.status === "pending" && onActivate && (
@@ -245,7 +247,9 @@ export function AccountCard({
             )}
           </p>
         )}
-        <span className="text-sm lowercase">Next</span>
+        {(metrics?.nextCollections?.length ?? 0) > 0 && (
+          <span className="text-xs lowercase">Next</span>
+        )}
 
         {/* Row 4: next collections (all partial + next pending) */}
         {(!isManual || isRolling) &&
