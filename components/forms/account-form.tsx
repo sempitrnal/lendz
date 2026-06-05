@@ -576,8 +576,8 @@ export default function AccountForm({
           {...register("interest_rate")}
           value={interestRateValue ? String(interestRateValue) : ""}
           onChange={(e) => {
-            const v = e.target.value;
-            if (v === "") {
+            const v = e.target.value.replace(",", ".");
+            if (v === "" || v === ".") {
               setValue("interest_rate", 0);
               return;
             }
@@ -803,14 +803,14 @@ export default function AccountForm({
               {...register("term_months", {
                 setValueAs: (v) => {
                   if (v === "" || v === undefined || v === null) return 0;
-                  const num = Number(v);
+                  const num = Number(String(v).replace(",", "."));
                   return isNaN(num) ? 0 : num;
                 },
               })}
               value={termMonthsValue ? String(termMonthsValue) : ""}
               onChange={(e) => {
-                const v = e.target.value;
-                if (v === "") {
+                const v = e.target.value.replace(",", ".");
+                if (v === "" || v === ".") {
                   setValue("term_months", 0);
                   return;
                 }

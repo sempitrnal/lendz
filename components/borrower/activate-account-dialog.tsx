@@ -205,8 +205,8 @@ export default function ActivateAccountDialog({
               inputMode="decimal"
               value={interestRate}
               onChange={(e) => {
-                const v = e.target.value;
-                if (v === "") {
+                const v = e.target.value.replace(",", ".");
+                if (v === "" || v === ".") {
                   setInterestRate("");
                   return;
                 }
