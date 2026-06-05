@@ -26,8 +26,10 @@ export default function BottomNav() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     NAV_ITEMS.forEach(({ href }) => router.prefetch(href));
     router.prefetch("/accounts");
     router.prefetch("/deleted");
@@ -38,8 +40,9 @@ export default function BottomNav() {
       <ul className="flex h-[52px] items-stretch">
         {NAV_ITEMS.map(({ href, label, Icon }, i) => {
           const isActive =
-            pathname === href ||
-            (href !== "/dashboard" && pathname.startsWith(href));
+            mounted &&
+            (pathname === href ||
+              (href !== "/dashboard" && pathname.startsWith(href)));
           const isLoading = isPending && pendingHref === href;
           return (
             <li

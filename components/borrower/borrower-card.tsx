@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTransition, useState, useRef, type SyntheticEvent } from "react";
 import { useTheme } from "next-themes";
-import { isDarkColor } from "@/lib/utils";
+import { formatDate, isDarkColor } from "@/lib/utils";
 import { ChevronDown, Loader2, Phone } from "lucide-react";
 import Link from "next/link";
 
@@ -383,13 +383,7 @@ export function BorrowerCard({
                                 >
                                   <div className="flex flex-col gap-2">
                                     <p className="dark:text-foreground mt-2 flex items-center gap-2 text-sm font-black text-slate-900">
-                                      {new Date(
-                                        schedule.due_date,
-                                      ).toLocaleDateString(undefined, {
-                                        month: "short",
-                                        day: "numeric",
-                                        year: "numeric",
-                                      })}
+                                      {formatDate(schedule.due_date)}
                                       {schedules.length > 1 ? (
                                         <span className="w-max text-xs font-bold text-stone-500">
                                           ₱{schedule.amount.toLocaleString()}
@@ -674,11 +668,7 @@ export function BorrowerCard({
                       <div className="space-y-1">
                         {(borrower.overdue_schedules ?? []).map((s, i) => (
                           <p key={i} className="text-sm font-black text-slate-900 flex items-center gap-2">
-                            {new Date(s.due_date).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })}
+                            {formatDate(s.due_date)}
                             <span className="font-bold text-stone-500 text-xs w-max">
                               ₱{s.amount.toLocaleString()}
                             </span>

@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { formatDate } from "@/lib/utils";
 
 export type SchedulePayment = {
   id: string;
@@ -26,15 +27,6 @@ type Props = {
 
 function formatMoney(value: number) {
   return `₱${value.toLocaleString()}`;
-}
-
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 function PaymentRow({
@@ -77,20 +69,22 @@ function PaymentRow({
     <>
       <li
         onClick={() => setOpen(true)}
-        className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-slate-200 bg-green-300 px-3 py-2 transition hover:bg-green-400 dark:border-border dark:bg-card dark:hover:bg-muted"
+        className="dark:border-border dark:bg-card dark:hover:bg-muted flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-slate-200 bg-green-300 px-3 py-2 transition hover:bg-green-400"
       >
         <div className="min-w-0 flex-1">
-          <span className="font-black tabular-nums text-slate-900 dark:text-foreground">
+          <span className="dark:text-foreground font-black text-slate-900 tabular-nums">
             {formatMoney(payment.amount)}
           </span>
-          <span className="mx-1.5 text-slate-300 dark:text-border">·</span>
-          <span className="text-xs font-semibold text-slate-600 dark:text-muted-foreground">
+          <span className="dark:text-border mx-1.5 text-slate-300">·</span>
+          <span className="dark:text-muted-foreground text-xs font-semibold text-slate-600">
             {formatDate(payment.payment_date)}
           </span>
           {payment.note ? (
             <>
-              <span className="mx-1.5 text-slate-300 dark:text-border">·</span>
-              <span className="text-xs text-slate-500 truncate dark:text-muted-foreground">{payment.note}</span>
+              <span className="dark:text-border mx-1.5 text-slate-300">·</span>
+              <span className="dark:text-muted-foreground truncate text-xs text-slate-500">
+                {payment.note}
+              </span>
             </>
           ) : null}
         </div>
@@ -99,14 +93,14 @@ function PaymentRow({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-sm font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
+            <DialogTitle className="dark:text-foreground text-sm font-black tracking-wide text-slate-900 uppercase">
               Payment Details
             </DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
+              <label className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase">
                 Amount
               </label>
               <input
@@ -116,22 +110,22 @@ function PaymentRow({
                 step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold tabular-nums text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border"
+                className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
+              <label className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase">
                 Date
               </label>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border"
+                className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
+              <label className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase">
                 Note
               </label>
               <input
@@ -140,7 +134,7 @@ function PaymentRow({
                 onChange={(e) => setNote(e.target.value)}
                 maxLength={500}
                 placeholder="—"
-                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border"
+                className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
               />
             </div>
           </div>
@@ -150,7 +144,7 @@ function PaymentRow({
               type="button"
               onClick={handleDelete}
               disabled={isPending}
-              className="rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-wide text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-70 cursor-pointer dark:border-rose-400/40 dark:bg-card dark:text-rose-300 dark:hover:bg-rose-400/10 dark:hover:text-rose-200"
+              className="dark:bg-card cursor-pointer rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs font-black tracking-wide text-rose-500 uppercase transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-70 dark:border-rose-400/40 dark:text-rose-300 dark:hover:bg-rose-400/10 dark:hover:text-rose-200"
             >
               {isPending ? "…" : "Delete"}
             </button>
@@ -158,7 +152,7 @@ function PaymentRow({
               type="button"
               onClick={handleSave}
               disabled={isPending}
-              className="rounded-md border border-slate-300 bg-emerald-100 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-emerald-900 transition hover:bg-emerald-200 disabled:opacity-70 cursor-pointer dark:border-border dark:bg-emerald-400/25 dark:text-emerald-100 dark:hover:bg-emerald-400/40"
+              className="dark:border-border cursor-pointer rounded-md border border-slate-300 bg-emerald-100 px-3 py-1.5 text-xs font-black tracking-wide text-emerald-900 uppercase transition hover:bg-emerald-200 disabled:opacity-70 dark:bg-emerald-400/25 dark:text-emerald-100 dark:hover:bg-emerald-400/40"
             >
               {isPending ? "…" : "Save"}
             </button>
@@ -180,10 +174,11 @@ export default function PaymentHistoryPanel({
 
   return (
     <div className="mt-2">
-      <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
+      <p className="dark:text-muted-foreground mb-1.5 text-[10px] font-black tracking-wide text-slate-600 uppercase">
         Payment history
-        <span className="ml-2 font-semibold text-slate-500 dark:text-muted-foreground">
-          ({payments.length} payment{payments.length !== 1 ? "s" : ""} · total {formatMoney(total)})
+        <span className="dark:text-muted-foreground ml-2 font-semibold text-slate-500">
+          ({payments.length} payment{payments.length !== 1 ? "s" : ""} · total{" "}
+          {formatMoney(total)})
         </span>
       </p>
       <ul className="flex flex-col gap-1.5">

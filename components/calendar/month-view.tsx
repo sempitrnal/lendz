@@ -14,13 +14,23 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import NeobrutButton from "@/components/neobrut-button";
-import { isDarkColor } from "@/lib/utils";
+import { formatDate, isDarkColor } from "@/lib/utils";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 type MonthViewProps = {
@@ -71,7 +81,9 @@ export default function MonthView({
   const month = initialMonth;
   const [isPending, startTransition] = useTransition();
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEventRow | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEventRow | null>(
+    null,
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [dayDialogOpen, setDayDialogOpen] = useState(false);
@@ -120,7 +132,11 @@ export default function MonthView({
 
   const [activeWeek, setActiveWeek] = useState(0);
   const directionRef = useRef<"prev" | "next" | null>(null);
-  const jumpTargetRef = useRef<{ year: number; month: number; day: number } | null>(null);
+  const jumpTargetRef = useRef<{
+    year: number;
+    month: number;
+    day: number;
+  } | null>(null);
 
   useEffect(() => {
     if (jumpTargetRef.current) {
@@ -198,15 +214,15 @@ export default function MonthView({
   return (
     <div className="flex flex-col gap-4">
       {/* Desktop month header */}
-      <div className="hidden sm:flex items-center justify-between">
-        <h1 className="text-xl font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
+      <div className="hidden items-center justify-between sm:flex">
+        <h1 className="dark:text-foreground text-xl font-black tracking-wide text-slate-900 uppercase">
           {MONTH_NAMES[month - 1]} {year}
         </h1>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={prevMonth}
-            className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
+            className="dark:border-border dark:bg-card dark:text-foreground rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
           >
             <ChevronLeft className="size-5" />
           </button>
@@ -214,22 +230,24 @@ export default function MonthView({
             type="button"
             onClick={() => {
               const n = new Date();
-              router.push(`/calendar?year=${n.getFullYear()}&month=${n.getMonth() + 1}`);
+              router.push(
+                `/calendar?year=${n.getFullYear()}&month=${n.getMonth() + 1}`,
+              );
             }}
-            className="rounded-lg border-2 border-slate-900 bg-white px-3 py-1 text-xs font-black uppercase tracking-wider text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
+            className="dark:border-border dark:bg-card dark:text-foreground rounded-lg border-2 border-slate-900 bg-white px-3 py-1 text-xs font-black tracking-wider text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
           >
             today
           </button>
           <button
             type="button"
             onClick={nextMonth}
-            className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
+            className="dark:border-border dark:bg-card dark:text-foreground rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
           >
             <ChevronRight className="size-5" />
           </button>
           <label
             htmlFor="calendar-date-picker"
-            className="cursor-pointer rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
+            className="dark:border-border dark:bg-card dark:text-foreground cursor-pointer rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
             aria-label="Jump to date"
           >
             <CalendarDays className="size-5" />
@@ -242,21 +260,21 @@ export default function MonthView({
         <button
           type="button"
           onClick={prevWeek}
-          className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
+          className="dark:border-border dark:bg-card dark:text-foreground rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
         >
           <ChevronLeft className="size-5" />
         </button>
         <div className="text-center">
-          <h1 className="text-lg font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
+          <h1 className="dark:text-foreground text-lg font-black tracking-wide text-slate-900 uppercase">
             {MONTH_NAMES[month - 1]} {year}
           </h1>
           <div className="flex items-center justify-center gap-1.5">
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+            <p className="dark:text-muted-foreground text-[10px] font-black tracking-wider text-slate-500 uppercase">
               week {activeWeek + 1} of {weeks.length}
             </p>
             <label
               htmlFor="calendar-date-picker"
-              className="cursor-pointer rounded border border-slate-300 p-0.5 text-slate-500 transition hover:border-slate-600 hover:text-slate-900 dark:border-border dark:text-muted-foreground"
+              className="dark:border-border dark:text-muted-foreground cursor-pointer rounded border border-slate-300 p-0.5 text-slate-500 transition hover:border-slate-600 hover:text-slate-900"
               aria-label="Jump to date"
             >
               <CalendarDays className="size-3" />
@@ -266,7 +284,7 @@ export default function MonthView({
         <button
           type="button"
           onClick={nextWeek}
-          className="rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:border-border dark:bg-card dark:text-foreground"
+          className="dark:border-border dark:bg-card dark:text-foreground rounded-lg border-2 border-slate-900 bg-white px-2 py-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
         >
           <ChevronRight className="size-5" />
         </button>
@@ -285,32 +303,38 @@ export default function MonthView({
       {/* Mobile week view */}
       <div className="flex flex-col gap-3 sm:hidden">
         {weeks[activeWeek]?.map((day, idx) => {
-          const dayEvents = day ? eventsByDay[day] ?? [] : [];
+          const dayEvents = day ? (eventsByDay[day] ?? []) : [];
           const isTodayDay = day !== null && isToday(day);
           return (
             <div
               key={idx}
               className={`rounded-xl border-2 p-3 shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-none ${
-                day ? "border-slate-900 bg-white dark:border-border dark:bg-card" : "border-slate-200 bg-slate-50 dark:border-border/30 dark:bg-muted"
+                day
+                  ? "dark:border-border dark:bg-card border-slate-900 bg-white"
+                  : "dark:border-border/30 dark:bg-muted border-slate-200 bg-slate-50"
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+                <span className="dark:text-muted-foreground text-[10px] font-black tracking-wider text-slate-500 uppercase">
                   {WEEKDAYS[idx]}
                 </span>
                 {day ? (
                   <span
                     className={`inline-flex size-6 items-center justify-center rounded-full text-xs font-bold ${
-                      isTodayDay ? "bg-slate-900 text-white dark:bg-foreground dark:text-background" : "text-slate-900 dark:text-foreground"
+                      isTodayDay
+                        ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
+                        : "dark:text-foreground text-slate-900"
                     }`}
                   >
                     {day}
                   </span>
                 ) : (
-                  <span className="text-xs text-slate-300 dark:text-muted-foreground">—</span>
+                  <span className="dark:text-muted-foreground text-xs text-slate-300">
+                    —
+                  </span>
                 )}
                 {isTodayDay && (
-                  <span className="rounded bg-slate-900 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-white dark:bg-foreground dark:text-background">
+                  <span className="dark:bg-foreground dark:text-background rounded bg-slate-900 px-1.5 py-0.5 text-[8px] font-black tracking-wider text-white uppercase">
                     today
                   </span>
                 )}
@@ -329,7 +353,7 @@ export default function MonthView({
                           setDialogOpen(true);
                         }}
                         className={`relative w-full rounded-lg border-2 px-3 py-2 text-left text-xs font-bold transition-opacity hover:opacity-80 ${statusColor(
-                          evt.status
+                          evt.status,
                         )} ${isDeleting ? "opacity-40" : ""}`}
                       >
                         <div className="flex items-center justify-between gap-2">
@@ -340,7 +364,7 @@ export default function MonthView({
                                 e.stopPropagation();
                                 handleDelete(evt.id);
                               }}
-                              className="shrink-0 rounded-full p-1 text-slate-900/60 hover:bg-red-200 hover:text-red-700 dark:text-foreground/60 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                              className="dark:text-foreground/60 shrink-0 rounded-full p-1 text-slate-900/60 hover:bg-red-200 hover:text-red-700 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                               aria-label="Delete event"
                             >
                               <X className="size-3" />
@@ -371,7 +395,9 @@ export default function MonthView({
                 </div>
               )}
               {day && dayEvents.length === 0 && (
-                <p className="mt-2 text-xs text-slate-300 dark:text-muted-foreground">No events</p>
+                <p className="dark:text-muted-foreground mt-2 text-xs text-slate-300">
+                  No events
+                </p>
               )}
             </div>
           );
@@ -379,27 +405,29 @@ export default function MonthView({
       </div>
 
       {/* Desktop month grid */}
-      <div className="hidden rounded-xl border-2 border-slate-900 bg-white shadow-[4px_4px_0px_0px_#0f172a] sm:block dark:border-border dark:bg-card">
-        <div className="grid grid-cols-7 border-b-2 border-slate-900 dark:border-border">
+      <div className="dark:border-border dark:bg-card hidden rounded-xl border-2 border-slate-900 bg-white shadow-[4px_4px_0px_0px_#0f172a] sm:block">
+        <div className="dark:border-border grid grid-cols-7 border-b-2 border-slate-900">
           {WEEKDAYS.map((wd) => (
             <div
               key={wd}
-              className="px-2 py-2 text-center text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-muted-foreground"
+              className="dark:text-muted-foreground px-2 py-2 text-center text-[11px] font-black tracking-wider text-slate-500 uppercase"
             >
               {wd}
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 auto-rows-fr">
+        <div className="grid auto-rows-fr grid-cols-7">
           {cells.map((day, idx) => {
-            const dayEvents = day ? eventsByDay[day] ?? [] : [];
+            const dayEvents = day ? (eventsByDay[day] ?? []) : [];
             const visibleEvents = dayEvents.slice(0, 3);
             const moreCount = dayEvents.length - visibleEvents.length;
             return (
               <div
                 key={idx}
-                className={`min-h-[120px] border-r border-b border-slate-200 p-1.5 last:border-r-0 dark:border-border/30 ${
-                  day ? "bg-white dark:bg-card" : "bg-slate-50/50 dark:bg-muted/50"
+                className={`dark:border-border/30 min-h-[120px] border-r border-b border-slate-200 p-1.5 last:border-r-0 ${
+                  day
+                    ? "dark:bg-card bg-white"
+                    : "dark:bg-muted/50 bg-slate-50/50"
                 } ${isToday(day ?? 0) ? "bg-green-50 dark:bg-emerald-900/20" : ""}`}
               >
                 {day ? (
@@ -417,8 +445,8 @@ export default function MonthView({
                       <span
                         className={`inline-flex size-6 items-center justify-center rounded-full text-xs font-bold ${
                           isToday(day)
-                            ? "bg-slate-900 text-white dark:bg-foreground dark:text-background"
-                            : "text-slate-700 dark:text-foreground"
+                            ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
+                            : "dark:text-foreground text-slate-700"
                         }`}
                       >
                         {day}
@@ -435,8 +463,8 @@ export default function MonthView({
                               setSelectedEvent(evt);
                               setDialogOpen(true);
                             }}
-                            className={`group relative w-full rounded-md border px-1.5 py-1 text-left text-[10px] font-bold leading-tight transition-opacity hover:opacity-80 ${statusColor(
-                              evt.status
+                            className={`group relative w-full rounded-md border px-1.5 py-1 text-left text-[10px] leading-tight font-bold transition-opacity hover:opacity-80 ${statusColor(
+                              evt.status,
                             )} ${isDeleting ? "opacity-40" : ""}`}
                           >
                             <span className="block truncate pr-4">
@@ -448,7 +476,7 @@ export default function MonthView({
                                   e.stopPropagation();
                                   handleDelete(evt.id);
                                 }}
-                                className="absolute right-0.5 top-0.5 hidden items-center justify-center rounded-full p-0.5 text-slate-900/60 hover:bg-red-200 hover:text-red-700 group-hover:flex"
+                                className="absolute top-0.5 right-0.5 hidden items-center justify-center rounded-full p-0.5 text-slate-900/60 group-hover:flex hover:bg-red-200 hover:text-red-700"
                                 aria-label="Delete event"
                               >
                                 <X className="size-3" />
@@ -464,7 +492,7 @@ export default function MonthView({
                             setSelectedDay(day);
                             setDayDialogOpen(true);
                           }}
-                          className="mt-auto rounded-md border border-dashed border-slate-300 py-1 text-center text-[10px] font-bold text-slate-400 transition hover:border-slate-400 hover:text-slate-600 dark:border-border dark:text-muted-foreground dark:hover:border-border dark:hover:text-foreground"
+                          className="dark:border-border dark:text-muted-foreground dark:hover:border-border dark:hover:text-foreground mt-auto rounded-md border border-dashed border-slate-300 py-1 text-center text-[10px] font-bold text-slate-400 transition hover:border-slate-400 hover:text-slate-600"
                         >
                           +{moreCount} more
                         </button>
@@ -481,27 +509,39 @@ export default function MonthView({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
+            <DialogTitle className="dark:text-foreground text-sm font-black tracking-wide text-slate-900 uppercase">
               {selectedEvent?.title || "scheduled event"}
             </DialogTitle>
           </DialogHeader>
 
           {selectedEvent && (
-            <div className="flex flex-col gap-2 text-sm text-slate-700 dark:text-muted-foreground">
+            <div className="dark:text-muted-foreground flex flex-col gap-2 text-sm text-slate-700">
               {selectedEvent.account?.status === "pending" && (
                 <div className="rounded-lg border-2 border-amber-600 bg-amber-50 p-2 text-center dark:border-amber-700 dark:bg-amber-900/30">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-800 dark:text-amber-300">pending loan</p>
+                  <p className="text-[10px] font-black tracking-widest text-amber-800 uppercase dark:text-amber-300">
+                    pending loan
+                  </p>
                   <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
-                    ₱{Number(selectedEvent.account.principal_amount ?? 0).toLocaleString()} principal
+                    ₱
+                    {Number(
+                      selectedEvent.account.principal_amount ?? 0,
+                    ).toLocaleString()}{" "}
+                    principal
                   </p>
                 </div>
               )}
               <p>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">borrower</span>
-                <span className="ml-2 font-black text-slate-900 dark:text-foreground">{borrowerName(selectedEvent)}</span>
+                <span className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                  borrower
+                </span>
+                <span className="dark:text-foreground ml-2 font-black text-slate-900">
+                  {borrowerName(selectedEvent)}
+                </span>
               </p>
               {(() => {
-                const cats = selectedEvent ? borrowerCategories(selectedEvent) : [];
+                const cats = selectedEvent
+                  ? borrowerCategories(selectedEvent)
+                  : [];
                 if (cats.length === 0) return null;
                 return (
                   <p className="flex flex-wrap gap-1">
@@ -518,19 +558,27 @@ export default function MonthView({
                 );
               })()}
               <p>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">date</span>
-                <span className="ml-2 font-bold text-slate-900 dark:text-foreground">
-                  {new Date(selectedEvent.event_date).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}
+                <span className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                  date
+                </span>
+                <span className="dark:text-foreground ml-2 font-bold text-slate-900">
+                  {formatDate(selectedEvent.event_date)}
                 </span>
               </p>
               {selectedEvent.amount > 0 ? (
                 <p>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">amount</span>
-                  <span className="ml-2 font-bold text-slate-900 dark:text-foreground">₱{selectedEvent.amount.toLocaleString()}</span>
+                  <span className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                    amount
+                  </span>
+                  <span className="dark:text-foreground ml-2 font-bold text-slate-900">
+                    ₱{selectedEvent.amount.toLocaleString()}
+                  </span>
                 </p>
               ) : null}
               {selectedEvent.note ? (
-                <p className="text-xs text-slate-500 dark:text-muted-foreground">{selectedEvent.note}</p>
+                <p className="dark:text-muted-foreground text-xs text-slate-500">
+                  {selectedEvent.note}
+                </p>
               ) : null}
             </div>
           )}
@@ -553,21 +601,21 @@ export default function MonthView({
                 {deletingIds.has(selectedEvent.id) ? "deleting..." : "delete"}
               </NeobrutButton>
             )}
-            {selectedEvent?.account?.status === "pending" && selectedEvent.account_id && (
-              <NeobrutButton
-                variant="green"
-                type="button"
-                onClick={() => {
-                  router.push(`/accounts/${selectedEvent.account_id}`);
-                  setDialogOpen(false);
-                  setSelectedEvent(null);
-                }}
-                className="w-full sm:w-auto"
-              >
-                activate account
-              </NeobrutButton>
-            )}
-         
+            {selectedEvent?.account?.status === "pending" &&
+              selectedEvent.account_id && (
+                <NeobrutButton
+                  variant="green"
+                  type="button"
+                  onClick={() => {
+                    router.push(`/accounts/${selectedEvent.account_id}`);
+                    setDialogOpen(false);
+                    setSelectedEvent(null);
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  activate account
+                </NeobrutButton>
+              )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -576,13 +624,11 @@ export default function MonthView({
       <Dialog open={dayDialogOpen} onOpenChange={setDayDialogOpen}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
+            <DialogTitle className="dark:text-foreground text-sm font-black tracking-wide text-slate-900 uppercase">
               {selectedDay
-                ? new Date(`${year}-${String(month).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`).toLocaleDateString(undefined, {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })
+                ? formatDate(
+                    `${year}-${String(month).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`,
+                  )
                 : "Day events"}
             </DialogTitle>
           </DialogHeader>
@@ -590,7 +636,9 @@ export default function MonthView({
           {selectedDay && (
             <div className="flex flex-col gap-3">
               {(eventsByDay[selectedDay] ?? []).length === 0 ? (
-                <p className="text-center text-sm text-slate-400 dark:text-muted-foreground">No events for this day</p>
+                <p className="dark:text-muted-foreground text-center text-sm text-slate-400">
+                  No events for this day
+                </p>
               ) : (
                 (eventsByDay[selectedDay] ?? []).map((evt) => {
                   const isDeleting = deletingIds.has(evt.id);
@@ -598,7 +646,7 @@ export default function MonthView({
                   return (
                     <div
                       key={evt.id}
-                      className={`relative rounded-lg border-2 p-3 ${statusColor(evt.status).replace("border-", "border-2 border-")} ${isDeleting ? "opacity-40" : ""}`}
+                      className={`relative rounded-lg border-2 p-3 ${statusColor(evt.status).replace("border-", "border- border-2")} ${isDeleting ? "opacity-40" : ""}`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <button
@@ -610,12 +658,16 @@ export default function MonthView({
                           }}
                           className="min-w-0 flex-1 text-left"
                         >
-                          <p className="text-sm font-black text-slate-900 dark:text-foreground">{borrowerName(evt)}</p>
+                          <p className="dark:text-foreground text-sm font-black text-slate-900">
+                            {borrowerName(evt)}
+                          </p>
                           {evt.title ? (
-                            <p className="text-xs font-bold text-slate-500 dark:text-muted-foreground">{evt.title}</p>
+                            <p className="dark:text-muted-foreground text-xs font-bold text-slate-500">
+                              {evt.title}
+                            </p>
                           ) : null}
                           {evt.amount > 0 ? (
-                            <p className="mt-1 text-xs font-black text-slate-900 dark:text-foreground">
+                            <p className="dark:text-foreground mt-1 text-xs font-black text-slate-900">
                               ₱{evt.amount.toLocaleString()}
                             </p>
                           ) : null}
@@ -652,7 +704,7 @@ export default function MonthView({
                             router.push(`/accounts/${evt.account_id}`);
                             setDayDialogOpen(false);
                           }}
-                          className="mt-2 w-full rounded-md border-2 border-amber-600 bg-amber-50 py-1.5 text-center text-[10px] font-black uppercase tracking-wider text-amber-800 transition hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
+                          className="mt-2 w-full rounded-md border-2 border-amber-600 bg-amber-50 py-1.5 text-center text-[10px] font-black tracking-wider text-amber-800 uppercase transition hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
                         >
                           activate pending loan
                         </button>

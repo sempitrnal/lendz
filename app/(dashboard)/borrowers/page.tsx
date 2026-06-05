@@ -5,7 +5,9 @@ type BorrowersPageProps = {
   searchParams: Promise<{ page?: string; q?: string; categories?: string }>;
 };
 
-export default async function BorrowersPage({ searchParams }: BorrowersPageProps) {
+export default async function BorrowersPage({
+  searchParams,
+}: BorrowersPageProps) {
   const sp = await searchParams;
   const searchQuery = (sp.q ?? "").trim();
   const categoryIds = (sp.categories ?? "")
@@ -18,7 +20,7 @@ export default async function BorrowersPage({ searchParams }: BorrowersPageProps
     const { borrowers, totalCount, totalPages } = await getBorrowersPageData(
       currentPage,
       searchQuery,
-      categoryIds
+      categoryIds,
     );
 
     return (

@@ -8,21 +8,14 @@ import {
   isInstallmentFullyPaid,
 } from "@/lib/payment-schedule/schedule-balances";
 import ThemeToggle from "@/components/theme-toggle";
+import { formatDate } from "@/lib/utils";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
 function formatMoney(value: number) {
-  return `₱${value.toLocaleString()}`;
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return `₱${value.toLocaleString("en-US")}`;
 }
 
 function statusBadgeClasses(status: string) {
@@ -79,7 +72,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     totalDue > 0 ? Math.round((paidTotal / totalDue) * 100) : 0;
 
   const title = `${borrowerName} - ${typeLabel} | Utangz`;
-  const description = `₱${principal.toLocaleString()} ${typeLabel} · ${progressPct}% paid · ${schedules.length} installments`;
+  const description = `₱${principal.toLocaleString("en-US")} ${typeLabel} · ${progressPct}% paid · ${schedules.length} installments`;
 
   const headersList = await headers();
   const host = headersList.get("host") || "localhost:3000";

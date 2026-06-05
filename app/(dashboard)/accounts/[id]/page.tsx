@@ -1,6 +1,7 @@
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { connection } from "next/server";
 import { getAccountDetailPageData } from "@/lib/cache/accounts";
+import { formatDate } from "@/lib/utils";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath, updateTag } from "next/cache";
 import Link from "next/link";
@@ -119,14 +120,6 @@ const nb = {
 
 function formatMoney(value: number) {
   return `₱${value.toLocaleString()}`;
-}
-
-function formatScheduleDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 function getAccountStatusClasses(status: string) {
@@ -826,7 +819,7 @@ export default async function AccountDetailPage({
           {schedule.status === "paid" ? (
             schedule.paid_date && schedule.paid_date !== schedule.due_date ? (
               <span className="ml-auto text-sm font-semibold text-amber-600 dark:text-amber-400">
-                {formatScheduleDate(schedule.paid_date)}
+                {formatDate(schedule.paid_date)}
                 {paidDiffDays !== null && (
                   <span className="ml-1.5 text-[11px] font-semibold opacity-70">
                     ·{" "}
@@ -838,13 +831,13 @@ export default async function AccountDetailPage({
               </span>
             ) : (
               <span className="dark:text-muted-foreground ml-auto flex items-center gap-1 text-sm font-semibold text-slate-600">
-                {formatScheduleDate(schedule.due_date)}
+                {formatDate(schedule.due_date)}
                 <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
               </span>
             )
           ) : (
             <span className="dark:text-muted-foreground ml-auto text-sm font-semibold text-slate-600">
-              {formatScheduleDate(schedule.due_date)}
+              {formatDate(schedule.due_date)}
             </span>
           )}
         </div>
@@ -950,9 +943,7 @@ export default async function AccountDetailPage({
       <StickyAccountStrip
         borrowerName={borrowerName}
         releaseDate={
-          accountRow.release_date
-            ? formatScheduleDate(accountRow.release_date)
-            : "—"
+          accountRow.release_date ? formatDate(accountRow.release_date) : "—"
         }
         interest={accountRow.interest_rate ?? 0}
         termMonths={accountRow.term_months ?? 0}
@@ -1302,7 +1293,7 @@ export default async function AccountDetailPage({
                       <p className="dark:text-muted-foreground mt-1.5 text-sm font-semibold text-slate-800">
                         Next due{" "}
                         <span className="dark:text-foreground font-black text-slate-900">
-                          {formatScheduleDate(nextDue.due_date)}
+                          {formatDate(nextDue.due_date)}
                         </span>
                         <span className="dark:text-muted-foreground text-slate-600">
                           {" "}
@@ -1509,7 +1500,7 @@ export default async function AccountDetailPage({
                                 {schedule.paid_date &&
                                 schedule.paid_date !== schedule.due_date ? (
                                   <p className="mt-0.5 text-sm font-semibold text-amber-600 dark:text-amber-400">
-                                    {formatScheduleDate(schedule.paid_date)}
+                                    {formatDate(schedule.paid_date)}
                                     {paidDiffDays !== null && (
                                       <span className="ml-1.5 text-[11px] font-semibold opacity-70">
                                         ·{" "}
@@ -1521,7 +1512,7 @@ export default async function AccountDetailPage({
                                   </p>
                                 ) : (
                                   <p className="dark:text-muted-foreground mt-0.5 flex items-center gap-1 text-sm font-semibold text-slate-600">
-                                    {formatScheduleDate(schedule.due_date)}
+                                    {formatDate(schedule.due_date)}
                                     <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
                                   </p>
                                 )}
@@ -1712,7 +1703,7 @@ export default async function AccountDetailPage({
                                 })()}
 
                               <p className="dark:text-muted-foreground mt-0.5 text-sm font-semibold text-slate-600">
-                                {formatScheduleDate(schedule.due_date)}
+                                {formatDate(schedule.due_date)}
                               </p>
 
                               {schedule.status === "partial" &&

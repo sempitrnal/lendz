@@ -1,6 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import { useState, SyntheticEvent, useRef } from "react";
 import { motion } from "framer-motion";
+import { formatDate } from "@/lib/utils";
 import AccountCardMenu from "./account-card-menu";
 import {
   AccountRow,
@@ -191,8 +192,7 @@ export function AccountCard({
                 ? "manual rolling · "
                 : "manual flat · "}
           {account.interest_rate}%
-          {account.release_date &&
-            ` · ${new Date(account.release_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
+          {account.release_date && ` · ${formatDate(account.release_date)}`}
         </p>
 
         {account.status === "pending" && onActivate && (
@@ -257,10 +257,7 @@ export function AccountCard({
                   className="dark:text-muted-foreground flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] leading-snug text-slate-500"
                 >
                   <strong className="dark:text-foreground w-12 font-black text-slate-900">
-                    {new Date(nc.due_date).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {formatDate(nc.due_date)}
                   </strong>
                   <strong className="dark:text-foreground font-black text-slate-700 tabular-nums">
                     ₱{nc.amount.toLocaleString()}
@@ -322,11 +319,7 @@ export function AccountCard({
                       className="flex items-center justify-between gap-2 text-[10px]"
                     >
                       <span className="dark:text-muted-foreground text-slate-600">
-                        {new Date(os.due_date).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                        {formatDate(os.due_date)}
                       </span>
                       <span className="font-black text-red-700 dark:text-red-300">
                         ₱{os.amount.toLocaleString()}

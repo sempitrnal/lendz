@@ -225,7 +225,7 @@ export default async function Dashboard() {
     ? futureCandidates.filter((row) => row.due_date === nextCollectionDate)
         .length
     : 0;
-  const formattedToday = now.toLocaleDateString(undefined, {
+  const formattedToday = now.toLocaleDateString("en-US", {
     weekday: "long",
     month: "short",
     day: "numeric",

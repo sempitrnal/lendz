@@ -4,6 +4,7 @@ import { useRef, useState, useCallback } from "react";
 import { flushSync } from "react-dom";
 import { toPng } from "html-to-image";
 import { Share2 } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 export type ShareSchedule = {
   index: number;
@@ -31,14 +32,6 @@ type Props = {
 
 function formatMoney(value: number) {
   return `₱${value.toLocaleString()}`;
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 function statusPalette(status: string, dark: boolean) {

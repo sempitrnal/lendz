@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { cacheTag } from "next/cache";
+import { cacheTag, unstable_noStore } from "next/cache";
 import { computeBorrowerNextCollectionById } from "@/lib/compute-borrower-next-collection";
 import type { Borrower } from "@/components/borrower/borrower-list";
 import {
@@ -32,6 +32,7 @@ export async function getBorrowersPageData(
   searchQuery: string,
   categoryIds: string[],
 ) {
+  unstable_noStore();
   const from = (currentPage - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
@@ -266,10 +267,7 @@ export async function getBorrowersPageData(
 }
 
 export async function getBorrowerById(id: string) {
-  "use cache";
-  cacheTag("borrower");
-  cacheTag(`borrower-${id}`);
-
+  unstable_noStore();
   const supabase = createSupabaseAdmin();
 
   const { data: borrower, error } = await supabase
@@ -292,10 +290,7 @@ export async function getBorrowerById(id: string) {
 }
 
 export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
-  "use cache";
-  cacheTag("borrower-accounts");
-  cacheTag(`borrower-accounts-${borrowerId}`);
-
+  unstable_noStore();
   const supabase = createSupabaseAdmin();
 
   const { data: accounts } = await supabase
@@ -447,10 +442,7 @@ export async function getAllDeletedAccounts() {
 }
 
 export async function getDeletedAccountsForBorrower(borrowerId: string) {
-  "use cache";
-  cacheTag("borrower-accounts");
-  cacheTag(`borrower-accounts-${borrowerId}`);
-
+  unstable_noStore();
   const supabase = createSupabaseAdmin();
 
   const { data: accounts } = await supabase

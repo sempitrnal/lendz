@@ -54,14 +54,16 @@ export default function AnimatedNumber({
     };
   }, [value, duration]);
 
-  const formatted = display.toLocaleString(undefined, {
+  const formatted = display.toLocaleString("en-US", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
 
   return (
     <span className="tabular-nums">
-      {prefix}{formatted}{suffix}
+      {prefix}
+      {formatted}
+      {suffix}
     </span>
   );
 }
