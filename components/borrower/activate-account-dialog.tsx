@@ -93,7 +93,7 @@ export default function ActivateAccountDialog({
   >(initialValues.interest_type ?? "flat");
   const [isCustom, setIsCustom] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [calculateSkipped, setCalculateSkipped] = useState(true);
+  const [calculateSkipped, setCalculateSkipped] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -111,7 +111,7 @@ export default function ActivateAccountDialog({
       setScheduleMode(initialValues.schedule_mode ?? "auto");
       setInterestType(initialValues.interest_type ?? "flat");
       setIsCustom(initialValues.payment_frequency === "custom");
-      setCalculateSkipped(initialValues.calculate_skipped_schedules ?? true);
+      setCalculateSkipped(initialValues.calculate_skipped_schedules ?? false);
     }
   }, [open, initialValues]);
 
