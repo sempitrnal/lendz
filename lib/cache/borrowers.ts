@@ -14,7 +14,7 @@ import type {
   AccountComputedMetrics,
 } from "@/components/borrower/borrower-accounts-section";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 50;
 
 function createSupabaseAdmin() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -32,15 +32,6 @@ export async function getBorrowersPageData(
   searchQuery: string,
   categoryIds: string[],
 ) {
-  "use cache";
-  cacheTag("borrowers");
-  cacheTag(`borrowers-page-${currentPage}`);
-  if (searchQuery) cacheTag(`borrowers-search-${searchQuery}`);
-  if (categoryIds.length > 0) {
-    cacheTag(`borrowers-categories-${categoryIds.join(",")}`);
-  }
-  if (!searchQuery) cacheTag("borrowers-has-accounts");
-
   const from = (currentPage - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
