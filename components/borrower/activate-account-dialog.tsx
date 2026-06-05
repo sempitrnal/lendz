@@ -46,6 +46,11 @@ export default function ActivateAccountDialog({
   const [interestRate, setInterestRate] = useState<number | "">(
     initialValues.interest_rate ?? "",
   );
+  const [interestRateText, setInterestRateText] = useState(
+    initialValues.interest_rate !== undefined
+      ? String(initialValues.interest_rate)
+      : "",
+  );
   const [releaseDate, setReleaseDate] = useState(
     initialValues.release_date ?? "",
   );
@@ -77,6 +82,7 @@ export default function ActivateAccountDialog({
         day: "numeric",
       }),
       value: `${y}-${m}-${d}`,
+      ts: target.getTime(),
     };
   };
   const [paymentFrequency, setPaymentFrequency] = useState<
@@ -104,6 +110,11 @@ export default function ActivateAccountDialog({
           : "",
       );
       setInterestRate(initialValues.interest_rate ?? "");
+      setInterestRateText(
+        initialValues.interest_rate !== undefined
+          ? String(initialValues.interest_rate)
+          : "",
+      );
       setReleaseDate(initialValues.release_date ?? "");
       setFirstPaymentDate(initialValues.first_payment_date ?? "");
       setPaymentFrequency(initialValues.payment_frequency ?? "bimonthly");
@@ -203,9 +214,10 @@ export default function ActivateAccountDialog({
             <input
               type="text"
               inputMode="decimal"
-              value={interestRate}
+              value={interestRateText}
               onChange={(e) => {
                 const v = e.target.value.replace(",", ".");
+                setInterestRateText(v);
                 if (v === "" || v === ".") {
                   setInterestRate("");
                   return;
@@ -215,6 +227,17 @@ export default function ActivateAccountDialog({
                   setInterestRate(num);
                 }
               }}
+              onBlur={() => {
+                const num = Number(interestRateText.replace(",", "."));
+                if (!isNaN(num)) {
+                  setInterestRate(num);
+                  setInterestRateText(String(num));
+                } else {
+                  setInterestRateText("");
+                  setInterestRate("");
+                }
+              }}
+              onFocus={(e) => e.target.select()}
               className={inputClass}
             />
             <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -222,11 +245,14 @@ export default function ActivateAccountDialog({
                 <button
                   key={rate}
                   type="button"
-                  onClick={() => setInterestRate(rate)}
-                  className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                  onClick={() => {
+                    setInterestRate(rate);
+                    setInterestRateText(String(rate));
+                  }}
+                  className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
                     interestRate === rate
                       ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                      : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+                      : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-900 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
                   }`}
                 >
                   {rate}%
@@ -302,23 +328,23 @@ export default function ActivateAccountDialog({
                 className={inputClass}
               />
               <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {[4, 5, 7, 8, 10, 15].map((day) => {
-                  const { label, value } = quickFirstPayment(day);
-                  return (
+                {[4, 5, 7, 8, 10, 15]
+                  .map((day) => quickFirstPayment(day))
+                  .sort((a, b) => a.ts - b.ts)
+                  .map(({ label, value }) => (
                     <button
-                      key={day}
+                      key={value}
                       type="button"
                       onClick={() => setFirstPaymentDate(value)}
-                      className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                      className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
                         firstPaymentDate === value
                           ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                          : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+                          : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-900 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
                       }`}
                     >
                       {label}
                     </button>
-                  );
-                })}
+                  ))}
               </div>
             </div>
           )}
@@ -391,8 +417,8 @@ export default function ActivateAccountDialog({
                 inputMode={isCustom ? "numeric" : "decimal"}
                 value={termMonths}
                 onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === "") {
+                  const v = e.target.value.replace(",", ".");
+                  if (v === "" || v === ".") {
                     setTermMonths("");
                     return;
                   }
@@ -401,6 +427,7 @@ export default function ActivateAccountDialog({
                     setTermMonths(num);
                   }
                 }}
+                onFocus={(e) => e.target.select()}
                 className={inputClass}
               />
             </div>

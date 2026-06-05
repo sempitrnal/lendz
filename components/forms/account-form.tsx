@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -137,6 +137,22 @@ export default function AccountForm({
   const value = watch("principal_amount");
   const interestRateValue = watch("interest_rate");
   const termMonthsValue = watch("term_months");
+
+  const [principalText, setPrincipalText] = useState(
+    initialValues?.principal_amount
+      ? Number(initialValues.principal_amount).toLocaleString()
+      : "",
+  );
+  const [interestRateText, setInterestRateText] = useState(
+    initialValues?.interest_rate !== undefined
+      ? String(initialValues.interest_rate)
+      : "",
+  );
+  const [termMonthsText, setTermMonthsText] = useState(
+    initialValues?.term_months !== undefined
+      ? String(initialValues.term_months)
+      : "",
+  );
   const frequency = watch("payment_frequency");
   const scheduleMode = watch("schedule_mode");
   const interestType = watch("interest_type");
@@ -522,19 +538,28 @@ export default function AccountForm({
             {...register("principal_amount", {
               setValueAs: (v) => Number(String(v).replace(/,/g, "")),
             })}
-            value={value ? Number(value).toLocaleString() : ""}
+            value={principalText}
             onChange={(e) => {
+              setPrincipalText(e.target.value);
               const raw = e.target.value.replace(/,/g, "");
-
               if (raw === "") {
                 setValue("principal_amount", 0);
                 return;
               }
-
               const num = Number(raw);
-
               if (!isNaN(num)) {
                 setValue("principal_amount", num);
+              }
+            }}
+            onBlur={() => {
+              const raw = principalText.replace(/,/g, "");
+              const num = Number(raw);
+              if (!isNaN(num)) {
+                setValue("principal_amount", num);
+                setPrincipalText(num.toLocaleString());
+              } else {
+                setPrincipalText("");
+                setValue("principal_amount", 0);
               }
             }}
             onFocus={(e) => e.target.select()}
@@ -546,11 +571,14 @@ export default function AccountForm({
             <button
               key={amt}
               type="button"
-              onClick={() => setValue("principal_amount", amt)}
-              className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+              onClick={() => {
+                setValue("principal_amount", amt);
+                setPrincipalText(amt.toLocaleString());
+              }}
+              className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
                 Number(value) === amt
                   ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                  : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+                  : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-900 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
               }`}
             >
               {amt.toLocaleString()}
@@ -574,9 +602,10 @@ export default function AccountForm({
           inputMode="decimal"
           step="0.01"
           {...register("interest_rate")}
-          value={interestRateValue ? String(interestRateValue) : ""}
+          value={interestRateText}
           onChange={(e) => {
             const v = e.target.value.replace(",", ".");
+            setInterestRateText(v);
             if (v === "" || v === ".") {
               setValue("interest_rate", 0);
               return;
@@ -586,6 +615,17 @@ export default function AccountForm({
               setValue("interest_rate", num);
             }
           }}
+          onBlur={() => {
+            const num = Number(interestRateText.replace(",", "."));
+            if (!isNaN(num)) {
+              setValue("interest_rate", num);
+              setInterestRateText(String(num));
+            } else {
+              setInterestRateText("");
+              setValue("interest_rate", 0);
+            }
+          }}
+          onFocus={(e) => e.target.select()}
           className={formFieldInputClassName}
         />
         <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -593,11 +633,14 @@ export default function AccountForm({
             <button
               key={rate}
               type="button"
-              onClick={() => setValue("interest_rate", rate)}
-              className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+              onClick={() => {
+                setValue("interest_rate", rate);
+                setInterestRateText(String(rate));
+              }}
+              className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
                 interestRateValue === rate
                   ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                  : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+                  : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-900 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
               }`}
             >
               {rate}%
@@ -631,7 +674,7 @@ export default function AccountForm({
                 const today = new Date().toISOString().split("T")[0];
                 setValue("release_date", today);
               }}
-              className="dark:border-border dark:bg-card dark:text-foreground rounded-md border-2 border-slate-900 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none"
+              className="dark:border-border dark:text-foreground rounded-md border-2 border-slate-900 bg-gradient-to-br from-emerald-50 to-sky-50 px-4 py-2 text-sm font-bold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900 dark:shadow-none"
             >
               today
             </button>
@@ -662,46 +705,52 @@ export default function AccountForm({
             />
 
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {[4, 5, 7, 8, 10, 15].map((day) => {
+              {(() => {
                 const release = watch("release_date");
                 const base = release ? new Date(release) : new Date();
                 const baseYear = base.getFullYear();
                 const baseMonth = base.getMonth();
                 const baseDay = base.getDate();
 
-                let target: Date;
-                if (day > baseDay) {
-                  target = new Date(baseYear, baseMonth, day);
-                } else {
-                  const nextMonth = baseMonth + 1;
-                  const nextYear = baseYear + (nextMonth > 11 ? 1 : 0);
-                  target = new Date(nextYear, nextMonth % 12, day);
-                }
-
-                const y = target.getFullYear();
-                const m = String(target.getMonth() + 1).padStart(2, "0");
-                const d = String(target.getDate()).padStart(2, "0");
-                const value = `${y}-${m}-${d}`;
-                const label = target.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
+                const buttons = [4, 5, 7, 8, 10, 15].map((day) => {
+                  let target: Date;
+                  if (day > baseDay) {
+                    target = new Date(baseYear, baseMonth, day);
+                  } else {
+                    const nextMonth = baseMonth + 1;
+                    const nextYear = baseYear + (nextMonth > 11 ? 1 : 0);
+                    target = new Date(nextYear, nextMonth % 12, day);
+                  }
+                  const y = target.getFullYear();
+                  const m = String(target.getMonth() + 1).padStart(2, "0");
+                  const d = String(target.getDate()).padStart(2, "0");
+                  return {
+                    value: `${y}-${m}-${d}`,
+                    label: target.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    }),
+                    ts: target.getTime(),
+                  };
                 });
 
-                return (
+                buttons.sort((a, b) => a.ts - b.ts);
+
+                return buttons.map(({ value, label }) => (
                   <button
-                    key={day}
+                    key={value}
                     type="button"
                     onClick={() => setValue("first_payment_date", value)}
-                    className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                    className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
                       firstPaymentDateValue === value
                         ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                        : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+                        : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-900 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
                     }`}
                   >
                     {label}
                   </button>
-                );
-              })}
+                ));
+              })()}
             </div>
 
             {errors.first_payment_date?.message ? (
@@ -807,9 +856,10 @@ export default function AccountForm({
                   return isNaN(num) ? 0 : num;
                 },
               })}
-              value={termMonthsValue ? String(termMonthsValue) : ""}
+              value={termMonthsText}
               onChange={(e) => {
                 const v = e.target.value.replace(",", ".");
+                setTermMonthsText(v);
                 if (v === "" || v === ".") {
                   setValue("term_months", 0);
                   return;
@@ -819,18 +869,32 @@ export default function AccountForm({
                   setValue("term_months", num);
                 }
               }}
+              onBlur={() => {
+                const num = Number(termMonthsText.replace(",", "."));
+                if (!isNaN(num)) {
+                  setValue("term_months", num);
+                  setTermMonthsText(String(num));
+                } else {
+                  setTermMonthsText("");
+                  setValue("term_months", 0);
+                }
+              }}
+              onFocus={(e) => e.target.select()}
               className={formFieldInputClassName}
             />
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {[1, 12, 5, 3, 2, 6, 10].map((m) => (
+              {[1, 2, 3, 5, 6, 10, 12].map((m) => (
                 <button
                   key={m}
                   type="button"
-                  onClick={() => setValue("term_months", m)}
-                  className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                  onClick={() => {
+                    setValue("term_months", m);
+                    setTermMonthsText(String(m));
+                  }}
+                  className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
                     Number(termMonthsValue) === m
                       ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                      : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+                      : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-900 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
                   }`}
                 >
                   {m}
