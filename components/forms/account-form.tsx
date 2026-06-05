@@ -662,33 +662,68 @@ export default function AccountForm({
             />
 
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {[4, 5, 7, 8, 10, 15].map((day) => (
+              {[
+                {
+                  label: "today",
+                  value: new Date().toISOString().split("T")[0],
+                },
+                {
+                  label: (() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 7);
+                    return d.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    });
+                  })(),
+                  value: (() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 7);
+                    return d.toISOString().split("T")[0];
+                  })(),
+                },
+                {
+                  label: (() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 15);
+                    return d.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    });
+                  })(),
+                  value: (() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 15);
+                    return d.toISOString().split("T")[0];
+                  })(),
+                },
+                {
+                  label: (() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 30);
+                    return d.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    });
+                  })(),
+                  value: (() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 30);
+                    return d.toISOString().split("T")[0];
+                  })(),
+                },
+              ].map(({ label, value }) => (
                 <button
-                  key={day}
+                  key={label}
                   type="button"
-                  onClick={() => {
-                    const release = watch("release_date");
-                    const base = release ? new Date(release) : new Date();
-                    const baseYear = base.getFullYear();
-                    const baseMonth = base.getMonth();
-                    const baseDay = base.getDate();
-
-                    let target: Date;
-                    if (day > baseDay) {
-                      target = new Date(baseYear, baseMonth, day);
-                    } else {
-                      const nextMonth = baseMonth + 1;
-                      const nextYear = baseYear + (nextMonth > 11 ? 1 : 0);
-                      target = new Date(nextYear, nextMonth % 12, day);
-                    }
-                    const y = target.getFullYear();
-                    const m = String(target.getMonth() + 1).padStart(2, "0");
-                    const d = String(target.getDate()).padStart(2, "0");
-                    setValue("first_payment_date", `${y}-${m}-${d}`);
-                  }}
-                  className="dark:border-border dark:bg-card dark:text-foreground rounded-md border-2 border-slate-900 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none"
+                  onClick={() => setValue("first_payment_date", value)}
+                  className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                    firstPaymentDateValue === value
+                      ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
+                      : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+                  }`}
                 >
-                  {day}
+                  {label}
                 </button>
               ))}
             </div>

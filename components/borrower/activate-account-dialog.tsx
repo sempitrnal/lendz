@@ -52,6 +52,21 @@ export default function ActivateAccountDialog({
   const [firstPaymentDate, setFirstPaymentDate] = useState(
     initialValues.first_payment_date ?? "",
   );
+
+  const quickDateLabel = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  const quickDateValue = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
   const [paymentFrequency, setPaymentFrequency] = useState<
     ActivateAccountData["payment_frequency"]
   >(initialValues.payment_frequency ?? "bimonthly");
@@ -274,6 +289,27 @@ export default function ActivateAccountDialog({
                 required={!isManual}
                 className={inputClass}
               />
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {[
+                  { label: "today", days: 0 },
+                  { label: quickDateLabel(7), days: 7 },
+                  { label: quickDateLabel(15), days: 15 },
+                  { label: quickDateLabel(30), days: 30 },
+                ].map(({ label, days }) => (
+                  <button
+                    key={days}
+                    type="button"
+                    onClick={() => setFirstPaymentDate(quickDateValue(days))}
+                    className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                      firstPaymentDate === quickDateValue(days)
+                        ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
+                        : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
