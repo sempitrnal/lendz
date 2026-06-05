@@ -14,6 +14,7 @@ export type ActivateAccountData = {
   term_months: number;
   schedule_mode: "auto" | "manual";
   interest_type: "flat" | "rolling";
+  calculate_skipped_schedules?: boolean;
 };
 
 export async function activateAccountAction(
@@ -66,6 +67,7 @@ export async function activateAccountAction(
       first_payment_date: data.first_payment_date,
       payment_frequency: data.payment_frequency,
       release_date: data.release_date,
+      calculate_skipped_schedules: data.calculate_skipped_schedules,
     });
 
     const { error: scheduleError } = await sb

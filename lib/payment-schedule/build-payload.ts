@@ -1,4 +1,7 @@
-import { generateLegacyBimonthlyDueDates } from "./bimonthly-legacy";
+import {
+  generateLegacyBimonthlyDueDates,
+  countSkippedBimonthlySchedules,
+} from "./bimonthly-legacy";
 import { addOneMonthAnchored } from "./monthly-anchor";
 
 function formatLocalISODate(d: Date): string {
@@ -20,6 +23,7 @@ export type ScheduleInput = {
   first_payment_date: string;
   payment_frequency: "weekly" | "monthly" | "bimonthly" | "custom";
   release_date?: string;
+  calculate_skipped_schedules?: boolean;
 };
 
 export function countSkippedSchedules(
@@ -31,42 +35,7 @@ export function countSkippedSchedules(
   const firstPayment = parseDateInput(firstPaymentDateStr);
 
   if (paymentFrequency === "bimonthly" || paymentFrequency === "custom") {
-    const year = release.getFullYear();
-    const month = release.getMonth();
-    const day = release.getDate();
-
-    let current: Date;
-    if (day <= 15) {
-      current = new Date(year, month, 15);
-    } else {
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      current = new Date(year, month, daysInMonth);
-    }
-
-    if (firstPayment <= current) return 0;
-
-    let count = 0;
-    while (current < firstPayment) {
-      count++;
-      if (current.getDate() <= 15) {
-        const daysInMonth = new Date(
-          current.getFullYear(),
-          current.getMonth() + 1,
-          0,
-        ).getDate();
-        current = new Date(
-          current.getFullYear(),
-          current.getMonth(),
-          daysInMonth,
-        );
-      } else {
-        const nextMonth = current.getMonth() + 1;
-        const nextYear = current.getFullYear() + (nextMonth > 11 ? 1 : 0);
-        const nextMonthIndex = nextMonth % 12;
-        current = new Date(nextYear, nextMonthIndex, 15);
-      }
-    }
-    return count;
+    return countSkippedBimonthlySchedules(release, firstPayment);
   }
 
   if (paymentFrequency === "weekly") {
@@ -133,6 +102,7 @@ function computeTimeBasedScheduleAmount(
   releaseDateStr: string | undefined,
   firstPaymentDateStr: string,
   paymentFrequency: "weekly" | "monthly" | "bimonthly" | "custom",
+  calculateSkipped = true,
 ): number {
   if (totalSchedules <= 0) return 0;
 
@@ -140,7 +110,7 @@ function computeTimeBasedScheduleAmount(
   const baseInterest = monthlyInterest * termMonths;
   let extraInterest = 0;
 
-  if (releaseDateStr && firstPaymentDateStr) {
+  if (calculateSkipped && releaseDateStr && firstPaymentDateStr) {
     const skippedCount = countSkippedSchedules(
       releaseDateStr,
       firstPaymentDateStr,
@@ -196,6 +166,7 @@ export function buildSchedulesPayload(
       values.release_date,
       values.first_payment_date,
       values.payment_frequency,
+      values.calculate_skipped_schedules,
     );
 
     for (const d of dueDates) {
@@ -226,6 +197,7 @@ export function buildSchedulesPayload(
         values.release_date,
         values.first_payment_date,
         values.payment_frequency,
+        values.calculate_skipped_schedules,
       );
 
       const monthsNeeded = Math.ceil(numberOfSchedules / 2);
@@ -259,6 +231,7 @@ export function buildSchedulesPayload(
         values.release_date,
         values.first_payment_date,
         values.payment_frequency,
+        values.calculate_skipped_schedules,
       );
 
       for (let i = 0; i < numberOfSchedules; i++) {

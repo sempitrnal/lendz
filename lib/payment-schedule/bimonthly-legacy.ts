@@ -1,48 +1,18 @@
 /**
- * Legacy bimonthly payroll schedule (Philippine-style 15th / end-of-month style anchors).
- * Ported from the original app logic; keeps the same date progression and edge cases.
+ * Bimonthly schedule generator.
+ * Derives two anchor days from the first payment date and alternates between them.
+ * Supports all 15-day-gap patterns (e.g. 4th/19th, 5th/20th, 7th/22nd, 8th/23rd,
+ * 10th/25th, 15th/30th).
  */
 
-export function isLeapYear(year: number): boolean {
-  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-}
-
-function computePayroll1(day: number, currentMonth: number): number {
-  if (day <= 15) {
-    return day;
+/** Derive the two fixed monthly anchor days from a first-payment day. */
+export function deriveBimonthlyAnchors(
+  firstPaymentDay: number,
+): [number, number] {
+  if (firstPaymentDay <= 15) {
+    return [firstPaymentDay, firstPaymentDay + 15];
   }
-
-  if (currentMonth === 1) {
-    if (day === 28) {
-      return day - 13;
-    }
-    if (day === 29) {
-      return day - 14;
-    }
-    return day - 15;
-  }
-
-  if (day === 28) {
-    return day - 13;
-  }
-  return day - 15;
-}
-
-function computePayroll2(
-  payroll1: number,
-  currentMonth: number,
-  currentYear: number,
-): number {
-  if (payroll1 <= 15) {
-    if (currentMonth === 1) {
-      if (payroll1 === 15) {
-        return isLeapYear(currentYear) ? 29 : 28;
-      }
-      return payroll1 + 15;
-    }
-    return payroll1 + 15;
-  }
-  return payroll1;
+  return [firstPaymentDay - 15, firstPaymentDay];
 }
 
 /**
@@ -61,56 +31,99 @@ export function bimonthlyLegacyInstallmentAmount(
 }
 
 /**
- * Produces exactly `2 * termMonths` due dates (two per month for `termMonths` months).
- * First date is always exactly the startDate (user's first_payment_date).
- * Subsequent dates follow the 15th/30th payroll pattern.
+ * Produces exactly `2 * termMonths` due dates.
+ * First date is the startDate; subsequent dates alternate between the two
+ * anchor days derived from the startDate's day-of-month.
  */
 export function generateLegacyBimonthlyDueDates(
   startDate: Date,
   termMonths: number,
 ): Date[] {
-  const dates: Date[] = [];
-
-  // First date is exactly what the user entered
-  dates.push(new Date(startDate));
-
-  let currentYear = startDate.getFullYear();
-  let currentMonth = startDate.getMonth();
+  const dates: Date[] = [new Date(startDate)];
   const day = startDate.getDate();
+  const [anchor1, anchor2] = deriveBimonthlyAnchors(day);
 
-  // Determine the next date pattern
-  // If first date is on or before 15th, next is 15th of same month
-  // If first date is after 15th, next is 15th of NEXT month
-  let use15thNext = true;
-  if (day > 15) {
-    // Move to next month for the 15th
-    currentMonth++;
-    if (currentMonth > 11) {
-      currentMonth = 0;
-      currentYear++;
-    }
-  } else {
-    // First date is on or before 15th, so next should be end of same month
-    use15thNext = false;
-  }
+  let current = new Date(startDate);
+  let nextIsAnchor2 = day === anchor1;
 
-  // Generate remaining dates in alternating 15th/30th pattern
   for (let i = 0; i < termMonths * 2 - 1; i++) {
-    if (use15thNext) {
-      dates.push(new Date(currentYear, currentMonth, 15));
-      use15thNext = false;
+    if (nextIsAnchor2) {
+      const dim = new Date(
+        current.getFullYear(),
+        current.getMonth() + 1,
+        0,
+      ).getDate();
+      current = new Date(
+        current.getFullYear(),
+        current.getMonth(),
+        Math.min(anchor2, dim),
+      );
+      nextIsAnchor2 = false;
     } else {
-      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-      dates.push(new Date(currentYear, currentMonth, daysInMonth));
-      use15thNext = true;
-      // After end of month, move to next month
-      currentMonth++;
-      if (currentMonth > 11) {
-        currentMonth = 0;
-        currentYear++;
-      }
+      const nextM = current.getMonth() + 1;
+      const nextY = current.getFullYear() + (nextM > 11 ? 1 : 0);
+      current = new Date(nextY, nextM % 12, anchor1);
+      nextIsAnchor2 = true;
     }
+    dates.push(new Date(current));
   }
 
   return dates;
+}
+
+/** Count how many bimonthly schedules would fall between release and first payment. */
+export function countSkippedBimonthlySchedules(
+  release: Date,
+  firstPayment: Date,
+): number {
+  const day = firstPayment.getDate();
+  const [anchor1, anchor2] = deriveBimonthlyAnchors(day);
+
+  // Find first schedule date on or after release
+  let current = new Date(release.getFullYear(), release.getMonth(), anchor1);
+  if (release > current) {
+    const dim = new Date(
+      release.getFullYear(),
+      release.getMonth() + 1,
+      0,
+    ).getDate();
+    const a2 = Math.min(anchor2, dim);
+    const anchor2Date = new Date(release.getFullYear(), release.getMonth(), a2);
+    if (release <= anchor2Date) {
+      current = anchor2Date;
+    } else {
+      const nm = release.getMonth() + 1;
+      const ny = release.getFullYear() + (nm > 11 ? 1 : 0);
+      current = new Date(ny, nm % 12, anchor1);
+    }
+  }
+
+  if (firstPayment <= current) return 0;
+
+  let count = 0;
+  let isAnchor1 = current.getDate() === anchor1;
+
+  while (current < firstPayment) {
+    count++;
+    if (isAnchor1) {
+      const dim = new Date(
+        current.getFullYear(),
+        current.getMonth() + 1,
+        0,
+      ).getDate();
+      current = new Date(
+        current.getFullYear(),
+        current.getMonth(),
+        Math.min(anchor2, dim),
+      );
+      isAnchor1 = false;
+    } else {
+      const nm = current.getMonth() + 1;
+      const ny = current.getFullYear() + (nm > 11 ? 1 : 0);
+      current = new Date(ny, nm % 12, anchor1);
+      isAnchor1 = true;
+    }
+  }
+
+  return count;
 }

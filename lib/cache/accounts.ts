@@ -25,6 +25,7 @@ type AccountRow = {
   schedule_mode: string | null;
   interest_type: string | null;
   first_payment_date: string | null;
+  calculate_skipped_schedules: boolean | null;
   created_at: string;
 };
 

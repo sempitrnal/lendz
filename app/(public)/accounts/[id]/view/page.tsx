@@ -141,7 +141,7 @@ export default async function PublicAccountViewPage({ params }: Props) {
     : "Borrower";
 
   return (
-    <div className="relative space-y-4 sm:space-y-5 lg:grid lg:grid-cols-12 lg:gap-8 lg:space-y-0">
+    <div className="relative space-y-4 p-2 sm:space-y-5 md:p-0 lg:grid lg:grid-cols-12 lg:gap-8 lg:space-y-0">
       <div className="absolute top-0 right-0 md:-top-10 md:-right-24">
         <ThemeToggle />
       </div>

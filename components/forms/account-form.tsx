@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -19,6 +20,13 @@ import {
 import { supabase } from "@/lib/supabase/client";
 import NeobrutButton from "@/components/neobrut-button";
 import { buildSchedulesPayload } from "@/lib/payment-schedule/build-payload";
+import { deriveBimonthlyAnchors } from "@/lib/payment-schedule/bimonthly-legacy";
+
+function ordinalSuffix(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
 
 export function isoDateOnlyForInput(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -51,6 +59,7 @@ const emptyDefaults = (borrowerId: string): AccountFormValues => ({
   schedule_mode: "auto",
   interest_type: "flat",
   status: "active",
+  calculate_skipped_schedules: false,
 });
 
 export type AccountEditableRow = {
@@ -63,6 +72,7 @@ export type AccountEditableRow = {
   payment_frequency: string | null;
   term_installments: number | string | null;
   schedule_mode: string | null;
+  calculate_skipped_schedules?: boolean | null;
   interest_type?: string | null;
   status?: string | null;
 };
@@ -91,6 +101,7 @@ export function accountRowToFormInitial(
     first_payment_date: isoDateOnlyForInput(account.first_payment_date),
     payment_frequency,
     schedule_mode: scheduleMode,
+    calculate_skipped_schedules: false,
     interest_type: account.interest_type === "rolling" ? "rolling" : "flat",
     status:
       (account.status as AccountFormValues["status"] | undefined) ?? "active",
@@ -130,10 +141,21 @@ export default function AccountForm({
   const scheduleMode = watch("schedule_mode");
   const interestType = watch("interest_type");
   const status = watch("status");
+  const typeValue = watch("type");
+  const calculateSkipped = watch("calculate_skipped_schedules");
+  const releaseDateValue = watch("release_date");
+  const firstPaymentDateValue = watch("first_payment_date");
   const isCustom = frequency === "custom";
   const isManual = scheduleMode === "manual";
   const isRolling = isManual && interestType === "rolling";
   const isPending = status === "pending";
+
+  useEffect(() => {
+    if (!releaseDateValue) {
+      setValue("first_payment_date", "");
+    }
+  }, [releaseDateValue, setValue]);
+
   const onSubmit = async (values: AccountFormValues) => {
     const schedulesPayload = (id: string) => buildSchedulesPayload(id, values);
 
@@ -326,36 +348,84 @@ export default function AccountForm({
       <input type="hidden" {...register("borrower_id")} />
 
       <div>
-        <label className={formFieldLabelClassName} htmlFor="account_type">
-          Account type
-        </label>
-        <select
-          id="account_type"
-          {...register("type")}
-          className={formFieldInputClassName}
-        >
-          <option value="loan">loan</option>
-          <option value="cash_advance">cash advance</option>
-        </select>
+        <label className={formFieldLabelClassName}>Account type</label>
+        <div className="flex gap-3">
+          <label
+            className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
+              typeValue === "loan"
+                ? "bg-emerald-300 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-emerald-400"
+                : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
+            }`}
+          >
+            <input
+              type="radio"
+              value="loan"
+              {...register("type")}
+              className="sr-only"
+            />
+            <span>loan</span>
+          </label>
+          <label
+            className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
+              typeValue === "cash_advance"
+                ? "bg-amber-300 shadow-[2px_2px_0px_0px_#0f172a]"
+                : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
+            }`}
+          >
+            <input
+              type="radio"
+              value="cash_advance"
+              {...register("type")}
+              className="sr-only"
+            />
+            <span>cash advance</span>
+          </label>
+        </div>
         {errors.type?.message ? (
           <p className={formFieldErrorClassName}>{errors.type.message}</p>
         ) : null}
       </div>
 
       <div>
-        <label className={formFieldLabelClassName} htmlFor="schedule_mode">
-          Schedule mode
-        </label>
-        <select
-          id="schedule_mode"
-          {...register("schedule_mode")}
-          className={formFieldInputClassName}
-        >
-          <option value="auto">auto (generate schedules)</option>
-          <option value="manual">
-            manual (I&apos;ll add schedules myself)
-          </option>
-        </select>
+        <label className={formFieldLabelClassName}>Schedule mode</label>
+        <div className="flex gap-3">
+          <label
+            className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
+              scheduleMode === "auto"
+                ? "bg-sky-300 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-sky-400"
+                : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
+            }`}
+          >
+            <input
+              type="radio"
+              value="auto"
+              {...register("schedule_mode")}
+              className="sr-only"
+            />
+            <span>auto</span>
+            <span className="text-[10px] font-normal text-slate-600">
+              generate schedules
+            </span>
+          </label>
+          <label
+            className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
+              scheduleMode === "manual"
+                ? "bg-violet-300 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-violet-400"
+                : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
+            }`}
+          >
+            <input
+              type="radio"
+              value="manual"
+              {...register("schedule_mode")}
+              className="sr-only"
+            />
+            <span>manual</span>
+            <span className="text-[10px] font-normal text-slate-600">
+              add schedules yourself
+            </span>
+          </label>
+        </div>
       </div>
 
       {!isEdit && (
@@ -441,30 +511,52 @@ export default function AccountForm({
         <label className={formFieldLabelClassName} htmlFor="principal_amount">
           Principal amount
         </label>
-        <input
-          id="principal_amount"
-          type="text"
-          inputMode="decimal"
-          {...register("principal_amount", {
-            setValueAs: (v) => Number(String(v).replace(/,/g, "")),
-          })}
-          value={value ? Number(value).toLocaleString() : ""}
-          onChange={(e) => {
-            const raw = e.target.value.replace(/,/g, "");
+        <div className="relative">
+          <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-lg font-bold text-slate-400">
+            ₱
+          </span>
+          <input
+            id="principal_amount"
+            type="text"
+            inputMode="decimal"
+            {...register("principal_amount", {
+              setValueAs: (v) => Number(String(v).replace(/,/g, "")),
+            })}
+            value={value ? Number(value).toLocaleString() : ""}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/,/g, "");
 
-            if (raw === "") {
-              setValue("principal_amount", 0);
-              return;
-            }
+              if (raw === "") {
+                setValue("principal_amount", 0);
+                return;
+              }
 
-            const num = Number(raw);
+              const num = Number(raw);
 
-            if (!isNaN(num)) {
-              setValue("principal_amount", num);
-            }
-          }}
-          className={formFieldInputClassName}
-        />
+              if (!isNaN(num)) {
+                setValue("principal_amount", num);
+              }
+            }}
+            onFocus={(e) => e.target.select()}
+            className={`${formFieldInputClassName} pl-8 text-right text-lg font-bold`}
+          />
+        </div>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {[5000, 10000, 15000, 20000, 30000, 40000, 50000].map((amt) => (
+            <button
+              key={amt}
+              type="button"
+              onClick={() => setValue("principal_amount", amt)}
+              className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                Number(value) === amt
+                  ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
+                  : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+              }`}
+            >
+              {amt.toLocaleString()}
+            </button>
+          ))}
+        </div>
         {errors.principal_amount?.message ? (
           <p className={formFieldErrorClassName}>
             {errors.principal_amount.message}
@@ -532,6 +624,19 @@ export default function AccountForm({
             className={`${formFieldInputClassName} w-full min-w-0`}
           />
 
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                const today = new Date().toISOString().split("T")[0];
+                setValue("release_date", today);
+              }}
+              className="dark:border-border dark:bg-card dark:text-foreground rounded-md border-2 border-slate-900 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none"
+            >
+              today
+            </button>
+          </div>
+
           {errors.release_date?.message ? (
             <p className={formFieldErrorClassName}>
               {errors.release_date.message}
@@ -539,7 +644,7 @@ export default function AccountForm({
           ) : null}
         </div>
 
-        {!isManual && !isPending && (
+        {!isManual && !isPending && releaseDateValue && (
           <div className="min-w-0">
             <label
               className={formFieldLabelClassName}
@@ -551,9 +656,42 @@ export default function AccountForm({
             <input
               id="first_payment_date"
               type="date"
+              min={releaseDateValue}
               {...register("first_payment_date")}
               className={`${formFieldInputClassName} w-full min-w-0`}
             />
+
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {[4, 5, 7, 8, 10, 15].map((day) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => {
+                    const release = watch("release_date");
+                    const base = release ? new Date(release) : new Date();
+                    const baseYear = base.getFullYear();
+                    const baseMonth = base.getMonth();
+                    const baseDay = base.getDate();
+
+                    let target: Date;
+                    if (day > baseDay) {
+                      target = new Date(baseYear, baseMonth, day);
+                    } else {
+                      const nextMonth = baseMonth + 1;
+                      const nextYear = baseYear + (nextMonth > 11 ? 1 : 0);
+                      target = new Date(nextYear, nextMonth % 12, day);
+                    }
+                    const y = target.getFullYear();
+                    const m = String(target.getMonth() + 1).padStart(2, "0");
+                    const d = String(target.getDate()).padStart(2, "0");
+                    setValue("first_payment_date", `${y}-${m}-${d}`);
+                  }}
+                  className="dark:border-border dark:bg-card dark:text-foreground rounded-md border-2 border-slate-900 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none"
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
 
             {errors.first_payment_date?.message ? (
               <p className={formFieldErrorClassName}>
@@ -566,6 +704,48 @@ export default function AccountForm({
 
       {!isManual && !isPending && (
         <>
+          <div>
+            <label className={formFieldLabelClassName}>
+              Calculate skipped schedules
+            </label>
+            <div className="flex gap-3">
+              <label
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
+                  calculateSkipped
+                    ? "bg-emerald-300 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-emerald-400"
+                    : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
+                }`}
+              >
+                <input
+                  type="radio"
+                  value="true"
+                  checked={calculateSkipped}
+                  onChange={() => setValue("calculate_skipped_schedules", true)}
+                  className="sr-only"
+                />
+                <span>yes</span>
+              </label>
+              <label
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
+                  !calculateSkipped
+                    ? "bg-red-300 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-red-400"
+                    : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
+                }`}
+              >
+                <input
+                  type="radio"
+                  value="false"
+                  checked={!calculateSkipped}
+                  onChange={() =>
+                    setValue("calculate_skipped_schedules", false)
+                  }
+                  className="sr-only"
+                />
+                <span>no</span>
+              </label>
+            </div>
+          </div>
+
           <div>
             <label
               className={formFieldLabelClassName}
@@ -583,6 +763,17 @@ export default function AccountForm({
               <option value="monthly">monthly</option>
               <option value="custom">custom</option>
             </select>
+            {releaseDateValue &&
+              firstPaymentDateValue &&
+              frequency === "bimonthly" && (
+                <p className="mt-1.5 text-sm font-bold text-slate-600 dark:text-slate-300">
+                  {(() => {
+                    const day = new Date(firstPaymentDateValue).getDate();
+                    const [a1, a2] = deriveBimonthlyAnchors(day);
+                    return `(${ordinalSuffix(a1)} & ${ordinalSuffix(a2)})`;
+                  })()}
+                </p>
+              )}
             {errors.payment_frequency?.message ? (
               <p className={formFieldErrorClassName}>
                 {errors.payment_frequency.message}
@@ -598,7 +789,13 @@ export default function AccountForm({
               id="term_months"
               type="text"
               inputMode={isCustom ? "numeric" : "decimal"}
-              {...register("term_months")}
+              {...register("term_months", {
+                setValueAs: (v) => {
+                  if (v === "" || v === undefined || v === null) return 0;
+                  const num = Number(v);
+                  return isNaN(num) ? 0 : num;
+                },
+              })}
               value={termMonthsValue ? String(termMonthsValue) : ""}
               onChange={(e) => {
                 const v = e.target.value;
@@ -613,6 +810,22 @@ export default function AccountForm({
               }}
               className={formFieldInputClassName}
             />
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {[1, 12, 5, 3, 2, 6, 10].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setValue("term_months", m)}
+                  className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                    Number(termMonthsValue) === m
+                      ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
+                      : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
             {errors.term_months?.message ? (
               <p className={formFieldErrorClassName}>
                 {errors.term_months.message}

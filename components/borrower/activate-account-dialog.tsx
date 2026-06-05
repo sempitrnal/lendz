@@ -66,6 +66,7 @@ export default function ActivateAccountDialog({
   >(initialValues.interest_type ?? "flat");
   const [isCustom, setIsCustom] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [calculateSkipped, setCalculateSkipped] = useState(true);
 
   useEffect(() => {
     if (open) {
@@ -83,6 +84,7 @@ export default function ActivateAccountDialog({
       setScheduleMode(initialValues.schedule_mode ?? "auto");
       setInterestType(initialValues.interest_type ?? "flat");
       setIsCustom(initialValues.payment_frequency === "custom");
+      setCalculateSkipped(initialValues.calculate_skipped_schedules ?? true);
     }
   }, [open, initialValues]);
 
@@ -116,6 +118,7 @@ export default function ActivateAccountDialog({
       term_months: termNum,
       schedule_mode: scheduleMode,
       interest_type: interestType,
+      calculate_skipped_schedules: calculateSkipped,
     });
     setIsSubmitting(false);
 
@@ -271,6 +274,39 @@ export default function ActivateAccountDialog({
                 required={!isManual}
                 className={inputClass}
               />
+            </div>
+          )}
+
+          {/* Skipped schedules toggle */}
+          {!isManual && (
+            <div>
+              <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                calculate skipped schedules
+              </label>
+              <div className="mt-1 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCalculateSkipped(true)}
+                  className={`rounded-md border-2 border-slate-900 px-3 py-1.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                    calculateSkipped
+                      ? "bg-emerald-300 text-slate-900"
+                      : "bg-white text-slate-900"
+                  }`}
+                >
+                  yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCalculateSkipped(false)}
+                  className={`rounded-md border-2 border-slate-900 px-3 py-1.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                    !calculateSkipped
+                      ? "bg-red-300 text-slate-900"
+                      : "bg-white text-slate-900"
+                  }`}
+                >
+                  no
+                </button>
+              </div>
             </div>
           )}
 
