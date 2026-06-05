@@ -53,19 +53,31 @@ export default function ActivateAccountDialog({
     initialValues.first_payment_date ?? "",
   );
 
-  const quickDateLabel = (days: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  };
+  const quickFirstPayment = (day: number) => {
+    const base = releaseDate ? new Date(releaseDate) : new Date();
+    const baseYear = base.getFullYear();
+    const baseMonth = base.getMonth();
+    const baseDay = base.getDate();
 
-  const quickDateValue = (days: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    let target: Date;
+    if (day > baseDay) {
+      target = new Date(baseYear, baseMonth, day);
+    } else {
+      const nextMonth = baseMonth + 1;
+      const nextYear = baseYear + (nextMonth > 11 ? 1 : 0);
+      target = new Date(nextYear, nextMonth % 12, day);
+    }
+
+    const y = target.getFullYear();
+    const m = String(target.getMonth() + 1).padStart(2, "0");
+    const d = String(target.getDate()).padStart(2, "0");
+    return {
+      label: target.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      value: `${y}-${m}-${d}`,
+    };
   };
   const [paymentFrequency, setPaymentFrequency] = useState<
     ActivateAccountData["payment_frequency"]
@@ -290,25 +302,23 @@ export default function ActivateAccountDialog({
                 className={inputClass}
               />
               <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {[
-                  { label: "today", days: 0 },
-                  { label: quickDateLabel(7), days: 7 },
-                  { label: quickDateLabel(15), days: 15 },
-                  { label: quickDateLabel(30), days: 30 },
-                ].map(({ label, days }) => (
-                  <button
-                    key={days}
-                    type="button"
-                    onClick={() => setFirstPaymentDate(quickDateValue(days))}
-                    className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
-                      firstPaymentDate === quickDateValue(days)
-                        ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                        : "dark:bg-card dark:text-foreground bg-white text-slate-900"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+                {[4, 5, 7, 8, 10, 15].map((day) => {
+                  const { label, value } = quickFirstPayment(day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => setFirstPaymentDate(value)}
+                      className={`dark:border-border rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                        firstPaymentDate === value
+                          ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
+                          : "dark:bg-card dark:text-foreground bg-white text-slate-900"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
