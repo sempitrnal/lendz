@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import { cacheTag } from "next/cache";
 import {
   isInstallmentFullyPaid,
   remainingOnInstallment,
@@ -46,10 +45,6 @@ export type CategoryDetailData = {
 export async function getCategoryDetailPageData(
   categoryId: string,
 ): Promise<CategoryDetailData> {
-  "use cache";
-  cacheTag("categories");
-  cacheTag(`category-detail-${categoryId}`);
-
   const supabase = createSupabaseAdmin();
 
   const { data: categoryRow } = await supabase

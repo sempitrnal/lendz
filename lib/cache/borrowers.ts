@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { cacheTag, unstable_noStore } from "next/cache";
+import { unstable_noStore } from "next/cache";
 import { computeBorrowerNextCollectionById } from "@/lib/compute-borrower-next-collection";
 import type { Borrower } from "@/components/borrower/borrower-list";
 import {
@@ -406,10 +406,6 @@ export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
 }
 
 export async function getDeletedBorrowers() {
-  "use cache";
-  cacheTag("borrowers");
-  cacheTag("deleted-borrowers");
-
   const supabase = createSupabaseAdmin();
 
   const { data: borrowers } = await supabase
@@ -422,10 +418,6 @@ export async function getDeletedBorrowers() {
 }
 
 export async function getAllDeletedAccounts() {
-  "use cache";
-  cacheTag("accounts");
-  cacheTag("deleted-accounts");
-
   const supabase = createSupabaseAdmin();
 
   const { data: accounts } = await supabase

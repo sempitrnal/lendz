@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import { cacheTag } from "next/cache";
 import {
   nextDueScheduleForCollection,
   remainingOnInstallment,
@@ -84,9 +83,6 @@ export type NextCollectionData = {
 };
 
 export async function getNextCollectionPageData(): Promise<NextCollectionData> {
-  "use cache";
-  cacheTag("next-collection");
-
   const supabase = createSupabaseAdmin();
   const now = new Date();
   const TZ = "Asia/Manila";

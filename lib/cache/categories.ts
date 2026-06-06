@@ -1,18 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
-import { cacheTag } from "next/cache";
-
 function createSupabaseAdmin() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
     return createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
   }
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey
-  );
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey);
 }
 
 export type CategoryRow = {
@@ -24,9 +19,6 @@ export type CategoryRow = {
 };
 
 export async function getAllCategories() {
-  "use cache";
-  cacheTag("categories");
-
   const supabase = createSupabaseAdmin();
   const { data, error } = await supabase
     .from("categories")
@@ -38,10 +30,6 @@ export async function getAllCategories() {
 }
 
 export async function getCategoryById(id: string) {
-  "use cache";
-  cacheTag("categories");
-  cacheTag(`category-${id}`);
-
   const supabase = createSupabaseAdmin();
   const { data, error } = await supabase
     .from("categories")
@@ -54,14 +42,11 @@ export async function getCategoryById(id: string) {
 }
 
 export async function getCategoryBorrowers(categoryId: string) {
-  "use cache";
-  cacheTag("categories");
-  cacheTag(`category-borrowers-${categoryId}`);
-
   const supabase = createSupabaseAdmin();
   const { data, error } = await supabase
     .from("borrower_categories")
-    .select(`
+    .select(
+      `
       borrower:borrowers (
         id,
         first_name,
@@ -69,18 +54,19 @@ export async function getCategoryBorrowers(categoryId: string) {
         contact,
         created_at
       )
-    `)
+    `,
+    )
     .eq("category_id", categoryId);
 
   if (error) throw error;
   const borrowers = (data ?? [])
     .map((row: any) => row.borrower)
     .filter(Boolean) as Array<{
-      id: string;
-      first_name: string;
-      last_name: string;
-      contact: string | null;
-      created_at: string;
-    }>;
+    id: string;
+    first_name: string;
+    last_name: string;
+    contact: string | null;
+    created_at: string;
+  }>;
   return borrowers;
 }

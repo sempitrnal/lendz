@@ -1,18 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
-import { cacheTag } from "next/cache";
-
 function createSupabaseAdmin() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
     return createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
   }
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey
-  );
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey);
 }
 
 export type CalendarEventRow = {
@@ -43,10 +38,6 @@ export type CalendarEventRow = {
 };
 
 export async function getCalendarEvents(year: number, month: number) {
-  "use cache";
-  cacheTag("calendar");
-  cacheTag(`calendar-${year}-${month}`);
-
   const supabase = createSupabaseAdmin();
 
   const startOfMonth = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -68,7 +59,7 @@ export async function getCalendarEvents(year: number, month: number) {
       created_at,
       borrower:borrowers(first_name, last_name, borrower_categories(category:categories(id, name, color))),
       account:accounts(principal_amount, status)
-    `
+    `,
     )
     .gte("event_date", startOfMonth)
     .lte("event_date", endOfMonth)
@@ -82,10 +73,6 @@ export async function getCalendarEvents(year: number, month: number) {
 }
 
 export async function getCalendarEventsByBorrower(borrowerId: string) {
-  "use cache";
-  cacheTag("calendar");
-  cacheTag(`calendar-borrower-${borrowerId}`);
-
   const supabase = createSupabaseAdmin();
 
   const { data, error } = await supabase
@@ -103,7 +90,7 @@ export async function getCalendarEventsByBorrower(borrowerId: string) {
       created_at,
       borrower:borrowers(first_name, last_name, borrower_categories(category:categories(id, name, color))),
       account:accounts(principal_amount, status)
-    `
+    `,
     )
     .eq("borrower_id", borrowerId)
     .order("event_date", { ascending: true });

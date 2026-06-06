@@ -1,6 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import { cacheTag } from "next/cache";
-
 function createSupabaseAdmin() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
@@ -66,10 +64,6 @@ export type AccountDetailData = {
 export async function getAccountDetailPageData(
   id: string,
 ): Promise<AccountDetailData> {
-  "use cache";
-  cacheTag("account");
-  cacheTag(`account-${id}`);
-
   const supabase = createSupabaseAdmin();
 
   const { data: account, error: accountError } = await supabase

@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import { cacheTag } from "next/cache";
 import { isInstallmentFullyPaid } from "@/lib/payment-schedule/schedule-balances";
 
 function createSupabaseAdmin() {
@@ -50,10 +49,6 @@ export type AccountsPageData = {
 };
 
 export async function getAccountsPageData(): Promise<AccountsPageData> {
-  "use cache";
-  cacheTag("accounts");
-  cacheTag("accounts-page");
-
   const supabase = createSupabaseAdmin();
 
   const { data, error } = await supabase
