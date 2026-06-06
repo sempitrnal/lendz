@@ -1,7 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition, useState, useRef, type SyntheticEvent } from "react";
+import {
+  useTransition,
+  useState,
+  useRef,
+  useEffect,
+  type SyntheticEvent,
+} from "react";
 import { useTheme } from "next-themes";
 import { formatDate, isDarkColor } from "@/lib/utils";
 import { ChevronDown, Loader2, Phone } from "lucide-react";
@@ -30,6 +36,8 @@ export function BorrowerCard({
 }: BorrowerCardProps) {
   const router = useRouter();
   const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const isDark = resolvedTheme === "dark";
   const [isPending, startTransition] = useTransition();
   const [isAccountPending, startAccountTransition] = useTransition();
@@ -89,16 +97,18 @@ export function BorrowerCard({
       className={`relative w-full max-w-full min-w-0 overflow-hidden rounded-xl border-2 text-left transition-all duration-150 ${
         hasOverdue
           ? "border-red-700 shadow-[4px_4px_0px_0px_#b91c1c]"
-          : isDark
-            ? "border-zinc-700 shadow-[4px_4px_0px_0px_#18181b]"
-            : "border-slate-900 shadow-[4px_4px_0px_0px_#341153]"
+          : "border-slate-900 shadow-[4px_4px_0px_0px_#341153] dark:border-zinc-700 dark:shadow-[4px_4px_0px_0px_#18181b]"
       } ${isPending ? "" : "active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#1c132f]"}`}
-      style={{
-        backgroundImage: firstCategoryColor
-          ? `linear-gradient(135deg, color-mix(in srgb, ${firstCategoryColor} ${isDark ? "10%" : "12%"}, ${isDark ? "#18181b" : "#fffef5"}), ${isDark ? "#18181b" : "#fffef5"})`
-          : undefined,
-        backgroundColor: isDark ? "#18181b" : "#fffef5",
-      }}
+      style={
+        mounted
+          ? {
+              backgroundImage: firstCategoryColor
+                ? `linear-gradient(135deg, color-mix(in srgb, ${firstCategoryColor} ${isDark ? "10%" : "12%"}, ${isDark ? "#18181b" : "#fffef5"}), ${isDark ? "#18181b" : "#fffef5"})`
+                : undefined,
+              backgroundColor: isDark ? "#18181b" : "#fffef5",
+            }
+          : undefined
+      }
       aria-busy={isPending}
     >
       {/* Prefetch borrower detail page for instant navigation */}
@@ -130,7 +140,6 @@ export function BorrowerCard({
       </div>
 
       <div
-        role="button"
         tabIndex={isPending ? -1 : 0}
         onPointerEnter={() => router.prefetch(`/borrowers/${borrower.id}`)}
         onClick={openBorrower}
@@ -358,9 +367,10 @@ export function BorrowerCard({
                                 isAccountPending &&
                                 pendingAccountId === schedule.account_id;
                               return (
-                                <button
+                                <div
                                   key={i}
-                                  type="button"
+                                  role="button"
+                                  tabIndex={0}
                                   data-prevent-borrower-card-open
                                   className="relative -mx-1 block w-full touch-manipulation rounded-lg px-1 text-left transition hover:bg-black/5 dark:hover:bg-white/5"
                                   onPointerEnter={() => {
@@ -372,6 +382,19 @@ export function BorrowerCard({
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     if (didScroll.current) return;
+                                    if (!schedule.account_id) return;
+                                    setPendingAccountId(schedule.account_id);
+                                    startAccountTransition(() => {
+                                      router.push(
+                                        `/accounts/${schedule.account_id}`,
+                                      );
+                                    });
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key !== "Enter" && e.key !== " ")
+                                      return;
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     if (!schedule.account_id) return;
                                     setPendingAccountId(schedule.account_id);
                                     startAccountTransition(() => {
@@ -598,7 +621,7 @@ export function BorrowerCard({
                                       <Loader2 className="dark:text-muted-foreground size-4 animate-spin text-slate-500" />
                                     </div>
                                   )}
-                                </button>
+                                </div>
                               );
                             })}
                             {hiddenCount > 0 && (
