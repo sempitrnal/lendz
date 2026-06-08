@@ -352,7 +352,7 @@ export default function DailyNotesWidget() {
       .from("daily_checklist_items")
       .update({ label: newLabel })
       .eq("id", itemId)
-      .then(({ error }) => {
+      .then(({ error }: { error: { message: string } | null }) => {
         if (error) {
           toast.error(error.message);
         }
@@ -425,7 +425,7 @@ export default function DailyNotesWidget() {
       .from("daily_checklist_items")
       .update({ is_checked: !item.is_checked })
       .eq("id", item.id)
-      .then(({ error }) => {
+      .then(({ error }: { error: { message: string } | null }) => {
         if (error) {
           toast.error(error.message);
           setItems((prev) =>
@@ -447,7 +447,7 @@ export default function DailyNotesWidget() {
       .from("daily_checklist_items")
       .delete()
       .eq("id", id)
-      .then(({ error }) => {
+      .then(({ error }: { error: { message: string } | null }) => {
         if (error) {
           toast.error(error.message);
           if (removed) setItems((prev) => [...prev, removed]);

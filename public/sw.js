@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const STATIC_CACHE = `lendz-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `lendz-pages-${CACHE_VERSION}`;
 const DATA_CACHE = `lendz-data-${CACHE_VERSION}`;

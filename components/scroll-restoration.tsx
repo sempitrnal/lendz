@@ -25,19 +25,22 @@ export function ScrollRestoration() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  // Save scroll position continuously (RAF-throttled)
+  // Save scroll position (debounced 150ms)
   useEffect(() => {
-    let raf: number;
+    let t: ReturnType<typeof setTimeout>;
+    let lastY = -1;
     function save() {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
+      if (window.scrollY === lastY) return;
+      lastY = window.scrollY;
+      clearTimeout(t);
+      t = setTimeout(() => {
         sessionStorage.setItem(key(pathname), String(window.scrollY));
-      });
+      }, 150);
     }
     window.addEventListener("scroll", save, { passive: true });
     return () => {
       window.removeEventListener("scroll", save);
-      cancelAnimationFrame(raf);
+      clearTimeout(t);
     };
   }, [pathname]);
 

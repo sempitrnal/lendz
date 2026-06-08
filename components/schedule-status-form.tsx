@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
-import { Clock, Check, TriangleAlert, ChartPie, Loader2, type LucideIcon } from "lucide-react";
+import {
+  Clock,
+  Check,
+  TriangleAlert,
+  ChartPie,
+  Loader2,
+  type LucideIcon,
+} from "lucide-react";
+import { triggerHaptic } from "@/lib/haptics";
+import { toast } from "sonner";
 
 const scheduleStatuses = ["pending", "paid", "overdue", "partial"] as const;
 
@@ -40,25 +49,29 @@ export default function ScheduleStatusForm({
   const formRef = useRef<HTMLFormElement>(null);
 
   const visibleStatuses = scheduleStatuses.filter(
-    (s) => !(isRollingManual && s === "partial")
+    (s) => !(isRollingManual && s === "partial"),
   );
 
   function getStatusClasses(status: string, isActive: boolean) {
     const map: Record<string, { active: string; idle: string }> = {
       paid: {
-        active: "border-emerald-500 bg-emerald-300 text-emerald-950 shadow-[2px_2px_0px_0px_#047857] dark:border-emerald-400/50 dark:bg-emerald-400/25 dark:text-emerald-200 dark:shadow-none",
+        active:
+          "border-emerald-500 bg-emerald-300 text-emerald-950 shadow-[2px_2px_0px_0px_#047857] dark:border-emerald-400/50 dark:bg-emerald-400/25 dark:text-emerald-200 dark:shadow-none",
         idle: "border-slate-900 bg-white text-slate-600 hover:bg-emerald-50 hover:text-emerald-900 hover:border-emerald-500 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-emerald-400/10 dark:hover:text-emerald-300",
       },
       partial: {
-        active: "border-violet-500 bg-violet-300 text-violet-950 shadow-[2px_2px_0px_0px_#6d28d9] dark:border-violet-400/50 dark:bg-violet-400/25 dark:text-violet-200 dark:shadow-none",
+        active:
+          "border-violet-500 bg-violet-300 text-violet-950 shadow-[2px_2px_0px_0px_#6d28d9] dark:border-violet-400/50 dark:bg-violet-400/25 dark:text-violet-200 dark:shadow-none",
         idle: "border-slate-900 bg-white text-slate-600 hover:bg-violet-50 hover:text-violet-900 hover:border-violet-500 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-violet-400/10 dark:hover:text-violet-300",
       },
       overdue: {
-        active: "border-rose-500 bg-rose-300 text-rose-950 shadow-[2px_2px_0px_0px_#be123c] dark:border-rose-400/50 dark:bg-rose-400/25 dark:text-rose-200 dark:shadow-none",
+        active:
+          "border-rose-500 bg-rose-300 text-rose-950 shadow-[2px_2px_0px_0px_#be123c] dark:border-rose-400/50 dark:bg-rose-400/25 dark:text-rose-200 dark:shadow-none",
         idle: "border-slate-900 bg-white text-slate-600 hover:bg-rose-50 hover:text-rose-900 hover:border-rose-500 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-rose-400/10 dark:hover:text-rose-300",
       },
       pending: {
-        active: "border-amber-500 bg-amber-300 text-amber-950 shadow-[2px_2px_0px_0px_#b45309] dark:border-amber-400/50 dark:bg-amber-400/25 dark:text-amber-200 dark:shadow-none",
+        active:
+          "border-amber-500 bg-amber-300 text-amber-950 shadow-[2px_2px_0px_0px_#b45309] dark:border-amber-400/50 dark:bg-amber-400/25 dark:text-amber-200 dark:shadow-none",
         idle: "border-slate-900 bg-white text-slate-600 hover:bg-amber-50 hover:text-amber-900 hover:border-amber-500 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-amber-400/10 dark:hover:text-amber-300",
       },
     };
@@ -80,7 +93,16 @@ export default function ScheduleStatusForm({
     fd.set("status", status);
     setSubmittingStatus(status);
     startTransition(() => {
-      updateScheduleStatus(fd).finally(() => setSubmittingStatus(null));
+      updateScheduleStatus(fd)
+        .then(() => {
+          triggerHaptic("success");
+          toast.success(`Schedule marked as ${status}`);
+        })
+        .catch(() => {
+          triggerHaptic("error");
+          toast.error("Failed to update schedule");
+        })
+        .finally(() => setSubmittingStatus(null));
     });
   }
 
@@ -95,12 +117,21 @@ export default function ScheduleStatusForm({
       fd.set("paymentAmount", paidAmount);
       fd.set("paymentDate", paidDate);
       startTransition(() => {
-        applyPartialPayment(fd).finally(() => {
-          setShowDatePicker(false);
-          setPendingStatus(null);
-          setPaidAmount("");
-          setSubmittingStatus(null);
-        });
+        applyPartialPayment(fd)
+          .then(() => {
+            triggerHaptic("success");
+            toast.success("Payment recorded");
+          })
+          .catch(() => {
+            triggerHaptic("error");
+            toast.error("Failed to record payment");
+          })
+          .finally(() => {
+            setShowDatePicker(false);
+            setPendingStatus(null);
+            setPaidAmount("");
+            setSubmittingStatus(null);
+          });
       });
       return;
     }
@@ -110,11 +141,20 @@ export default function ScheduleStatusForm({
     fd.set("status", pendingStatus);
     fd.set("paidDate", paidDate);
     startTransition(() => {
-      updateScheduleStatus(fd).finally(() => {
-        setShowDatePicker(false);
-        setPendingStatus(null);
-        setSubmittingStatus(null);
-      });
+      updateScheduleStatus(fd)
+        .then(() => {
+          triggerHaptic("success");
+          toast.success(`Schedule marked as ${pendingStatus}`);
+        })
+        .catch(() => {
+          triggerHaptic("error");
+          toast.error("Failed to update schedule");
+        })
+        .finally(() => {
+          setShowDatePicker(false);
+          setPendingStatus(null);
+          setSubmittingStatus(null);
+        });
     });
   }
 
@@ -140,10 +180,13 @@ export default function ScheduleStatusForm({
               onClick={() => handleClick(status)}
               disabled={isDisabled}
               aria-pressed={isActive}
-              className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border-2 px-2 py-1 text-[10px] font-bold capitalize tracking-wide transition active:translate-x-px active:translate-y-px active:shadow-none sm:min-h-9 sm:gap-1.5 sm:rounded-lg sm:px-2.5 sm:py-1.5 sm:text-xs ${getStatusClasses(status, isActive)} ${isDisabled ? (isActive ? "cursor-default" : "cursor-not-allowed opacity-60") : "cursor-pointer"}`}
+              className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border-2 px-2 py-1 text-[10px] font-bold tracking-wide capitalize transition active:translate-x-px active:translate-y-px active:shadow-none sm:min-h-9 sm:gap-1.5 sm:rounded-lg sm:px-2.5 sm:py-1.5 sm:text-xs ${getStatusClasses(status, isActive)} ${isDisabled ? (isActive ? "cursor-default" : "cursor-not-allowed opacity-60") : "cursor-pointer"}`}
             >
               {isSubmitting ? (
-                <Loader2 className="size-3 shrink-0 animate-spin sm:size-3.5" aria-hidden />
+                <Loader2
+                  className="size-3 shrink-0 animate-spin sm:size-3.5"
+                  aria-hidden
+                />
               ) : (
                 <Icon className="size-3 shrink-0 sm:size-3.5" aria-hidden />
               )}
@@ -154,10 +197,10 @@ export default function ScheduleStatusForm({
       </form>
 
       {showDatePicker && (
-        <div className="flex flex-col gap-2 rounded-lg border-2 border-slate-900 bg-white p-3 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-card">
+        <div className="dark:border-border dark:bg-card flex flex-col gap-2 rounded-lg border-2 border-slate-900 bg-white p-3 shadow-[2px_2px_0px_0px_#0f172a]">
           {isRollingManual && (
             <>
-              <label className="text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
+              <label className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase">
                 Amount paid
               </label>
               <input
@@ -169,25 +212,30 @@ export default function ScheduleStatusForm({
                 required
                 value={paidAmount}
                 onChange={(e) => setPaidAmount(e.target.value)}
-                className="w-full min-w-0 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold tabular-nums text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border"
+                className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full min-w-0 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 tabular-nums shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
               />
             </>
           )}
-          <label className="text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground">
+          <label className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase">
             {isRollingManual ? "Date paid" : "Payment date (optional)"}
           </label>
           <input
             type="date"
             value={paidDate}
             onChange={(e) => setPaidDate(e.target.value)}
-            className="w-full min-w-0 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border"
+            className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full min-w-0 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
           />
           <div className="flex gap-2">
             <button
               type="button"
               onClick={handleDateConfirm}
-              disabled={isPending || (isRollingManual ? !paidAmount || Number(paidAmount) <= 0 : false)}
-              className="flex-1 rounded-lg border-2 border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer dark:border-border dark:bg-emerald-800/40 dark:text-emerald-100 dark:hover:bg-emerald-800/60"
+              disabled={
+                isPending ||
+                (isRollingManual
+                  ? !paidAmount || Number(paidAmount) <= 0
+                  : false)
+              }
+              className="dark:border-border flex-1 cursor-pointer rounded-lg border-2 border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-emerald-800/40 dark:text-emerald-100 dark:hover:bg-emerald-800/60"
             >
               {isPending ? "…" : "Confirm"}
             </button>
@@ -195,7 +243,7 @@ export default function ScheduleStatusForm({
               type="button"
               onClick={handleDateCancel}
               disabled={isPending}
-              className="flex-1 rounded-lg border-2 border-slate-900 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70 cursor-pointer dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted"
+              className="dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted flex-1 cursor-pointer rounded-lg border-2 border-slate-900 bg-white px-3 py-1.5 text-xs font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70"
             >
               Cancel
             </button>

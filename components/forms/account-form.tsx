@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { triggerHaptic } from "@/lib/haptics";
 
 import {
   accountSchema,
@@ -198,6 +199,7 @@ export default function AccountForm({
         .eq("id", accountId);
 
       if (updateError) {
+        triggerHaptic("error");
         toast.error(updateError.message);
         return;
       }
@@ -210,6 +212,7 @@ export default function AccountForm({
           .select();
         console.log(delError, delData);
         if (delError) {
+          triggerHaptic("error");
           toast.error(delError.message);
           return;
         }
@@ -219,6 +222,7 @@ export default function AccountForm({
           .from("payment_schedules")
           .insert(schedules);
         if (insertError) {
+          triggerHaptic("error");
           toast.error(insertError.message);
           return;
         }
@@ -235,6 +239,7 @@ export default function AccountForm({
         },
         accountId,
       );
+      triggerHaptic("success");
       toast.success(
         "Account updated." +
           (values.schedule_mode === "manual"
@@ -262,6 +267,7 @@ export default function AccountForm({
       .single();
 
     if (error || !account) {
+      triggerHaptic("error");
       toast.error(error?.message ?? "Could not create account.");
       return;
     }
@@ -278,6 +284,7 @@ export default function AccountForm({
           status: "scheduled",
         });
       if (evtError) {
+        triggerHaptic("warning");
         toast.error(
           "Account created but calendar event failed: " + evtError.message,
         );
@@ -292,6 +299,7 @@ export default function AccountForm({
         .insert(schedules);
 
       if (scheduleError) {
+        triggerHaptic("error");
         toast.error(scheduleError.message);
         return;
       }
@@ -319,6 +327,7 @@ export default function AccountForm({
           status: "pending",
         });
       if (scheduleError) {
+        triggerHaptic("error");
         toast.error(scheduleError.message);
         return;
       }
@@ -349,6 +358,7 @@ export default function AccountForm({
               ? " First rolling schedule generated."
               : " Add schedules manually."
             : "");
+    triggerHaptic("success");
     toast.success(msg);
 
     await revalidateBorrowerDetailPage(values.borrower_id);

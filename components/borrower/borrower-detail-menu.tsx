@@ -7,6 +7,8 @@ import { BsThreeDotsVertical } from "react-icons/bs";
 
 import { supabase } from "@/lib/supabase/client";
 import { revalidateBorrowersPage } from "@/lib/actions/borrowers";
+import { triggerHaptic } from "@/lib/haptics";
+import { toast } from "sonner";
 import NeobrutButton from "../neobrut-button";
 import {
   Dialog,
@@ -62,7 +64,8 @@ export default function BorrowerDetailMenu({
         .is("deleted_at", null);
 
       if (accountsError) {
-        alert(accountsError.message);
+        triggerHaptic("error");
+        toast.error("Failed to delete accounts: " + accountsError.message);
         return;
       }
 
@@ -73,10 +76,13 @@ export default function BorrowerDetailMenu({
         .eq("id", borrowerId);
 
       if (error) {
-        alert(error.message);
+        triggerHaptic("error");
+        toast.error("Failed to delete borrower: " + error.message);
         return;
       }
 
+      triggerHaptic("success");
+      toast.success("Borrower moved to deleted");
       await revalidateBorrowersPage();
       setDeleteModalOpen(false);
       if (onDeleted) {

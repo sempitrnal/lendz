@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import NeobrutButton from "../neobrut-button";
 import { toast } from "sonner";
+import { triggerHaptic } from "@/lib/haptics";
 
 type CategoryOption = {
   id: string;
@@ -62,7 +63,8 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
       .single();
 
     if (error) {
-      alert(error.message);
+      triggerHaptic("error");
+      toast.error(error.message);
       return;
     }
     if (selectedCategoryIds.length > 0) {
@@ -76,7 +78,8 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
         .insert(links);
 
       if (categoryLinkError) {
-        alert(categoryLinkError.message);
+        triggerHaptic("error");
+        toast.error(categoryLinkError.message);
         return;
       }
     }
@@ -87,6 +90,7 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
     reset();
     setSelectedCategoryIds([]);
 
+    triggerHaptic("success");
     toast.success("Borrower created successfully");
     onSuccess?.();
     router.refresh();

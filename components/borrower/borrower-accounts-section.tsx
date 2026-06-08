@@ -1,7 +1,7 @@
 "use client";
 
 import { FaPlus } from "react-icons/fa6";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ArrowLeft } from "lucide-react";
 import {
   useEffect,
   useMemo,
@@ -29,13 +29,16 @@ import {
   nextDueScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
-import NotesCanvas from "./notes-canvas";
+import dynamic from "next/dynamic";
+
+const NotesCanvas = dynamic(() => import("./notes-canvas"), { ssr: false });
 import NeobrutButton from "../neobrut-button";
 import BorrowerDetailMenu from "./borrower-detail-menu";
 import ActivateAccountDialog from "./activate-account-dialog";
 import { isDarkColor } from "@/lib/utils";
 import { AccountCard } from "./account-card";
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 const stripVariants = {
   hidden: { opacity: 0, y: -20 },
@@ -262,6 +265,8 @@ type PaymentScheduleLite = {
 export type AccountComputedMetrics = {
   amountLeftToPay: number;
   profitToMake: number;
+  daysSinceRelease: number;
+  profitPerSchedule: number;
   nextCollectionDate: string | null;
   nextCollectionAmount: number;
   nextCollectionAmountDue: number;
@@ -522,9 +527,33 @@ export default function BorrowerAccountsSection({
         (row) => row.status === "overdue" && !isInstallmentFullyPaid(row),
       );
       console.log(account);
+      const daysSinceRelease = account.release_date
+        ? Math.max(
+            0,
+            Math.floor(
+              (Date.now() - new Date(account.release_date).getTime()) /
+                86400000,
+            ),
+          )
+        : 0;
+      const termMonths = Number(account.term_months) || 0;
+      const freq = account.payment_frequency;
+      const installments = isManual
+        ? Number(account.term_installments) || termMonths || 1
+        : freq === "custom"
+          ? Number(account.term_installments) || 1
+          : freq === "bimonthly"
+            ? termMonths * 2 || 1
+            : freq === "weekly"
+              ? termMonths * 4 || 1
+              : termMonths || 1;
+      const profitPerSchedule = profitToMake / installments;
+
       computed[account.id] = {
         amountLeftToPay,
         profitToMake,
+        daysSinceRelease,
+        profitPerSchedule,
         nextCollectionDate: nextUnpaid?.due_date ?? null,
         nextCollectionAmount: nextUnpaid
           ? remainingOnInstallment(nextUnpaid)
@@ -642,6 +671,16 @@ export default function BorrowerAccountsSection({
           />
         </motion.div>
       )}
+
+      <div className="pt-3">
+        <Link
+          href="/borrowers"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+        >
+          <ArrowLeft className="size-3.5" />
+          back to borrowers
+        </Link>
+      </div>
 
       {selectionMode && (
         <div className="dark:border-border dark:bg-card sticky top-[52px] z-40 -mx-4 mb-4 border-y-2 border-slate-900 bg-white px-4 py-2 shadow-sm md:top-[68px]">

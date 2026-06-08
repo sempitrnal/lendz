@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { unstable_noStore } from "next/cache";
+import { unstable_cache } from "next/cache";
 import { computeBorrowerNextCollectionById } from "@/lib/compute-borrower-next-collection";
 import type { Borrower } from "@/components/borrower/borrower-list";
 import {
@@ -27,12 +27,11 @@ function createSupabaseAdmin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey);
 }
 
-export async function getBorrowersPageData(
+async function fetchBorrowersPageData(
   currentPage: number,
   searchQuery: string,
   categoryIds: string[],
 ) {
-  unstable_noStore();
   const from = (currentPage - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
@@ -266,8 +265,13 @@ export async function getBorrowersPageData(
   };
 }
 
-export async function getBorrowerById(id: string) {
-  unstable_noStore();
+export const getBorrowersPageData = unstable_cache(
+  fetchBorrowersPageData,
+  ["borrowers-page"],
+  { revalidate: 60, tags: ["borrowers"] },
+);
+
+async function fetchBorrowerById(id: string) {
   const supabase = createSupabaseAdmin();
 
   const { data: borrower, error } = await supabase
@@ -289,8 +293,13 @@ export async function getBorrowerById(id: string) {
   return borrower;
 }
 
-export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
-  unstable_noStore();
+export const getBorrowerById = unstable_cache(
+  fetchBorrowerById,
+  ["borrower-by-id"],
+  { revalidate: 60, tags: ["borrowers"] },
+);
+
+async function fetchBorrowerAccountsWithSchedules(borrowerId: string) {
   const supabase = createSupabaseAdmin();
 
   const { data: accounts } = await supabase
@@ -369,9 +378,33 @@ export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
       const overdueRows = rows.filter(
         (row) => row.status === "overdue" && !isInstallmentFullyPaid(row),
       );
+      const daysSinceRelease = account.release_date
+        ? Math.max(
+            0,
+            Math.floor(
+              (Date.now() - new Date(account.release_date).getTime()) /
+                86400000,
+            ),
+          )
+        : 0;
+      const termMonths = Number(account.term_months) || 0;
+      const freq = account.payment_frequency;
+      const installments = isManual
+        ? Number(account.term_installments) || termMonths || 1
+        : freq === "custom"
+          ? Number(account.term_installments) || 1
+          : freq === "bimonthly"
+            ? termMonths * 2 || 1
+            : freq === "weekly"
+              ? termMonths * 4 || 1
+              : termMonths || 1;
+      const profitPerSchedule = profitToMake / installments;
+
       initialMetrics[account.id] = {
         amountLeftToPay,
         profitToMake,
+        daysSinceRelease,
+        profitPerSchedule,
         nextCollectionDate: nextUnpaid?.due_date ?? null,
         nextCollectionAmount: nextUnpaid
           ? remainingOnInstallment(nextUnpaid)
@@ -405,7 +438,13 @@ export async function getBorrowerAccountsWithSchedules(borrowerId: string) {
   return { accountList, initialMetrics };
 }
 
-export async function getDeletedBorrowers() {
+export const getBorrowerAccountsWithSchedules = unstable_cache(
+  fetchBorrowerAccountsWithSchedules,
+  ["borrower-accounts"],
+  { revalidate: 60, tags: ["borrower-accounts"] },
+);
+
+async function fetchDeletedBorrowers() {
   const supabase = createSupabaseAdmin();
 
   const { data: borrowers } = await supabase
@@ -417,7 +456,13 @@ export async function getDeletedBorrowers() {
   return (borrowers ?? []) as Borrower[];
 }
 
-export async function getAllDeletedAccounts() {
+export const getDeletedBorrowers = unstable_cache(
+  fetchDeletedBorrowers,
+  ["deleted-borrowers"],
+  { revalidate: 60, tags: ["deleted-borrowers"] },
+);
+
+async function fetchAllDeletedAccounts() {
   const supabase = createSupabaseAdmin();
 
   const { data: accounts } = await supabase
@@ -433,8 +478,13 @@ export async function getAllDeletedAccounts() {
   >;
 }
 
-export async function getDeletedAccountsForBorrower(borrowerId: string) {
-  unstable_noStore();
+export const getAllDeletedAccounts = unstable_cache(
+  fetchAllDeletedAccounts,
+  ["deleted-accounts"],
+  { revalidate: 60, tags: ["deleted-accounts"] },
+);
+
+async function fetchDeletedAccountsForBorrower(borrowerId: string) {
   const supabase = createSupabaseAdmin();
 
   const { data: accounts } = await supabase
@@ -446,3 +496,9 @@ export async function getDeletedAccountsForBorrower(borrowerId: string) {
 
   return (accounts ?? []) as AccountRow[];
 }
+
+export const getDeletedAccountsForBorrower = unstable_cache(
+  fetchDeletedAccountsForBorrower,
+  ["deleted-accounts-for-borrower"],
+  { revalidate: 60, tags: ["deleted-accounts"] },
+);

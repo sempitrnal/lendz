@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Users,
@@ -11,40 +8,6 @@ import {
   Zap,
   ArrowRight,
 } from "lucide-react";
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: {
-      delay: i * 0.1,
-      duration: 0.5,
-      ease: "easeOut" as const,
-    },
-  }),
-};
-
-const staggerContainer = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.12 },
-  },
-};
-
-const staggerItem = {
-  hidden: { opacity: 0, y: 30, scale: 0.98 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      type: "spring" as const,
-      stiffness: 120,
-      damping: 18,
-    },
-  },
-};
 
 function Breakout({
   children,
@@ -101,14 +64,12 @@ export default function Home() {
               "repeating-linear-gradient(0deg, #0f172a 0, #0f172a 1px, transparent 1px, transparent 32px), repeating-linear-gradient(90deg, #0f172a 0, #0f172a 1px, transparent 1px, transparent 32px)",
           }}
         />
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={staggerContainer}
-          className="relative mx-auto flex max-w-7xl flex-col items-center px-4 py-20 text-center sm:py-28 md:px-6"
-        >
+        <div className="relative mx-auto flex max-w-7xl flex-col items-center px-4 py-20 text-center sm:py-28 md:px-6">
           {/* stacked logo */}
-          <motion.div variants={staggerItem} className="relative select-none">
+          <div
+            className="animate-pop-in relative select-none"
+            style={{ animationDelay: "0.12s" }}
+          >
             <span className="block text-7xl leading-none font-black tracking-tighter text-slate-900 sm:text-8xl md:text-9xl dark:text-zinc-100">
               *utangz
             </span>
@@ -119,19 +80,19 @@ export default function Home() {
             >
               *utangz
             </span>
-          </motion.div>
+          </div>
 
-          <motion.p
-            variants={staggerItem}
-            className="mt-6 max-w-xl text-lg leading-relaxed font-bold text-slate-700 sm:text-xl dark:text-zinc-300"
+          <p
+            className="animate-pop-in mt-6 max-w-xl text-lg leading-relaxed font-bold text-slate-700 sm:text-xl dark:text-zinc-300"
+            style={{ animationDelay: "0.24s" }}
           >
             A no-nonsense lending &amp; borrowing tracker built for people who
             want to stay on top of every payment.
-          </motion.p>
+          </p>
 
-          <motion.div
-            variants={staggerItem}
-            className="mt-8 flex flex-col gap-3 sm:flex-row"
+          <div
+            className="animate-pop-in mt-8 flex flex-col gap-3 sm:flex-row"
+            style={{ animationDelay: "0.36s" }}
           >
             <Link
               href="/login"
@@ -147,39 +108,28 @@ export default function Home() {
               <LayoutDashboard className="size-4" strokeWidth={3} />
               Dashboard
             </Link>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </Breakout>
 
       {/* ── FEATURES ── */}
       <Breakout className="dark:bg-background bg-white">
         <section className="w-full py-20">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
-            variants={staggerContainer}
-            className="mx-auto max-w-7xl px-4 sm:px-6"
-          >
-            <motion.p
-              variants={fadeUp}
-              custom={0}
-              className="text-center text-[10px] font-black tracking-[0.25em] text-slate-400 uppercase dark:text-zinc-500"
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <p
+              className="animate-fade-up text-center text-[10px] font-black tracking-[0.25em] text-slate-400 uppercase dark:text-zinc-500"
+              style={{ animationDelay: "0.1s" }}
             >
               Features
-            </motion.p>
-            <motion.h2
-              variants={fadeUp}
-              custom={1}
-              className="mt-3 text-center text-3xl font-black tracking-tight text-slate-900 uppercase sm:text-5xl dark:text-zinc-100"
+            </p>
+            <h2
+              className="animate-fade-up mt-3 text-center text-3xl font-black tracking-tight text-slate-900 uppercase sm:text-5xl dark:text-zinc-100"
+              style={{ animationDelay: "0.2s" }}
             >
               Everything you need to track loans
-            </motion.h2>
+            </h2>
 
-            <motion.div
-              variants={staggerContainer}
-              className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
-            >
+            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 {
                   color: "sky" as const,
@@ -205,8 +155,12 @@ export default function Home() {
                   title: "Collections",
                   body: "Record partial or full payments and watch balances update in real time.",
                 },
-              ].map(({ color, Icon, title, body }) => (
-                <motion.div key={title} variants={staggerItem}>
+              ].map(({ color, Icon, title, body }, i) => (
+                <div
+                  key={title}
+                  className="animate-pop-in"
+                  style={{ animationDelay: `${0.3 + i * 0.12}s` }}
+                >
                   <NeobrutCard color={color}>
                     <div className="dark:bg-card mb-3 inline-flex rounded-lg border-2 border-slate-900 bg-white p-2.5 shadow-[3px_3px_0px_0px_#0f172a] dark:border-zinc-700 dark:shadow-[3px_3px_0px_0px_#18181b]">
                       <Icon
@@ -221,10 +175,10 @@ export default function Home() {
                       {body}
                     </p>
                   </NeobrutCard>
-                </motion.div>
+                </div>
               ))}
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         </section>
       </Breakout>
 
@@ -246,32 +200,21 @@ export default function Home() {
       {/* ── HOW IT WORKS ── */}
       <Breakout className="bg-amber-50 dark:bg-zinc-950/50">
         <section className="w-full py-20">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
-            variants={staggerContainer}
-            className="mx-auto max-w-7xl px-4 sm:px-6"
-          >
-            <motion.p
-              variants={fadeUp}
-              custom={0}
-              className="text-center text-[10px] font-black tracking-[0.25em] text-slate-400 uppercase dark:text-zinc-500"
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <p
+              className="animate-fade-up text-center text-[10px] font-black tracking-[0.25em] text-slate-400 uppercase dark:text-zinc-500"
+              style={{ animationDelay: "0.1s" }}
             >
               How it works
-            </motion.p>
-            <motion.h2
-              variants={fadeUp}
-              custom={1}
-              className="mt-3 text-center text-3xl font-black tracking-tight text-slate-900 uppercase sm:text-5xl dark:text-zinc-100"
+            </p>
+            <h2
+              className="animate-fade-up mt-3 text-center text-3xl font-black tracking-tight text-slate-900 uppercase sm:text-5xl dark:text-zinc-100"
+              style={{ animationDelay: "0.2s" }}
             >
               Three steps to stay in control
-            </motion.h2>
+            </h2>
 
-            <motion.div
-              variants={staggerContainer}
-              className="mt-12 grid gap-6 sm:grid-cols-3"
-            >
+            <div className="mt-12 grid gap-6 sm:grid-cols-3">
               {[
                 {
                   step: "01",
@@ -291,8 +234,12 @@ export default function Home() {
                   body: "View schedules, record payments, and monitor collection rates on your dashboard.",
                   color: "green" as const,
                 },
-              ].map(({ step, title, body, color }) => (
-                <motion.div key={step} variants={staggerItem}>
+              ].map(({ step, title, body, color }, i) => (
+                <div
+                  key={step}
+                  className="animate-pop-in"
+                  style={{ animationDelay: `${0.3 + i * 0.12}s` }}
+                >
                   <NeobrutCard color={color} className="relative">
                     <span className="absolute -top-3 -right-2 text-5xl font-black text-slate-900/10 dark:text-zinc-100/10">
                       {step}
@@ -307,10 +254,10 @@ export default function Home() {
                       {body}
                     </p>
                   </NeobrutCard>
-                </motion.div>
+                </div>
               ))}
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         </section>
       </Breakout>
 
@@ -323,31 +270,22 @@ export default function Home() {
               "repeating-linear-gradient(45deg, #ffffff 0, #ffffff 1px, transparent 1px, transparent 24px)",
           }}
         />
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-60px" }}
-          variants={staggerContainer}
-          className="relative mx-auto max-w-7xl px-4 text-center md:px-6"
-        >
-          <motion.h2
-            variants={fadeUp}
-            custom={0}
-            className="text-3xl font-black tracking-tight text-white uppercase sm:text-5xl"
+        <div className="relative mx-auto max-w-7xl px-4 text-center md:px-6">
+          <h2
+            className="animate-fade-up text-3xl font-black tracking-tight text-white uppercase sm:text-5xl"
+            style={{ animationDelay: "0.1s" }}
           >
             Ready to stop guessing?
-          </motion.h2>
-          <motion.p
-            variants={fadeUp}
-            custom={1}
-            className="mx-auto mt-4 max-w-lg text-base leading-relaxed font-semibold text-slate-400"
+          </h2>
+          <p
+            className="animate-fade-up mx-auto mt-4 max-w-lg text-base leading-relaxed font-semibold text-slate-400"
+            style={{ animationDelay: "0.2s" }}
           >
             Sign in and start tracking your loans with the clarity they deserve.
-          </motion.p>
-          <motion.div
-            variants={fadeUp}
-            custom={2}
-            className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
+          </p>
+          <div
+            className="animate-fade-up mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
+            style={{ animationDelay: "0.3s" }}
           >
             <Link
               href="/login"
@@ -356,15 +294,14 @@ export default function Home() {
               Start Tracking
               <ArrowRight className="size-4" strokeWidth={3} />
             </Link>
-          </motion.div>
-          <motion.p
-            variants={fadeUp}
-            custom={3}
-            className="mt-8 text-[10px] font-black tracking-widest text-slate-600"
+          </div>
+          <p
+            className="animate-fade-up mt-8 text-[10px] font-black tracking-widest text-slate-600"
+            style={{ animationDelay: "0.4s" }}
           >
             *utangz
-          </motion.p>
-        </motion.div>
+          </p>
+        </div>
       </Breakout>
     </div>
   );

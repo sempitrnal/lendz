@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import {
+  memo,
   useTransition,
   useState,
   useRef,
@@ -28,7 +29,7 @@ type BorrowerCardProps = {
   onBorrowerUpdated?: () => void;
 };
 
-export function BorrowerCard({
+export const BorrowerCard = memo(function BorrowerCard({
   borrower,
   quickAction,
   showScheduleSummary = false,
@@ -733,4 +734,4 @@ export function BorrowerCard({
       </div>
     </div>
   );
-}
+});

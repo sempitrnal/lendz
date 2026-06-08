@@ -1,21 +1,21 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
-import { useFormStatus } from "react-dom";
-
-function PartialSubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      aria-busy={pending}
-      className={`shrink-0 rounded-lg border border-slate-300 bg-violet-200 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-slate-900 transition hover:bg-violet-300 disabled:cursor-wait disabled:opacity-70 dark:border-border/50 dark:bg-violet-400/25 dark:text-violet-100 dark:hover:bg-violet-400/40 ${pending ? "" : ""}`}
-    >
-      {pending ? "…" : "Partial"}
-    </button>
-  );
-}
+import {
+  useState,
+  useTransition,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
+import { triggerHaptic } from "@/lib/haptics";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 function formatAmount(raw: string) {
   if (!raw) return "";
@@ -24,10 +24,12 @@ function formatAmount(raw: string) {
   return decPart !== undefined ? `${grouped}.${decPart}` : grouped;
 }
 
+const FORM_ID = (scheduleId: string) => `partial-form-${scheduleId}`;
+
 export default function PartialPaymentForm({
   scheduleId,
   applyPartialPayment,
-  autoFocus,
+  autoFocus: _autoFocus,
   dueDate,
 }: {
   scheduleId: string;
@@ -35,11 +37,14 @@ export default function PartialPaymentForm({
   autoFocus?: boolean;
   dueDate?: string;
 }) {
+  const defaultDate = dueDate ?? new Date().toISOString().split("T")[0];
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(defaultDate);
+  const [note, setNote] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   function handleAmountChange(e: ChangeEvent<HTMLInputElement>) {
-    // keep only digits and a single decimal point
     let cleaned = e.target.value.replace(/[^\d.]/g, "");
     const firstDot = cleaned.indexOf(".");
     if (firstDot !== -1) {
@@ -50,48 +55,79 @@ export default function PartialPaymentForm({
     setAmount(cleaned);
   }
 
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-slate-600 hover:text-slate-900 transition-colors cursor-pointer dark:text-muted-foreground dark:hover:text-foreground"
-      >
-        <span className="flex size-4 items-center justify-center rounded border border-slate-300 bg-violet-200 text-[9px] font-black dark:border-border/50 dark:bg-violet-400/25 dark:text-violet-100">
-          {open ? "−" : "+"}
-        </span>
-        Add partial payment
-      </button>
+  function handleOpenChange(v: boolean) {
+    if (!v) {
+      setAmount("");
+      setDate(defaultDate);
+      setNote("");
+    }
+    setOpen(v);
+  }
 
-      {open && (
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startTransition(() => {
+      applyPartialPayment(fd)
+        .then(() => {
+          triggerHaptic("success");
+          toast.success("Partial payment recorded");
+          handleOpenChange(false);
+        })
+        .catch(() => {
+          triggerHaptic("error");
+          toast.error("Failed to record payment");
+        });
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="dark:text-muted-foreground dark:hover:text-foreground flex cursor-pointer items-center gap-1.5 text-[10px] font-black tracking-wide text-slate-600 uppercase transition-colors hover:text-slate-900"
+        >
+          <span className="dark:border-border/50 flex size-4 items-center justify-center rounded border border-slate-300 bg-violet-200 text-[9px] font-black dark:bg-violet-400/25 dark:text-violet-100">
+            +
+          </span>
+          Add partial payment
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Partial Payment</DialogTitle>
+        </DialogHeader>
         <form
-          action={applyPartialPayment}
-          className="mt-2 flex w-full flex-col gap-2 sm:w-max sm:flex-row sm:flex-wrap sm:items-end"
+          id={FORM_ID(scheduleId)}
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-4"
         >
           <input type="hidden" name="scheduleId" value={scheduleId} />
-          <div className="flex flex-col gap-1">
+          <input type="hidden" name="paymentAmount" value={amount} />
+          <div className="flex flex-col gap-1.5">
             <label
               htmlFor={`partial-amt-${scheduleId}`}
-              className="text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground"
+              className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase"
             >
               Amount paid
             </label>
-            <input type="hidden" name="paymentAmount" value={amount} />
             <input
               id={`partial-amt-${scheduleId}`}
               type="text"
               inputMode="decimal"
               placeholder="0"
               required
+              autoFocus
               value={formatAmount(amount)}
               onChange={handleAmountChange}
-              className="w-full sm:w-28 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold tabular-nums text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:border-border/50 dark:bg-card dark:text-foreground dark:focus-visible:ring-border"
+              className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full rounded-md border-2 border-slate-900 bg-white px-3 py-2 text-sm font-semibold text-slate-900 tabular-nums shadow-[2px_2px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:shadow-none"
             />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             <label
               htmlFor={`partial-date-${scheduleId}`}
-              className="text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground"
+              className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase"
             >
               Date
             </label>
@@ -99,14 +135,15 @@ export default function PartialPaymentForm({
               id={`partial-date-${scheduleId}`}
               name="paymentDate"
               type="date"
-              defaultValue={dueDate ?? new Date().toISOString().split("T")[0]}
-              className="w-full sm:w-36 min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:border-border/50 dark:bg-card dark:text-foreground dark:focus-visible:ring-border"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full min-w-0 rounded-md border-2 border-slate-900 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:shadow-none"
             />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             <label
               htmlFor={`partial-note-${scheduleId}`}
-              className="text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-muted-foreground"
+              className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase"
             >
               Note (optional)
             </label>
@@ -116,12 +153,24 @@ export default function PartialPaymentForm({
               type="text"
               maxLength={500}
               placeholder="—"
-              className="w-full sm:w-32 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:border-border/50 dark:bg-card dark:text-foreground dark:focus-visible:ring-border"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full rounded-md border-2 border-slate-900 bg-white px-3 py-2 text-sm text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:shadow-none"
             />
           </div>
-          <PartialSubmitButton />
         </form>
-      )}
-    </div>
+        <DialogFooter>
+          <button
+            type="submit"
+            form={FORM_ID(scheduleId)}
+            disabled={isPending || !amount}
+            aria-busy={isPending}
+            className="dark:border-border w-full cursor-pointer rounded-lg border-2 border-slate-900 bg-violet-200 px-4 py-2 text-xs font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-violet-300 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-violet-400/25 dark:text-violet-100 dark:shadow-none dark:hover:bg-violet-400/40"
+          >
+            {isPending ? "Recording…" : "Record Payment"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

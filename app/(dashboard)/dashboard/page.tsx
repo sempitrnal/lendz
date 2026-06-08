@@ -17,11 +17,13 @@ import {
   nextDueScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
-import MonthlyCollectionsChart from "@/components/dashboard/monthly-collections-chart";
-import CollectionRateRing from "@/components/dashboard/collection-rate-ring";
-import OverdueByCategoryChart from "@/components/dashboard/overdue-by-category-chart";
 import ThemeToggle from "@/components/theme-toggle";
 import ResetCacheButton from "@/components/reset-cache-button";
+import {
+  MonthlyCollectionsChartClient as MonthlyCollectionsChart,
+  CollectionRateRingClient as CollectionRateRing,
+  OverdueByCategoryChartClient as OverdueByCategoryChart,
+} from "@/components/dashboard/charts-client";
 
 type ScheduleAggRow = {
   id: string;

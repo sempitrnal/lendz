@@ -80,7 +80,7 @@ export default function AssignBorrower({
 
     const map: Record<string, Borrower> = {};
 
-    data?.forEach((b) => {
+    data?.forEach((b: Borrower) => {
       map[b.id] = b as Borrower;
     });
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { triggerHaptic } from "@/lib/haptics";
 import {
   Dialog,
   DialogContent,
@@ -132,16 +133,19 @@ export default function ActivateAccountDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstPaymentDate) {
+      triggerHaptic("warning");
       toast.error("First payment date is required");
       return;
     }
     const termNum = Number(termMonths);
     if (!Number.isFinite(termNum) || termNum <= 0) {
+      triggerHaptic("warning");
       toast.error("Term must be greater than 0");
       return;
     }
     const rateNum = Number(interestRate);
     if (!Number.isFinite(rateNum) || rateNum < 0) {
+      triggerHaptic("warning");
       toast.error("Interest rate must be a valid number");
       return;
     }
@@ -161,10 +165,12 @@ export default function ActivateAccountDialog({
     setIsSubmitting(false);
 
     if (result.error) {
+      triggerHaptic("error");
       toast.error(result.error);
       return;
     }
 
+    triggerHaptic("success");
     toast.success("Account activated and schedules created");
     onClose();
     router.refresh();

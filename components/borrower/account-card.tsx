@@ -33,6 +33,8 @@ export function AccountCard({
 }) {
   const amountLeftToPay = metrics?.amountLeftToPay ?? 0;
   const profitToMake = metrics?.profitToMake ?? 0;
+  const daysSinceRelease = metrics?.daysSinceRelease ?? 0;
+  const profitPerSchedule = metrics?.profitPerSchedule ?? 0;
   const totalDue = metrics?.totalDue ?? 0;
   const totalPaid = metrics?.totalPaid ?? 0;
   const progressPct =
@@ -57,6 +59,11 @@ export function AccountCard({
         : freq === "weekly"
           ? termMonths * 4
           : termMonths;
+  function fmtCompact(n: number) {
+    if (n < 1000) return n.toLocaleString();
+    const k = n / 1000;
+    return `${k >= 100 ? k.toFixed(0) : k.toFixed(1)}k`;
+  }
   function tryOpenAccount(e: SyntheticEvent) {
     if (isOpening) return;
     if ((e.target as HTMLElement).closest("[data-prevent-account-open]")) {
@@ -105,18 +112,46 @@ export function AccountCard({
       : "bg-lime-200 text-lime-900"
     : badgeBg;
 
+  const statusColors =
+    account.status === "active"
+      ? {
+          bg: "bg-emerald-100",
+          text: "text-emerald-700",
+          border: "border-emerald-200",
+          darkBg: "dark:bg-emerald-900/30",
+          darkText: "dark:text-emerald-300",
+          darkBorder: "dark:border-emerald-800",
+        }
+      : account.status === "pending"
+        ? {
+            bg: "bg-amber-100",
+            text: "text-amber-700",
+            border: "border-amber-200",
+            darkBg: "dark:bg-amber-900/30",
+            darkText: "dark:text-amber-300",
+            darkBorder: "dark:border-amber-800",
+          }
+        : {
+            bg: "bg-slate-100",
+            text: "text-slate-600",
+            border: "border-slate-200",
+            darkBg: "dark:bg-slate-800",
+            darkText: "dark:text-slate-400",
+            darkBorder: "dark:border-slate-700",
+          };
+
   return (
     <motion.div
-      className={`bg-solar dark:bg-card relative overflow-hidden rounded-xl border-2 transition-all duration-150 ${
+      className={`dark:bg-card relative overflow-hidden rounded-2xl border bg-white transition-all duration-200 ${
         hasOverdue
-          ? "border-red-700 shadow-[4px_4px_0px_0px_#b91c1c]"
-          : "dark:border-border border-slate-900 shadow-[4px_4px_0px_0px_#0f172a]"
+          ? "border-red-300 shadow-[3px_3px_0px_0px_#ef4444] dark:border-red-700"
+          : "border-slate-200 shadow-[3px_3px_0px_0px_#e2e8f0] dark:border-slate-700"
       } ${isOpening ? "scale-[0.98] opacity-60" : ""} ${selectionMode && selected ? "ring-2 ring-slate-900 dark:ring-amber-400" : ""}`}
       whileHover={
         isOpening
           ? undefined
           : {
-              y: -3,
+              y: -2,
               transition: {
                 type: "spring" as const,
                 stiffness: 400,
@@ -130,8 +165,8 @@ export function AccountCard({
           : { scale: 0.98, y: 0, transition: { duration: 0.1 } }
       }
     >
-      {/* Left accent strip */}
-      <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${accentStrip}`} />
+      {/* Top accent */}
+      <div className={`h-1 w-full ${accentStrip}`} />
 
       <div
         role="button"
@@ -157,172 +192,217 @@ export function AccountCard({
         aria-disabled={isOpening}
         aria-busy={isOpening}
         aria-label="Open account"
-        className="dark:focus-visible:ring-border w-full min-w-0 cursor-pointer py-2 pr-10 pl-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+        className="dark:focus-visible:ring-border w-full min-w-0 cursor-pointer px-4 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
       >
-        {/* Row 1: type badge + principal + status */}
-        <div className="flex items-center gap-1.5">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span
+              className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-black tracking-wide uppercase ${typeBadgeBg} dark:border-slate-700`}
+            >
+              {typeLabel}
+            </span>
+            {account.status !== "pending" && (
+              <span className="text-muted-foreground text-[11px] font-medium">
+                {account.interest_rate}%
+              </span>
+            )}
+          </div>
           <span
-            className={`shrink-0 rounded-full border border-slate-900 px-1.5 py-0.5 text-[9px] font-black uppercase ${typeBadgeBg}`}
-          >
-            {typeLabel}
-          </span>
-          <span className="dark:text-foreground text-lg leading-none font-black text-slate-900 tabular-nums">
-            ₱{Number(account.principal_amount ?? 0).toLocaleString()}
-          </span>
-          <span
-            className={`dark:border-border ml-auto shrink-0 rounded-full border border-slate-900 px-1.5 py-0.5 text-[9px] font-black uppercase ${
-              account.status === "active"
-                ? "bg-emerald-200 text-emerald-900 dark:bg-emerald-800/50 dark:text-emerald-200"
-                : account.status === "pending"
-                  ? "bg-amber-200 text-amber-900 dark:bg-amber-800/50 dark:text-amber-200"
-                  : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-            }`}
+            className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase ${statusColors.bg} ${statusColors.text} ${statusColors.border} ${statusColors.darkBg} ${statusColors.darkText} ${statusColors.darkBorder}`}
           >
             {account.status}
           </span>
         </div>
 
-        {/* Row 2: meta */}
-        <p className="dark:text-muted-foreground mt-0.5 text-[12px] text-slate-400">
-          {!isManual && account.status !== "pending"
-            ? `${account.payment_frequency} · ${account.term_months}mo · `
-            : account.status === "pending"
-              ? "pending · "
-              : isRolling
-                ? "manual rolling · "
-                : "manual flat · "}
-          {account.interest_rate}% · released on
-          <span className="font-bold text-amber-300">
-            {account.release_date && `  ${formatDate(account.release_date)}`}
+        {/* Principal */}
+        <div className="mt-1.5">
+          <span className="dark:text-foreground text-2xl font-black tracking-tight text-slate-900 tabular-nums">
+            ₱{Number(account.principal_amount ?? 0).toLocaleString()}
           </span>
-        </p>
+          <span className="text-muted-foreground ml-1.5 text-[11px]">
+            {account.status === "pending"
+              ? "pending"
+              : !isManual
+                ? `${account.payment_frequency} · ${account.term_months}mo`
+                : isRolling
+                  ? "manual rolling"
+                  : "manual flat"}
+          </span>
+        </div>
+
+        {/* Release date */}
+        {account.release_date && (
+          <p className="text-muted-foreground mt-0.5 text-[11px]">
+            released{" "}
+            <span className="font-semibold text-slate-700 dark:text-slate-300">
+              {formatDate(account.release_date)}
+            </span>
+            {daysSinceRelease > 0 && (
+              <span className="text-slate-400">
+                {" "}
+                · {daysSinceRelease} day{daysSinceRelease === 1 ? "" : "s"}
+              </span>
+            )}
+          </p>
+        )}
 
         {account.status === "pending" && onActivate && (
           <button
             type="button"
             data-prevent-account-open
             onClick={() => onActivate(account)}
-            className="dark:border-border mt-2 inline-flex items-center rounded-lg border-2 border-slate-900 bg-emerald-400 px-2.5 py-1 text-[10px] font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none dark:bg-emerald-700/50 dark:text-emerald-100"
+            className="mt-2.5 inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-bold tracking-wide text-white shadow-sm transition hover:bg-emerald-600 active:scale-95 dark:bg-emerald-600 dark:hover:bg-emerald-500"
           >
-            activate account
+            Activate
           </button>
         )}
 
-        {/* Row 3: stats — hidden when pending */}
+        {/* Metrics grid */}
         {account.status !== "pending" && (
-          <p className="dark:text-muted-foreground mt-1 text-[11px] leading-snug text-slate-500">
-            <span>Remaining </span>
-            <strong className="font-black text-red-700 dark:text-red-400">
-              ₱{amountLeftToPay.toLocaleString()}
-            </strong>
-            {isManual ? (
-              <>
-                <span className="dark:text-border text-slate-300"> · </span>
-                <span>Paid </span>
-                <strong className="dark:text-foreground font-black text-slate-900">
-                  ₱{totalPaid.toLocaleString()}
-                </strong>
-              </>
-            ) : (
-              <>
-                <span className="dark:text-border text-slate-300"> · </span>
-                <span>Collected </span>
-                <strong className="font-black text-green-700 dark:text-green-400">
-                  ₱{totalPaid.toLocaleString()}
-                </strong>
-                <span className="dark:text-border text-slate-300"> · </span>
-                <span>Profit </span>
-                <strong className="dark:text-foreground font-black text-slate-900">
-                  ₱{Math.round(profitToMake).toLocaleString()}
-                </strong>
-                <span className="dark:text-border text-slate-300"> · </span>
-                <strong className="dark:text-foreground font-black text-slate-900">
-                  ₱
-                  {Math.round(
-                    profitToMake / perPayrollDivisor,
-                  ).toLocaleString()}
-                </strong>
-                <span>/pay</span>
-              </>
+          <div
+            className={`mt-3 grid gap-2 ${profitToMake > 0 ? "grid-cols-3" : "grid-cols-2"}`}
+          >
+            <div className="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/50">
+              <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                Remaining
+              </p>
+              <p className="mt-0.5 text-sm font-black text-red-600 tabular-nums dark:text-red-400">
+                ₱{fmtCompact(amountLeftToPay)}
+              </p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/50">
+              <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                {isManual ? "Paid" : "Collected"}
+              </p>
+              <p
+                className={`mt-0.5 text-sm font-black tabular-nums ${isManual ? "text-slate-800 dark:text-slate-200" : "text-emerald-600 dark:text-emerald-400"}`}
+              >
+                ₱{fmtCompact(totalPaid)}
+              </p>
+            </div>
+            {profitToMake > 0 && (
+              <div className="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/50">
+                <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                  Profit / Schedule
+                </p>
+                <p className="mt-0.5 text-sm font-black text-violet-600 tabular-nums dark:text-violet-400">
+                  ₱{fmtCompact(profitPerSchedule)}
+                </p>
+              </div>
             )}
-          </p>
-        )}
-        {(metrics?.nextCollections?.length ?? 0) > 0 && (
-          <span className="text-xs lowercase">Next</span>
+          </div>
         )}
 
-        {/* Row 4: next collections (all partial + next pending) */}
+        {/* Progress */}
+        {totalDue > 0 && (
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="font-semibold text-slate-400">Progress</span>
+              <span className="font-black text-slate-700 tabular-nums dark:text-slate-300">
+                {progressPct}%
+              </span>
+            </div>
+            <div
+              className="dark:bg-muted mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100"
+              role="progressbar"
+              aria-valuenow={progressPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-all duration-500 dark:bg-emerald-400"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Next collection */}
         {(!isManual || isRolling) &&
           (metrics?.nextCollections?.length ?? 0) > 0 && (
-            <div className="mt-1 space-y-0.5">
-              {(metrics?.nextCollections ?? []).map((nc, i) => (
-                <p
+            <div className="mt-3 space-y-1.5">
+              <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                Upcoming
+              </p>
+              {(metrics?.nextCollections ?? []).slice(0, 3).map((nc, i) => (
+                <div
                   key={i}
-                  className="dark:text-muted-foreground flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] leading-snug text-slate-500"
+                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-800/30"
                 >
-                  <strong className="dark:text-foreground w-12 font-black text-slate-900">
-                    {formatDate(nc.due_date)}
-                  </strong>
-                  <strong className="dark:text-foreground font-black text-slate-700 tabular-nums">
-                    ₱{nc.amount.toLocaleString()}
-                  </strong>
-                  {nc.status === "partial" && nc.amount_due > nc.amount && (
-                    <span className="dark:text-muted-foreground text-slate-400">
-                      of ₱{nc.amount_due.toLocaleString()}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                      {formatDate(nc.due_date)}
                     </span>
-                  )}
+                    <span className="text-[11px] font-black text-slate-900 tabular-nums dark:text-slate-200">
+                      ₱{nc.amount.toLocaleString()}
+                    </span>
+                    {nc.status === "partial" && nc.amount_due > nc.amount && (
+                      <span className="text-[10px] text-slate-400">
+                        of ₱{nc.amount_due.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
                   {nc.status && (
                     <span
-                      className={`dark:border-border border border-slate-900 px-1 py-0.5 text-[7px] font-black uppercase ${
+                      className={`rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wide uppercase ${
                         nc.status === "overdue"
-                          ? "bg-red-300 text-red-900 dark:bg-red-700/50 dark:text-red-200"
+                          ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
                           : nc.status === "paid"
-                            ? "bg-emerald-300 text-emerald-900 dark:bg-emerald-700/50 dark:text-emerald-200"
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
                             : nc.status === "pending"
-                              ? "bg-yellow-300 text-yellow-900 dark:bg-yellow-700/50 dark:text-yellow-200"
+                              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
                               : nc.status === "partial"
-                                ? "bg-purple-300 text-purple-900 dark:bg-purple-700/50 dark:text-purple-200"
-                                : "bg-blue-300 text-blue-900 dark:bg-blue-700/50 dark:text-blue-200"
+                                ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+                                : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
                       }`}
                     >
                       {nc.status}
                     </span>
                   )}
-                </p>
+                </div>
               ))}
+              {(metrics?.nextCollections?.length ?? 0) > 3 && (
+                <p className="text-center text-[10px] text-slate-400">
+                  +{(metrics?.nextCollections?.length ?? 0) - 3} more
+                </p>
+              )}
             </div>
           )}
 
-        {/* Overdue */}
+        {/* Overdue alert */}
         {hasOverdue && (
-          <div className="mt-3 rounded-sm border border-red-400 bg-red-100 p-1 dark:border-red-800 dark:bg-red-900/30">
+          <div className="mt-3 overflow-hidden rounded-xl border border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-950/20">
             <button
               type="button"
               data-prevent-account-open
               onClick={() => setOverdueExpanded((v) => !v)}
-              className="flex w-full items-center gap-1 text-[11px]"
+              className="flex w-full items-center gap-2 px-3 py-2"
             >
-              <span className="font-black text-red-600 dark:text-red-300">
-                ⚠ {overdueCount} overdue
+              <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white">
+                {overdueCount}
+              </div>
+              <span className="text-[11px] font-bold text-red-700 dark:text-red-300">
+                overdue
               </span>
-              <span className="font-black text-red-800 tabular-nums dark:text-red-300">
+              <span className="ml-auto text-[11px] font-black text-red-800 tabular-nums dark:text-red-300">
                 ₱{overdueTotal.toLocaleString()}
               </span>
               <ChevronDown
-                className={`ml-auto size-3 text-red-600 transition-transform duration-200 dark:text-red-400 ${overdueExpanded ? "rotate-180" : ""}`}
+                className={`size-3.5 text-red-500 transition-transform ${overdueExpanded ? "rotate-180" : ""}`}
               />
             </button>
             <div
               className={`grid transition-[grid-template-rows] duration-200 ${overdueExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
             >
               <div className="overflow-hidden">
-                <div className="mt-0.5 space-y-0.5 pl-1">
+                <div className="space-y-1 px-3 pb-2">
                   {(metrics?.overdueSchedules ?? []).map((os, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between gap-2 text-[10px]"
+                      className="flex items-center justify-between text-[11px]"
                     >
-                      <span className="dark:text-muted-foreground text-slate-600">
+                      <span className="text-slate-500 dark:text-slate-400">
                         {formatDate(os.due_date)}
                       </span>
                       <span className="font-black text-red-700 dark:text-red-300">
@@ -333,27 +413,6 @@ export function AccountCard({
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Progress bar */}
-        {totalDue > 0 && (
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <div
-              className="dark:bg-muted h-1 flex-1 overflow-hidden bg-slate-100"
-              role="progressbar"
-              aria-valuenow={progressPct}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
-              <div
-                className="h-full bg-emerald-400 transition-all duration-500"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-            <span className="dark:text-muted-foreground shrink-0 text-[9px] text-slate-400 tabular-nums">
-              {progressPct}%
-            </span>
           </div>
         )}
       </div>

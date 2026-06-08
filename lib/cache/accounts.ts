@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
+
 function createSupabaseAdmin() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
@@ -61,7 +63,7 @@ export type AccountDetailData = {
   paymentsMap: Map<string, SchedulePaymentRow[]>;
 };
 
-export async function getAccountDetailPageData(
+async function fetchAccountDetailPageData(
   id: string,
 ): Promise<AccountDetailData> {
   const supabase = createSupabaseAdmin();
@@ -142,3 +144,12 @@ export async function getAccountDetailPageData(
     paymentsMap,
   };
 }
+
+export const getAccountDetailPageData = unstable_cache(
+  fetchAccountDetailPageData,
+  ["account-detail"],
+  {
+    revalidate: 60,
+    tags: ["account-detail"],
+  },
+);

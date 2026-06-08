@@ -17,7 +17,10 @@ import AddBorrowerModal from "./add-borrower-modal";
 import { BorrowerCard } from "./borrower-card";
 import { BsChevronDown, BsChevronLeft, BsChevronRight } from "react-icons/bs";
 import { FaPlus } from "react-icons/fa6";
+import { Users } from "lucide-react";
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 
 export type Borrower = {
   id: string;
@@ -462,18 +465,31 @@ export default function BorrowersList({
       </div>
 
       {initialBorrowers.length === 0 ? (
-        <div className="rounded-2xl border border-dashed p-10 text-center">
-          <p className="text-gray-500">
-            {selectedCategoryIds.length > 0 || searchQuery.trim()
-              ? "No borrowers match the current search and category filters."
-              : "No borrowers yet"}
-          </p>
-        </div>
-      ) : (
-        <MasonryGrid
-          borrowers={initialBorrowers}
-          onBorrowerUpdated={refreshPage}
+        <EmptyState
+          icon={Users}
+          title={
+            selectedCategoryIds.length > 0 || searchQuery.trim()
+              ? "No matches found"
+              : "No borrowers yet"
+          }
+          description={
+            selectedCategoryIds.length > 0 || searchQuery.trim()
+              ? "Try adjusting your search or clearing category filters."
+              : "Add your first borrower to start tracking loans and collections."
+          }
+          action={
+            selectedCategoryIds.length === 0 && !searchQuery.trim()
+              ? { label: "Add borrower", href: "/borrowers" }
+              : undefined
+          }
         />
+      ) : (
+        <PullToRefresh>
+          <MasonryGrid
+            borrowers={initialBorrowers}
+            onBorrowerUpdated={refreshPage}
+          />
+        </PullToRefresh>
       )}
 
       {/* Pagination controls */}

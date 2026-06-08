@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { triggerHaptic } from "@/lib/haptics";
 
 type Row = { due_date: string; amount_due: string; note: string };
 
@@ -140,6 +141,7 @@ export default function AddSchedulesPanel({ accountId, addSchedules }: Props) {
       (r) => r.due_date && r.amount_due && parseAmount(r.amount_due) > 0,
     );
     if (!valid.length) {
+      triggerHaptic("warning");
       toast.error("Add at least one row with a date and amount");
       return;
     }
@@ -153,8 +155,10 @@ export default function AddSchedulesPanel({ accountId, addSchedules }: Props) {
         })),
       );
       if (result?.error) {
+        triggerHaptic("error");
         toast.error(result.error);
       } else {
+        triggerHaptic("success");
         toast.success(
           `${valid.length} schedule${valid.length === 1 ? "" : "s"} added.`,
         );

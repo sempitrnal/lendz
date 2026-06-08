@@ -1,7 +1,4 @@
-import { Suspense } from "react";
-
 import BorrowerAccountsAsync from "@/components/borrower/borrower-accounts-async";
-import BorrowerAccountsSectionSkeleton from "@/components/borrower/borrower-accounts-section-skeleton";
 import BorrowerEditForm, {
   type BorrowerEditFormProps,
 } from "@/components/borrower/borrower-edit-form";
@@ -21,9 +18,7 @@ export default function BorrowerEditView({
         initialCategoryIds={initialCategoryIds}
       />
 
-      <Suspense fallback={<BorrowerAccountsSectionSkeleton />}>
-        <BorrowerAccountsAsync borrowerId={borrowerId} />
-      </Suspense>
+      <BorrowerAccountsAsync borrowerId={borrowerId} />
     </div>
   );
 }

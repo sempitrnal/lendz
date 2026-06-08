@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 import {
   nextDueScheduleForCollection,
   remainingOnInstallment,
@@ -82,7 +83,7 @@ export type NextCollectionData = {
   borrowersById: Map<string, BorrowerRef>;
 };
 
-export async function getNextCollectionPageData(): Promise<NextCollectionData> {
+async function fetchNextCollectionPageData(): Promise<NextCollectionData> {
   const supabase = createSupabaseAdmin();
   const now = new Date();
   const TZ = "Asia/Manila";
@@ -172,3 +173,9 @@ export async function getNextCollectionPageData(): Promise<NextCollectionData> {
     borrowersById,
   };
 }
+
+export const getNextCollectionPageData = unstable_cache(
+  fetchNextCollectionPageData,
+  ["next-collection"],
+  { revalidate: 60, tags: ["next-collection"] },
+);
