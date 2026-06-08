@@ -42,7 +42,7 @@ export default function BorrowerDetailView({
     if (window.history.length > 1) {
       window.history.back();
     } else {
-      router.push("/borrowers");
+      router.push("/borrowers", { scroll: false });
     }
   }
   return (

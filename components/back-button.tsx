@@ -45,10 +45,10 @@ export default function BackButton({
 
   const handleBack = () => {
     if (window.history.length > 1) {
-      router.back();
+      window.history.back();
       return;
     }
-    router.push(fallbackHref);
+    router.push(fallbackHref, { scroll: false });
   };
 
   if (floating) {
@@ -59,13 +59,15 @@ export default function BackButton({
         onClick={handleBack}
         aria-label={label}
         className={`fixed top-20 left-4 z-50 inline-flex items-center gap-2 transition-all duration-300 print:hidden ${
-          visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
+          visible
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-2 opacity-0"
         } ${neobrutButtonClassName("white", "")}`}
       >
         <span aria-hidden="true">←</span>
         <span>{label}</span>
       </button>,
-      document.body
+      document.body,
     );
   }
 
@@ -75,7 +77,7 @@ export default function BackButton({
       onClick={handleBack}
       className={neobrutButtonClassName(
         "white",
-        `inline-flex items-center gap-2 ${className ?? ""}`
+        `inline-flex items-center gap-2 ${className ?? ""}`,
       )}
       aria-label={label}
     >

@@ -199,7 +199,7 @@ export default function BorrowersList({
       // Delay to let Next.js finish its initial paint/scroll-to-top
       setTimeout(() => {
         window.scrollTo({ top: y, behavior: "instant" });
-      }, 50);
+      }, 150);
     }
   }, []);
 

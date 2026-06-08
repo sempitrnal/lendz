@@ -673,9 +673,7 @@ export default function BorrowerAccountsSection({
         <button
           type="button"
           onClick={() => {
-            router.push("/borrowers", {
-              scroll: true,
-            });
+            router.push("/borrowers", { scroll: false });
           }}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
         >
