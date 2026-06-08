@@ -272,8 +272,10 @@ export default async function AccountDetailPage({
   const nextHighlightIndex = schedules.findIndex((s) =>
     isInstallmentNextHighlight(s),
   );
-  const nextDue =
-    nextHighlightIndex >= 0 ? schedules[nextHighlightIndex] : null;
+  const nextDueIndex = schedules.findIndex(
+    (s) => remainingOnInstallment(s) > 0,
+  );
+  const nextDue = nextDueIndex >= 0 ? schedules[nextDueIndex] : null;
 
   const updateScheduleStatus = updateScheduleStatusAction.bind(
     null,
@@ -304,7 +306,7 @@ export default async function AccountDetailPage({
     const isNext = i === nextHighlightIndex;
     const hasHistory =
       schedule.status === "partial" &&
-      (paymentsMap.get(schedule.id) ?? []).length > 0;
+      (paymentsMap[schedule.id] ?? []).length > 0;
     const paidDiffDays =
       schedule.paid_date && schedule.paid_date !== schedule.due_date
         ? Math.round(
@@ -460,7 +462,7 @@ export default async function AccountDetailPage({
               hasHistory ? (
                 <PaymentHistoryPanel
                   payments={
-                    (paymentsMap.get(schedule.id) ?? []) as SchedulePayment[]
+                    (paymentsMap[schedule.id] ?? []) as SchedulePayment[]
                   }
                   updatePayment={updatePaymentEntry}
                   deletePayment={deletePaymentEntry}
@@ -499,7 +501,7 @@ export default async function AccountDetailPage({
         progressPct={progressPct}
       />
 
-      <div className="mt-4 space-y-6 sm:mt-10">
+      <div className="mt-10 space-y-6 sm:mt-10">
         <Link
           href={`/borrowers/${accountRow.borrower_id}`}
           className="dark:text-muted-foreground dark:hover:text-foreground inline-flex items-center gap-1 text-xs font-black tracking-wider text-slate-500 uppercase transition hover:text-slate-900"
@@ -964,8 +966,7 @@ export default async function AccountDetailPage({
                             footer={
                               schedule.status === "partial" &&
                               (!isRolling ||
-                                (paymentsMap.get(schedule.id) ?? []).length >
-                                  0) ? (
+                                (paymentsMap[schedule.id] ?? []).length > 0) ? (
                                 <div className="space-y-3 pb-2">
                                   {!isRolling ? (
                                     <PartialPaymentForm
@@ -977,11 +978,11 @@ export default async function AccountDetailPage({
                                       dueDate={schedule.due_date}
                                     />
                                   ) : null}
-                                  {(paymentsMap.get(schedule.id) ?? []).length >
+                                  {(paymentsMap[schedule.id] ?? []).length >
                                   0 ? (
                                     <PaymentHistoryPanel
                                       payments={
-                                        (paymentsMap.get(schedule.id) ??
+                                        (paymentsMap[schedule.id] ??
                                           []) as SchedulePayment[]
                                       }
                                       updatePayment={updatePaymentEntry}

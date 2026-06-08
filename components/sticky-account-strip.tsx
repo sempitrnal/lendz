@@ -77,10 +77,7 @@ export default function StickyAccountStrip({
 
   return (
     <>
-      <div
-        className="bg-background/95 dark:bg-background/95 fixed top-10 z-40 -mx-4 border-2 border-slate-900 shadow-[0_4px_0px_0px_#0f172a] backdrop-blur-lg sm:top-20 dark:border-[#020617] dark:shadow-[0_4px_0px_0px_#020617]"
-        style={{ left: "0", right: "0", position: "fixed" }}
-      >
+      <div className="bg-background/95 dark:bg-background/95 fixed top-10 z-40 -mx-4 border-2 border-slate-900 shadow-[0_4px_0px_0px_#0f172a] backdrop-blur-lg sm:top-20 dark:border-[#020617] dark:shadow-[0_4px_0px_0px_#020617]">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}

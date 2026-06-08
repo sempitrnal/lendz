@@ -60,7 +60,7 @@ export type AccountDetailData = {
   account: AccountRow;
   borrower: BorrowerRow | null;
   schedules: PaymentScheduleRow[];
-  paymentsMap: Map<string, SchedulePaymentRow[]>;
+  paymentsMap: Record<string, SchedulePaymentRow[]>;
 };
 
 async function fetchAccountDetailPageData(
@@ -123,7 +123,7 @@ async function fetchAccountDetailPageData(
   const scheduleIds = ((schedulesData ?? []) as { id: string }[]).map(
     (s) => s.id,
   );
-  const paymentsMap = new Map<string, SchedulePaymentRow[]>();
+  const paymentsMap: Record<string, SchedulePaymentRow[]> = {};
   if (scheduleIds.length > 0) {
     const { data: paymentsData } = await supabase
       .from("schedule_payments")
@@ -131,9 +131,9 @@ async function fetchAccountDetailPageData(
       .in("schedule_id", scheduleIds)
       .order("created_at", { ascending: true });
     for (const p of (paymentsData ?? []) as SchedulePaymentRow[]) {
-      const list = paymentsMap.get(p.schedule_id) ?? [];
+      const list = paymentsMap[p.schedule_id] ?? [];
       list.push(p);
-      paymentsMap.set(p.schedule_id, list);
+      paymentsMap[p.schedule_id] = list;
     }
   }
 
