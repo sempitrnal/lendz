@@ -1,6 +1,8 @@
+"use client";
+
 import BorrowerAccountsSection from "@/components/borrower/borrower-accounts-section";
 import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type {
   AccountRow,
   AccountComputedMetrics,
@@ -35,8 +37,24 @@ export default function BorrowerDetailView({
   initialMetrics,
   deletedAccounts = [],
 }: BorrowerDetailViewProps) {
+  const router = useRouter();
+  function goBack() {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      router.push("/borrowers");
+    }
+  }
   return (
     <div className="flex w-full flex-col gap-6">
+      <button
+        type="button"
+        onClick={goBack}
+        className="inline-flex items-center gap-1.5 text-xs font-black tracking-wider text-slate-500 uppercase transition hover:text-slate-900 sm:hidden dark:text-slate-400 dark:hover:text-slate-200"
+      >
+        <ArrowLeft className="size-3.5" />
+        back to borrowers
+      </button>
       <BorrowerAccountsSection
         borrower={borrower}
         borrowerId={borrower.id}
@@ -44,7 +62,6 @@ export default function BorrowerDetailView({
         initialMetrics={initialMetrics}
         deletedAccounts={deletedAccounts}
       />
-      {/* <Link href="/borrowers" className="flex  mt-2 gap-2 items-center text-stone-600 text-sm"><ArrowLeft className="w-5 h-5"/><span>borrowers</span></Link> */}
     </div>
   );
 }

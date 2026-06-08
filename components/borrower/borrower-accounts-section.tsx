@@ -38,7 +38,6 @@ import ActivateAccountDialog from "./activate-account-dialog";
 import { isDarkColor } from "@/lib/utils";
 import { AccountCard } from "./account-card";
 import { motion } from "framer-motion";
-import Link from "next/link";
 
 const stripVariants = {
   hidden: { opacity: 0, y: -20 },
@@ -119,64 +118,67 @@ function StickyBorrowerStrip({
   const [open, setOpen] = useState(false);
   if (!borrower) return null;
   return (
-    <div className="bg-background dark:bg-background/95 relative sticky top-10 z-30 -mx-4 backdrop-blur md:top-16">
-      <div className="dark:border-border/50 flex items-center justify-between border-b border-slate-200 px-4 py-2">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="dark:text-foreground truncate text-sm font-black tracking-wide text-slate-900 uppercase">
-              {borrower.first_name} {borrower.last_name}
-            </p>
-            {borrower.category && borrower.category.length > 0 && (
-              <div className="mt-0.5 flex flex-wrap gap-1">
-                {borrower.category.map((c) => (
-                  <span
-                    key={c.id}
-                    className={`rounded border border-slate-900/30 px-1.5 py-0.5 text-[9px] font-black ${isDarkColor(c.color) ? "text-white" : "text-slate-900"}`}
-                    style={{ backgroundColor: c.color }}
-                  >
-                    {c.name}
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="dark:text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
-              <span>
-                Loaned{" "}
-                <strong className="dark:text-foreground text-slate-700">
-                  ₱{Math.round(totalLoaned).toLocaleString()}
-                </strong>
-              </span>
-              <span>
-                Collected{" "}
-                <strong className="text-emerald-700 dark:text-emerald-400">
-                  ₱{Math.round(totalAmountCollected).toLocaleString()}
-                </strong>
-              </span>
-              <span>
-                Remaining{" "}
-                <strong className="text-rose-700 dark:text-rose-400">
-                  ₱{Math.round(totalRemaining).toLocaleString()}
-                </strong>
-              </span>
-            </div>
-          </div>
-          <ChevronDown
-            className={`dark:text-muted-foreground ml-1 size-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-          />
-        </button>
-        <div className="ml-2 shrink-0" data-prevent-strip-open>
-          <BorrowerDetailMenu borrowerId={borrower.id} />
-        </div>
-      </div>
+    <>
       <div
-        className={`dark:bg-background/95 absolute top-full right-0 left-0 z-30 grid overflow-hidden bg-white/95 shadow-[0_4px_0_0_#0f172a] backdrop-blur transition-[grid-template-rows] duration-300 ease-in-out dark:shadow-[0_4px_0_0_#0f172a] ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+        className="bg-background/95 dark:bg-background/95 fixed top-10 z-30 -mx-4 border-2 border-slate-900 shadow-[0_4px_0px_0px_#0f172a] backdrop-blur md:top-16 dark:border-[#020617] dark:shadow-[0_4px_0px_0px_#020617]"
+        style={{ left: "0", right: "0", position: "fixed" }}
       >
-        <div className="overflow-hidden">
-          <div className="px-4 pb-3">
+        <div className="flex items-center justify-between px-4 py-2">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="dark:text-foreground truncate text-sm font-black tracking-wide text-slate-900 uppercase">
+                {borrower.first_name} {borrower.last_name}
+              </p>
+              {borrower.category && borrower.category.length > 0 && (
+                <div className="mt-0.5 flex flex-wrap gap-1">
+                  {borrower.category.map((c) => (
+                    <span
+                      key={c.id}
+                      className={`rounded border border-slate-900/30 px-1.5 py-0.5 text-[9px] font-black ${isDarkColor(c.color) ? "text-white" : "text-slate-900"}`}
+                      style={{ backgroundColor: c.color }}
+                    >
+                      {c.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="dark:text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+                <span>
+                  Loaned{" "}
+                  <strong className="dark:text-foreground text-slate-700">
+                    ₱{Math.round(totalLoaned).toLocaleString()}
+                  </strong>
+                </span>
+                <span>
+                  Collected{" "}
+                  <strong className="text-emerald-700 dark:text-emerald-400">
+                    ₱{Math.round(totalAmountCollected).toLocaleString()}
+                  </strong>
+                </span>
+                <span>
+                  Remaining{" "}
+                  <strong className="text-rose-700 dark:text-rose-400">
+                    ₱{Math.round(totalRemaining).toLocaleString()}
+                  </strong>
+                </span>
+              </div>
+            </div>
+            <ChevronDown
+              className={`dark:text-muted-foreground ml-1 size-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            />
+          </button>
+          <div className="ml-2 shrink-0" data-prevent-strip-open>
+            <BorrowerDetailMenu borrowerId={borrower.id} />
+          </div>
+        </div>
+        <div
+          className={`bg-background/95 dark:bg-background/95 absolute top-full right-0 left-0 z-30 overflow-hidden border-x-2 border-b-2 border-slate-900 shadow-[0_4px_0px_0px_#0f172a] backdrop-blur transition-all duration-300 ease-out dark:border-[#020617] dark:shadow-[0_4px_0px_0px_#020617] ${open ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"}`}
+        >
+          <div className="px-4 pt-2 pb-3">
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               {(
                 [
@@ -211,11 +213,10 @@ function StickyBorrowerStrip({
                     bg: "bg-violet-100 dark:bg-violet-900/30",
                   },
                 ] as const
-              ).map(({ label, value, bg }, i) => (
+              ).map(({ label, value, bg }) => (
                 <div
                   key={label}
-                  className={`dark:border-border border-2 border-slate-900 ${bg} px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] transition-all duration-200 ${open ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"}`}
-                  style={{ transitionDelay: open ? `${i * 40}ms` : "0ms" }}
+                  className={`border-2 border-slate-900 ${bg} px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]`}
                 >
                   <p className="dark:text-muted-foreground font-black tracking-wide text-slate-500 uppercase">
                     {label}
@@ -226,13 +227,10 @@ function StickyBorrowerStrip({
                 </div>
               ))}
             </div>
-            <div
-              className={`mt-2 flex items-center gap-2 transition-all duration-200 ${open ? "opacity-100" : "opacity-0"}`}
-              style={{ transitionDelay: open ? "160ms" : "0ms" }}
-            >
-              <div className="dark:border-border dark:bg-card h-2 flex-1 overflow-hidden rounded-sm border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]">
+            <div className="mt-2 flex items-center gap-2">
+              <div className="h-2 flex-1 overflow-hidden rounded-sm border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-slate-900">
                 <div
-                  className="h-full bg-emerald-400 transition-[width] duration-500 ease-out"
+                  className="h-full bg-emerald-400 transition-[width] duration-500 ease-out dark:bg-emerald-500"
                   style={{ width: open ? `${collectedPct}%` : "0%" }}
                 />
               </div>
@@ -243,7 +241,8 @@ function StickyBorrowerStrip({
           </div>
         </div>
       </div>
-    </div>
+      <div className="h-12 sm:h-14" />
+    </>
   );
 }
 export type AccountRow = AccountEditableRow & {
@@ -658,28 +657,31 @@ export default function BorrowerAccountsSection({
   return (
     <div className="rounded-lg">
       {borrower && (
-        <motion.div initial="hidden" animate="visible" variants={stripVariants}>
-          <StickyBorrowerStrip
-            borrower={borrower}
-            totalLoaned={summaryStats?.totalLoaned ?? 0}
-            totalExpected={summaryStats?.totalExpected ?? 0}
-            totalCollected={summaryStats?.totalCollected ?? 0}
-            totalAmountCollected={summaryStats?.totalAmountCollected ?? 0}
-            totalRemaining={summaryStats?.totalRemaining ?? 0}
-            profitPerSchedule={summaryStats?.profitPerSchedule ?? 0}
-            collectedPct={summaryStats?.collectedPct ?? 0}
-          />
-        </motion.div>
+        <StickyBorrowerStrip
+          borrower={borrower}
+          totalLoaned={summaryStats?.totalLoaned ?? 0}
+          totalExpected={summaryStats?.totalExpected ?? 0}
+          totalCollected={summaryStats?.totalCollected ?? 0}
+          totalAmountCollected={summaryStats?.totalAmountCollected ?? 0}
+          totalRemaining={summaryStats?.totalRemaining ?? 0}
+          profitPerSchedule={summaryStats?.profitPerSchedule ?? 0}
+          collectedPct={summaryStats?.collectedPct ?? 0}
+        />
       )}
 
       <div className="pt-3">
-        <Link
-          href="/borrowers"
+        <button
+          type="button"
+          onClick={() => {
+            router.push("/borrowers", {
+              scroll: true,
+            });
+          }}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
         >
           <ArrowLeft className="size-3.5" />
           back to borrowers
-        </Link>
+        </button>
       </div>
 
       {selectionMode && (
@@ -722,17 +724,19 @@ export default function BorrowerAccountsSection({
         </motion.div>
       ) : (
         (() => {
-          const sortByRelease = (group: typeof accounts) =>
+          const sortByNextDue = (group: typeof accounts) =>
             [...group].sort((a, b) => {
-              const da = a.release_date
-                ? new Date(a.release_date).getTime()
-                : 0;
-              const db = b.release_date
-                ? new Date(b.release_date).getTime()
-                : 0;
-              return db - da;
+              const ma = accountMetricsById[a.id];
+              const mb = accountMetricsById[b.id];
+              const da = ma?.nextCollectionDate
+                ? new Date(ma.nextCollectionDate).getTime()
+                : Infinity;
+              const db = mb?.nextCollectionDate
+                ? new Date(mb.nextCollectionDate).getTime()
+                : Infinity;
+              return da - db;
             });
-          const activeAutoLoans = sortByRelease(
+          const activeAutoLoans = sortByNextDue(
             accounts.filter(
               (a) =>
                 a.status !== "pending" &&
@@ -740,7 +744,7 @@ export default function BorrowerAccountsSection({
                 a.schedule_mode !== "manual",
             ),
           );
-          const activeManualFlatLoans = sortByRelease(
+          const activeManualFlatLoans = sortByNextDue(
             accounts.filter(
               (a) =>
                 a.status !== "pending" &&
@@ -749,7 +753,7 @@ export default function BorrowerAccountsSection({
                 (a as any).interest_type !== "rolling",
             ),
           );
-          const activeManualRollingLoans = sortByRelease(
+          const activeManualRollingLoans = sortByNextDue(
             accounts.filter(
               (a) =>
                 a.status !== "pending" &&
@@ -758,7 +762,7 @@ export default function BorrowerAccountsSection({
                 (a as any).interest_type === "rolling",
             ),
           );
-          const activeAutoCashAdvances = sortByRelease(
+          const activeAutoCashAdvances = sortByNextDue(
             accounts.filter(
               (a) =>
                 a.status !== "pending" &&
@@ -766,7 +770,7 @@ export default function BorrowerAccountsSection({
                 a.schedule_mode !== "manual",
             ),
           );
-          const activeManualFlatCashAdvances = sortByRelease(
+          const activeManualFlatCashAdvances = sortByNextDue(
             accounts.filter(
               (a) =>
                 a.status !== "pending" &&
@@ -775,7 +779,7 @@ export default function BorrowerAccountsSection({
                 (a as any).interest_type !== "rolling",
             ),
           );
-          const activeManualRollingCashAdvances = sortByRelease(
+          const activeManualRollingCashAdvances = sortByNextDue(
             accounts.filter(
               (a) =>
                 a.status !== "pending" &&
@@ -784,7 +788,7 @@ export default function BorrowerAccountsSection({
                 (a as any).interest_type === "rolling",
             ),
           );
-          const pendingAutoLoans = sortByRelease(
+          const pendingAutoLoans = sortByNextDue(
             accounts.filter(
               (a) =>
                 a.status === "pending" &&
@@ -792,7 +796,7 @@ export default function BorrowerAccountsSection({
                 a.schedule_mode !== "manual",
             ),
           );
-          const pendingManualFlatLoans = sortByRelease(
+          const pendingManualFlatLoans = sortByNextDue(
             accounts.filter(
               (a) =>
                 a.status === "pending" &&
@@ -801,7 +805,7 @@ export default function BorrowerAccountsSection({
                 (a as any).interest_type !== "rolling",
             ),
           );
-          const pendingManualRollingLoans = sortByRelease(
+          const pendingManualRollingLoans = sortByNextDue(
             accounts.filter(
               (a) =>
                 a.status === "pending" &&
@@ -810,7 +814,7 @@ export default function BorrowerAccountsSection({
                 (a as any).interest_type === "rolling",
             ),
           );
-          const pendingAutoCashAdvances = sortByRelease(
+          const pendingAutoCashAdvances = sortByNextDue(
             accounts.filter(
               (a) =>
                 a.status === "pending" &&
@@ -818,7 +822,7 @@ export default function BorrowerAccountsSection({
                 a.schedule_mode !== "manual",
             ),
           );
-          const pendingManualFlatCashAdvances = sortByRelease(
+          const pendingManualFlatCashAdvances = sortByNextDue(
             accounts.filter(
               (a) =>
                 a.status === "pending" &&
@@ -827,7 +831,7 @@ export default function BorrowerAccountsSection({
                 (a as any).interest_type !== "rolling",
             ),
           );
-          const pendingManualRollingCashAdvances = sortByRelease(
+          const pendingManualRollingCashAdvances = sortByNextDue(
             accounts.filter(
               (a) =>
                 a.status === "pending" &&
@@ -848,6 +852,7 @@ export default function BorrowerAccountsSection({
             ...pendingManualRollingLoans,
             ...pendingManualRollingCashAdvances,
           ];
+
           const renderGroup = (
             group: typeof accounts,
             label: string,
@@ -871,7 +876,7 @@ export default function BorrowerAccountsSection({
                   </span>
                 </div>
                 <motion.div
-                  className="space-y-3"
+                  className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3"
                   variants={cardContainerVariants}
                 >
                   {group.map((account) => {
@@ -904,8 +909,9 @@ export default function BorrowerAccountsSection({
                 </motion.div>
               </motion.div>
             );
+
           return (
-            <div className="space-y-8">
+            <div className="space-y-10">
               {renderGroup(
                 activeAutoLoans,
                 "loans",
@@ -967,7 +973,7 @@ export default function BorrowerAccountsSection({
               {deletedAccounts.length === 1 ? "" : "s"}
             </span>
           </div>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
             {deletedAccounts.map((account) => {
               const isRestoring = restoringIds.has(account.id);
               const principal = Number(account.principal_amount ?? 0);

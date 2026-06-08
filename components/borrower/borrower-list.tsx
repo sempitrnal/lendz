@@ -189,6 +189,20 @@ export default function BorrowersList({
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Restore scroll position when returning from borrower detail
+  useEffect(() => {
+    const saved = sessionStorage.getItem("borrowers-list-scroll");
+    if (saved) {
+      sessionStorage.removeItem("borrowers-list-scroll");
+      const y = parseInt(saved, 10);
+      // Delay to let Next.js finish its initial paint/scroll-to-top
+      setTimeout(() => {
+        window.scrollTo({ top: y, behavior: "instant" });
+      }, 50);
+    }
+  }, []);
+
   const [updatingBorrowerId, setUpdatingBorrowerId] = useState<string | null>(
     null,
   );
@@ -287,6 +301,10 @@ export default function BorrowersList({
               } else if (e.key === "Enter" && activeSuggestion >= 0) {
                 e.preventDefault();
                 setShowSuggestions(false);
+                sessionStorage.setItem(
+                  "borrowers-list-scroll",
+                  String(window.scrollY),
+                );
                 router.push(`/borrowers/${suggestions[activeSuggestion].id}`);
               } else if (e.key === "Escape") {
                 setShowSuggestions(false);
@@ -308,6 +326,10 @@ export default function BorrowersList({
                   onMouseDown={(e) => {
                     e.preventDefault();
                     setShowSuggestions(false);
+                    sessionStorage.setItem(
+                      "borrowers-list-scroll",
+                      String(window.scrollY),
+                    );
                     router.push(`/borrowers/${s.id}`);
                   }}
                   className={`dark:bg-background flex w-full items-center justify-between gap-3 border-b border-slate-100 bg-[#fffefa] px-3 py-2.5 text-left transition-colors last:border-b-0 dark:text-white ${

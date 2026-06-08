@@ -102,22 +102,22 @@ type AccountDetailPageProps = {
 };
 
 const nb = {
-  card: "rounded-xl border-2 border-slate-900/90 bg-white shadow-[2px_2px_0px_0px_rgb(15_23_42/0.88)] dark:border-border dark:bg-card dark:shadow-none",
+  card: "rounded-xl border-2 border-slate-900 bg-background shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-slate-900 dark:shadow-[2px_2px_0px_0px_#020617]",
   cardSoft:
-    "rounded-xl border-2 border-slate-900 bg-white shadow-[1px_1px_0px_0px_rgb(15_23_42/0.2)] dark:border-border dark:bg-card dark:shadow-none",
+    "rounded-xl border-2 border-slate-900 bg-background shadow-[1px_1px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-slate-900 dark:shadow-[1px_1px_0px_0px_#020617]",
   inset:
-    "rounded-lg border border-slate-200/80 bg-slate-50/80 dark:border-border dark:bg-muted",
+    "rounded-lg border-2 border-slate-900 bg-slate-50 dark:border-[#020617] dark:bg-slate-900",
   label:
-    "text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-muted-foreground",
+    "text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400",
   /** Payment schedule block */
   scheduleShell:
-    "overflow-hidden rounded-xl  bg-solar  border-slate-900  dark:bg-background",
+    "overflow-hidden rounded-xl border-2 border-slate-900 bg-background dark:border-[#020617] dark:bg-slate-900",
   scheduleHead:
-    "  border-slate-900 bg-green-300 px-4 py-3 sm:px-5 sm:py-4 dark:border-border dark:bg-emerald-400/10",
+    "border-b-2 border-slate-900 bg-green-300 px-4 py-3 sm:px-5 sm:py-4 dark:border-[#020617] dark:bg-emerald-500",
   scheduleTh:
-    "border-r-2  border-b-2 border-slate-900 bg-slate-100 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide text-slate-900 last:border-r-0 dark:border-border dark:bg-muted dark:text-foreground",
+    "border-r-2 border-b-2 border-slate-900 bg-slate-100 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide text-slate-900 last:border-r-0 dark:border-[#020617] dark:bg-slate-800 dark:text-slate-100",
   scheduleTd:
-    "border-r-2 border-slate-900 px-3 py-2.5 align-middle text-slate-900 last:border-r-0 dark:border-border dark:text-foreground",
+    "border-r-2 border-b-2 border-slate-900 px-3 py-2.5 align-middle text-slate-900 last:border-r-0 dark:border-[#020617] dark:text-slate-100",
 };
 
 function formatMoney(value: number) {
@@ -174,7 +174,7 @@ function getScheduleStatusClasses(status: string) {
   return {
     badge:
       "border-amber-600/80 bg-amber-50 text-amber-950 dark:border-amber-400/40 dark:bg-amber-400/[0.18] dark:text-amber-300",
-    row: "bg-amber-50/50 dark:bg-amber-400/[0.10]",
+    row: "bg-amber-50/50 dark:bg-[#141103]",
     dot: "bg-amber-500 dark:bg-amber-400",
     text: "text-amber-800 dark:text-amber-300",
   };
@@ -317,10 +317,10 @@ export default async function AccountDetailPage({
       <li
         key={schedule.id}
         id={isNext ? "next-schedule" : undefined}
-        className={`dark:border-border/30 flex break-inside-avoid flex-col rounded-xl border-2 p-4 transition-colors duration-700 ${st.row} ${
+        className={`flex break-inside-avoid flex-col rounded-xl border-2 p-4 transition-colors duration-700 ${st.row} ${
           isNext
-            ? "relative mb-5"
-            : "m-1 mb-4 border-slate-900 shadow-[4px_4px_0px_0px_#0f172a]"
+            ? "relative mb-5 border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
+            : "m-1 mb-4 border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
         }`}
       >
         {isNext && <GlowBorder />}
@@ -329,12 +329,12 @@ export default async function AccountDetailPage({
             #{i + 1}
           </span>
           {isNext && (
-            <span className="dark:border-border inline-block rounded border-2 border-slate-900 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:bg-sky-900/30 dark:text-sky-200 dark:shadow-none">
+            <span className="inline-block rounded-md border-2 border-slate-900 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-sky-800 dark:text-sky-100 dark:shadow-[2px_2px_0px_0px_#020617]">
               Next
             </span>
           )}
           <span
-            className={`ml-auto shrink-0 rounded-full border-2 px-2.5 py-1 text-[10px] font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-none ${st.badge}`}
+            className={`ml-auto shrink-0 rounded-full border-2 px-2.5 py-1 text-[10px] font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[2px_2px_0px_0px_#020617] ${st.badge}`}
           >
             {schedule.status}
           </span>
@@ -412,9 +412,9 @@ export default async function AccountDetailPage({
                     Left {formatMoney(remainingOnInstallment(schedule))}
                   </span>
                 </div>
-                <div className="dark:border-border dark:bg-muted mt-1 h-1.5 overflow-hidden rounded-full border border-slate-300 bg-slate-100">
+                <div className="mt-1.5 h-3 overflow-hidden rounded-full border-2 border-slate-900 bg-white dark:border-[#020617] dark:bg-slate-900">
                   <div
-                    className="h-full bg-amber-400"
+                    className="h-full bg-amber-400 transition-all duration-500 dark:bg-amber-500"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -474,7 +474,7 @@ export default async function AccountDetailPage({
   };
 
   return (
-    <div className="max-w-8xl relative mx-auto pb-16">
+    <div className="max-w-8xl relative mx-auto overflow-visible pb-16">
       {/* <BackButton
         fallbackHref={`/borrowers/${accountRow.borrower_id}`}
         floating
@@ -827,7 +827,7 @@ export default async function AccountDetailPage({
                   <div>
                     <h2
                       id="schedule-heading"
-                      className="dark:text-foreground text-sm font-black tracking-wide text-slate-900 uppercase"
+                      className="text-sm font-black tracking-wide text-slate-900 uppercase"
                     >
                       Payment schedules
                     </h2>
@@ -936,11 +936,11 @@ export default async function AccountDetailPage({
                             scheduleId={schedule.id}
                             id={isNext ? "next-schedule" : undefined}
                             className={cn(
-                              "dark:border-border rounded-xl border-2 px-4 py-3",
+                              "rounded-xl border-2 px-4 py-3",
                               st.row,
                               isNext
-                                ? "relative my-5"
-                                : "border-slate-900 shadow-[3px_3px_0px_0px_#0f172a] dark:shadow-none",
+                                ? "relative my-5 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[3px_3px_0px_0px_#020617]"
+                                : "border-slate-900 shadow-[3px_3px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[3px_3px_0px_0px_#020617]",
                             )}
                             defaultOpen={
                               isNext || focusScheduleId === schedule.id
@@ -999,12 +999,12 @@ export default async function AccountDetailPage({
                                 #{i + 1}
                               </span>
                               {isNext && (
-                                <span className="dark:border-border inline-block rounded border-2 border-slate-900 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:bg-sky-900/30 dark:text-sky-200">
+                                <span className="inline-block rounded-md border-2 border-slate-900 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-sky-800 dark:text-sky-100 dark:shadow-[2px_2px_0px_0px_#020617]">
                                   Next
                                 </span>
                               )}
                               <span
-                                className={`ml-auto shrink-0 rounded-full border-2 px-2 py-0.5 text-[10px] font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-none ${st.badge}`}
+                                className={`ml-auto shrink-0 rounded-full border-2 px-2 py-0.5 text-[10px] font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[2px_2px_0px_0px_#020617] ${st.badge}`}
                               >
                                 {schedule.status}
                               </span>
@@ -1106,9 +1106,9 @@ export default async function AccountDetailPage({
                                         )}
                                       </span>
                                     </div>
-                                    <div className="dark:border-border dark:bg-muted mt-1 h-1.5 overflow-hidden rounded-full border border-slate-300 bg-slate-100">
+                                    <div className="mt-1.5 h-3 overflow-hidden rounded-full border-2 border-slate-900 bg-white dark:border-[#020617] dark:bg-slate-900">
                                       <div
-                                        className="h-full bg-amber-400"
+                                        className="h-full bg-amber-400 transition-all duration-500 dark:bg-amber-500"
                                         style={{
                                           width: `${pct}%`,
                                         }}

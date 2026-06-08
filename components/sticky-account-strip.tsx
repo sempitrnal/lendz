@@ -76,49 +76,52 @@ export default function StickyAccountStrip({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="bg-background/95 dark:bg-background/95 relative sticky top-10 z-30 -mx-4 backdrop-blur-lg sm:top-16">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="dark:border-border/50 flex w-full items-center justify-between border-b border-slate-200 px-4 py-2"
-      >
-        <div className="min-w-0 text-left">
-          <p className="dark:text-foreground truncate text-sm font-black tracking-wide text-slate-900 uppercase">
-            {borrowerName}
-          </p>
-          <div className="dark:text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
-            <span>
-              Released{" "}
-              <strong className="dark:text-foreground text-slate-700">
-                {releaseDate}
-              </strong>
-            </span>
-            <span>
-              Interest{" "}
-              <strong className="dark:text-foreground text-slate-700">
-                {interest}%
-              </strong>
-            </span>
-            <span>
-              Term{" "}
-              <strong className="dark:text-foreground text-slate-700">
-                {isManual ? "manual" : `${termMonths} ${paymentFrequency}`}
-              </strong>
-            </span>
-          </div>
-        </div>
-        <ChevronDown
-          className={`dark:text-muted-foreground ml-2 size-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-
-      {/* Absolute overlay — doesn't push page content */}
+    <>
       <div
-        className={`dark:bg-background/95 bg-background absolute top-full right-0 left-0 z-30 grid overflow-hidden shadow-[0_4px_0_0_#0f172a] backdrop-blur transition-[grid-template-rows] duration-300 ease-in-out dark:shadow-[0_4px_0_0_#0f172a] ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+        className="bg-background/95 dark:bg-background/95 fixed top-10 z-40 -mx-4 border-2 border-slate-900 shadow-[0_4px_0px_0px_#0f172a] backdrop-blur-lg sm:top-20 dark:border-[#020617] dark:shadow-[0_4px_0px_0px_#020617]"
+        style={{ left: "0", right: "0", position: "fixed" }}
       >
-        <div className="overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="dark:border-border/50 flex w-full items-center justify-between border-b border-slate-200 px-4 py-2"
+        >
+          <div className="min-w-0 text-left">
+            <p className="dark:text-foreground truncate text-sm font-black tracking-wide text-slate-900 uppercase">
+              {borrowerName}
+            </p>
+            <div className="dark:text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+              <span>
+                Released{" "}
+                <strong className="dark:text-foreground text-slate-700">
+                  {releaseDate}
+                </strong>
+              </span>
+              <span>
+                Interest{" "}
+                <strong className="dark:text-foreground text-slate-700">
+                  {interest}%
+                </strong>
+              </span>
+              <span>
+                Term{" "}
+                <strong className="dark:text-foreground text-slate-700">
+                  {isManual ? "manual" : `${termMonths} ${paymentFrequency}`}
+                </strong>
+              </span>
+            </div>
+          </div>
+          <ChevronDown
+            className={`dark:text-muted-foreground ml-2 size-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {/* Dropdown overlay */}
+        <div
+          className={`bg-background/95 dark:bg-background/95 absolute top-full right-0 left-0 z-30 overflow-hidden border-x-2 border-b-2 border-slate-900 shadow-[0_4px_0px_0px_#0f172a] backdrop-blur transition-all duration-300 ease-out dark:border-[#020617] dark:shadow-[0_4px_0px_0px_#020617] ${open ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"}`}
+        >
           <div className="px-4 pb-3">
-            <div className="grid grid-cols-3 gap-2 text-[11px]">
+            <div className="grid grid-cols-3 gap-2 pt-2 text-[11px]">
               {[
                 {
                   label: "Principal",
@@ -140,49 +143,32 @@ export default function StickyAccountStrip({
                   value: Math.max(0, profit),
                   bg: "bg-amber-100 dark:bg-amber-900/30",
                 },
-              ].map(({ label, value, bg }, i) => (
+              ].map(({ label, value, bg }) => (
                 <div
                   key={label}
-                  className={`dark:border-border border-2 border-slate-900 ${bg} px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] transition-all duration-200 ${
-                    open
-                      ? "translate-y-0 opacity-100"
-                      : "translate-y-1 opacity-0"
-                  }`}
-                  style={{ transitionDelay: open ? `${i * 40}ms` : "0ms" }}
+                  className={`border-2 border-slate-900 ${bg} px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]`}
                 >
                   <p className="dark:text-muted-foreground font-black tracking-wide text-slate-500 uppercase">
                     {label}
                   </p>
                   <p className="dark:text-foreground mt-0.5 font-black text-slate-900 tabular-nums">
-                    <AnimatedMoney value={value} active={open} delay={i * 40} />
+                    ₱{Math.round(value).toLocaleString()}
                   </p>
                 </div>
               ))}
-              <div
-                className={`dark:border-border col-span-2 border-2 border-slate-900 bg-violet-100 px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] transition-all duration-200 dark:bg-violet-900/30 ${
-                  open ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
-                }`}
-                style={{ transitionDelay: open ? "160ms" : "0ms" }}
-              >
+              <div className="col-span-2 border-2 border-slate-900 bg-violet-100 px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-violet-900/30">
                 <p className="dark:text-muted-foreground font-black tracking-wide text-slate-500 uppercase">
                   Profit / payroll
                 </p>
                 <p className="dark:text-foreground mt-0.5 font-black text-slate-900 tabular-nums">
-                  <AnimatedMoney
-                    value={profitPerPayroll}
-                    active={open}
-                    delay={160}
-                  />
+                  ₱{Math.round(profitPerPayroll).toLocaleString()}
                 </p>
               </div>
             </div>
-            <div
-              className={`mt-2 flex items-center gap-2 transition-all duration-200 ${open ? "opacity-100" : "opacity-0"}`}
-              style={{ transitionDelay: open ? "200ms" : "0ms" }}
-            >
-              <div className="dark:border-border dark:bg-card h-2 flex-1 overflow-hidden rounded-sm border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]">
+            <div className="mt-2 flex items-center gap-2">
+              <div className="h-2 flex-1 overflow-hidden rounded-sm border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-slate-900">
                 <div
-                  className="h-full bg-emerald-400 transition-[width] duration-500 ease-out"
+                  className="h-full bg-emerald-400 transition-[width] duration-500 ease-out dark:bg-emerald-500"
                   style={{ width: open ? `${progressPct}%` : "0%" }}
                 />
               </div>
@@ -193,6 +179,8 @@ export default function StickyAccountStrip({
           </div>
         </div>
       </div>
-    </div>
+      {/* Spacer so content doesn't hide under fixed strip */}
+      <div className="h-12 sm:h-14" />
+    </>
   );
 }

@@ -6,10 +6,8 @@ import {
   useTransition,
   useState,
   useRef,
-  useEffect,
   type SyntheticEvent,
 } from "react";
-import { useTheme } from "next-themes";
 import { formatDate, isDarkColor } from "@/lib/utils";
 import { ChevronDown, Loader2, Phone } from "lucide-react";
 import Link from "next/link";
@@ -36,10 +34,6 @@ export const BorrowerCard = memo(function BorrowerCard({
   onBorrowerUpdated,
 }: BorrowerCardProps) {
   const router = useRouter();
-  const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const isDark = resolvedTheme === "dark";
   const [isPending, startTransition] = useTransition();
   const [isAccountPending, startAccountTransition] = useTransition();
   const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
@@ -80,6 +74,7 @@ export const BorrowerCard = memo(function BorrowerCard({
     ) {
       return;
     }
+    sessionStorage.setItem("borrowers-list-scroll", String(window.scrollY));
     startTransition(() => {
       router.push(`/borrowers/${borrower.id}`);
     });
@@ -95,21 +90,11 @@ export const BorrowerCard = memo(function BorrowerCard({
         if (Math.abs(e.touches[0].clientY - touchStartY.current) > 8)
           didScroll.current = true;
       }}
-      className={`relative w-full max-w-full min-w-0 overflow-hidden rounded-xl border-2 text-left transition-all duration-150 ${
+      className={`bg-background relative w-full max-w-full min-w-0 overflow-hidden rounded-xl border-2 text-left transition-all duration-150 dark:bg-slate-900 ${
         hasOverdue
-          ? "border-red-700 shadow-[4px_4px_0px_0px_#b91c1c]"
-          : "border-slate-900 shadow-[4px_4px_0px_0px_#341153] dark:border-zinc-700 dark:shadow-[4px_4px_0px_0px_#18181b]"
-      } ${isPending ? "" : "active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#1c132f]"}`}
-      style={
-        mounted
-          ? {
-              backgroundImage: firstCategoryColor
-                ? `linear-gradient(135deg, color-mix(in srgb, ${firstCategoryColor} ${isDark ? "10%" : "12%"}, ${isDark ? "#18181b" : "#fffef5"}), ${isDark ? "#18181b" : "#fffef5"})`
-                : undefined,
-              backgroundColor: isDark ? "#18181b" : "#fffef5",
-            }
-          : undefined
-      }
+          ? "border-red-500 shadow-[4px_4px_0px_0px_#ef4444] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
+          : "border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
+      } ${isPending ? "" : "active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#0f172a] dark:active:shadow-[2px_2px_0px_0px_#020617]"}`}
       aria-busy={isPending}
     >
       {/* Prefetch borrower detail page for instant navigation */}
@@ -128,7 +113,7 @@ export const BorrowerCard = memo(function BorrowerCard({
         {borrower.contact ? (
           <Link
             href={`tel:${borrower.contact}`}
-            className="dark:border-border touch-manipulation rounded border-2 border-slate-900 bg-indigo-100 p-1.5 text-indigo-700 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-indigo-200 active:translate-y-px active:shadow-none dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
+            className="touch-manipulation rounded-md border-2 border-slate-900 bg-indigo-100 p-1.5 text-indigo-700 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-indigo-200 active:translate-y-px active:shadow-none dark:border-[#020617] dark:bg-indigo-900/40 dark:text-indigo-300 dark:shadow-[2px_2px_0px_0px_#020617] dark:hover:bg-indigo-900/60"
             aria-label={`Call ${borrower.first_name} ${borrower.last_name}`}
           >
             <Phone className="size-3.5" />
@@ -169,7 +154,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                 return (
                   <div
                     key={id}
-                    className="dark:border-border flex items-center rounded-md border border-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#1e293b]"
+                    className="flex items-center rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[2px_2px_0px_0px_#020617]"
                     style={{
                       backgroundColor: color ?? "#333",
                       color: isDarkColor(color ?? "333") ? "white" : "#1e1a4d",
@@ -184,7 +169,7 @@ export const BorrowerCard = memo(function BorrowerCard({
         </div>
 
         {showScheduleSummary && borrower.all_accounts_pending ? (
-          <div className="mt-4 w-full min-w-0 rounded-xl border-2 border-amber-600 bg-amber-50 p-3 shadow-[2px_2px_0px_0px_#d97706] dark:border-amber-700 dark:bg-amber-900/30">
+          <div className="mt-4 w-full min-w-0 rounded-xl border-2 border-amber-600 bg-amber-50 p-3 shadow-[2px_2px_0px_0px_#d97706] dark:border-[#020617] dark:bg-amber-900/30 dark:shadow-[2px_2px_0px_0px_#020617]">
             <p className="text-[10px] font-black tracking-widest text-amber-800 uppercase dark:text-amber-300">
               pending loan
             </p>
@@ -277,7 +262,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                     return (
                       <div
                         key={g.key}
-                        className={`dark:border-border mt-2 w-full min-w-0 rounded-lg border-2 border-slate-900 p-2.5 shadow-[2px_2px_0px_0px_#0f172a] ${g.bg}`}
+                        className={`mt-2 w-full min-w-0 rounded-lg border-2 border-slate-900 p-2.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[2px_2px_0px_0px_#020617] ${g.bg}`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div>
@@ -310,7 +295,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                         {principal > 0 && (
                           <div className="mt-2 flex items-center gap-2">
                             <div
-                              className="dark:border-border dark:bg-card h-1.5 flex-1 overflow-hidden rounded border border-slate-900 bg-white"
+                              className="h-3 flex-1 overflow-hidden rounded-full border-2 border-slate-900 bg-white dark:border-[#020617] dark:bg-slate-900"
                               role="progressbar"
                               aria-valuenow={pct}
                               aria-valuemin={0}
@@ -339,7 +324,7 @@ export const BorrowerCard = memo(function BorrowerCard({
         hasAccounts &&
         hasAutoAccounts &&
         schedules.length > 0 ? (
-          <div className="dark:border-border mt-4 w-full min-w-0 self-stretch border-2 border-slate-900 bg-linear-to-br from-white via-sky-50 to-sky-100 p-3 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-sky-900/30 dark:bg-none">
+          <div className="mt-4 w-full min-w-0 self-stretch border-2 border-slate-900 bg-white p-3 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-sky-900/30 dark:shadow-[2px_2px_0px_0px_#020617]">
             <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:flex-nowrap">
               <div className="min-w-0 flex-1">
                 <p className="dark:text-muted-foreground text-[10px] font-bold tracking-wide text-slate-500 uppercase">
@@ -427,7 +412,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                       ) : null}
                                       {schedule.status ? (
                                         <span
-                                          className={`dark:border-border ml-1 rounded-xs border border-slate-900 px-1 text-[8px] font-black text-black uppercase shadow-[2px_2px_0px_0px_#333] ${schedule.status === "overdue" ? "bg-red-500/70" : schedule.status === "paid" ? "bg-green-500/70" : schedule.status === "pending" ? "bg-yellow-500/70" : schedule.status === "partial" ? "bg-purple-500/70" : "bg-blue-500/70"}`}
+                                          className={`ml-1 rounded-md border-2 border-slate-900 px-1.5 py-0.5 text-[8px] font-black uppercase shadow-[1px_1px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[1px_1px_0px_0px_#020617] ${schedule.status === "overdue" ? "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-100" : schedule.status === "paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-800 dark:text-emerald-100" : schedule.status === "pending" ? "bg-amber-100 text-amber-700 dark:bg-amber-800 dark:text-amber-100" : schedule.status === "partial" ? "bg-purple-100 text-purple-700 dark:bg-purple-800 dark:text-purple-100" : "bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100"}`}
                                         >
                                           {schedule.status}
                                         </span>
@@ -484,7 +469,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                         return (
                                           <>
                                             <div
-                                              className="dark:border-border dark:bg-card h-2 w-full overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] md:w-40"
+                                              className="h-3 w-full overflow-hidden rounded-full border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] md:w-40 dark:border-[#020617] dark:bg-slate-900 dark:shadow-[2px_2px_0px_0px_#020617]"
                                               role="progressbar"
                                               aria-valuenow={pct}
                                               aria-valuemin={0}
@@ -548,7 +533,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                                   expandedOverdue[i] ??
                                                   defaultOpen;
                                                 return (
-                                                  <div className="mt-1 w-full rounded-md border-2 border-red-900 bg-red-50/80 px-2 py-1.5 dark:border-red-800 dark:bg-red-900/30">
+                                                  <div className="mt-1 w-full rounded-md border-2 border-red-900 bg-red-50/80 px-2 py-1.5 dark:border-[#020617] dark:bg-red-900 dark:shadow-[2px_2px_0px_0px_#020617]">
                                                     <button
                                                       type="button"
                                                       data-prevent-borrower-card-open
@@ -719,7 +704,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                 e.stopPropagation();
                 quickAction.onClick();
               }}
-              className="dark:border-border dark:text-foreground rounded-md border-2 border-slate-900 bg-emerald-200 px-2 py-1 text-[11px] font-bold text-slate-900 uppercase transition hover:bg-emerald-300 disabled:cursor-wait disabled:opacity-70 dark:bg-emerald-900/40 dark:hover:bg-emerald-900/60"
+              className="rounded-md border-2 border-slate-900 bg-emerald-400 px-2 py-1 text-[11px] font-black text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 active:translate-y-px active:shadow-none disabled:cursor-wait disabled:opacity-70 dark:border-[#020617] dark:bg-emerald-500 dark:text-slate-900 dark:shadow-[2px_2px_0px_0px_#020617]"
             >
               {quickAction.isLoading ? "Updating..." : quickAction.label}
             </button>

@@ -25,7 +25,7 @@ export function ScrollRestoration() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  // Save scroll position (debounced 150ms)
+  // Save scroll position (debounced 150ms + sync on page hide)
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
     let lastY = -1;
@@ -37,9 +37,14 @@ export function ScrollRestoration() {
         sessionStorage.setItem(key(pathname), String(window.scrollY));
       }, 150);
     }
+    function saveSync() {
+      sessionStorage.setItem(key(pathname), String(window.scrollY));
+    }
     window.addEventListener("scroll", save, { passive: true });
+    window.addEventListener("pagehide", saveSync);
     return () => {
       window.removeEventListener("scroll", save);
+      window.removeEventListener("pagehide", saveSync);
       clearTimeout(t);
     };
   }, [pathname]);
@@ -50,10 +55,10 @@ export function ScrollRestoration() {
       wasBack.current = false;
       const saved = sessionStorage.getItem(key(pathname));
       if (saved) {
-        // rAF to wait for paint after Next.js finishes rendering the page
-        requestAnimationFrame(() => {
+        // Delay to ensure Next.js internal scroll-to-top has finished
+        setTimeout(() => {
           window.scrollTo({ top: parseInt(saved, 10), behavior: "instant" });
-        });
+        }, 50);
         return;
       }
     }
