@@ -9,6 +9,7 @@ import {
   TrendingUp,
   UserRoundPlus,
   ClipboardList,
+  Bell,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { getAllPaymentSchedules } from "@/lib/cache/schedules";
@@ -863,6 +864,13 @@ export default async function Dashboard() {
               >
                 manage categories
                 <Plus className="size-4" />
+              </Link>
+              <Link
+                href="/upcoming"
+                className="dark:border-border dark:text-foreground flex items-center justify-between rounded-lg border-2 border-slate-900 bg-violet-100 px-3 py-2 text-sm font-bold text-slate-900 lowercase transition hover:bg-violet-200 dark:bg-violet-900/40 dark:hover:bg-violet-900/60"
+              >
+                upcoming due dates
+                <Bell className="size-4" />
               </Link>
               <Link
                 href="/audit"

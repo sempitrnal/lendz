@@ -1,8 +1,8 @@
-import { getBorrowersPageData } from "@/lib/cache/borrowers";
+import { getAllBorrowersData } from "@/lib/cache/borrowers";
 import BorrowersList from "@/components/borrower/borrower-list";
 
 type BorrowersPageProps = {
-  searchParams: Promise<{ page?: string; q?: string; categories?: string }>;
+  searchParams: Promise<{ q?: string; categories?: string }>;
 };
 
 export default async function BorrowersPage({
@@ -14,22 +14,14 @@ export default async function BorrowersPage({
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const currentPage = Math.max(1, Number(sp.page ?? 1));
 
   try {
-    const { borrowers, totalCount, totalPages } = await getBorrowersPageData(
-      currentPage,
-      searchQuery,
-      categoryIds,
-    );
+    const allBorrowers = await getAllBorrowersData();
 
     return (
       <div className="flex flex-col">
         <BorrowersList
-          initialBorrowers={borrowers}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalCount={totalCount}
+          allBorrowers={allBorrowers}
           initialSearchQuery={searchQuery}
           initialCategoryIds={categoryIds}
         />

@@ -25,6 +25,8 @@ type BorrowerCardProps = {
   /** Borrowers list: next collection, mark next paid, overflow menu */
   showScheduleSummary?: boolean;
   onBorrowerUpdated?: () => void;
+  /** Compact mode for upcoming-due-dates grid (slimmer card, less detail) */
+  compact?: boolean;
 };
 
 export const BorrowerCard = memo(function BorrowerCard({
@@ -32,6 +34,7 @@ export const BorrowerCard = memo(function BorrowerCard({
   quickAction,
   showScheduleSummary = false,
   onBorrowerUpdated,
+  compact = false,
 }: BorrowerCardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -138,37 +141,43 @@ export const BorrowerCard = memo(function BorrowerCard({
           });
         }}
         aria-disabled={isPending}
-        className={`dark:text-foreground dark:focus-visible:ring-border box-border block w-full max-w-full min-w-0 cursor-pointer touch-manipulation p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${isPending ? "opacity-50" : ""}`}
+        className={`dark:text-foreground dark:focus-visible:ring-border box-border block w-full max-w-full min-w-0 cursor-pointer touch-manipulation text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${compact ? "p-2.5" : "p-4"} ${isPending ? "opacity-50" : ""}`}
         aria-label={`Open ${borrower.first_name} ${borrower.last_name}`}
       >
         <div className="flex w-full min-w-0 flex-col">
-          <h2 className="dark:text-foreground pr-4 text-xl font-black text-slate-900 uppercase">
+          <h2
+            className={`dark:text-foreground pr-4 font-black text-slate-900 uppercase ${compact ? "text-base" : "text-xl"}`}
+          >
             {borrower.first_name} {borrower.last_name}
           </h2>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {categories.map(
-              (e: {
-                category: { id: string; color: string | null; name: string };
-              }) => {
-                const { id, color, name } = e.category;
-                return (
-                  <div
-                    key={id}
-                    className="flex items-center rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[2px_2px_0px_0px_#020617]"
-                    style={{
-                      backgroundColor: color ?? "#333",
-                      color: isDarkColor(color ?? "333") ? "white" : "#1e1a4d",
-                    }}
-                  >
-                    {name}
-                  </div>
-                );
-              },
-            )}
-          </div>
+          {!compact && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {categories.map(
+                (e: {
+                  category: { id: string; color: string | null; name: string };
+                }) => {
+                  const { id, color, name } = e.category;
+                  return (
+                    <div
+                      key={id}
+                      className="flex items-center rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[2px_2px_0px_0px_#020617]"
+                      style={{
+                        backgroundColor: color ?? "#333",
+                        color: isDarkColor(color ?? "333")
+                          ? "white"
+                          : "#1e1a4d",
+                      }}
+                    >
+                      {name}
+                    </div>
+                  );
+                },
+              )}
+            </div>
+          )}
         </div>
 
-        {showScheduleSummary && borrower.all_accounts_pending ? (
+        {!compact && showScheduleSummary && borrower.all_accounts_pending ? (
           <div className="mt-4 w-full min-w-0 rounded-xl border-2 border-amber-600 bg-amber-50 p-3 shadow-[2px_2px_0px_0px_#d97706] dark:border-[#020617] dark:bg-amber-900/30 dark:shadow-[2px_2px_0px_0px_#020617]">
             <p className="text-[10px] font-black tracking-widest text-amber-800 uppercase dark:text-amber-300">
               pending loan
@@ -185,7 +194,7 @@ export const BorrowerCard = memo(function BorrowerCard({
           </div>
         ) : null}
 
-        {showScheduleSummary && hasManual && schedules.length > 0
+        {!compact && showScheduleSummary && hasManual && schedules.length > 0
           ? (() => {
               const manualSchedules = schedules.filter(
                 (s) => s.schedule_mode === "manual",
@@ -320,10 +329,27 @@ export const BorrowerCard = memo(function BorrowerCard({
             })()
           : null}
 
-        {showScheduleSummary &&
-        hasAccounts &&
-        hasAutoAccounts &&
-        schedules.length > 0 ? (
+        {/* Compact upcoming-due display */}
+        {compact && showScheduleSummary && hasNextUnpaid ? (
+          <div className="mt-3 flex items-center gap-2 text-xs">
+            <span className="dark:text-foreground font-black text-slate-900">
+              {formatDate(nextDate)}
+            </span>
+            <span className="font-bold text-slate-500">
+              ₱{nextAmount.toLocaleString()}
+            </span>
+            {nextStatus ? (
+              <span
+                className={`rounded-md border-2 border-slate-900 px-1.5 py-0 text-[8px] font-black uppercase shadow-[1px_1px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[1px_1px_0px_0px_#020617] ${nextStatus === "overdue" ? "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-100" : nextStatus === "paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-800 dark:text-emerald-100" : nextStatus === "pending" ? "bg-amber-100 text-amber-700 dark:bg-amber-800 dark:text-amber-100" : nextStatus === "partial" ? "bg-purple-100 text-purple-700 dark:bg-purple-800 dark:text-purple-100" : "bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100"}`}
+              >
+                {nextStatus}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Full next-collection section for non-compact mode */}
+        {!compact && showScheduleSummary && hasNextUnpaid ? (
           <div className="mt-4 w-full min-w-0 self-stretch border-2 border-slate-900 bg-white p-3 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-sky-900/30 dark:shadow-[2px_2px_0px_0px_#020617]">
             <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:flex-nowrap">
               <div className="min-w-0 flex-1">

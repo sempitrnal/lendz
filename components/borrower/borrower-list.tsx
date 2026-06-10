@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -15,10 +17,9 @@ import { formFieldInputClassName } from "@/lib/form-field-classes";
 
 import AddBorrowerModal from "./add-borrower-modal";
 import { BorrowerCard } from "./borrower-card";
-import { BsChevronDown, BsChevronLeft, BsChevronRight } from "react-icons/bs";
+import { BsChevronDown } from "react-icons/bs";
 import { FaPlus } from "react-icons/fa6";
 import { Users } from "lucide-react";
-import Link from "next/link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 
@@ -69,38 +70,20 @@ export type Borrower = {
 };
 
 type BorrowersListProps = {
-  initialBorrowers: Borrower[];
-  currentPage: number;
-  totalPages: number;
-  totalCount: number;
+  allBorrowers: Borrower[];
   initialSearchQuery?: string;
   initialCategoryIds?: string[];
 };
 
-function buildBorrowersUrl(
-  page: number,
-  q: string,
-  categoryIds: string[] = [],
-): string {
-  const params = new URLSearchParams();
-  if (page > 1) params.set("page", String(page));
-  if (q) params.set("q", q);
-  if (categoryIds.length > 0) params.set("categories", categoryIds.join(","));
-  const qs = params.toString();
-  return `/borrowers${qs ? `?${qs}` : ""}`;
-}
-
 export default function BorrowersList({
-  initialBorrowers,
-  currentPage,
-  totalPages,
-  totalCount,
+  allBorrowers,
   initialSearchQuery = "",
   initialCategoryIds = [],
 }: BorrowersListProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [listQuery, setListQuery] = useState(initialSearchQuery);
+  const listDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [suggestions, setSuggestions] = useState<
     {
@@ -117,17 +100,8 @@ export default function BorrowersList({
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
 
-  const [selectedCategoryIds, setSelectedCategoryIds] =
-    useState<string[]>(initialCategoryIds);
-
-  const navigateSearch = useCallback(
-    (q: string) => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        router.push(buildBorrowersUrl(1, q, selectedCategoryIds));
-      }, 400);
-    },
-    [router, selectedCategoryIds],
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(
+    initialCategoryIds ?? [],
   );
 
   const fetchSuggestions = useCallback(async (q: string) => {
@@ -178,10 +152,10 @@ export default function BorrowersList({
 
   // Sync local state when server prop changes (e.g. back/forward navigation)
   useEffect(() => {
-    setSearchQuery(initialSearchQuery);
+    setSearchQuery(initialSearchQuery ?? "");
   }, [initialSearchQuery]);
   useEffect(() => {
-    setSelectedCategoryIds(initialCategoryIds);
+    setSelectedCategoryIds((initialCategoryIds as string[] | undefined) ?? []);
   }, [initialCategoryIds]);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isAddBorrowerModalOpen, setIsAddBorrowerModalOpen] = useState(false);
@@ -207,23 +181,16 @@ export default function BorrowersList({
     null,
   );
 
-  function openAddBorrowerModal() {
+  const openAddBorrowerModal = useCallback(() => {
     setIsAddBorrowerModalOpen(true);
-  }
-  function closeAddBorrowerModal() {
+  }, []);
+  const closeAddBorrowerModal = useCallback(() => {
     setIsAddBorrowerModalOpen(false);
-  }
+  }, []);
 
-  function refreshPage() {
+  const refreshPage = useCallback(() => {
     router.refresh();
-  }
-
-  const navigateCategories = useCallback(
-    (newCategoryIds: string[]) => {
-      router.push(buildBorrowersUrl(1, searchQuery.trim(), newCategoryIds));
-    },
-    [router, searchQuery],
-  );
+  }, [router]);
 
   const [categories, setCategories] = useState<
     { id: string; name: string; color: string | null }[]
@@ -236,6 +203,39 @@ export default function BorrowersList({
       );
     });
   }, []);
+
+  // Debounce list filtering so typing stays responsive
+  useEffect(() => {
+    if (listDebounceRef.current) clearTimeout(listDebounceRef.current);
+    listDebounceRef.current = setTimeout(() => {
+      setListQuery(searchQuery);
+    }, 250);
+  }, [searchQuery]);
+
+  const safeBorrowers = (allBorrowers as Borrower[] | undefined) ?? [];
+  const safeCategoryIds = (selectedCategoryIds as string[] | undefined) ?? [];
+
+  const filteredBorrowers = useMemo(() => {
+    let result = safeBorrowers;
+    const q = listQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter(
+        (b) =>
+          b.first_name.toLowerCase().includes(q) ||
+          b.last_name.toLowerCase().includes(q) ||
+          `${b.first_name} ${b.last_name}`.toLowerCase().includes(q) ||
+          (b.contact ?? "").toLowerCase().includes(q),
+      );
+    }
+    if (safeCategoryIds.length > 0) {
+      result = result.filter((b) =>
+        b.borrower_categories?.some((bc) =>
+          safeCategoryIds.includes(bc.category.id),
+        ),
+      );
+    }
+    return result;
+  }, [safeBorrowers, listQuery, safeCategoryIds]);
 
   return (
     <div className="">
@@ -276,39 +276,6 @@ export default function BorrowersList({
             onChange={(e) => {
               const v = e.target.value;
               setSearchQuery(v);
-              navigateSearch(v.trim());
-              if (suggestDebounceRef.current)
-                clearTimeout(suggestDebounceRef.current);
-              suggestDebounceRef.current = setTimeout(
-                () => fetchSuggestions(v),
-                200,
-              );
-            }}
-            onFocus={() => {
-              if (searchQuery.trim() && suggestions.length > 0)
-                setShowSuggestions(true);
-            }}
-            onKeyDown={(e) => {
-              if (!showSuggestions || suggestions.length === 0) return;
-              if (e.key === "ArrowDown") {
-                e.preventDefault();
-                setActiveSuggestion((p) =>
-                  Math.min(p + 1, suggestions.length - 1),
-                );
-              } else if (e.key === "ArrowUp") {
-                e.preventDefault();
-                setActiveSuggestion((p) => Math.max(p - 1, -1));
-              } else if (e.key === "Enter" && activeSuggestion >= 0) {
-                e.preventDefault();
-                setShowSuggestions(false);
-                sessionStorage.setItem(
-                  "borrowers-list-scroll",
-                  String(window.scrollY),
-                );
-                router.push(`/borrowers/${suggestions[activeSuggestion].id}`);
-              } else if (e.key === "Escape") {
-                setShowSuggestions(false);
-              }
             }}
             placeholder="Search by name or contact"
             className={formFieldInputClassName}
@@ -317,7 +284,7 @@ export default function BorrowersList({
             aria-expanded={showSuggestions}
             autoComplete="off"
           />
-          {showSuggestions && suggestions.length > 0 && (
+          {/* {showSuggestions && suggestions.length > 0 && (
             <div className="absolute top-full right-0 left-0 z-30 mt-1 overflow-hidden rounded-xl border-2 border-slate-900 bg-white shadow-[3px_3px_0px_0px_#0f172a]">
               {suggestions.map((s, i) => (
                 <button
@@ -384,7 +351,7 @@ export default function BorrowersList({
                 </button>
               ))}
             </div>
-          )}
+          )} */}
         </div>
 
         <div className="relative">
@@ -399,8 +366,8 @@ export default function BorrowersList({
             className="dark:border-border dark:hover:bg-muted flex w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-900/90 px-4 py-3 text-left shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition active:translate-y-px active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)] dark:shadow-none"
           >
             <span className="dark:text-foreground text-sm font-bold tracking-wide text-slate-900 uppercase">
-              {selectedCategoryIds.length > 0
-                ? `${selectedCategoryIds.length} selected`
+              {safeCategoryIds.length > 0
+                ? `${safeCategoryIds.length} selected`
                 : "All categories"}
             </span>
 
@@ -435,7 +402,6 @@ export default function BorrowersList({
                             )
                           : [...selectedCategoryIds, category.id];
                         setSelectedCategoryIds(next);
-                        navigateCategories(next);
                       }}
                       className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition ${
                         isSelected
@@ -469,12 +435,11 @@ export default function BorrowersList({
                 })}
               </div>
 
-              {selectedCategoryIds.length > 0 ? (
+              {safeCategoryIds.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedCategoryIds([]);
-                    navigateCategories([]);
                   }}
                   className="mt-2 w-full rounded-lg border-2 border-rose-800/35 bg-rose-50 px-3 py-2 text-center text-xs font-black tracking-wide text-rose-900 uppercase shadow-[1px_1px_0px_0px_rgb(190_18_60/0.25)] transition hover:bg-rose-100/90 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300 dark:shadow-none dark:hover:bg-rose-950/50"
                 >
@@ -486,21 +451,21 @@ export default function BorrowersList({
         </div>
       </div>
 
-      {initialBorrowers.length === 0 ? (
+      {filteredBorrowers.length === 0 ? (
         <EmptyState
           icon={Users}
           title={
-            selectedCategoryIds.length > 0 || searchQuery.trim()
+            safeCategoryIds.length > 0 || listQuery.trim()
               ? "No matches found"
               : "No borrowers yet"
           }
           description={
-            selectedCategoryIds.length > 0 || searchQuery.trim()
+            safeCategoryIds.length > 0 || listQuery.trim()
               ? "Try adjusting your search or clearing category filters."
               : "Add your first borrower to start tracking loans and collections."
           }
           action={
-            selectedCategoryIds.length === 0 && !searchQuery.trim()
+            safeCategoryIds.length === 0 && !listQuery.trim()
               ? { label: "Add borrower", href: "/borrowers" }
               : undefined
           }
@@ -508,61 +473,11 @@ export default function BorrowersList({
       ) : (
         <PullToRefresh>
           <MasonryGrid
-            borrowers={initialBorrowers}
+            borrowers={filteredBorrowers}
             onBorrowerUpdated={refreshPage}
           />
         </PullToRefresh>
       )}
-
-      {/* Pagination controls */}
-      {totalPages > 1 ? (
-        <nav
-          aria-label="Pagination"
-          className="mt-8 flex items-center justify-center gap-2"
-        >
-          {currentPage > 1 ? (
-            <Link
-              href={buildBorrowersUrl(
-                currentPage - 1,
-                initialSearchQuery,
-                selectedCategoryIds,
-              )}
-              className="dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted flex items-center gap-1.5 rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:bg-slate-50 active:translate-y-0 active:shadow-[1px_1px_0px_0px_#0f172a] dark:shadow-none"
-            >
-              <BsChevronLeft className="size-3" aria-hidden />
-              Prev
-            </Link>
-          ) : (
-            <span className="dark:border-border/50 dark:bg-muted dark:text-muted-foreground flex cursor-not-allowed items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-400">
-              <BsChevronLeft className="size-3" aria-hidden />
-              Prev
-            </span>
-          )}
-
-          <span className="dark:border-border dark:bg-foreground dark:text-background rounded-lg border-2 border-slate-900 bg-slate-900 px-4 py-2 text-sm font-black text-white tabular-nums shadow-[2px_2px_0px_0px_rgb(15_23_42/0.3)] dark:shadow-none">
-            {currentPage} / {totalPages}
-          </span>
-
-          {currentPage < totalPages ? (
-            <Link
-              href={buildBorrowersUrl(
-                currentPage + 1,
-                initialSearchQuery,
-                selectedCategoryIds,
-              )}
-              className="dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted flex items-center gap-1.5 rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:-translate-y-0.5 hover:bg-slate-50 active:translate-y-0 active:shadow-[1px_1px_0px_0px_#0f172a] dark:shadow-none"
-            >
-              Next
-              <BsChevronRight className="size-3" aria-hidden />
-            </Link>
-          ) : (
-            <span className="dark:border-border/50 dark:bg-muted dark:text-muted-foreground flex cursor-not-allowed items-center gap-1.5 rounded-lg border-2 border-slate-300 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-400">
-              Next
-              <BsChevronRight className="size-3" aria-hidden />
-            </span>
-          )}
-        </nav>
-      ) : null}
     </div>
   );
 }
@@ -584,7 +499,7 @@ function useMasonryColCount(): number {
   return cols;
 }
 
-function MasonryGrid({
+const MasonryGrid = memo(function MasonryGrid({
   borrowers,
   onBorrowerUpdated,
 }: {
@@ -627,4 +542,4 @@ function MasonryGrid({
       ))}
     </div>
   );
-}
+});

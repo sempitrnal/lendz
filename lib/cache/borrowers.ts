@@ -14,7 +14,7 @@ import type {
   AccountComputedMetrics,
 } from "@/components/borrower/borrower-accounts-section";
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 8;
 
 function createSupabaseAdmin() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -100,163 +100,7 @@ async function fetchBorrowersPageData(
   const rawBorrowers = (borrowerRows ?? []) as Borrower[];
   const borrowerIds = rawBorrowers.map((b) => b.id);
 
-  let enrichedBorrowers: Borrower[] = rawBorrowers.map((b) => ({
-    ...b,
-    has_accounts: false,
-    next_collection_date: null,
-    next_collection_amount: 0,
-  }));
-
-  if (borrowerIds.length > 0) {
-    const { data: accountRows } = await supabase
-      .from("accounts")
-      .select(
-        "id, borrower_id, principal_amount, schedule_mode, interest_rate, status, type, interest_type",
-      )
-      .in("borrower_id", borrowerIds)
-      .is("deleted_at", null);
-
-    const accounts = (accountRows ?? []) as Array<{
-      id: string;
-      borrower_id: string;
-      principal_amount: number | null;
-      schedule_mode: string | null;
-      interest_rate: number | null;
-      status: string | null;
-      type: string | null;
-      interest_type: string | null;
-    }>;
-    const accountsByBorrower = new Map<string, typeof accounts>();
-    for (const a of accounts) {
-      const list = accountsByBorrower.get(a.borrower_id) ?? [];
-      list.push(a);
-      accountsByBorrower.set(a.borrower_id, list);
-    }
-    const allAccountIds = accounts.map((a) => a.id);
-    const accountIdsByBorrower = new Map<string, string[]>();
-    for (const a of accounts) {
-      const list = accountIdsByBorrower.get(a.borrower_id) ?? [];
-      list.push(a.id);
-      accountIdsByBorrower.set(a.borrower_id, list);
-    }
-
-    if (allAccountIds.length > 0) {
-      const { data: scheduleRows } = await supabase
-        .from("payment_schedules")
-        .select(
-          "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
-        )
-        .in("account_id", allAccountIds)
-        .order("due_date", { ascending: true })
-        .order("id", { ascending: true });
-
-      const schedules = (scheduleRows ?? []) as Array<{
-        account_id: string;
-        due_date: string;
-        amount_due: number | null;
-        amount_paid: number | null;
-        remaining_amount: number | null;
-        status: string;
-      }>;
-      const overdueByBorrower = new Map<
-        string,
-        { total: number; count: number }
-      >();
-
-      const scheduleStatsByAccount = new Map<
-        string,
-        {
-          total_schedules: number;
-          paid_schedules_count: number;
-        }
-      >();
-      const accountToBorrower = new Map<string, string>();
-
-      for (const a of accounts) {
-        accountToBorrower.set(a.id, a.borrower_id);
-      }
-      for (const s of schedules) {
-        const borrowerId = accountToBorrower.get(s.account_id);
-        if (!borrowerId) continue;
-        const stats = scheduleStatsByAccount.get(s.account_id) ?? {
-          total_schedules: 0,
-          paid_schedules_count: 0,
-        };
-        scheduleStatsByAccount.set(s.account_id, {
-          total_schedules: stats.total_schedules + 1,
-          paid_schedules_count:
-            stats.paid_schedules_count + (s.status === "paid" ? 1 : 0),
-        });
-        if (s.status !== "overdue") continue;
-
-        const prev = overdueByBorrower.get(borrowerId) ?? {
-          total: 0,
-          count: 0,
-        };
-
-        overdueByBorrower.set(borrowerId, {
-          total: prev.total + (s.amount_due ?? 0),
-          count: prev.count + 1,
-        });
-      }
-      const nextById = computeBorrowerNextCollectionById(
-        borrowerIds,
-        accounts,
-        schedules,
-      );
-
-      enrichedBorrowers = rawBorrowers.map((b) => {
-        const accIds = accountIdsByBorrower.get(b.id) ?? [];
-        const borrowerAccounts = accountsByBorrower.get(b.id) ?? [];
-        const allPending =
-          borrowerAccounts.length > 0 &&
-          borrowerAccounts.every((a) => a.status === "pending");
-        const pendingPrincipal = allPending
-          ? borrowerAccounts.reduce(
-              (sum, a) => sum + Number(a.principal_amount ?? 0),
-              0,
-            )
-          : 0;
-        const overdue = overdueByBorrower.get(b.id) ?? {
-          total: 0,
-          count: 0,
-        };
-        const n = nextById[b.id] ?? {
-          next_collection_date: null,
-          next_collection_amount: 0,
-        };
-        return {
-          ...b,
-          has_accounts: accIds.length > 0,
-          all_accounts_pending: allPending,
-          pending_principal_total: pendingPrincipal,
-          next_collection_date: n.next_collection_date,
-          next_collection_amount: n.next_collection_amount,
-          next_collection_amounts: n.next_collection_amounts,
-          next_collection_status: n.next_collection_status,
-          overdue_total: overdue.total,
-          overdue_count: overdue.count,
-          accounts_count: n.accounts_count,
-          account_schedules: n.account_schedules,
-          overdue_schedules: n.overdue_schedules,
-          manual_total_principal: n.manual_total_principal,
-          manual_total_paid: n.manual_total_paid,
-          manual_total_remaining: n.manual_total_remaining,
-          manual_accounts_count: n.manual_accounts_count,
-        };
-      });
-    } else {
-      enrichedBorrowers = rawBorrowers.map((b) => ({
-        ...b,
-        has_accounts: false,
-        all_accounts_pending: false,
-        pending_principal_total: 0,
-        next_collection_date: null,
-        next_collection_amount: 0,
-        accounts_count: 0,
-      }));
-    }
-  }
+  const enrichedBorrowers = await enrichBorrowerBatch(supabase, rawBorrowers);
 
   return {
     borrowers: enrichedBorrowers,
@@ -265,9 +109,199 @@ async function fetchBorrowersPageData(
   };
 }
 
+async function enrichBorrowerBatch(
+  supabase: ReturnType<typeof createSupabaseAdmin>,
+  rawBorrowers: Borrower[],
+): Promise<Borrower[]> {
+  const borrowerIds = rawBorrowers.map((b) => b.id);
+  if (borrowerIds.length === 0) return rawBorrowers;
+
+  const { data: accountRows } = await supabase
+    .from("accounts")
+    .select(
+      "id, borrower_id, principal_amount, schedule_mode, interest_rate, status, type, interest_type",
+    )
+    .in("borrower_id", borrowerIds)
+    .is("deleted_at", null);
+
+  const accounts = (accountRows ?? []) as Array<{
+    id: string;
+    borrower_id: string;
+    principal_amount: number | null;
+    schedule_mode: string | null;
+    interest_rate: number | null;
+    status: string | null;
+    type: string | null;
+    interest_type: string | null;
+  }>;
+  const accountsByBorrower = new Map<string, typeof accounts>();
+  for (const a of accounts) {
+    const list = accountsByBorrower.get(a.borrower_id) ?? [];
+    list.push(a);
+    accountsByBorrower.set(a.borrower_id, list);
+  }
+  const allAccountIds = accounts.map((a) => a.id);
+  const accountIdsByBorrower = new Map<string, string[]>();
+  for (const a of accounts) {
+    const list = accountIdsByBorrower.get(a.borrower_id) ?? [];
+    list.push(a.id);
+    accountIdsByBorrower.set(a.borrower_id, list);
+  }
+
+  if (allAccountIds.length === 0) {
+    return rawBorrowers.map((b) => ({
+      ...b,
+      has_accounts: false,
+      all_accounts_pending: false,
+      pending_principal_total: 0,
+      next_collection_date: null,
+      next_collection_amount: 0,
+      accounts_count: 0,
+    }));
+  }
+
+  // Paginate schedule fetch so no borrower is truncated by a single-query limit
+  const batchSize = 1000;
+  let from = 0;
+  const scheduleRows: Array<{
+    account_id: string;
+    due_date: string;
+    amount_due: number | null;
+    amount_paid: number | null;
+    remaining_amount: number | null;
+    status: string;
+  }> = [];
+  while (true) {
+    const { data: batch } = await supabase
+      .from("payment_schedules")
+      .select(
+        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
+      )
+      .in("account_id", allAccountIds)
+      .order("due_date", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + batchSize - 1);
+    if (!batch || batch.length === 0) break;
+    scheduleRows.push(...(batch as typeof scheduleRows));
+    if (batch.length < batchSize) break;
+    from += batchSize;
+  }
+
+  const schedules = scheduleRows;
+  const overdueByBorrower = new Map<string, { total: number; count: number }>();
+
+  const scheduleStatsByAccount = new Map<
+    string,
+    {
+      total_schedules: number;
+      paid_schedules_count: number;
+    }
+  >();
+  const accountToBorrower = new Map<string, string>();
+
+  for (const a of accounts) {
+    accountToBorrower.set(a.id, a.borrower_id);
+  }
+  for (const s of schedules) {
+    const borrowerId = accountToBorrower.get(s.account_id);
+    if (!borrowerId) continue;
+    const stats = scheduleStatsByAccount.get(s.account_id) ?? {
+      total_schedules: 0,
+      paid_schedules_count: 0,
+    };
+    scheduleStatsByAccount.set(s.account_id, {
+      total_schedules: stats.total_schedules + 1,
+      paid_schedules_count:
+        stats.paid_schedules_count + (s.status === "paid" ? 1 : 0),
+    });
+    if (s.status !== "overdue") continue;
+
+    const prev = overdueByBorrower.get(borrowerId) ?? {
+      total: 0,
+      count: 0,
+    };
+
+    overdueByBorrower.set(borrowerId, {
+      total: prev.total + (s.amount_due ?? 0),
+      count: prev.count + 1,
+    });
+  }
+  const nextById = computeBorrowerNextCollectionById(
+    borrowerIds,
+    accounts,
+    schedules,
+  );
+
+  return rawBorrowers.map((b) => {
+    const accIds = accountIdsByBorrower.get(b.id) ?? [];
+    const borrowerAccounts = accountsByBorrower.get(b.id) ?? [];
+    const allPending =
+      borrowerAccounts.length > 0 &&
+      borrowerAccounts.every((a) => a.status === "pending");
+    const pendingPrincipal = allPending
+      ? borrowerAccounts.reduce(
+          (sum, a) => sum + Number(a.principal_amount ?? 0),
+          0,
+        )
+      : 0;
+    const overdue = overdueByBorrower.get(b.id) ?? {
+      total: 0,
+      count: 0,
+    };
+    const n = nextById[b.id] ?? {
+      next_collection_date: null,
+      next_collection_amount: 0,
+    };
+    return {
+      ...b,
+      has_accounts: accIds.length > 0,
+      all_accounts_pending: allPending,
+      pending_principal_total: pendingPrincipal,
+      next_collection_date: n.next_collection_date,
+      next_collection_amount: n.next_collection_amount,
+      next_collection_amounts: n.next_collection_amounts,
+      next_collection_status: n.next_collection_status,
+      overdue_total: overdue.total,
+      overdue_count: overdue.count,
+      accounts_count: n.accounts_count,
+      account_schedules: n.account_schedules,
+      overdue_schedules: n.overdue_schedules,
+      manual_total_principal: n.manual_total_principal,
+      manual_total_paid: n.manual_total_paid,
+      manual_total_remaining: n.manual_total_remaining,
+      manual_accounts_count: n.manual_accounts_count,
+    };
+  });
+}
+
 export const getBorrowersPageData = unstable_cache(
   fetchBorrowersPageData,
   ["borrowers-page"],
+  { revalidate: 60, tags: ["borrowers"] },
+);
+
+async function fetchAllBorrowersData() {
+  const supabase = createSupabaseAdmin();
+
+  const { data: borrowerRows, error: borrowerError } = await supabase
+    .from("borrowers")
+    .select(
+      `*, borrower_categories ( category:categories ( id, name, color ) )`,
+    )
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  if (borrowerError) {
+    throw borrowerError;
+  }
+
+  const rawBorrowers = (borrowerRows ?? []) as Borrower[];
+  return enrichBorrowerBatch(supabase, rawBorrowers);
+}
+
+export const getAllBorrowersData = unstable_cache(
+  fetchAllBorrowersData,
+  ["borrowers-all"],
   { revalidate: 60, tags: ["borrowers"] },
 );
 
@@ -502,3 +536,190 @@ export const getDeletedAccountsForBorrower = unstable_cache(
   ["deleted-accounts-for-borrower"],
   { revalidate: 60, tags: ["deleted-accounts"] },
 );
+
+type UpcomingAccountRow = {
+  id: string;
+  borrower_id: string;
+  principal_amount: number | null;
+  schedule_mode: string | null;
+  interest_rate: number | null;
+  status: string | null;
+  type: string | null;
+  interest_type: string | null;
+};
+
+type UpcomingScheduleRow = {
+  id: string;
+  account_id: string;
+  due_date: string;
+  amount_due: number | null;
+  amount_paid: number | null;
+  remaining_amount: number | null;
+  status: string;
+};
+
+async function fetchUpcomingBorrowersData(
+  todayIso: string,
+): Promise<Borrower[]> {
+  const supabase = createSupabaseAdmin();
+
+  const [y, m, d] = todayIso.split("-").map(Number);
+  const plusDate = new Date(y, m - 1, d);
+  plusDate.setDate(plusDate.getDate() + 14);
+  const todayPlus14 = [
+    plusDate.getFullYear(),
+    String(plusDate.getMonth() + 1).padStart(2, "0"),
+    String(plusDate.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  // Fetch account_ids with pending/partial schedules due in the next 14 days
+  const { data: pendingData } = await supabase
+    .from("payment_schedules")
+    .select("account_id")
+    .in("status", ["pending", "partial"])
+    .gte("due_date", todayIso)
+    .lte("due_date", todayPlus14);
+
+  const relevantAccountIds = [
+    ...new Set(
+      (pendingData ?? []).map((r: { account_id: string }) => r.account_id),
+    ),
+  ];
+  if (relevantAccountIds.length === 0) return [];
+
+  const { data: accountRows } = await supabase
+    .from("accounts")
+    .select(
+      "id, borrower_id, principal_amount, schedule_mode, interest_rate, status, type, interest_type",
+    )
+    .in("id", relevantAccountIds)
+    .is("deleted_at", null);
+
+  const accounts = (accountRows ?? []) as UpcomingAccountRow[];
+  const borrowerIds = [...new Set(accounts.map((a) => a.borrower_id))];
+  if (borrowerIds.length === 0) return [];
+
+  const [borrowerResult, scheduleResult] = await Promise.all([
+    supabase
+      .from("borrowers")
+      .select("*, borrower_categories(category:categories(id, name, color))")
+      .in("id", borrowerIds)
+      .is("deleted_at", null),
+    supabase
+      .from("payment_schedules")
+      .select(
+        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
+      )
+      .in(
+        "account_id",
+        accounts.map((a) => a.id),
+      )
+      .gte("due_date", todayIso)
+      .order("due_date", { ascending: true })
+      .order("id", { ascending: true }),
+  ]);
+
+  const rawBorrowers = (borrowerResult.data ?? []) as Borrower[];
+  const schedules = (scheduleResult.data ?? []) as UpcomingScheduleRow[];
+
+  const accountsByBorrower = new Map<string, UpcomingAccountRow[]>();
+  const accountIdsByBorrower = new Map<string, string[]>();
+  const accountToBorrower = new Map<string, string>();
+  for (const a of accounts) {
+    const l1 = accountsByBorrower.get(a.borrower_id) ?? [];
+    l1.push(a);
+    accountsByBorrower.set(a.borrower_id, l1);
+    const l2 = accountIdsByBorrower.get(a.borrower_id) ?? [];
+    l2.push(a.id);
+    accountIdsByBorrower.set(a.borrower_id, l2);
+    accountToBorrower.set(a.id, a.borrower_id);
+  }
+
+  const nextById = computeBorrowerNextCollectionById(
+    borrowerIds,
+    accounts,
+    schedules,
+  );
+
+  // Pre-compute: earliest future pending/partial due date per account,
+  // sourced directly from the raw schedules (not the pre-computed next-due
+  // which may already be a past-due date).
+  const futureNextByAccount = new Map<
+    string,
+    { due_date: string; amount: number }
+  >();
+  for (const s of schedules) {
+    if (s.status !== "pending" && s.status !== "partial") continue;
+    const existing = futureNextByAccount.get(s.account_id);
+    if (!existing || s.due_date < existing.due_date) {
+      futureNextByAccount.set(s.account_id, {
+        due_date: s.due_date,
+        amount: remainingOnInstallment(s),
+      });
+    }
+  }
+
+  const enriched: Borrower[] = rawBorrowers.map((b) => {
+    const accIds = accountIdsByBorrower.get(b.id) ?? [];
+    const borrowerAccounts = accountsByBorrower.get(b.id) ?? [];
+    const allPending =
+      borrowerAccounts.length > 0 &&
+      borrowerAccounts.every((a) => a.status === "pending");
+    const pendingPrincipal = allPending
+      ? borrowerAccounts.reduce(
+          (sum, a) => sum + Number(a.principal_amount ?? 0),
+          0,
+        )
+      : 0;
+    const n = nextById[b.id] ?? {
+      next_collection_date: null,
+      next_collection_amount: 0,
+    };
+    // Pick the earliest future schedule across all borrower accounts
+    let upcomingDate: string | null = null;
+    let upcomingAmount = 0;
+    for (const accId of accIds) {
+      const f = futureNextByAccount.get(accId);
+      if (f && (!upcomingDate || f.due_date < upcomingDate)) {
+        upcomingDate = f.due_date;
+        upcomingAmount = f.amount;
+      }
+    }
+    return {
+      ...b,
+      has_accounts: accIds.length > 0,
+      all_accounts_pending: allPending,
+      pending_principal_total: pendingPrincipal,
+      next_collection_date: upcomingDate,
+      next_collection_amount: upcomingAmount || n.next_collection_amount,
+      next_collection_amounts: n.next_collection_amounts,
+      next_collection_status: n.next_collection_status,
+      overdue_total: n.overdue_total,
+      overdue_count: n.overdue_count,
+      accounts_count: n.accounts_count,
+      account_schedules: n.account_schedules,
+      overdue_schedules: n.overdue_schedules,
+      manual_total_principal: n.manual_total_principal,
+      manual_total_paid: n.manual_total_paid,
+      manual_total_remaining: n.manual_total_remaining,
+      manual_accounts_count: n.manual_accounts_count,
+    };
+  });
+
+  const filtered = enriched.filter(
+    (b) =>
+      b.next_collection_date != null &&
+      b.next_collection_date >= todayIso &&
+      b.next_collection_date <= todayPlus14,
+  );
+
+  filtered.sort((a, b) => {
+    const da = a.next_collection_date ?? "0000-01-01";
+    const db = b.next_collection_date ?? "0000-01-01";
+    return da.localeCompare(db);
+  });
+
+  return filtered;
+}
+
+export const getUpcomingBorrowersData = fetchUpcomingBorrowersData;
