@@ -119,7 +119,7 @@ function StickyBorrowerStrip({
   if (!borrower) return null;
   return (
     <>
-      <div className="bg-background/95 dark:bg-background/95 fixed top-10 right-0 left-0 z-30 border sm:top-18 md:top-16">
+      <div className="bg-background/95 dark:bg-background/95 fixed top-10 mx-auto w-full max-w-[1200px] rounded right-0 left-0 z-30 border sm:top-18 md:top-16">
         <div className="flex items-center justify-between px-4 py-2">
           <button
             type="button"
@@ -525,12 +525,12 @@ export default function BorrowerAccountsSection({
       console.log(account);
       const daysSinceRelease = account.release_date
         ? Math.max(
-            0,
-            Math.floor(
-              (Date.now() - new Date(account.release_date).getTime()) /
-                86400000,
-            ),
-          )
+          0,
+          Math.floor(
+            (Date.now() - new Date(account.release_date).getTime()) /
+            86400000,
+          ),
+        )
         : 0;
       const termMonths = Number(account.term_months) || 0;
       const freq = account.payment_frequency;
@@ -1081,20 +1081,20 @@ export default function BorrowerAccountsSection({
         initialValues={
           activatingAccount
             ? {
-                principal_amount: Number(
-                  activatingAccount.principal_amount ?? 0,
-                ),
-                interest_rate: Number(activatingAccount.interest_rate ?? 0),
-                release_date: activatingAccount.release_date ?? "",
-                first_payment_date: activatingAccount.first_payment_date ?? "",
-                payment_frequency:
-                  (activatingAccount.payment_frequency as any) ?? "bimonthly",
-                term_months: Number(activatingAccount.term_months ?? 1),
-                schedule_mode:
-                  (activatingAccount.schedule_mode as any) ?? "auto",
-                interest_type:
-                  (activatingAccount.interest_type as any) ?? "flat",
-              }
+              principal_amount: Number(
+                activatingAccount.principal_amount ?? 0,
+              ),
+              interest_rate: Number(activatingAccount.interest_rate ?? 0),
+              release_date: activatingAccount.release_date ?? "",
+              first_payment_date: activatingAccount.first_payment_date ?? "",
+              payment_frequency:
+                (activatingAccount.payment_frequency as any) ?? "bimonthly",
+              term_months: Number(activatingAccount.term_months ?? 1),
+              schedule_mode:
+                (activatingAccount.schedule_mode as any) ?? "auto",
+              interest_type:
+                (activatingAccount.interest_type as any) ?? "flat",
+            }
             : {}
         }
       />

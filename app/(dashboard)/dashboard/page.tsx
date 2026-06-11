@@ -54,6 +54,8 @@ type BorrowerRef = {
   id: string;
   first_name: string;
   last_name: string;
+  contact?: string | null;
+  created_at?: string;
   borrower_categories?: Array<{
     category:
       | {
@@ -68,6 +70,27 @@ type BorrowerRef = {
         }>
       | null;
   }>;
+};
+
+type RecentAccount = {
+  id: string;
+  borrower_id: string | null;
+  type: string | null;
+  principal_amount: number | null;
+  created_at: string;
+  release_date: string | null;
+  schedule_mode: string | null;
+  interest_type: string | null;
+  borrower:
+    | {
+        first_name: string;
+        last_name: string;
+      }
+    | Array<{
+        first_name: string;
+        last_name: string;
+      }>
+    | null;
 };
 
 export default async function Dashboard() {
@@ -99,6 +122,8 @@ export default async function Dashboard() {
     { count: newLoansMonthCount },
     { data: accountTotalsData },
     allSchedules,
+    { data: recentBorrowersData },
+    { data: recentAccountsData },
   ] = await Promise.all([
     supabase
       .from("borrowers")
@@ -122,6 +147,49 @@ export default async function Dashboard() {
       )
       .is("deleted_at", null),
     getAllPaymentSchedules(),
+    supabase
+      .from("borrowers")
+      .select(
+        `
+        id,
+        first_name,
+        last_name,
+        contact,
+        created_at,
+        borrower_categories (
+          category:categories (
+            id,
+            name,
+            color
+          )
+        )
+      `,
+      )
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(5),
+    supabase
+      .from("accounts")
+      .select(
+        `
+        id,
+        borrower_id,
+        type,
+        principal_amount,
+        created_at,
+        release_date,
+        schedule_mode,
+        interest_type,
+        borrower:borrowers (
+          id,
+          first_name,
+          last_name
+        )
+      `,
+      )
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(5),
   ]);
 
   const unpaidSchedules = allSchedules.filter((row) => row.status !== "paid");
@@ -584,6 +652,19 @@ export default async function Dashboard() {
     },
   ] as const;
 
+  const recentBorrowers = (recentBorrowersData ?? []) as BorrowerRef[];
+  const recentAccounts = (recentAccountsData ?? []) as RecentAccount[];
+
+  const formatActivityDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "Asia/Manila",
+    });
+  };
+
   return (
     <main className="mx-auto w-full max-w-5xl px-1 py-2 sm:px-0">
       <section className="dark:border-border dark:via-card mb-4 rounded-xl border-2 border-slate-900 bg-linear-to-r from-amber-50 via-stone-50 to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:mb-6 sm:p-6 dark:from-amber-950/50 dark:to-orange-950/30">
@@ -921,6 +1002,164 @@ export default async function Dashboard() {
           </article>
         </section>
       ) : null} */}
+      <section className="mt-4 lg:mt-6">
+        <article className="dark:border-border dark:bg-card bg-background min-w-0 rounded-xl border-2 border-slate-900 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <span className="dark:border-border dark:text-foreground rounded-md border border-slate-900 bg-indigo-100 p-1.5 text-slate-900 dark:bg-indigo-900/50">
+              <ClipboardList className="size-4" />
+            </span>
+            <h2 className="dark:text-foreground text-base font-black text-slate-900 lowercase">
+              recent activities
+            </h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Newly Created Borrowers */}
+            <div>
+              <h3 className="dark:text-muted-foreground mb-3 text-xs font-black tracking-wider text-slate-500 uppercase">
+                newly created borrowers
+              </h3>
+              <ul className="space-y-3">
+                {recentBorrowers.length === 0 ? (
+                  <li className="dark:border-muted-foreground/40 dark:bg-muted dark:text-muted-foreground rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 p-3 text-sm text-slate-600">
+                    No recent borrowers created.
+                  </li>
+                ) : (
+                  recentBorrowers.map((borrower) => {
+                    const categoryMeta = borrowerCategoryMeta(borrower);
+                    return (
+                      <li
+                        key={borrower.id}
+                        className="dark:border-border dark:bg-muted rounded-lg border-2 border-slate-900 bg-slate-50 shadow-[4px_4px_0px_0px_#0f172a] transition-all hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_0px_#0f172a] active:translate-y-px active:shadow-[2px_2px_0px_0px_#0f172a]"
+                      >
+                        <Link
+                          href={`/borrowers/${borrower.id}`}
+                          className="block p-3 outline-none"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <span className="dark:text-foreground block font-bold text-slate-900 lowercase truncate">
+                                {borrower.first_name} {borrower.last_name}
+                              </span>
+                              {borrower.contact && (
+                                <p className="dark:text-muted-foreground text-xs text-slate-500">
+                                  {borrower.contact}
+                                </p>
+                              )}
+                            </div>
+                            <span className="dark:bg-card dark:text-muted-foreground inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-600 uppercase shrink-0 border border-slate-900/10">
+                              <span
+                                className="dark:border-border size-2 shrink-0 rounded-full border border-slate-900/25"
+                                style={{
+                                  backgroundColor: categoryMeta.color ?? "#cbd5e1",
+                                }}
+                                aria-hidden
+                              />
+                              {categoryMeta.label}
+                            </span>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                            <p className="font-semibold">
+                              added on {formatActivityDate(borrower.created_at || "")}
+                            </p>
+                          </div>
+                        </Link>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
+
+            {/* Newly Created Accounts */}
+            <div>
+              <h3 className="dark:text-muted-foreground mb-3 text-xs font-black tracking-wider text-slate-500 uppercase">
+                newly created accounts
+              </h3>
+              <ul className="space-y-3">
+                {recentAccounts.length === 0 ? (
+                  <li className="dark:border-muted-foreground/40 dark:bg-muted dark:text-muted-foreground rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 p-3 text-sm text-slate-600">
+                    No recent accounts created.
+                  </li>
+                ) : (
+                  recentAccounts.map((account) => {
+                    const borrowerObj = account.borrower
+                      ? Array.isArray(account.borrower)
+                        ? account.borrower[0]
+                        : account.borrower
+                      : null;
+                    const isManual = account.schedule_mode === "manual";
+                    const isRolling = isManual && account.interest_type === "rolling";
+                    const isCashAdvance = account.type === "cash_advance";
+                    const typeLabel = isManual
+                      ? isRolling
+                        ? "rolling"
+                        : "flat"
+                      : isCashAdvance
+                        ? "ca"
+                        : "loan";
+                    const typeBadgeBg = isManual
+                      ? isRolling
+                        ? "bg-cyan-200 text-cyan-900 dark:bg-cyan-800 dark:text-cyan-100"
+                        : "bg-lime-200 text-lime-900 dark:bg-lime-800 dark:text-lime-100"
+                      : isCashAdvance
+                        ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
+                        : "bg-violet-200 text-violet-900 dark:bg-violet-800 dark:text-violet-100";
+                    return (
+                      <li
+                        key={account.id}
+                        className="dark:border-border dark:bg-muted rounded-lg border-2 border-slate-900 bg-slate-50 shadow-[4px_4px_0px_0px_#0f172a] transition-all hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_0px_#0f172a] active:translate-y-px active:shadow-[2px_2px_0px_0px_#0f172a]"
+                      >
+                        <Link
+                          href={`/accounts/${account.id}`}
+                          className="block p-3 outline-none"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              {borrowerObj ? (
+                                <span className="dark:text-foreground block font-bold text-slate-900 lowercase truncate">
+                                  {borrowerObj.first_name} {borrowerObj.last_name}
+                                </span>
+                              ) : (
+                                <span className="dark:text-foreground block font-bold text-slate-900 lowercase truncate">
+                                  Unknown borrower
+                                </span>
+                              )}
+                              <p className="dark:text-muted-foreground text-xs text-slate-500 capitalize">
+                                {account.type?.replace("_", " ") || "unknown type"}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                              <span className="dark:text-foreground text-sm font-black text-slate-900">
+                                ₱{(account.principal_amount ?? 0).toLocaleString()}
+                              </span>
+                              <span
+                                className={`rounded-md border-2 px-2 py-0.5 text-[9px] font-black tracking-wide uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-[2px_2px_0px_0px_#020617] ${typeBadgeBg} dark:border-[#020617]`}
+                              >
+                                {typeLabel}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                            <p className="font-semibold">
+                              created on {formatActivityDate(account.created_at)}
+                            </p>
+                            {account.release_date && (
+                              <p className="font-semibold shrink-0">
+                                released: {account.release_date}
+                              </p>
+                            )}
+                          </div>
+                        </Link>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
+          </div>
+        </article>
+      </section>
 
       <section className="mt-4 flex justify-end lg:mt-6">
         <ResetCacheButton />

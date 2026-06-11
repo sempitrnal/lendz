@@ -264,9 +264,9 @@ export default async function AccountDetailPage({
       : 0
     : totalScheduledDue > 0
       ? Math.min(
-          100,
-          Math.round((totalScheduledPaid / totalScheduledDue) * 100),
-        )
+        100,
+        Math.round((totalScheduledPaid / totalScheduledDue) * 100),
+      )
       : 0;
 
   const nextHighlightIndex = schedules.findIndex((s) =>
@@ -310,20 +310,19 @@ export default async function AccountDetailPage({
     const paidDiffDays =
       schedule.paid_date && schedule.paid_date !== schedule.due_date
         ? Math.round(
-            (new Date(schedule.paid_date).getTime() -
-              new Date(schedule.due_date).getTime()) /
-              86400000,
-          )
+          (new Date(schedule.paid_date).getTime() -
+            new Date(schedule.due_date).getTime()) /
+          86400000,
+        )
         : null;
     return (
       <li
         key={schedule.id}
         id={isNext ? "next-schedule" : undefined}
-        className={`flex break-inside-avoid flex-col rounded-xl border-2 p-4 transition-colors duration-700 ${st.row} ${
-          isNext
+        className={`flex break-inside-avoid flex-col rounded-xl border-2 p-4 transition-colors duration-700 ${st.row} ${isNext
             ? "relative mb-5 border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
             : "m-1 mb-4 border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
-        }`}
+          }`}
       >
         {isNext && <GlowBorder />}
         <div className="flex items-center gap-2">
@@ -629,10 +628,10 @@ export default async function AccountDetailPage({
               accountRow.release_date,
               accountRow.first_payment_date,
               accountRow.payment_frequency as
-                | "weekly"
-                | "monthly"
-                | "bimonthly"
-                | "custom",
+              | "weekly"
+              | "monthly"
+              | "bimonthly"
+              | "custom",
             );
             return skipped > 0 ? (
               <div className="space-y-2">
@@ -653,7 +652,7 @@ export default async function AccountDetailPage({
                   const dailyInterest = monthlyInterest / 30;
                   const periodDays =
                     accountRow.payment_frequency === "bimonthly" ||
-                    accountRow.payment_frequency === "custom"
+                      accountRow.payment_frequency === "custom"
                       ? 15
                       : accountRow.payment_frequency === "monthly"
                         ? 30
@@ -821,7 +820,7 @@ export default async function AccountDetailPage({
         {accountRow.status !== "pending" ? (
           <ScheduleSelectionProvider>
             <section
-              className={`${nb.scheduleShell} -mx-4 md:-mx-6`}
+              className={`${nb.scheduleShell} `}
               aria-labelledby="schedule-heading"
             >
               <div className={nb.scheduleHead}>
@@ -847,7 +846,7 @@ export default async function AccountDetailPage({
                           {formatMoney(remainingOnInstallment(nextDue))}
                         </span>
                         {remainingOnInstallment(nextDue) <
-                        Number(nextDue.amount_due ?? 0) ? (
+                          Number(nextDue.amount_due ?? 0) ? (
                           <span className="dark:text-muted-foreground text-slate-600">
                             {" "}
                             left of{" "}
@@ -925,12 +924,12 @@ export default async function AccountDetailPage({
                         const isNext = i === nextHighlightIndex;
                         const paidDiffDays =
                           schedule.paid_date &&
-                          schedule.paid_date !== schedule.due_date
+                            schedule.paid_date !== schedule.due_date
                             ? Math.round(
-                                (new Date(schedule.paid_date).getTime() -
-                                  new Date(schedule.due_date).getTime()) /
-                                  86400000,
-                              )
+                              (new Date(schedule.paid_date).getTime() -
+                                new Date(schedule.due_date).getTime()) /
+                              86400000,
+                            )
                             : null;
                         return (
                           <ScheduleMobileCard
@@ -965,8 +964,8 @@ export default async function AccountDetailPage({
                             }
                             footer={
                               schedule.status === "partial" &&
-                              (!isRolling ||
-                                (paymentsMap[schedule.id] ?? []).length > 0) ? (
+                                (!isRolling ||
+                                  (paymentsMap[schedule.id] ?? []).length > 0) ? (
                                 <div className="space-y-3 pb-2">
                                   {!isRolling ? (
                                     <PartialPaymentForm
@@ -979,7 +978,7 @@ export default async function AccountDetailPage({
                                     />
                                   ) : null}
                                   {(paymentsMap[schedule.id] ?? []).length >
-                                  0 ? (
+                                    0 ? (
                                     <PaymentHistoryPanel
                                       payments={
                                         (paymentsMap[schedule.id] ??
@@ -1029,9 +1028,9 @@ export default async function AccountDetailPage({
                                     );
                                     return due > 0
                                       ? Math.min(
-                                          100,
-                                          Math.round((paid / due) * 100),
-                                        )
+                                        100,
+                                        Math.round((paid / due) * 100),
+                                      )
                                       : 0;
                                   })()}
                                 />
@@ -1061,7 +1060,7 @@ export default async function AccountDetailPage({
 
                             {schedule.status === "paid" ? (
                               schedule.paid_date &&
-                              schedule.paid_date !== schedule.due_date ? (
+                                schedule.paid_date !== schedule.due_date ? (
                                 <p className="mt-0.5 text-sm font-semibold text-amber-600 dark:text-amber-400">
                                   {formatDate(schedule.paid_date)}
                                   {paidDiffDays !== null && (
@@ -1092,9 +1091,9 @@ export default async function AccountDetailPage({
                                 const pct =
                                   due > 0
                                     ? Math.min(
-                                        100,
-                                        Math.round((paid / due) * 100),
-                                      )
+                                      100,
+                                      Math.round((paid / due) * 100),
+                                    )
                                     : 0;
                                 return (
                                   <div className="mt-2">
