@@ -18,7 +18,12 @@ export default async function BorrowersPage({
 
   try {
     const supabase = await createSupabaseServer();
-    const [allBorrowers, { data: recentBorrowersData }, { data: recentAccountsData }] = await Promise.all([
+    const [
+      allBorrowers,
+      { data: recentBorrowersData },
+      { data: recentAccountsData },
+      { data: recentAccountUpdatesData },
+    ] = await Promise.all([
       getAllBorrowersData(),
       supabase
         .from("borrowers")
@@ -39,6 +44,11 @@ export default async function BorrowersPage({
         `,
         )
         .is("deleted_at", null)
+        .not(
+          "id",
+          "in",
+          "(394b274c-8b5f-4f9a-8391-02d9354f7ba0,544fc7fc-ee37-4988-be88-7757287f5fb5,44807c06-e653-4e8b-9a55-1536d3ba8309)",
+        )
         .order("created_at", { ascending: false })
         .limit(5),
       supabase
@@ -63,6 +73,25 @@ export default async function BorrowersPage({
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(5),
+      supabase
+        .from("audit_logs")
+        .select(
+          `
+          id,
+          action,
+          description,
+          account_id,
+          created_at,
+          metadata,
+          account:accounts!inner(
+            id,
+            borrower:borrowers(first_name, last_name)
+          )
+        `,
+        )
+        .like("action", "schedule.%")
+        .order("created_at", { ascending: false })
+        .limit(6),
     ]);
 
     return (
@@ -73,6 +102,7 @@ export default async function BorrowersPage({
           initialCategoryIds={categoryIds}
           newlyCreatedBorrowers={(recentBorrowersData ?? []) as any}
           newlyCreatedAccounts={(recentAccountsData ?? []) as any}
+          recentAccountUpdates={(recentAccountUpdatesData ?? []) as any}
         />
       </div>
     );

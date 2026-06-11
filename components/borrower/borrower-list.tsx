@@ -18,7 +18,7 @@ import AddBorrowerModal from "./add-borrower-modal";
 import { BorrowerCard } from "./borrower-card";
 import { BsChevronDown } from "react-icons/bs";
 import { FaPlus } from "react-icons/fa6";
-import { Users, ClipboardList } from "lucide-react";
+import { Users, ClipboardList, Activity } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import Link from "next/link";
@@ -90,12 +90,29 @@ export type RecentAccount = {
     | null;
 };
 
+export type AccountUpdate = {
+  id: string;
+  action: string;
+  description: string;
+  account_id: string | null;
+  created_at: string;
+  metadata: Record<string, unknown> | null;
+  account: {
+    id: string;
+    borrower: {
+      first_name: string;
+      last_name: string;
+    } | null;
+  } | null;
+};
+
 type BorrowersListProps = {
   allBorrowers: Borrower[];
   initialSearchQuery?: string;
   initialCategoryIds?: string[];
   newlyCreatedBorrowers?: Borrower[];
   newlyCreatedAccounts?: RecentAccount[];
+  recentAccountUpdates?: AccountUpdate[];
 };
 
 export default function BorrowersList({
@@ -104,6 +121,7 @@ export default function BorrowersList({
   initialCategoryIds = [],
   newlyCreatedBorrowers = [],
   newlyCreatedAccounts = [],
+  recentAccountUpdates = [],
 }: BorrowersListProps) {
   const router = useRouter();
 
@@ -581,84 +599,82 @@ export default function BorrowersList({
 
       {/* Recent Activities Section */}
       <section className="mb-6">
-        <article className="dark:border-border dark:bg-card bg-background min-w-0 rounded-xl border-2 border-slate-900 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+        <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-[#fffdf6] p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5 dark:border-slate-700 dark:bg-[#0b0f19]">
           <div className="mb-4 flex items-center gap-2">
-            <span className="dark:border-border dark:text-foreground rounded-md border border-slate-900 bg-indigo-100 p-1.5 text-slate-900 dark:bg-indigo-900/50">
+            <span className="rounded-md border-2 border-slate-900 bg-indigo-200 p-1.5 text-slate-900 dark:border-slate-700 dark:bg-indigo-400 dark:text-slate-900">
               <ClipboardList className="size-4" />
             </span>
-            <h2 className="dark:text-foreground text-base font-black text-slate-900 lowercase">
+            <h2 className="text-base font-black text-slate-900 lowercase dark:text-white">
               recent activities
             </h2>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="flex flex-col gap-4 sm:gap-6">
             {/* Newly Created Borrowers */}
             <div>
-              <h3 className="dark:text-muted-foreground mb-3 text-xs font-black tracking-wider text-slate-500 uppercase">
+              <h3 className="mb-2 text-xs font-black tracking-wider text-slate-900 uppercase sm:mb-3 dark:text-white">
                 newly created borrowers
               </h3>
-              <ul className="space-y-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3">
                 {newlyCreatedBorrowers.length === 0 ? (
-                  <li className="dark:border-muted-foreground/40 dark:bg-muted dark:text-muted-foreground rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 p-3 text-sm text-slate-600">
+                  <div className="rounded-lg border-2 border-dashed border-slate-400 bg-[#eee8d5] p-3 text-sm font-bold text-slate-600 dark:bg-slate-700">
                     No recent borrowers created.
-                  </li>
+                  </div>
                 ) : (
                   newlyCreatedBorrowers.map((borrower) => {
                     const categoryMeta = getCategoryMeta(borrower);
                     return (
-                      <li
+                      <div
                         key={borrower.id}
-                        className="dark:border-border dark:bg-muted rounded-lg border-2 border-slate-900 bg-slate-50 shadow-[4px_4px_0px_0px_#0f172a] transition-all hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_0px_#0f172a] active:translate-y-px active:shadow-[2px_2px_0px_0px_#0f172a]"
+                        className="rounded-lg border-2 border-slate-900 bg-[#fdf6e3] shadow-[3px_3px_0px_0px_#0f172a] transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#0f172a] active:translate-y-px active:shadow-[1px_1px_0px_0px_#0f172a] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[3px_3px_0px_0px_#000000] dark:hover:shadow-[4px_4px_0px_0px_rgb(255_255_255/0.12)] dark:active:shadow-[1px_1px_0px_0px_rgb(255_255_255/0.12)]"
                       >
                         <Link
                           href={`/borrowers/${borrower.id}`}
-                          className="block p-3 outline-none"
+                          className="flex h-full flex-col outline-none"
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <span className="dark:text-foreground block font-bold text-slate-900 lowercase truncate">
-                                {borrower.first_name} {borrower.last_name}
-                              </span>
-                              {borrower.contact && (
-                                <p className="dark:text-muted-foreground text-xs text-slate-500">
-                                  {borrower.contact}
-                                </p>
-                              )}
-                            </div>
-                            <span className="dark:bg-card dark:text-muted-foreground inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-600 uppercase shrink-0 border border-slate-900/10">
+                          <div className="flex flex-1 flex-col p-2 sm:p-3">
+                            <span className="block text-sm font-black text-slate-900 uppercase sm:text-base dark:text-white">
+                              {borrower.first_name} {borrower.last_name}
+                            </span>
+                            {borrower.contact && (
+                              <p className="text-[11px] font-semibold text-slate-600 sm:text-xs dark:text-slate-300">
+                                {borrower.contact}
+                              </p>
+                            )}
+                            <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-md border-2 border-slate-900 bg-white px-1.5 py-0.5 text-[9px] font-black text-slate-900 uppercase shadow-[1px_1px_0px_0px_#0f172a] dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:shadow-[1px_1px_0px_0px_rgb(255_255_255/0.12)]">
                               <span
-                                className="dark:border-border size-2 shrink-0 rounded-full border border-slate-900/25"
+                                className="size-2 shrink-0 rounded-full"
                                 style={{
-                                  backgroundColor: categoryMeta.color ?? "#cbd5e1",
+                                  backgroundColor:
+                                    categoryMeta.color ?? "#cbd5e1",
                                 }}
                                 aria-hidden
                               />
                               {categoryMeta.label}
                             </span>
                           </div>
-                          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                            <p className="font-semibold">
-                              added on {formatActivityDate(borrower.created_at || "")}
-                            </p>
+                          <div className="border-t-2 border-slate-900 bg-[#eee8d5] p-2 text-[10px] font-black tracking-wider text-slate-900 uppercase sm:text-[11px] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            added{" "}
+                            {formatActivityDate(borrower.created_at || "")}
                           </div>
                         </Link>
-                      </li>
+                      </div>
                     );
                   })
                 )}
-              </ul>
+              </div>
             </div>
 
             {/* Newly Created Accounts */}
             <div>
-              <h3 className="dark:text-muted-foreground mb-3 text-xs font-black tracking-wider text-slate-500 uppercase">
+              <h3 className="mb-2 text-xs font-black tracking-wider text-slate-900 uppercase sm:mb-3 dark:text-white">
                 newly created accounts
               </h3>
-              <ul className="space-y-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3">
                 {newlyCreatedAccounts.length === 0 ? (
-                  <li className="dark:border-muted-foreground/40 dark:bg-muted dark:text-muted-foreground rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 p-3 text-sm text-slate-600">
+                  <div className="rounded-lg border-2 border-dashed border-slate-400 bg-[#eee8d5] p-3 text-sm font-bold text-slate-600 dark:bg-slate-700">
                     No recent accounts created.
-                  </li>
+                  </div>
                 ) : (
                   newlyCreatedAccounts.map((account) => {
                     const borrowerObj = account.borrower
@@ -667,7 +683,8 @@ export default function BorrowersList({
                         : account.borrower
                       : null;
                     const isManual = account.schedule_mode === "manual";
-                    const isRolling = isManual && account.interest_type === "rolling";
+                    const isRolling =
+                      isManual && account.interest_type === "rolling";
                     const isCashAdvance = account.type === "cash_advance";
                     const typeLabel = isManual
                       ? isRolling
@@ -684,56 +701,231 @@ export default function BorrowersList({
                         ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
                         : "bg-violet-200 text-violet-900 dark:bg-violet-800 dark:text-violet-100";
                     return (
-                      <li
+                      <div
                         key={account.id}
-                        className="dark:border-border dark:bg-muted rounded-lg border-2 border-slate-900 bg-slate-50 shadow-[4px_4px_0px_0px_#0f172a] transition-all hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_0px_#0f172a] active:translate-y-px active:shadow-[2px_2px_0px_0px_#0f172a]"
+                        className="rounded-lg border-2 border-slate-900 bg-[#fdf6e3] shadow-[3px_3px_0px_0px_#0f172a] transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#0f172a] active:translate-y-px active:shadow-[1px_1px_0px_0px_#0f172a] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[3px_3px_0px_0px_#000000] dark:hover:shadow-[4px_4px_0px_0px_rgb(255_255_255/0.12)] dark:active:shadow-[1px_1px_0px_0px_rgb(255_255_255/0.12)]"
                       >
                         <Link
                           href={`/accounts/${account.id}`}
-                          className="block p-3 outline-none"
+                          className="flex h-full flex-col outline-none"
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              {borrowerObj ? (
-                                <span className="dark:text-foreground block font-bold text-slate-900 lowercase truncate">
-                                  {borrowerObj.first_name} {borrowerObj.last_name}
-                                </span>
-                              ) : (
-                                <span className="dark:text-foreground block font-bold text-slate-900 lowercase truncate">
-                                  Unknown borrower
-                                </span>
-                              )}
-                              <p className="dark:text-muted-foreground text-xs text-slate-500 capitalize">
-                                {account.type?.replace("_", " ") || "unknown type"}
-                              </p>
-                            </div>
-                            <div className="flex flex-col items-end gap-1.5 shrink-0">
-                              <span className="dark:text-foreground text-sm font-black text-slate-900">
-                                ₱{(account.principal_amount ?? 0).toLocaleString()}
+                          <div className="flex flex-1 flex-col p-2 sm:p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="block text-sm font-black text-slate-900 uppercase sm:text-base dark:text-white">
+                                {borrowerObj
+                                  ? `${borrowerObj.first_name} ${borrowerObj.last_name}`
+                                  : "Unknown borrower"}
                               </span>
                               <span
-                                className={`rounded-md border-2 px-2 py-0.5 text-[9px] font-black tracking-wide uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-[2px_2px_0px_0px_#020617] ${typeBadgeBg} dark:border-[#020617]`}
+                                className={`min-w-0 truncate rounded-md border-2 px-1.5 py-0.5 text-[8px] font-black tracking-wide uppercase shadow-[2px_2px_0px_0px_#0f172a] sm:px-2 sm:text-[9px] dark:shadow-[2px_2px_0px_0px_rgb(255_255_255/0.12)] ${typeBadgeBg} dark:border-slate-700`}
                               >
                                 {typeLabel}
                               </span>
                             </div>
+                            <div className="mt-1.5 flex items-baseline gap-1.5">
+                              <span className="text-xs font-black text-slate-900 sm:text-sm dark:text-white">
+                                ₱
+                                {(
+                                  account.principal_amount ?? 0
+                                ).toLocaleString()}
+                              </span>
+                              {account.release_date && (
+                                <span className="rounded border border-slate-400 bg-white px-1 py-0.5 text-[8px] font-semibold text-slate-700 sm:px-1.5 sm:text-[10px] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                  {formatActivityDate(account.release_date)}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                            <p className="font-semibold">
-                              created on {formatActivityDate(account.created_at)}
-                            </p>
-                            {account.release_date && (
-                              <p className="font-semibold shrink-0">
-                                released: {account.release_date}
-                              </p>
-                            )}
+                          <div className="border-t-2 border-slate-900 bg-[#eee8d5] p-2 text-[10px] font-black tracking-wider text-slate-900 uppercase sm:text-[11px] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            <div className="flex items-center justify-between gap-2">
+                              <span>
+                                created {formatActivityDate(account.created_at)}
+                              </span>
+                              {account.release_date && (
+                                <span>
+                                  released{" "}
+                                  {formatActivityDate(account.release_date)}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </Link>
-                      </li>
+                      </div>
                     );
                   })
                 )}
-              </ul>
+              </div>
+            </div>
+
+            {/* Account Updates */}
+            <div>
+              <h3 className="mb-2 text-xs font-black tracking-wider text-slate-900 uppercase sm:mb-3 dark:text-white">
+                account updates
+              </h3>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3">
+                {recentAccountUpdates.length === 0 ? (
+                  <div className="rounded-lg border-2 border-dashed border-slate-400 bg-[#eee8d5] p-3 text-sm font-bold text-slate-600 dark:bg-slate-700">
+                    No recent account updates.
+                  </div>
+                ) : (
+                  recentAccountUpdates.map((update) => {
+                    const meta = update.metadata ?? {};
+                    const borrower = update.account?.borrower;
+                    const borrowerName = borrower
+                      ? `${borrower.first_name} ${borrower.last_name}`
+                      : "Unknown borrower";
+
+                    const actionStyles: Record<
+                      string,
+                      {
+                        label: string;
+                        bg: string;
+                        border: string;
+                        text: string;
+                      }
+                    > = {
+                      "schedule.payment_applied": {
+                        label: "payment",
+                        bg: "bg-sky-200 dark:bg-sky-800",
+                        border: "border-sky-900 dark:border-sky-600",
+                        text: "text-sky-900 dark:text-sky-100",
+                      },
+                      "schedule.status_changed": {
+                        label: "status",
+                        bg: "bg-violet-200 dark:bg-violet-800",
+                        border: "border-violet-900 dark:border-violet-600",
+                        text: "text-violet-900 dark:text-violet-100",
+                      },
+                      "schedule.batch_paid": {
+                        label: "batch paid",
+                        bg: "bg-teal-200 dark:bg-teal-800",
+                        border: "border-teal-900 dark:border-teal-600",
+                        text: "text-teal-900 dark:text-teal-100",
+                      },
+                      "schedule.payment_deleted": {
+                        label: "payment del.",
+                        bg: "bg-rose-200 dark:bg-rose-800",
+                        border: "border-rose-900 dark:border-rose-600",
+                        text: "text-rose-900 dark:text-rose-100",
+                      },
+                      "schedule.deleted": {
+                        label: "sched. del.",
+                        bg: "bg-red-200 dark:bg-red-800",
+                        border: "border-red-900 dark:border-red-600",
+                        text: "text-red-900 dark:text-red-100",
+                      },
+                      "schedule.added": {
+                        label: "sched. added",
+                        bg: "bg-cyan-200 dark:bg-cyan-800",
+                        border: "border-cyan-900 dark:border-cyan-600",
+                        text: "text-cyan-900 dark:text-cyan-100",
+                      },
+                    };
+                    const style = actionStyles[update.action] ?? {
+                      label: update.action.replace(/.*\./, ""),
+                      bg: "bg-slate-200 dark:bg-slate-700",
+                      border: "border-slate-900 dark:border-slate-600",
+                      text: "text-slate-900 dark:text-slate-200",
+                    };
+
+                    let amountDisplay: string | null = null;
+                    let dateDisplay: string | null = null;
+
+                    if (update.action === "schedule.payment_applied") {
+                      const amt = Number(meta.amount ?? 0);
+                      if (amt > 0) {
+                        amountDisplay = `₱${amt.toLocaleString()}`;
+                      }
+                      const pd = meta.paymentDate as string | undefined;
+                      if (pd) dateDisplay = formatActivityDate(pd);
+                    } else if (update.action === "schedule.status_changed") {
+                      const status = meta.status as string | undefined;
+                      const due = Number(meta.amount_due ?? 0);
+                      if (
+                        (status === "paid" || status === "partial") &&
+                        due > 0
+                      ) {
+                        amountDisplay = `₱${due.toLocaleString()}`;
+                      }
+                    } else if (update.action === "schedule.batch_paid") {
+                      const ids = meta.ids as string[] | undefined;
+                      const count = ids?.length ?? 0;
+                      if (count > 0) {
+                        amountDisplay = `${count} schedule${count === 1 ? "" : "s"}`;
+                      }
+                      const cd = meta.customDate as string | undefined;
+                      if (cd) dateDisplay = formatActivityDate(cd);
+                    } else if (update.action === "schedule.payment_deleted") {
+                      const amt = Number(meta.amount ?? 0);
+                      if (amt > 0) {
+                        amountDisplay = `₱${amt.toLocaleString()}`;
+                      }
+                    } else if (update.action === "schedule.deleted") {
+                      const due = Number(meta.amount_due ?? 0);
+                      if (due > 0) {
+                        amountDisplay = `₱${due.toLocaleString()}`;
+                      }
+                    }
+
+                    const content = (
+                      <div className="flex flex-1 flex-col p-2 sm:p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="block text-sm font-black text-slate-900 uppercase sm:text-base dark:text-white">
+                            {borrowerName}
+                          </span>
+                          <span
+                            className={`shrink-0 rounded-md border-2 px-1.5 py-0.5 text-[8px] font-black tracking-wide uppercase shadow-[2px_2px_0px_0px_#0f172a] sm:px-2 sm:text-[9px] dark:shadow-[2px_2px_0px_0px_rgb(255_255_255/0.12)] ${style.bg} ${style.border} ${style.text}`}
+                          >
+                            {style.label}
+                          </span>
+                        </div>
+                        {amountDisplay && (
+                          <p className="mt-1 text-xs font-black text-slate-800 sm:text-sm dark:text-slate-200">
+                            {amountDisplay}
+                          </p>
+                        )}
+                        {dateDisplay && (
+                          <p className="mt-0.5 text-[10px] font-bold text-slate-500 uppercase dark:text-slate-400">
+                            paid {dateDisplay}
+                          </p>
+                        )}
+                      </div>
+                    );
+
+                    return (
+                      <div
+                        key={update.id}
+                        className="rounded-lg border-2 border-slate-900 bg-[#fdf6e3] shadow-[3px_3px_0px_0px_#0f172a] transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#0f172a] active:translate-y-px active:shadow-[1px_1px_0px_0px_#0f172a] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[3px_3px_0px_0px_#000000] dark:hover:shadow-[4px_4px_0px_0px_rgb(255_255_255/0.12)] dark:active:shadow-[1px_1px_0px_0px_rgb(255_255_255/0.12)]"
+                      >
+                        {update.account_id ? (
+                          <Link
+                            href={`/accounts/${update.account_id}`}
+                            className="flex h-full flex-col outline-none"
+                          >
+                            {content}
+                            <div className="border-t-2 border-slate-900 bg-[#eee8d5] p-2 text-[10px] font-black tracking-wider text-slate-900 uppercase sm:text-[11px] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                              <span className="flex items-center gap-1.5">
+                                <Activity className="size-3" />
+                                {formatActivityDate(update.created_at)}
+                              </span>
+                            </div>
+                          </Link>
+                        ) : (
+                          <div className="flex h-full flex-col">
+                            {content}
+                            <div className="border-t-2 border-slate-900 bg-[#eee8d5] p-2 text-[10px] font-black tracking-wider text-slate-900 uppercase sm:text-[11px] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                              <span className="flex items-center gap-1.5">
+                                <Activity className="size-3" />
+                                {formatActivityDate(update.created_at)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
         </article>
