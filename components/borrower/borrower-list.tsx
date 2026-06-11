@@ -11,7 +11,6 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
 import { fetchCategoriesAction } from "@/lib/actions/categories";
 import { formFieldInputClassName } from "@/lib/form-field-classes";
 
@@ -22,6 +21,7 @@ import { FaPlus } from "react-icons/fa6";
 import { Users } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import Link from "next/link";
 
 export type Borrower = {
   id: string;
@@ -84,18 +84,6 @@ export default function BorrowersList({
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [listQuery, setListQuery] = useState(initialSearchQuery);
   const listDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [suggestions, setSuggestions] = useState<
-    {
-      id: string;
-      first_name: string;
-      last_name: string;
-      contact: string | null;
-      borrower_categories: {
-        category: { id: string; name: string; color: string | null };
-      }[];
-    }[]
-  >([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
@@ -103,39 +91,6 @@ export default function BorrowersList({
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(
     initialCategoryIds ?? [],
   );
-
-  const fetchSuggestions = useCallback(async (q: string) => {
-    if (q.trim().length === 0) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-    const pattern = `%${q.trim()}%`;
-    const { data } = await supabase
-      .from("borrowers")
-      .select(
-        "id, first_name, last_name, contact, borrower_categories(category:categories(id, name, color))",
-      )
-      .or(
-        `first_name.ilike.${pattern},last_name.ilike.${pattern},contact.ilike.${pattern}`,
-      )
-      .is("deleted_at", null)
-      .order("first_name", { ascending: true })
-      .limit(6);
-    setSuggestions(
-      (data ?? []) as unknown as {
-        id: string;
-        first_name: string;
-        last_name: string;
-        contact: string | null;
-        borrower_categories: {
-          category: { id: string; name: string; color: string | null };
-        }[];
-      }[],
-    );
-    setShowSuggestions(true);
-    setActiveSuggestion(-1);
-  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -179,6 +134,42 @@ export default function BorrowersList({
 
   const [updatingBorrowerId, setUpdatingBorrowerId] = useState<string | null>(
     null,
+  );
+
+  const RECENT_KEY = "borrowers-recent-visits";
+  const [recentBorrowers, setRecentBorrowers] = useState<
+    {
+      id: string;
+      first_name: string;
+      last_name: string;
+      categoryColor: string | null;
+    }[]
+  >([]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(RECENT_KEY);
+      if (stored) setRecentBorrowers(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  const recordVisit = useCallback(
+    (borrower: {
+      id: string;
+      first_name: string;
+      last_name: string;
+      categoryColor: string | null;
+    }) => {
+      setRecentBorrowers((prev) => {
+        const filtered = prev.filter((b) => b.id !== borrower.id);
+        const next = [borrower, ...filtered].slice(0, 10);
+        try {
+          localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    },
+    [],
   );
 
   const openAddBorrowerModal = useCallback(() => {
@@ -237,6 +228,36 @@ export default function BorrowersList({
     return result;
   }, [safeBorrowers, listQuery, safeCategoryIds]);
 
+  // Instant client-side suggestions from cached borrowers (no network)
+  const suggestions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return safeBorrowers
+      .filter(
+        (b) =>
+          b.first_name.toLowerCase().includes(q) ||
+          b.last_name.toLowerCase().includes(q) ||
+          `${b.first_name} ${b.last_name}`.toLowerCase().includes(q) ||
+          (b.contact ?? "").toLowerCase().includes(q),
+      )
+      .slice(0, 6);
+  }, [safeBorrowers, searchQuery]);
+
+  const openSuggestion = useCallback(
+    (s: Borrower) => {
+      setShowSuggestions(false);
+      sessionStorage.setItem("borrowers-list-scroll", String(window.scrollY));
+      recordVisit({
+        id: s.id,
+        first_name: s.first_name,
+        last_name: s.last_name,
+        categoryColor: s.borrower_categories?.[0]?.category?.color ?? null,
+      });
+      router.push(`/borrowers/${s.id}`);
+    },
+    [recordVisit, router],
+  );
+
   return (
     <div className="">
       <AddBorrowerModal
@@ -269,6 +290,57 @@ export default function BorrowersList({
         )}
 
       <div className="mb-6 flex flex-col gap-3">
+        {recentBorrowers.length > 0 ? (
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="dark:text-muted-foreground text-[10px] font-bold tracking-[0.14em] text-slate-500 uppercase">
+                Recently visited
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setRecentBorrowers([]);
+                  try {
+                    localStorage.removeItem(RECENT_KEY);
+                  } catch {}
+                }}
+                className="text-[10px] font-bold tracking-wide text-slate-400 uppercase transition hover:text-rose-500"
+              >
+                Clear
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {recentBorrowers.map((b) => {
+                const initials =
+                  `${b.first_name[0] ?? ""}${b.last_name[0] ?? ""}`.toUpperCase();
+                return (
+                  <Link
+                    key={b.id}
+                    href={`/borrowers/${b.id}`}
+                    onClick={() => {
+                      sessionStorage.setItem(
+                        "borrowers-list-scroll",
+                        String(window.scrollY),
+                      );
+                    }}
+                    className="dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted/70 flex items-center gap-2 rounded-full border border-slate-900/15 bg-[#fffdf6] px-3 py-1.5 text-xs font-semibold text-slate-800 uppercase shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] transition hover:bg-white"
+                  >
+                    <span
+                      className="flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-black text-white"
+                      style={{
+                        backgroundColor: b.categoryColor ?? "#0f172a",
+                      }}
+                    >
+                      {initials}
+                    </span>
+                    {b.first_name} {b.last_name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
         <div ref={searchWrapperRef} className="relative">
           <input
             type="search"
@@ -276,6 +348,30 @@ export default function BorrowersList({
             onChange={(e) => {
               const v = e.target.value;
               setSearchQuery(v);
+              setShowSuggestions(v.trim().length > 0);
+              setActiveSuggestion(-1);
+            }}
+            onFocus={() => {
+              if (searchQuery.trim()) setShowSuggestions(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setShowSuggestions(false);
+                return;
+              }
+              if (!showSuggestions || suggestions.length === 0) return;
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActiveSuggestion((p) =>
+                  Math.min(p + 1, suggestions.length - 1),
+                );
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActiveSuggestion((p) => Math.max(p - 1, -1));
+              } else if (e.key === "Enter" && activeSuggestion >= 0) {
+                e.preventDefault();
+                openSuggestion(suggestions[activeSuggestion]);
+              }
             }}
             placeholder="Search by name or contact"
             className={formFieldInputClassName}
@@ -284,35 +380,30 @@ export default function BorrowersList({
             aria-expanded={showSuggestions}
             autoComplete="off"
           />
-          {/* {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full right-0 left-0 z-30 mt-1 overflow-hidden rounded-xl border-2 border-slate-900 bg-white shadow-[3px_3px_0px_0px_#0f172a]">
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              role="listbox"
+              className="dark:border-border dark:bg-card absolute top-full right-0 left-0 z-30 mt-1 overflow-hidden rounded-xl border-2 border-slate-900 bg-white shadow-[3px_3px_0px_0px_rgb(15_23_42/0.85)] dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+            >
               {suggestions.map((s, i) => (
                 <button
                   key={s.id}
                   type="button"
+                  role="option"
+                  aria-selected={i === activeSuggestion}
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    setShowSuggestions(false);
-                    sessionStorage.setItem(
-                      "borrowers-list-scroll",
-                      String(window.scrollY),
-                    );
-                    router.push(`/borrowers/${s.id}`);
+                    openSuggestion(s);
                   }}
-                  className={`dark:bg-background flex w-full items-center justify-between gap-3 border-b border-slate-100 bg-[#fffefa] px-3 py-2.5 text-left transition-colors last:border-b-0 dark:text-white ${
+                  onMouseEnter={() => setActiveSuggestion(i)}
+                  className={`dark:border-border/50 flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left transition-colors last:border-b-0 ${
                     i === activeSuggestion
-                      ? "bg-slate-900 text-white"
-                      : "hover:bg-slate-50"
+                      ? "dark:bg-muted bg-slate-100"
+                      : "dark:bg-card bg-white"
                   }`}
                 >
                   <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate">
-                    <span
-                      className={`text-sm font-black uppercase ${
-                        i === activeSuggestion
-                          ? "text-white"
-                          : "text-slate-900 dark:text-white"
-                      }`}
-                    >
+                    <span className="dark:text-foreground text-sm font-black text-slate-900 uppercase">
                       {s.first_name} {s.last_name}
                     </span>
                     {s.borrower_categories?.[0]?.category && (
@@ -325,33 +416,21 @@ export default function BorrowersList({
                               "#cbd5e1",
                           }}
                         />
-                        <span
-                          className={`text-[10px] font-semibold capitalize ${
-                            i === activeSuggestion
-                              ? "text-slate-300"
-                              : "text-slate-400 dark:text-slate-400"
-                          }`}
-                        >
+                        <span className="dark:text-muted-foreground text-[10px] font-semibold text-slate-400 capitalize">
                           {s.borrower_categories[0].category.name}
                         </span>
                       </span>
                     )}
                   </span>
                   {s.contact && (
-                    <span
-                      className={`shrink-0 text-[10px] tabular-nums ${
-                        i === activeSuggestion
-                          ? "text-slate-300"
-                          : "text-slate-400"
-                      }`}
-                    >
+                    <span className="dark:text-muted-foreground shrink-0 text-[10px] text-slate-400 tabular-nums">
                       {s.contact}
                     </span>
                   )}
                 </button>
               ))}
             </div>
-          )} */}
+          )}
         </div>
 
         <div className="relative">
@@ -475,6 +554,7 @@ export default function BorrowersList({
           <MasonryGrid
             borrowers={filteredBorrowers}
             onBorrowerUpdated={refreshPage}
+            onVisit={recordVisit}
           />
         </PullToRefresh>
       )}
@@ -502,9 +582,16 @@ function useMasonryColCount(): number {
 const MasonryGrid = memo(function MasonryGrid({
   borrowers,
   onBorrowerUpdated,
+  onVisit,
 }: {
   borrowers: Borrower[];
   onBorrowerUpdated: () => void;
+  onVisit: (borrower: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    categoryColor: string | null;
+  }) => void;
 }) {
   const colCount = useMasonryColCount();
 
@@ -517,6 +604,7 @@ const MasonryGrid = memo(function MasonryGrid({
             borrower={borrower}
             showScheduleSummary
             onBorrowerUpdated={onBorrowerUpdated}
+            onVisit={onVisit}
           />
         ))}
       </div>
@@ -536,6 +624,7 @@ const MasonryGrid = memo(function MasonryGrid({
               borrower={borrower}
               showScheduleSummary
               onBorrowerUpdated={onBorrowerUpdated}
+              onVisit={onVisit}
             />
           ))}
         </div>

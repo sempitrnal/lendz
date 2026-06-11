@@ -27,6 +27,12 @@ type BorrowerCardProps = {
   onBorrowerUpdated?: () => void;
   /** Compact mode for upcoming-due-dates grid (slimmer card, less detail) */
   compact?: boolean;
+  onVisit?: (borrower: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    categoryColor: string | null;
+  }) => void;
 };
 
 export const BorrowerCard = memo(function BorrowerCard({
@@ -35,6 +41,7 @@ export const BorrowerCard = memo(function BorrowerCard({
   showScheduleSummary = false,
   onBorrowerUpdated,
   compact = false,
+  onVisit,
 }: BorrowerCardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -78,6 +85,12 @@ export const BorrowerCard = memo(function BorrowerCard({
       return;
     }
     sessionStorage.setItem("borrowers-list-scroll", String(window.scrollY));
+    onVisit?.({
+      id: borrower.id,
+      first_name: borrower.first_name,
+      last_name: borrower.last_name,
+      categoryColor: firstCategoryColor ?? null,
+    });
     startTransition(() => {
       router.push(`/borrowers/${borrower.id}`);
     });
@@ -93,7 +106,7 @@ export const BorrowerCard = memo(function BorrowerCard({
         if (Math.abs(e.touches[0].clientY - touchStartY.current) > 8)
           didScroll.current = true;
       }}
-      className={`bg-background relative w-full max-w-full min-w-0 overflow-hidden rounded-xl border-2 text-left transition-all duration-150 dark:bg-slate-900 ${
+      className={`relative w-full max-w-full min-w-0 overflow-hidden rounded-xl border-2 bg-[#fffdf6] text-left transition-all duration-150 dark:bg-slate-900 ${
         hasOverdue
           ? "border-red-500 shadow-[4px_4px_0px_0px_#ef4444] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
           : "border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
