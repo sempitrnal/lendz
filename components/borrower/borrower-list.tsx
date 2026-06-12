@@ -91,11 +91,17 @@ export type RecentAccount = {
         id: string;
         first_name: string;
         last_name: string;
+        borrower_categories: {
+          category: { id: string; name: string; color: string | null };
+        }[];
       }
     | Array<{
         id: string;
         first_name: string;
         last_name: string;
+        borrower_categories: {
+          category: { id: string; name: string; color: string | null };
+        }[];
       }>
     | null;
 };
@@ -683,11 +689,7 @@ export default function BorrowersList({
 
       {/* Recent Activities Section */}
       <section className="mb-6">
-        <article
-          className="min-w-0 rounded-xl border-2 border-slate-900 bg-[#fffdf6]
-            p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5 dark:border-slate-700
-            dark:bg-[#0b0f19]"
-        >
+        <article className="">
           <div className="mb-4 flex items-center gap-2">
             <span
               className="rounded-md border-2 border-slate-900 bg-indigo-200
@@ -708,9 +710,13 @@ export default function BorrowersList({
             {/* Newly Created Borrowers */}
             <div>
               <h3
-                className="mb-2 text-xs font-black tracking-wider text-slate-900
-                  uppercase sm:mb-3 dark:text-white"
+                className="mb-7 inline-flex items-center gap-1.5 rounded-lg
+                  border border-slate-900 bg-white px-3 py-1.5 text-[10px]
+                  font-black tracking-wider text-slate-900 uppercase
+                  shadow-[2px_2px_0px_0px_#0f172a] sm:mb-3 dark:border-slate-600
+                  dark:bg-slate-800 dark:text-white dark:shadow-none"
               >
+                <Users className="size-3.5" />
                 newly created borrowers
               </h3>
               <div
@@ -733,12 +739,11 @@ export default function BorrowersList({
                     return (
                       <div
                         key={borrower.id}
-                        className="mb-2 rounded-xl border transition-all
-                          active:shadow-none sm:rounded-lg sm:border-2
-                          border-slate-900 bg-background
-                          shadow-[4px_4px_0px_0px_#0f172a]
-                          hover:shadow-[3px_3px_0px_0px_#0f172a]
-                          dark:border-black dark:bg-slate-900
+                        className="mb-2 rounded-xl transition-all
+                          active:shadow-none sm:rounded-lg border-2
+                          bg-background shadow-[4px_4px_0px_0px_#0f172a]
+                          hover:shadow-[3px_3px_0px_0px_#0f172a] border-black
+                          dark:bg-slate-900
                           dark:shadow-[2px_2px_0px_0px_#000000]"
                       >
                         <Link
@@ -818,13 +823,17 @@ export default function BorrowersList({
             {/* Newly Created Accounts */}
             <div>
               <h3
-                className="mb-2 text-xs font-black tracking-wider text-slate-900
-                  uppercase sm:mb-3 dark:text-white"
+                className="mb-7 inline-flex items-center gap-1.5 rounded-lg
+                  border border-slate-900 bg-white px-3 py-1.5 text-[10px]
+                  font-black tracking-wider text-slate-900 uppercase
+                  shadow-[2px_2px_0px_0px_#0f172a] sm:mb-3 dark:border-slate-600
+                  dark:bg-slate-800 dark:text-white dark:shadow-none"
               >
+                <ClipboardList className="size-3.5" />
                 newly created accounts
               </h3>
               <div
-                className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3
                   md:grid-cols-3"
               >
                 {newlyCreatedAccounts.length === 0 ? (
@@ -865,8 +874,8 @@ export default function BorrowersList({
                     return (
                       <div
                         key={account.id}
-                        className="mb-2 rounded-xl border transition-all
-                          active:shadow-none sm:rounded-lg sm:border-2
+                        className="mb-2 rounded-xl transition-all
+                          active:shadow-none sm:rounded-lg border-2
                           border-slate-900 bg-background
                           shadow-[4px_4px_0px_0px_#0f172a]
                           hover:shadow-[3px_3px_0px_0px_#0f172a]
@@ -878,11 +887,16 @@ export default function BorrowersList({
                           className="flex h-full flex-col outline-none"
                           onClick={() => {
                             if (borrowerObj) {
+                              const cats = borrowerObj.borrower_categories;
+                              const firstColor =
+                                cats && cats.length > 0
+                                  ? cats[0].category.color
+                                  : null;
                               recordVisit({
                                 id: borrowerObj.id,
                                 first_name: borrowerObj.first_name,
                                 last_name: borrowerObj.last_name,
-                                categoryColor: null,
+                                categoryColor: firstColor ?? null,
                               });
                             }
                           }}
@@ -953,9 +967,13 @@ export default function BorrowersList({
             {/* Payment Updates */}
             <div>
               <h3
-                className="mb-2 text-xs font-black tracking-wider text-slate-900
-                  uppercase sm:mb-3 dark:text-white"
+                className="mb-2 inline-flex items-center gap-1.5 rounded-lg
+                  border border-slate-900 bg-white px-3 py-1.5 text-[10px]
+                  font-black tracking-wider text-slate-900 uppercase
+                  shadow-[2px_2px_0px_0px_#0f172a] sm:mb-3 dark:border-slate-600
+                  dark:bg-slate-800 dark:text-white dark:shadow-none"
               >
+                <Activity className="size-3.5" />
                 payment updates
               </h3>
               <div

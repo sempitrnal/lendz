@@ -64,7 +64,14 @@ export default async function BorrowersPage({
         borrower:borrowers (
           id,
           first_name,
-          last_name
+          last_name,
+          borrower_categories (
+            category:categories (
+              id,
+              name,
+              color
+            )
+          )
         )
       `,
       )
@@ -87,6 +94,7 @@ export default async function BorrowersPage({
       `,
       )
       .like("action", "schedule.%")
+      .gte("created_at", "2026-06-13")
       .order("created_at", { ascending: false })
       .limit(6);
     if (auditQuery.error) console.error("auditQuery error:", auditQuery.error);
