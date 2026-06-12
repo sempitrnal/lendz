@@ -103,7 +103,7 @@ export default async function BorrowersPage({
           `
           id,
           borrower_id,
-          borrower:borrowers (first_name, last_name)
+          borrower:borrowers (id, first_name, last_name)
         `,
         )
         .in("id", auditAccountIds);

@@ -88,17 +88,19 @@ export type RecentAccount = {
   interest_type: string | null;
   borrower:
     | {
+        id: string;
         first_name: string;
         last_name: string;
       }
     | Array<{
+        id: string;
         first_name: string;
         last_name: string;
       }>
     | null;
 };
 
-type BorrowerInfo = { first_name: string; last_name: string };
+type BorrowerInfo = { id?: string; first_name: string; last_name: string };
 
 export type AccountUpdate = {
   id: string;
@@ -742,6 +744,14 @@ export default function BorrowersList({
                         <Link
                           href={`/borrowers/${borrower.id}`}
                           className="flex h-full flex-col outline-none"
+                          onClick={() =>
+                            recordVisit({
+                              id: borrower.id,
+                              first_name: borrower.first_name,
+                              last_name: borrower.last_name,
+                              categoryColor: categoryMeta.color ?? null,
+                            })
+                          }
                         >
                           <div className="flex flex-1 flex-col p-2 sm:p-3">
                             <span
@@ -866,6 +876,16 @@ export default function BorrowersList({
                         <Link
                           href={`/accounts/${account.id}`}
                           className="flex h-full flex-col outline-none"
+                          onClick={() => {
+                            if (borrowerObj) {
+                              recordVisit({
+                                id: borrowerObj.id,
+                                first_name: borrowerObj.first_name,
+                                last_name: borrowerObj.last_name,
+                                categoryColor: null,
+                              });
+                            }
+                          }}
                         >
                           <div className="flex flex-1 flex-col p-2 sm:p-3">
                             <div
@@ -1095,6 +1115,16 @@ export default function BorrowersList({
                           <Link
                             href={`/accounts/${update.account_id}`}
                             className="flex h-full flex-col outline-none"
+                            onClick={() => {
+                              if (borrower) {
+                                recordVisit({
+                                  id: borrower.id || update.account_id || "",
+                                  first_name: borrower.first_name,
+                                  last_name: borrower.last_name,
+                                  categoryColor: null,
+                                });
+                              }
+                            }}
                           >
                             {content}
                             <div
