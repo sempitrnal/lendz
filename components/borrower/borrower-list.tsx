@@ -24,10 +24,12 @@ import {
   Activity,
   Calendar,
   CheckCircle2,
+  Banknote,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import Link from "next/link";
+import { isDarkColor } from "@/lib/utils";
 
 export type Borrower = {
   id: string;
@@ -96,6 +98,8 @@ export type RecentAccount = {
     | null;
 };
 
+type BorrowerInfo = { first_name: string; last_name: string };
+
 export type AccountUpdate = {
   id: string;
   action: string;
@@ -103,13 +107,10 @@ export type AccountUpdate = {
   account_id: string | null;
   created_at: string;
   metadata: Record<string, unknown> | null;
-  account: {
-    id: string;
-    borrower: {
-      first_name: string;
-      last_name: string;
-    } | null;
-  } | null;
+  account:
+    | { id: string; borrower: BorrowerInfo | BorrowerInfo[] | null }
+    | { id: string; borrower: BorrowerInfo | BorrowerInfo[] | null }[]
+    | null;
 };
 
 type BorrowersListProps = {
@@ -355,7 +356,12 @@ export default function BorrowersList({
             type="button"
             onClick={openAddBorrowerModal}
             aria-label="Add borrower"
-            className="dark:border-border dark:text-background fixed right-4 bottom-[76px] z-[2] flex size-14 items-center justify-center rounded-full border-2 border-slate-900 bg-green-400 text-slate-900 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform duration-200 active:scale-95 dark:bg-green-400 dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+            className="dark:border-border dark:text-background fixed right-4
+              bottom-[76px] z-[2] flex size-14 items-center justify-center
+              rounded-full border-2 border-slate-900 bg-green-400 text-slate-900
+              shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform
+              duration-200 active:scale-95 dark:bg-green-400
+              dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
           >
             <FaPlus className="size-5" />
           </button>,
@@ -366,7 +372,10 @@ export default function BorrowersList({
         {recentBorrowers.length > 0 ? (
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <p className="dark:text-muted-foreground text-[10px] font-bold tracking-[0.14em] text-slate-500 uppercase">
+              <p
+                className="dark:text-muted-foreground text-[10px] font-bold
+                  tracking-[0.14em] text-slate-500 uppercase"
+              >
                 Recently visited
               </p>
               <button
@@ -377,7 +386,8 @@ export default function BorrowersList({
                     localStorage.removeItem(RECENT_KEY);
                   } catch {}
                 }}
-                className="text-[10px] font-bold tracking-wide text-slate-400 uppercase transition hover:text-rose-500"
+                className="text-[10px] font-bold tracking-wide text-slate-400
+                  uppercase transition hover:text-rose-500"
               >
                 Clear
               </button>
@@ -396,10 +406,18 @@ export default function BorrowersList({
                         String(window.scrollY),
                       );
                     }}
-                    className="dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted/70 flex items-center gap-2 rounded-full border border-slate-900/15 bg-[#fffdf6] px-3 py-1.5 text-xs font-semibold text-slate-800 uppercase shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] transition hover:bg-white"
+                    className="dark:border-border dark:bg-muted
+                      dark:text-foreground dark:hover:bg-muted/70 flex
+                      items-center gap-2 rounded-full border border-slate-900/15
+                      bg-[#fffdf6] px-3 py-1.5 text-xs font-semibold
+                      text-slate-800 uppercase
+                      shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] transition
+                      hover:bg-white"
                   >
                     <span
-                      className="flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-black text-white"
+                      className="flex size-5 shrink-0 items-center
+                        justify-center rounded-full text-[9px] font-black
+                        text-white"
                       style={{
                         backgroundColor: b.categoryColor ?? "#0f172a",
                       }}
@@ -456,7 +474,11 @@ export default function BorrowersList({
           {showSuggestions && suggestions.length > 0 && (
             <div
               role="listbox"
-              className="dark:border-border dark:bg-card absolute top-full right-0 left-0 z-30 mt-1 overflow-hidden rounded-xl border-2 border-slate-900 bg-white shadow-[3px_3px_0px_0px_rgb(15_23_42/0.85)] dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+              className="dark:border-border dark:bg-card absolute top-full
+                right-0 left-0 z-30 mt-1 overflow-hidden rounded-xl border-2
+                border-slate-900 bg-white
+                shadow-[3px_3px_0px_0px_rgb(15_23_42/0.85)]
+                dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
             >
               {suggestions.map((s, i) => (
                 <button
@@ -469,14 +491,22 @@ export default function BorrowersList({
                     openSuggestion(s);
                   }}
                   onMouseEnter={() => setActiveSuggestion(i)}
-                  className={`dark:border-border/50 flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left transition-colors last:border-b-0 ${
+                  className={`dark:border-border/50 flex w-full items-center
+                  justify-between gap-3 border-b border-slate-100 px-3 py-2.5
+                  text-left transition-colors last:border-b-0 ${
                     i === activeSuggestion
                       ? "dark:bg-muted bg-slate-100"
                       : "dark:bg-card bg-white"
                   }`}
                 >
-                  <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate">
-                    <span className="dark:text-foreground text-sm font-black text-slate-900 uppercase">
+                  <span
+                    className="flex min-w-0 flex-1 items-center gap-1.5
+                      truncate"
+                  >
+                    <span
+                      className="dark:text-foreground text-sm font-black
+                        text-slate-900 uppercase"
+                    >
                       {s.first_name} {s.last_name}
                     </span>
                     {s.borrower_categories?.[0]?.category && (
@@ -489,14 +519,20 @@ export default function BorrowersList({
                               "#cbd5e1",
                           }}
                         />
-                        <span className="dark:text-muted-foreground text-[10px] font-semibold text-slate-400 capitalize">
+                        <span
+                          className="dark:text-muted-foreground text-[10px]
+                            font-semibold text-slate-400 capitalize"
+                        >
                           {s.borrower_categories[0].category.name}
                         </span>
                       </span>
                     )}
                   </span>
                   {s.contact && (
-                    <span className="dark:text-muted-foreground shrink-0 text-[10px] text-slate-400 tabular-nums">
+                    <span
+                      className="dark:text-muted-foreground shrink-0 text-[10px]
+                        text-slate-400 tabular-nums"
+                    >
                       {s.contact}
                     </span>
                   )}
@@ -507,7 +543,10 @@ export default function BorrowersList({
         </div>
 
         <div className="relative">
-          <p className="dark:text-muted-foreground mb-1.5 text-[10px] font-bold tracking-[0.14em] text-slate-500 uppercase">
+          <p
+            className="dark:text-muted-foreground mb-1.5 text-[10px] font-bold
+              tracking-[0.14em] text-slate-500 uppercase"
+          >
             Categories
           </p>
           <button
@@ -515,17 +554,32 @@ export default function BorrowersList({
             aria-expanded={isCategoryDropdownOpen}
             aria-haspopup="listbox"
             onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
-            className="dark:border-border dark:hover:bg-muted flex w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-900/90 px-4 py-3 text-left shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition active:translate-y-px active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)] dark:shadow-none"
+            className="dark:border-border dark:hover:bg-muted flex w-full
+              items-center justify-between gap-3 rounded-xl border-2
+              border-slate-900/90 px-4 py-3 text-left
+              shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition
+              active:translate-y-px
+              active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)]
+              dark:shadow-none"
           >
-            <span className="dark:text-foreground text-sm font-bold tracking-wide text-slate-900 uppercase">
+            <span
+              className="dark:text-foreground text-sm font-bold tracking-wide
+                text-slate-900 uppercase"
+            >
               {safeCategoryIds.length > 0
                 ? `${safeCategoryIds.length} selected`
                 : "All categories"}
             </span>
 
-            <span className="dark:border-border dark:bg-muted dark:text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-900/20 bg-slate-50 text-slate-700">
+            <span
+              className="dark:border-border dark:bg-muted
+                dark:text-muted-foreground flex size-8 shrink-0 items-center
+                justify-center rounded-lg border border-slate-900/20 bg-slate-50
+                text-slate-700"
+            >
               <BsChevronDown
-                className={`size-3.5 transition-transform ${isCategoryDropdownOpen ? "rotate-180" : ""}`}
+                className={`size-3.5 transition-transform
+                  ${isCategoryDropdownOpen ? "rotate-180" : ""}`}
                 aria-hidden
               />
             </span>
@@ -535,7 +589,10 @@ export default function BorrowersList({
             <div
               role="listbox"
               aria-multiselectable
-              className="dark:border-border dark:bg-card absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border-2 border-slate-900/90 bg-white p-2 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.18)] dark:shadow-none"
+              className="dark:border-border dark:bg-card absolute z-20 mt-2
+                max-h-72 w-full overflow-y-auto rounded-xl border-2
+                border-slate-900/90 bg-white p-2
+                shadow-[3px_3px_0px_0px_rgb(15_23_42/0.18)] dark:shadow-none"
             >
               <div className="flex flex-col gap-1.5">
                 {categories.map((category) => {
@@ -555,15 +612,28 @@ export default function BorrowersList({
                           : [...selectedCategoryIds, category.id];
                         setSelectedCategoryIds(next);
                       }}
-                      className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition ${
-                        isSelected
-                          ? "dark:border-border dark:bg-foreground dark:text-background border-2 border-slate-900 bg-slate-900 text-white shadow-[1px_1px_0px_0px_rgb(15_23_42/0.5)] dark:shadow-none"
-                          : "dark:border-border dark:bg-muted dark:text-foreground dark:hover:border-border dark:hover:bg-muted/70 border border-slate-900/15 bg-slate-50/60 text-slate-800 shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] hover:border-slate-900/35 hover:bg-white dark:shadow-none"
-                      }`}
+                      className={`flex items-center justify-between gap-2
+                        rounded-lg border px-3 py-2.5 text-left text-sm
+                        font-semibold transition ${
+                          isSelected
+                            ? `dark:border-border dark:bg-foreground
+                              dark:text-background border-2 border-slate-900
+                              bg-slate-900 text-white
+                              shadow-[1px_1px_0px_0px_rgb(15_23_42/0.5)]
+                              dark:shadow-none`
+                            : `dark:border-border dark:bg-muted
+                              dark:text-foreground dark:hover:border-border
+                              dark:hover:bg-muted/70 border border-slate-900/15
+                              bg-slate-50/60 text-slate-800
+                              shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)]
+                              hover:border-slate-900/35 hover:bg-white
+                              dark:shadow-none`
+                        }`}
                     >
                       <div className="flex min-w-0 items-center gap-2.5">
                         <span
-                          className="dark:border-border size-3 shrink-0 rounded-full border-2 border-slate-900/25"
+                          className="dark:border-border size-3 shrink-0
+                            rounded-full border-2 border-slate-900/25"
                           style={{
                             backgroundColor: category.color ?? "#cbd5e1",
                           }}
@@ -593,7 +663,13 @@ export default function BorrowersList({
                   onClick={() => {
                     setSelectedCategoryIds([]);
                   }}
-                  className="mt-2 w-full rounded-lg border-2 border-rose-800/35 bg-rose-50 px-3 py-2 text-center text-xs font-black tracking-wide text-rose-900 uppercase shadow-[1px_1px_0px_0px_rgb(190_18_60/0.25)] transition hover:bg-rose-100/90 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300 dark:shadow-none dark:hover:bg-rose-950/50"
+                  className="mt-2 w-full rounded-lg border-2 border-rose-800/35
+                    bg-rose-50 px-3 py-2 text-center text-xs font-black
+                    tracking-wide text-rose-900 uppercase
+                    shadow-[1px_1px_0px_0px_rgb(190_18_60/0.25)] transition
+                    hover:bg-rose-100/90 dark:border-rose-900/40
+                    dark:bg-rose-950/30 dark:text-rose-300 dark:shadow-none
+                    dark:hover:bg-rose-950/50"
                 >
                   Clear filters
                 </button>
@@ -605,12 +681,23 @@ export default function BorrowersList({
 
       {/* Recent Activities Section */}
       <section className="mb-6">
-        <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-[#fffdf6] p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5 dark:border-slate-700 dark:bg-[#0b0f19]">
+        <article
+          className="min-w-0 rounded-xl border-2 border-slate-900 bg-[#fffdf6]
+            p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5 dark:border-slate-700
+            dark:bg-[#0b0f19]"
+        >
           <div className="mb-4 flex items-center gap-2">
-            <span className="rounded-md border-2 border-slate-900 bg-indigo-200 p-1.5 text-slate-900 dark:border-slate-700 dark:bg-indigo-400 dark:text-slate-900">
+            <span
+              className="rounded-md border-2 border-slate-900 bg-indigo-200
+                p-1.5 text-slate-900 dark:border-slate-700 dark:bg-indigo-400
+                dark:text-slate-900"
+            >
               <ClipboardList className="size-4" />
             </span>
-            <h2 className="text-base font-black text-slate-900 lowercase dark:text-white">
+            <h2
+              className="text-base font-black text-slate-900 lowercase
+                dark:text-white"
+            >
               recent activities
             </h2>
           </div>
@@ -618,12 +705,24 @@ export default function BorrowersList({
           <div className="flex flex-col gap-4 sm:gap-6">
             {/* Newly Created Borrowers */}
             <div>
-              <h3 className="mb-2 text-xs font-black tracking-wider text-slate-900 uppercase sm:mb-3 dark:text-white">
+              <h3
+                className="mb-2 text-xs font-black tracking-wider text-slate-900
+                  uppercase sm:mb-3 dark:text-white"
+              >
                 newly created borrowers
               </h3>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3">
+              <div
+                className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3
+                  md:grid-cols-3"
+              >
                 {newlyCreatedBorrowers.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm font-medium text-slate-500 sm:rounded-lg sm:border-2 sm:border-dashed sm:border-slate-400 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-400">
+                  <div
+                    className="rounded-xl border border-dashed border-slate-300
+                      bg-slate-50 p-3 text-sm font-medium text-slate-500
+                      sm:rounded-lg sm:border-2 sm:border-dashed
+                      sm:border-slate-400 dark:border-slate-600
+                      dark:bg-slate-800/50 dark:text-slate-400"
+                  >
                     No recent borrowers created.
                   </div>
                 ) : (
@@ -632,34 +731,66 @@ export default function BorrowersList({
                     return (
                       <div
                         key={borrower.id}
-                        className="rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md active:shadow-none sm:rounded-lg sm:border-2 sm:border-slate-900 sm:bg-[#fdf6e3] sm:shadow-[2px_2px_0px_0px_#0f172a] sm:hover:shadow-[3px_3px_0px_0px_#0f172a] sm:active:shadow-[1px_1px_0px_0px_#0f172a] dark:border-slate-700 dark:bg-slate-800 dark:sm:border-slate-700 dark:sm:bg-slate-900 dark:sm:shadow-[2px_2px_0px_0px_#000000]"
+                        className="mb-2 rounded-xl border transition-all
+                          active:shadow-none sm:rounded-lg sm:border-2
+                          border-slate-900 bg-background
+                          shadow-[4px_4px_0px_0px_#0f172a]
+                          hover:shadow-[3px_3px_0px_0px_#0f172a]
+                          dark:border-black dark:bg-slate-950
+                          dark:shadow-[2px_2px_0px_0px_#000000]"
                       >
                         <Link
                           href={`/borrowers/${borrower.id}`}
                           className="flex h-full flex-col outline-none"
                         >
                           <div className="flex flex-1 flex-col p-2 sm:p-3">
-                            <span className="block text-sm font-bold text-slate-900 sm:text-base dark:text-white">
+                            <span
+                              className="block text-xl font-bold text-slate-900
+                                dark:text-white"
+                            >
                               {borrower.first_name} {borrower.last_name}
                             </span>
                             {borrower.contact && (
-                              <p className="text-[11px] font-semibold text-slate-600 sm:text-xs dark:text-slate-300">
+                              <p
+                                className="text-[11px] font-semibold
+                                  text-slate-600 sm:text-xs dark:text-slate-300"
+                              >
                                 {borrower.contact}
                               </p>
                             )}
-                            <span className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                              <span
+                            <span
+                              className="mt-1 inline-flex w-fit items-center
+                                gap-1.5 rounded-sm border-2 text-xs border-black
+                                font-semibold bg-slate-100 px-2 py-0.5
+                                text-[10px] text-slate-700 dark:bg-slate-700
+                                dark:text-slate-300"
+                              style={{
+                                backgroundColor:
+                                  categoryMeta.color ?? "#cbd5e1",
+                                color: isDarkColor(
+                                  categoryMeta.color ?? "#cbd5e1",
+                                )
+                                  ? "white"
+                                  : "black",
+                              }}
+                            >
+                              {/* <span
                                 className="size-2 shrink-0 rounded-full"
                                 style={{
                                   backgroundColor:
                                     categoryMeta.color ?? "#cbd5e1",
                                 }}
                                 aria-hidden
-                              />
+                              /> */}
                               {categoryMeta.label}
                             </span>
                           </div>
-                          <div className="border-t border-slate-100 bg-slate-50 p-2 text-[11px] font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
+                          <div
+                            className="border-t mt-2 rounded-b-lg
+                              border-slate-100 bg-[#fefff3] p-2 text-[11px]
+                              font-medium text-slate-500 dark:border-slate-700
+                              dark:bg-slate-800/50 dark:text-slate-400"
+                          >
                             <span className="flex items-center gap-1.5">
                               <Calendar className="size-3 shrink-0" />
                               Added{" "}
@@ -676,12 +807,24 @@ export default function BorrowersList({
 
             {/* Newly Created Accounts */}
             <div>
-              <h3 className="mb-2 text-xs font-black tracking-wider text-slate-900 uppercase sm:mb-3 dark:text-white">
+              <h3
+                className="mb-2 text-xs font-black tracking-wider text-slate-900
+                  uppercase sm:mb-3 dark:text-white"
+              >
                 newly created accounts
               </h3>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3">
+              <div
+                className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3
+                  md:grid-cols-3"
+              >
                 {newlyCreatedAccounts.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm font-medium text-slate-500 sm:rounded-lg sm:border-2 sm:border-dashed sm:border-slate-400 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-400">
+                  <div
+                    className="rounded-xl border border-dashed border-slate-300
+                      bg-slate-50 p-3 text-sm font-medium text-slate-500
+                      sm:rounded-lg sm:border-2 sm:border-dashed
+                      sm:border-slate-400 dark:border-slate-600
+                      dark:bg-slate-800/50 dark:text-slate-400"
+                  >
                     No recent accounts created.
                   </div>
                 ) : (
@@ -712,27 +855,43 @@ export default function BorrowersList({
                     return (
                       <div
                         key={account.id}
-                        className="rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md active:shadow-none sm:rounded-lg sm:border-2 sm:border-slate-900 sm:bg-[#fdf6e3] sm:shadow-[2px_2px_0px_0px_#0f172a] sm:hover:shadow-[3px_3px_0px_0px_#0f172a] sm:active:shadow-[1px_1px_0px_0px_#0f172a] dark:border-slate-700 dark:bg-slate-800 dark:sm:border-slate-700 dark:sm:bg-slate-900 dark:sm:shadow-[2px_2px_0px_0px_#000000]"
+                        className="mb-2 rounded-xl border transition-all
+                          active:shadow-none sm:rounded-lg sm:border-2
+                          border-slate-900 bg-background
+                          shadow-[4px_4px_0px_0px_#0f172a]
+                          hover:shadow-[3px_3px_0px_0px_#0f172a]
+                          dark:border-black dark:bg-slate-950
+                          dark:shadow-[2px_2px_0px_0px_#000000]"
                       >
                         <Link
                           href={`/accounts/${account.id}`}
                           className="flex h-full flex-col outline-none"
                         >
                           <div className="flex flex-1 flex-col p-2 sm:p-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <span className="block text-sm font-bold text-slate-900 sm:text-base dark:text-white">
+                            <div
+                              className="flex items-start justify-between gap-2"
+                            >
+                              <span
+                                className="block text-xl font-bold
+                                  text-slate-900 dark:text-white"
+                              >
                                 {borrowerObj
                                   ? `${borrowerObj.first_name} ${borrowerObj.last_name}`
                                   : "Unknown borrower"}
                               </span>
                               <span
-                                className={`min-w-0 truncate rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide sm:px-2.5 sm:text-[10px] ${typeBadgeBg}`}
+                                className={`min-w-0 truncate rounded-sm border-2
+                                  border-black px-2 py-0.5 text-[10px]
+                                  font-semibold ${typeBadgeBg}`}
                               >
                                 {typeLabel}
                               </span>
                             </div>
                             <div className="mt-1.5 flex items-baseline gap-1.5">
-                              <span className="text-xs font-bold text-slate-900 sm:text-sm dark:text-white">
+                              <span
+                                className="text-xs font-bold text-slate-900
+                                  dark:text-white"
+                              >
                                 ₱
                                 {(
                                   account.principal_amount ?? 0
@@ -740,7 +899,12 @@ export default function BorrowersList({
                               </span>
                             </div>
                           </div>
-                          <div className="border-t border-slate-100 bg-slate-50 p-2 text-[11px] font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
+                          <div
+                            className="border-t mt-2 rounded-b-xl
+                              border-slate-100 bg-[#fefff3] p-2 text-[11px]
+                              font-medium text-slate-500 dark:border-slate-700
+                              dark:bg-slate-800/50 dark:text-slate-400"
+                          >
                             <div className="flex flex-col gap-1.5">
                               <span className="flex items-center gap-1.5">
                                 <Calendar className="size-3 shrink-0" />
@@ -748,7 +912,10 @@ export default function BorrowersList({
                               </span>
                               {account.release_date && (
                                 <span className="flex items-center gap-1.5">
-                                  <CheckCircle2 className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                  <CheckCircle2
+                                    className="size-3 shrink-0 text-emerald-600
+                                      dark:text-emerald-400"
+                                  />
                                   Released{" "}
                                   {formatActivityDate(account.release_date)}
                                 </span>
@@ -763,126 +930,166 @@ export default function BorrowersList({
               </div>
             </div>
 
-            {/* Account Updates */}
+            {/* Payment Updates */}
             <div>
-              <h3 className="mb-2 text-xs font-black tracking-wider text-slate-900 uppercase sm:mb-3 dark:text-white">
-                account updates
+              <h3
+                className="mb-2 text-xs font-black tracking-wider text-slate-900
+                  uppercase sm:mb-3 dark:text-white"
+              >
+                payment updates
               </h3>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3">
+              <div
+                className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3
+                  md:grid-cols-3"
+              >
                 {recentAccountUpdates.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm font-medium text-slate-500 sm:rounded-lg sm:border-2 sm:border-dashed sm:border-slate-400 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-400">
-                    No recent account updates.
+                  <div
+                    className="rounded-xl border border-dashed border-slate-300
+                      bg-slate-50 p-3 text-sm font-medium text-slate-500
+                      sm:rounded-lg sm:border-2 sm:border-dashed
+                      sm:border-slate-400 dark:border-slate-600
+                      dark:bg-slate-800/50 dark:text-slate-400"
+                  >
+                    No recent payment updates.
                   </div>
                 ) : (
                   recentAccountUpdates.map((update) => {
                     const meta = update.metadata ?? {};
-                    const borrower = update.account?.borrower;
+                    const accountObj = update.account
+                      ? Array.isArray(update.account)
+                        ? update.account[0]
+                        : update.account
+                      : null;
+                    const borrowerRaw = accountObj?.borrower;
+                    const borrower = borrowerRaw
+                      ? Array.isArray(borrowerRaw)
+                        ? borrowerRaw[0]
+                        : borrowerRaw
+                      : null;
                     const borrowerName = borrower
                       ? `${borrower.first_name} ${borrower.last_name}`
                       : "Unknown borrower";
 
-                    const actionStyles: Record<
-                      string,
-                      { label: string; bg: string }
-                    > = {
-                      "schedule.payment_applied": {
-                        label: "Payment",
-                        bg: "bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200",
-                      },
-                      "schedule.status_changed": {
-                        label: "Status",
-                        bg: "bg-violet-100 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200",
-                      },
-                      "schedule.batch_paid": {
-                        label: "Batch paid",
-                        bg: "bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200",
-                      },
-                      "schedule.payment_deleted": {
-                        label: "Payment del.",
-                        bg: "bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200",
-                      },
-                      "schedule.deleted": {
-                        label: "Schedule del.",
-                        bg: "bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200",
-                      },
-                      "schedule.added": {
-                        label: "Schedule added",
-                        bg: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/60 dark:text-cyan-200",
-                      },
-                    };
-                    const style = actionStyles[update.action] ?? {
-                      label: update.action.replace(/.*\./, ""),
-                      bg: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
-                    };
+                    // Determine paid state for badge + display
+                    const statusVal = meta.status || meta.newStatus || "";
+                    const isPaid =
+                      statusVal === "paid" ||
+                      update.action === "schedule.batch_paid";
+                    const isPartial = statusVal === "partial";
 
-                    let amountDisplay: string | null = null;
-                    let dateDisplay: string | null = null;
+                    const badgeStyle = isPaid
+                      ? {
+                          label: "Paid",
+                          bg: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200",
+                        }
+                      : isPartial
+                        ? {
+                            label: "Partial",
+                            bg: "bg-purple-100 text-amber-800 dark:bg-purple-900/60 dark:text-amber-200",
+                          }
+                        : {
+                            label: update.action.replace(/.*\./, ""),
+                            bg: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
+                          };
+
+                    // Extract display fields
+                    let amountLine: string | null = null;
+                    let dueDate: string | null = null;
+                    let paidDate: string | null = null;
+                    let remaining: number | null = null;
 
                     if (update.action === "schedule.payment_applied") {
                       const amt = Number(meta.amount ?? 0);
-                      if (amt > 0) {
-                        amountDisplay = `₱${amt.toLocaleString()}`;
-                      }
-                      const pd = meta.paymentDate as string | undefined;
-                      if (pd) dateDisplay = formatActivityDate(pd);
+                      if (amt > 0) amountLine = `₱${amt.toLocaleString()}`;
+                      dueDate = (meta.due_date as string) || null;
+                      paidDate = (meta.paymentDate as string) || null;
+                      const rem = Number(meta.remaining_amount ?? 0);
+                      if (rem > 0) remaining = rem;
                     } else if (update.action === "schedule.status_changed") {
-                      const status = meta.status as string | undefined;
                       const due = Number(meta.amount_due ?? 0);
-                      if (
-                        (status === "paid" || status === "partial") &&
-                        due > 0
-                      ) {
-                        amountDisplay = `₱${due.toLocaleString()}`;
-                      }
+                      if (due > 0) amountLine = `₱${due.toLocaleString()}`;
+                      dueDate = (meta.due_date as string) || null;
+                      paidDate = (meta.paid_date as string) || null;
+                      const rem = Number(meta.remaining_amount ?? 0);
+                      if (rem > 0) remaining = rem;
                     } else if (update.action === "schedule.batch_paid") {
                       const ids = meta.ids as string[] | undefined;
                       const count = ids?.length ?? 0;
-                      if (count > 0) {
-                        amountDisplay = `${count} schedule${count === 1 ? "" : "s"}`;
-                      }
-                      const cd = meta.customDate as string | undefined;
-                      if (cd) dateDisplay = formatActivityDate(cd);
-                    } else if (update.action === "schedule.payment_deleted") {
-                      const amt = Number(meta.amount ?? 0);
-                      if (amt > 0) {
-                        amountDisplay = `₱${amt.toLocaleString()}`;
-                      }
-                    } else if (update.action === "schedule.deleted") {
-                      const due = Number(meta.amount_due ?? 0);
-                      if (due > 0) {
-                        amountDisplay = `₱${due.toLocaleString()}`;
-                      }
+                      if (count > 0)
+                        amountLine = `${count} schedule${count === 1 ? "" : "s"}`;
+                      paidDate = (meta.customDate as string) || null;
+                    }
+
+                    if (!amountLine && !dueDate && !paidDate) {
+                      amountLine = update.description;
                     }
 
                     const content = (
                       <div className="flex flex-1 flex-col p-2 sm:p-3">
                         <div className="flex items-start justify-between gap-2">
-                          <span className="block text-sm font-bold text-slate-900 sm:text-base dark:text-white">
+                          <span
+                            className="block text-xl font-bold text-slate-900
+                              dark:text-white"
+                          >
                             {borrowerName}
                           </span>
                           <span
-                            className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold sm:px-2.5 sm:text-[10px] ${style.bg}`}
+                            className={`shrink-0 rounded-sm border-2
+                              border-black px-2 py-0.5 text-[10px] font-semibold
+                              ${badgeStyle.bg}`}
                           >
-                            {style.label}
+                            {badgeStyle.label}
                           </span>
                         </div>
-                        {amountDisplay && (
-                          <p className="mt-1 text-xs font-bold text-slate-800 sm:text-sm dark:text-slate-200">
-                            {amountDisplay}
+                        {amountLine && (
+                          <p
+                            className="mt-1 text-sm font-bold text-slate-900
+                              dark:text-white"
+                          >
+                            {amountLine}
                           </p>
                         )}
-                        {dateDisplay && (
-                          <p className="mt-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                            Paid {dateDisplay}
-                          </p>
-                        )}
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                          {dueDate && (
+                            <span
+                              className="flex items-center gap-1 text-[11px]
+                                font-medium text-slate-500 dark:text-slate-400"
+                            >
+                              <Calendar className="size-3" />
+                              Due {formatActivityDate(dueDate)}
+                            </span>
+                          )}
+                          {paidDate && (
+                            <span
+                              className="flex items-center gap-1 text-[11px]
+                                font-medium text-slate-500 dark:text-slate-400"
+                            >
+                              <Banknote className="size-3" />
+                              Paid {formatActivityDate(paidDate)}
+                            </span>
+                          )}
+                          {remaining !== null && remaining > 0 && (
+                            <span
+                              className="flex items-center gap-1 text-[11px]
+                                font-medium text-slate-500 dark:text-slate-400"
+                            >
+                              ₱{remaining.toLocaleString()} remaining
+                            </span>
+                          )}
+                        </div>
                       </div>
                     );
 
                     return (
                       <div
                         key={update.id}
-                        className="rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md active:shadow-none sm:rounded-lg sm:border-2 sm:border-slate-900 sm:bg-[#fdf6e3] sm:shadow-[2px_2px_0px_0px_#0f172a] sm:hover:shadow-[3px_3px_0px_0px_#0f172a] sm:active:shadow-[1px_1px_0px_0px_#0f172a] dark:border-slate-700 dark:bg-slate-800 dark:sm:border-slate-700 dark:sm:bg-slate-900 dark:sm:shadow-[2px_2px_0px_0px_#000000]"
+                        className="mb-2 rounded-xl border transition-all
+                          active:shadow-none sm:rounded-lg sm:border-2
+                          border-slate-900 bg-background
+                          shadow-[4px_4px_0px_0px_#0f172a]
+                          hover:shadow-[3px_3px_0px_0px_#0f172a]
+                          dark:border-black dark:bg-slate-950
+                          dark:shadow-[2px_2px_0px_0px_#000000]"
                       >
                         {update.account_id ? (
                           <Link
@@ -890,7 +1097,12 @@ export default function BorrowersList({
                             className="flex h-full flex-col outline-none"
                           >
                             {content}
-                            <div className="border-t border-slate-100 bg-slate-50 p-2 text-[11px] font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
+                            <div
+                              className="border-t mt-2 rounded-b-xl
+                                border-slate-100 bg-[#fefff3] p-2 text-[11px]
+                                font-medium text-slate-500 dark:border-slate-700
+                                dark:bg-slate-800/50 dark:text-slate-400"
+                            >
                               <span className="flex items-center gap-1.5">
                                 <Activity className="size-3" />
                                 {formatActivityDate(update.created_at)}
@@ -900,7 +1112,12 @@ export default function BorrowersList({
                         ) : (
                           <div className="flex h-full flex-col">
                             {content}
-                            <div className="border-t border-slate-100 bg-slate-50 p-2 text-[11px] font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
+                            <div
+                              className="border-t mt-2 rounded-b-xl
+                                border-slate-100 bg-[#fefff3] p-2 text-[11px]
+                                font-medium text-slate-500 dark:border-slate-700
+                                dark:bg-slate-800/50 dark:text-slate-400"
+                            >
                               <span className="flex items-center gap-1.5">
                                 <Activity className="size-3" />
                                 {formatActivityDate(update.created_at)}

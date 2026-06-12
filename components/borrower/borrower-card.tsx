@@ -1,16 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import {
-  memo,
-  useTransition,
-  useState,
-  useRef,
-  type SyntheticEvent,
-} from "react";
 import { formatDate, isDarkColor } from "@/lib/utils";
 import { ChevronDown, Loader2, Phone } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  memo,
+  useRef,
+  useState,
+  useTransition,
+  type SyntheticEvent,
+} from "react";
 
 import BorrowerDetailMenu from "@/components/borrower/borrower-detail-menu";
 import { Borrower } from "./borrower-list";
@@ -106,11 +106,20 @@ export const BorrowerCard = memo(function BorrowerCard({
         if (Math.abs(e.touches[0].clientY - touchStartY.current) > 8)
           didScroll.current = true;
       }}
-      className={`relative w-full max-w-full min-w-0 overflow-hidden rounded-xl border-2 bg-[#fffdf6] text-left transition-all duration-150 dark:bg-slate-900 ${
-        hasOverdue
-          ? "border-red-500 shadow-[4px_4px_0px_0px_#ef4444] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
-          : "border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
-      } ${isPending ? "" : "active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#0f172a] dark:active:shadow-[2px_2px_0px_0px_#020617]"}`}
+      className={`relative w-full max-w-full min-w-0 overflow-hidden rounded-xl
+        border-2 bg-[#fffdf6] text-left transition-all duration-150
+        dark:bg-slate-900 ${
+          hasOverdue
+            ? `border-red-500 shadow-[4px_4px_0px_0px_#ef4444]
+              dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]`
+            : `border-slate-900 shadow-[4px_4px_0px_0px_#0f172a]
+              dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]`
+        } ${
+          isPending
+            ? ""
+            : `active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#0f172a]
+              dark:active:shadow-[2px_2px_0px_0px_#020617]`
+        }`}
       aria-busy={isPending}
     >
       {/* Prefetch borrower detail page for instant navigation */}
@@ -129,7 +138,12 @@ export const BorrowerCard = memo(function BorrowerCard({
         {borrower.contact ? (
           <Link
             href={`tel:${borrower.contact}`}
-            className="touch-manipulation rounded-md border-2 border-slate-900 bg-indigo-100 p-1.5 text-indigo-700 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-indigo-200 active:translate-y-px active:shadow-none dark:border-[#020617] dark:bg-indigo-900/40 dark:text-indigo-300 dark:shadow-[2px_2px_0px_0px_#020617] dark:hover:bg-indigo-900/60"
+            className="touch-manipulation rounded-md border-2 border-slate-900
+              bg-indigo-100 p-1.5 text-indigo-700
+              shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-indigo-200
+              active:translate-y-px active:shadow-none dark:border-[#020617]
+              dark:bg-indigo-900/40 dark:text-indigo-300
+              dark:shadow-[2px_2px_0px_0px_#020617] dark:hover:bg-indigo-900/60"
             aria-label={`Call ${borrower.first_name} ${borrower.last_name}`}
           >
             <Phone className="size-3.5" />
@@ -154,12 +168,17 @@ export const BorrowerCard = memo(function BorrowerCard({
           });
         }}
         aria-disabled={isPending}
-        className={`dark:text-foreground dark:focus-visible:ring-border box-border block w-full max-w-full min-w-0 cursor-pointer touch-manipulation text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${compact ? "p-2.5" : "p-4"} ${isPending ? "opacity-50" : ""}`}
+        className={`dark:text-foreground dark:focus-visible:ring-border
+          box-border block w-full max-w-full min-w-0 cursor-pointer
+          touch-manipulation text-left outline-none focus-visible:ring-2
+          focus-visible:ring-slate-900 focus-visible:ring-offset-2
+          ${compact ? "p-2.5" : "p-4"} ${isPending ? "opacity-50" : ""}`}
         aria-label={`Open ${borrower.first_name} ${borrower.last_name}`}
       >
         <div className="flex w-full min-w-0 flex-col">
           <h2
-            className={`dark:text-foreground pr-4 font-black text-slate-900 uppercase ${compact ? "text-base" : "text-xl"}`}
+            className={`dark:text-foreground pr-4 font-black text-slate-900
+              uppercase ${compact ? "text-base" : "text-xl"}`}
           >
             {borrower.first_name} {borrower.last_name}
           </h2>
@@ -173,7 +192,11 @@ export const BorrowerCard = memo(function BorrowerCard({
                   return (
                     <div
                       key={id}
-                      className="flex items-center rounded-md border-2 border-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[2px_2px_0px_0px_#020617]"
+                      className="flex items-center rounded-md border-2
+                        border-slate-900 px-2 py-0.5 text-[10px] font-bold
+                        uppercase shadow-[2px_2px_0px_0px_#0f172a]
+                        dark:border-[#020617]
+                        dark:shadow-[2px_2px_0px_0px_#020617]"
                       style={{
                         backgroundColor: color ?? "#333",
                         color: isDarkColor(color ?? "333")
@@ -191,17 +214,33 @@ export const BorrowerCard = memo(function BorrowerCard({
         </div>
 
         {!compact && showScheduleSummary && borrower.all_accounts_pending ? (
-          <div className="mt-4 w-full min-w-0 rounded-xl border-2 border-amber-600 bg-amber-50 p-3 shadow-[2px_2px_0px_0px_#d97706] dark:border-[#020617] dark:bg-amber-900/30 dark:shadow-[2px_2px_0px_0px_#020617]">
-            <p className="text-[10px] font-black tracking-widest text-amber-800 uppercase dark:text-amber-300">
+          <div
+            className="mt-4 w-full min-w-0 rounded-xl border-2 border-amber-600
+              bg-amber-50 p-3 shadow-[2px_2px_0px_0px_#d97706]
+              dark:border-[#020617] dark:bg-amber-900/30
+              dark:shadow-[2px_2px_0px_0px_#020617]"
+          >
+            <p
+              className="text-[10px] font-black tracking-widest text-amber-800
+                uppercase dark:text-amber-300"
+            >
               pending loan
             </p>
-            <p className="mt-1 text-sm font-black text-amber-900 dark:text-amber-200">
+            <p
+              className="mt-1 text-sm font-black text-amber-900
+                dark:text-amber-200"
+            >
               ₱{(borrower.pending_principal_total ?? 0).toLocaleString()}{" "}
-              <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
+              <span
+                className="text-xs font-bold text-amber-700 dark:text-amber-400"
+              >
                 principal
               </span>
             </p>
-            <p className="mt-1 text-[10px] font-bold text-amber-700 dark:text-amber-400">
+            <p
+              className="mt-1 text-[10px] font-bold text-amber-700
+                dark:text-amber-400"
+            >
               Awaiting release — no collection schedules yet
             </p>
           </div>
@@ -353,7 +392,25 @@ export const BorrowerCard = memo(function BorrowerCard({
             </span>
             {nextStatus ? (
               <span
-                className={`rounded-md border-2 border-slate-900 px-1.5 py-0 text-[8px] font-black uppercase shadow-[1px_1px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[1px_1px_0px_0px_#020617] ${nextStatus === "overdue" ? "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-100" : nextStatus === "paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-800 dark:text-emerald-100" : nextStatus === "pending" ? "bg-amber-100 text-amber-700 dark:bg-amber-800 dark:text-amber-100" : nextStatus === "partial" ? "bg-purple-100 text-purple-700 dark:bg-purple-800 dark:text-purple-100" : "bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100"}`}
+                className={`rounded-md border-2 border-slate-900 px-1.5 py-0
+                  text-[8px] font-black uppercase
+                  shadow-[1px_1px_0px_0px_#0f172a] dark:border-[#020617]
+                  dark:shadow-[1px_1px_0px_0px_#020617] ${
+                    nextStatus === "overdue"
+                      ? `bg-red-100 text-red-700 dark:bg-red-800
+                        dark:text-red-100`
+                      : nextStatus === "paid"
+                        ? `bg-emerald-100 text-emerald-700 dark:bg-emerald-800
+                          dark:text-emerald-100`
+                        : nextStatus === "pending"
+                          ? `bg-amber-100 text-amber-700 dark:bg-amber-800
+                            dark:text-amber-100`
+                          : nextStatus === "partial"
+                            ? `bg-purple-100 text-purple-700 dark:bg-purple-800
+                              dark:text-purple-100`
+                            : `bg-blue-100 text-blue-700 dark:bg-blue-800
+                              dark:text-blue-100`
+                  }`}
               >
                 {nextStatus}
               </span>
@@ -363,13 +420,27 @@ export const BorrowerCard = memo(function BorrowerCard({
 
         {/* Full next-collection section for non-compact mode */}
         {!compact && showScheduleSummary && hasNextUnpaid ? (
-          <div className="mt-4 w-full min-w-0 self-stretch border-2 border-slate-900 bg-white p-3 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-sky-900/30 dark:shadow-[2px_2px_0px_0px_#020617]">
-            <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:flex-nowrap">
+          <div
+            className="mt-4 w-full min-w-0 self-stretch border-2
+              border-slate-900 bg-white p-3 shadow-[2px_2px_0px_0px_#0f172a]
+              dark:border-[#020617] dark:bg-sky-900/30
+              dark:shadow-[2px_2px_0px_0px_#020617]"
+          >
+            <div
+              className="flex w-full min-w-0 flex-wrap items-center
+                justify-between gap-2 sm:flex-nowrap"
+            >
               <div className="min-w-0 flex-1">
-                <p className="dark:text-muted-foreground text-[10px] font-bold tracking-wide text-slate-500 uppercase">
+                <p
+                  className="dark:text-muted-foreground text-[10px] font-bold
+                    tracking-wide text-slate-500 uppercase"
+                >
                   Next collection
                   {accountsCount > 0 ? (
-                    <span className="dark:text-muted-foreground ml-1 text-slate-400 normal-case">
+                    <span
+                      className="dark:text-muted-foreground ml-1 text-slate-400
+                        normal-case"
+                    >
                       · {accountsCount} account{accountsCount === 1 ? "" : "s"}
                     </span>
                   ) : null}
@@ -377,7 +448,10 @@ export const BorrowerCard = memo(function BorrowerCard({
                 {hasNextUnpaid ? (
                   <div className="mt-2 space-y-1.5">
                     <div>
-                      <p className="text-[10px] font-bold tracking-wide text-slate-500 uppercase"></p>
+                      <p
+                        className="text-[10px] font-bold tracking-wide
+                          text-slate-500 uppercase"
+                      ></p>
                       {(() => {
                         const visibleSchedules =
                           showAllSchedules || schedules.length <= 2
@@ -671,16 +745,25 @@ export const BorrowerCard = memo(function BorrowerCard({
                       })()}
                     </div>
                     <div>
-                      <p className="dark:text-muted-foreground text-[10px] font-bold tracking-wide text-slate-500 uppercase">
+                      <p
+                        className="dark:text-muted-foreground text-[10px]
+                          font-bold tracking-wide text-slate-500 uppercase"
+                      >
                         total amount
                       </p>
-                      <p className="dark:text-foreground text-sm font-black text-slate-900 tabular-nums">
+                      <p
+                        className="dark:text-foreground text-sm font-black
+                          text-slate-900 tabular-nums"
+                      >
                         {`₱${nextAmount.toLocaleString()}`}
                         {schedules.length === 1 &&
                         schedules[0].status === "partial" &&
                         schedules[0].amount_due_per_schedule &&
                         schedules[0].amount_due_per_schedule > nextAmount ? (
-                          <span className="dark:text-muted-foreground ml-1 text-xs font-normal text-slate-400">
+                          <span
+                            className="dark:text-muted-foreground ml-1 text-xs
+                              font-normal text-slate-400"
+                          >
                             of ₱
                             {Number(
                               schedules[0].amount_due_per_schedule,
@@ -691,7 +774,10 @@ export const BorrowerCard = memo(function BorrowerCard({
                     </div>
                   </div>
                 ) : (
-                  <p className="dark:text-muted-foreground mt-2 text-sm font-semibold text-slate-600">
+                  <p
+                    className="dark:text-muted-foreground mt-2 text-sm
+                      font-semibold text-slate-600"
+                  >
                     All schedules paid
                   </p>
                 )}
@@ -743,7 +829,12 @@ export const BorrowerCard = memo(function BorrowerCard({
                 e.stopPropagation();
                 quickAction.onClick();
               }}
-              className="rounded-md border-2 border-slate-900 bg-emerald-400 px-2 py-1 text-[11px] font-black text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 active:translate-y-px active:shadow-none disabled:cursor-wait disabled:opacity-70 dark:border-[#020617] dark:bg-emerald-500 dark:text-slate-900 dark:shadow-[2px_2px_0px_0px_#020617]"
+              className="rounded-md border-2 border-slate-900 bg-emerald-400
+                px-2 py-1 text-[11px] font-black text-slate-900 uppercase
+                shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300
+                active:translate-y-px active:shadow-none disabled:cursor-wait
+                disabled:opacity-70 dark:border-[#020617] dark:bg-emerald-500
+                dark:text-slate-900 dark:shadow-[2px_2px_0px_0px_#020617]"
             >
               {quickAction.isLoading ? "Updating..." : quickAction.label}
             </button>
@@ -751,8 +842,14 @@ export const BorrowerCard = memo(function BorrowerCard({
         ) : null}
 
         {isPending ? (
-          <div className="dark:bg-card/50 pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-white/50">
-            <Loader2 className="dark:text-muted-foreground h-6 w-6 animate-spin text-slate-500" />
+          <div
+            className="dark:bg-card/50 pointer-events-none absolute inset-0 flex
+              items-center justify-center rounded-xl bg-white/50"
+          >
+            <Loader2
+              className="dark:text-muted-foreground h-6 w-6 animate-spin
+                text-slate-500"
+            />
           </div>
         ) : null}
       </div>

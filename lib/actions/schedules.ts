@@ -23,7 +23,7 @@ export async function updateScheduleStatusAction(
   const updateSupabase = await createSupabaseServer();
   const { data: row } = await updateSupabase
     .from("payment_schedules")
-    .select("id, amount_due")
+    .select("id, amount_due, due_date")
     .eq("id", scheduleId)
     .single();
 
@@ -61,6 +61,9 @@ export async function updateScheduleStatusAction(
       scheduleId,
       status,
       amount_due: due,
+      due_date: row?.due_date,
+      remaining_amount: status === "paid" ? 0 : due,
+      paid_date: paidDate,
     },
   });
 
@@ -169,7 +172,7 @@ export async function applyPartialPaymentAction(formData: FormData) {
   const sb = await createSupabaseServer();
   const { data: row } = await sb
     .from("payment_schedules")
-    .select("id, account_id, amount_due, amount_paid, status, note")
+    .select("id, account_id, amount_due, amount_paid, status, note, due_date")
     .eq("id", scheduleId)
     .single();
 
@@ -246,6 +249,8 @@ export async function applyPartialPaymentAction(formData: FormData) {
       paymentDate,
       isRolling: isRollingManualPayment,
       newStatus: nextStatus,
+      due_date: row?.due_date,
+      remaining_amount: remaining,
     },
   });
 
