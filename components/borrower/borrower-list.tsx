@@ -736,7 +736,7 @@ export default function BorrowersList({
                           border-slate-900 bg-background
                           shadow-[4px_4px_0px_0px_#0f172a]
                           hover:shadow-[3px_3px_0px_0px_#0f172a]
-                          dark:border-black dark:bg-slate-950
+                          dark:border-black dark:bg-slate-900
                           dark:shadow-[2px_2px_0px_0px_#000000]"
                       >
                         <Link
@@ -860,7 +860,7 @@ export default function BorrowersList({
                           border-slate-900 bg-background
                           shadow-[4px_4px_0px_0px_#0f172a]
                           hover:shadow-[3px_3px_0px_0px_#0f172a]
-                          dark:border-black dark:bg-slate-950
+                          dark:border-black dark:bg-slate-900
                           dark:shadow-[2px_2px_0px_0px_#000000]"
                       >
                         <Link
@@ -900,7 +900,7 @@ export default function BorrowersList({
                             </div>
                           </div>
                           <div
-                            className="border-t mt-2 rounded-b-xl
+                            className="border-t mt-2 rounded-b-lg
                               border-slate-100 bg-[#fefff3] p-2 text-[11px]
                               font-medium text-slate-500 dark:border-slate-700
                               dark:bg-slate-800/50 dark:text-slate-400"
@@ -1088,7 +1088,7 @@ export default function BorrowersList({
                           border-slate-900 bg-background
                           shadow-[4px_4px_0px_0px_#0f172a]
                           hover:shadow-[3px_3px_0px_0px_#0f172a]
-                          dark:border-black dark:bg-slate-950
+                          dark:border-black dark:bg-slate-900
                           dark:shadow-[2px_2px_0px_0px_#000000]"
                       >
                         {update.account_id ? (
@@ -1098,7 +1098,7 @@ export default function BorrowersList({
                           >
                             {content}
                             <div
-                              className="border-t mt-2 rounded-b-xl
+                              className="border-t mt-2 rounded-b-lg
                                 border-slate-100 bg-[#fefff3] p-2 text-[11px]
                                 font-medium text-slate-500 dark:border-slate-700
                                 dark:bg-slate-800/50 dark:text-slate-400"

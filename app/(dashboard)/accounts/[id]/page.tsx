@@ -264,9 +264,9 @@ export default async function AccountDetailPage({
       : 0
     : totalScheduledDue > 0
       ? Math.min(
-        100,
-        Math.round((totalScheduledPaid / totalScheduledDue) * 100),
-      )
+          100,
+          Math.round((totalScheduledPaid / totalScheduledDue) * 100),
+        )
       : 0;
 
   const nextHighlightIndex = schedules.findIndex((s) =>
@@ -310,32 +310,48 @@ export default async function AccountDetailPage({
     const paidDiffDays =
       schedule.paid_date && schedule.paid_date !== schedule.due_date
         ? Math.round(
-          (new Date(schedule.paid_date).getTime() -
-            new Date(schedule.due_date).getTime()) /
-          86400000,
-        )
+            (new Date(schedule.paid_date).getTime() -
+              new Date(schedule.due_date).getTime()) /
+              86400000,
+          )
         : null;
     return (
       <li
         key={schedule.id}
         id={isNext ? "next-schedule" : undefined}
-        className={`flex break-inside-avoid flex-col rounded-xl border-2 p-4 transition-colors duration-700 ${st.row} ${isNext
-            ? "relative mb-5 border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
-            : "m-1 mb-4 border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
+        className={`flex break-inside-avoid flex-col rounded-xl border-2 p-4
+          transition-colors duration-700 ${st.row} ${
+            isNext
+              ? `relative mb-5 border-slate-900 shadow-[4px_4px_0px_0px_#0f172a]
+                dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]`
+              : `m-1 mb-4 border-slate-900 shadow-[4px_4px_0px_0px_#0f172a]
+                dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]`
           }`}
       >
         {isNext && <GlowBorder />}
         <div className="flex items-center gap-2">
-          <span className="dark:text-muted-foreground text-[11px] font-black tracking-wide text-slate-400 uppercase">
+          <span
+            className="dark:text-muted-foreground text-[11px] font-black
+              tracking-wide text-slate-400 uppercase"
+          >
             #{i + 1}
           </span>
           {isNext && (
-            <span className="inline-block rounded-md border-2 border-slate-900 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-sky-800 dark:text-sky-100 dark:shadow-[2px_2px_0px_0px_#020617]">
+            <span
+              className="inline-block rounded-md border-2 border-slate-900
+                bg-sky-200 px-1.5 py-0.5 text-[9px] font-black tracking-wide
+                text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a]
+                dark:border-[#020617] dark:bg-sky-800 dark:text-sky-100
+                dark:shadow-[2px_2px_0px_0px_#020617]"
+            >
               Next
             </span>
           )}
           <span
-            className={`ml-auto shrink-0 rounded-full border-2 px-2.5 py-1 text-[10px] font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[2px_2px_0px_0px_#020617] ${st.badge}`}
+            className={`ml-auto shrink-0 rounded-full border-2 px-2.5 py-1
+              text-[10px] font-black capitalize shadow-[2px_2px_0px_0px_#0f172a]
+              dark:border-[#020617] dark:shadow-[2px_2px_0px_0px_#020617]
+              ${st.badge}`}
           >
             {schedule.status}
           </span>
@@ -343,7 +359,10 @@ export default async function AccountDetailPage({
         </div>
 
         <div className="mt-2 flex items-baseline gap-2">
-          <p className="dark:text-foreground text-3xl font-black tracking-tight text-slate-900 tabular-nums">
+          <p
+            className="dark:text-foreground text-3xl font-black tracking-tight
+              text-slate-900 tabular-nums"
+          >
             {formatMoney(Number(schedule.amount_due ?? 0))}
           </p>
           {schedule.status === "paid" ? <PaidCheck /> : null}
@@ -361,7 +380,13 @@ export default async function AccountDetailPage({
           {schedule.status === "overdue" ? <OverdueSad /> : null}
           {schedule.status === "paid" ? (
             schedule.paid_date && schedule.paid_date !== schedule.due_date ? (
-              <span className="ml-auto text-sm font-semibold text-amber-600 dark:text-amber-400">
+              <span
+                className={`ml-auto text-sm font-semibold ${
+                  paidDiffDays !== null && paidDiffDays < 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-amber-600 dark:text-amber-400"
+                  }`}
+              >
                 {formatDate(schedule.paid_date)}
                 {paidDiffDays !== null && (
                   <span className="ml-1.5 text-[11px] font-semibold opacity-70">
@@ -373,13 +398,19 @@ export default async function AccountDetailPage({
                 )}
               </span>
             ) : (
-              <span className="dark:text-muted-foreground ml-auto flex items-center gap-1 text-sm font-semibold text-slate-600">
+              <span
+                className="dark:text-muted-foreground ml-auto flex items-center
+                  gap-1 text-sm font-semibold text-slate-600"
+              >
                 {formatDate(schedule.due_date)}
                 <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
               </span>
             )
           ) : (
-            <span className="dark:text-muted-foreground ml-auto text-sm font-semibold text-slate-600">
+            <span
+              className="dark:text-muted-foreground ml-auto text-sm
+                font-semibold text-slate-600"
+            >
               {formatDate(schedule.due_date)}
             </span>
           )}
@@ -424,12 +455,18 @@ export default async function AccountDetailPage({
           })()}
 
         {schedule.note ? (
-          <p className="dark:text-muted-foreground mt-1 line-clamp-1 text-xs text-slate-400">
+          <p
+            className="dark:text-muted-foreground mt-1 line-clamp-1 text-xs
+              text-slate-400"
+          >
             {schedule.note}
           </p>
         ) : null}
 
-        <div className="mt-3 border-t-2 border-dashed border-slate-200 pt-3 dark:border-slate-900">
+        <div
+          className="mt-3 border-t-2 border-dashed border-slate-200 pt-3
+            dark:border-slate-900"
+        >
           <ScheduleDesktopActions
             status={schedule.status}
             hasHistory={hasHistory}
@@ -503,18 +540,29 @@ export default async function AccountDetailPage({
       <div className="mt-10 space-y-6 sm:mt-10">
         <Link
           href={`/borrowers/${accountRow.borrower_id}`}
-          className="dark:text-muted-foreground dark:hover:text-foreground inline-flex items-center gap-1 text-xs font-black tracking-wider text-slate-500 uppercase transition hover:text-slate-900"
+          className="dark:text-muted-foreground dark:hover:text-foreground
+            inline-flex items-center gap-1 text-xs font-black tracking-wider
+            text-slate-500 uppercase transition hover:text-slate-900"
         >
           <span>←</span>
           <span>{borrowerName}</span>
         </Link>
 
-        <header className={`overflow-hidden`}>
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <header className={"overflow-hidden"}>
+          <div
+            className="flex flex-col gap-6 lg:flex-row lg:items-start
+              lg:justify-between"
+          >
             <div className="min-w-0 flex-1">
-              <h1 className="mt-1 font-black tracking-tight text-slate-900 uppercase sm:text-xl"></h1>
+              <h1
+                className="mt-1 font-black tracking-tight text-slate-900
+                  uppercase sm:text-xl"
+              ></h1>
             </div>
-            <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-4 lg:flex-col lg:items-end print:items-end">
+            <div
+              className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start
+                sm:gap-4 lg:flex-col lg:items-end print:items-end"
+            >
               <div className="flex gap-2 print:hidden">
                 {/* <PrintButton /> */}
                 {/* <ShareScheduleButton
@@ -628,10 +676,10 @@ export default async function AccountDetailPage({
               accountRow.release_date,
               accountRow.first_payment_date,
               accountRow.payment_frequency as
-              | "weekly"
-              | "monthly"
-              | "bimonthly"
-              | "custom",
+                | "weekly"
+                | "monthly"
+                | "bimonthly"
+                | "custom",
             );
             return skipped > 0 ? (
               <div className="space-y-2">
@@ -652,7 +700,7 @@ export default async function AccountDetailPage({
                   const dailyInterest = monthlyInterest / 30;
                   const periodDays =
                     accountRow.payment_frequency === "bimonthly" ||
-                      accountRow.payment_frequency === "custom"
+                    accountRow.payment_frequency === "custom"
                       ? 15
                       : accountRow.payment_frequency === "monthly"
                         ? 30
@@ -749,56 +797,89 @@ export default async function AccountDetailPage({
           </h2>
           <div className="grid gap-3 text-4xl sm:grid-cols-2 lg:grid-cols-4">
             <div
-              className={`${nb.card} dark:to-card border-sky-900/20 bg-linear-to-br from-sky-50/90 to-white p-4 dark:border-sky-400/20 dark:from-sky-400/10`}
+              className={`${nb.card} dark:to-card border-sky-900/20
+                bg-linear-to-br from-sky-50/90 to-white p-4
+                dark:border-sky-400/20 dark:from-sky-400/10`}
             >
               <p className={nb.label}>Principal</p>
-              <p className="dark:text-foreground mt-1.5 text-4xl font-black tracking-tight text-slate-900">
+              <p
+                className="dark:text-foreground mt-1.5 text-4xl font-black
+                  tracking-tight text-slate-900"
+              >
                 <AnimatedNumber
                   value={Number(accountRow.principal_amount ?? 0)}
                   prefix="₱"
                 />
               </p>
-              <p className="dark:text-muted-foreground mt-1.5 text-xs text-slate-600">
+              <p
+                className="dark:text-muted-foreground mt-1.5 text-xs
+                  text-slate-600"
+              >
                 Loan amount
               </p>
             </div>
             <div
-              className={`${nb.card} dark:to-card border-rose-900/20 bg-linear-to-br from-rose-50/90 to-white p-4 dark:border-rose-400/20 dark:from-rose-400/10`}
+              className={`${nb.card} dark:to-card border-rose-900/20
+                bg-linear-to-br from-rose-50/90 to-white p-4
+                dark:border-rose-400/20 dark:from-rose-400/10`}
             >
               <p className={nb.label}>Remaining</p>
-              <p className="dark:text-foreground mt-1.5 text-4xl font-black tracking-tight text-slate-900">
+              <p
+                className="dark:text-foreground mt-1.5 text-4xl font-black
+                  tracking-tight text-slate-900"
+              >
                 <AnimatedNumber value={amountLeft} prefix="₱" />
               </p>
-              <p className="dark:text-muted-foreground mt-1.5 text-xs text-slate-600">
+              <p
+                className="dark:text-muted-foreground mt-1.5 text-xs
+                  text-slate-600"
+              >
                 Still to collect
               </p>
             </div>
             <div
-              className={`${nb.card} dark:to-card border-emerald-900/20 bg-linear-to-br from-emerald-50/90 to-white p-4 dark:border-emerald-400/20 dark:from-emerald-400/10`}
+              className={`${nb.card} dark:to-card border-emerald-900/20
+                bg-linear-to-br from-emerald-50/90 to-white p-4
+                dark:border-emerald-400/20 dark:from-emerald-400/10`}
             >
               <p className={nb.label}>Collected</p>
-              <p className="dark:text-foreground mt-1.5 text-4xl font-black tracking-tight text-slate-900">
+              <p
+                className="dark:text-foreground mt-1.5 text-4xl font-black
+                  tracking-tight text-slate-900"
+              >
                 <AnimatedNumber value={amountPaid} prefix="₱" />
               </p>
-              <p className="dark:text-muted-foreground mt-1.5 text-xs text-slate-600">
+              <p
+                className="dark:text-muted-foreground mt-1.5 text-xs
+                  text-slate-600"
+              >
                 Nabayran
               </p>
             </div>
 
             <div
-              className={`${nb.card} dark:to-card border-amber-900/20 bg-linear-to-br from-amber-50/90 to-white p-4 dark:border-amber-400/20 dark:from-amber-400/10`}
+              className={`${nb.card} dark:to-card border-amber-900/20
+                bg-linear-to-br from-amber-50/90 to-white p-4
+                dark:border-amber-400/20 dark:from-amber-400/10`}
             >
               <p className={nb.label}>Projected profit</p>
-              <p className="dark:text-foreground mt-1.5 text-4xl font-black tracking-tight text-slate-900">
+              <p
+                className="dark:text-foreground mt-1.5 text-4xl font-black
+                  tracking-tight text-slate-900"
+              >
                 <AnimatedNumber value={Math.max(0, profit)} prefix="₱" />
               </p>
-              <p className="dark:text-muted-foreground mt-1.5 text-xs text-slate-600">
+              <p
+                className="dark:text-muted-foreground mt-1.5 text-xs
+                  text-slate-600"
+              >
                 {isRolling ? "Interest charged (all cycles)" : "Over principal"}
               </p>
             </div>
           </div>
           <div
-            className={`mt-3 ${nb.inset} dark:text-muted-foreground px-4 py-3 text-sm text-slate-700`}
+            className={`mt-3 ${nb.inset} dark:text-muted-foreground px-4 py-3
+              text-sm text-slate-700`}
           >
             <span className="dark:text-foreground font-semibold text-slate-900">
               Total contract
@@ -824,56 +905,92 @@ export default async function AccountDetailPage({
               aria-labelledby="schedule-heading"
             >
               <div className={nb.scheduleHead}>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div
+                  className="flex flex-col gap-3 sm:flex-row sm:items-end
+                    sm:justify-between"
+                >
                   <div>
                     <h2
                       id="schedule-heading"
-                      className="text-sm font-black tracking-wide text-slate-900 uppercase"
+                      className="text-sm font-black tracking-wide text-slate-900
+                        uppercase"
                     >
                       Payment schedules
                     </h2>
                     {nextDue ? (
-                      <p className="dark:text-muted-foreground mt-1.5 text-sm font-semibold text-slate-800">
+                      <p
+                        className="dark:text-muted-foreground mt-1.5 text-sm
+                          font-semibold text-slate-800"
+                      >
                         Next due{" "}
-                        <span className="dark:text-foreground font-black text-slate-900">
+                        <span
+                          className="dark:text-foreground font-black
+                            text-slate-900"
+                        >
                           {formatDate(nextDue.due_date)}
                         </span>
-                        <span className="dark:text-muted-foreground text-slate-600">
+                        <span
+                          className="dark:text-muted-foreground text-slate-600"
+                        >
                           {" "}
                           ·{" "}
                         </span>
-                        <span className="dark:text-foreground font-black text-slate-900 tabular-nums">
+                        <span
+                          className="dark:text-foreground font-black
+                            text-slate-900 tabular-nums"
+                        >
                           {formatMoney(remainingOnInstallment(nextDue))}
                         </span>
                         {remainingOnInstallment(nextDue) <
-                          Number(nextDue.amount_due ?? 0) ? (
-                          <span className="dark:text-muted-foreground text-slate-600">
+                        Number(nextDue.amount_due ?? 0) ? (
+                          <span
+                            className="dark:text-muted-foreground
+                              text-slate-600"
+                          >
                             {" "}
                             left of{" "}
-                            <span className="dark:text-foreground font-bold tabular-nums">
+                            <span
+                              className="dark:text-foreground font-bold
+                                tabular-nums"
+                            >
                               {formatMoney(Number(nextDue.amount_due ?? 0))}
                             </span>
                           </span>
                         ) : null}
                       </p>
                     ) : totalInstallments > 0 && isManual ? (
-                      <p className="mt-1.5 text-sm font-bold text-emerald-900 dark:text-emerald-400"></p>
+                      <p
+                        className="mt-1.5 text-sm font-bold text-emerald-900
+                          dark:text-emerald-400"
+                      ></p>
                     ) : (
-                      <p className="mt-1.5 text-sm font-bold text-emerald-900 dark:text-emerald-400">
+                      <p
+                        className="mt-1.5 text-sm font-bold text-emerald-900
+                          dark:text-emerald-400"
+                      >
                         All installments settled.
                       </p>
                     )}
                   </div>
                   {(isManual ? principal > 0 : totalInstallments > 0) ? (
                     <div className="w-full max-w-xs sm:w-48">
-                      <div className="dark:text-muted-foreground mb-1 flex justify-between text-[10px] font-black tracking-wide text-slate-800 uppercase">
+                      <div
+                        className="dark:text-muted-foreground mb-1 flex
+                          justify-between text-[10px] font-black tracking-wide
+                          text-slate-800 uppercase"
+                      >
                         <span>{isManual ? "Recovered" : "Progress"}</span>
-                        <span className="dark:text-foreground text-slate-900 tabular-nums">
+                        <span
+                          className="dark:text-foreground text-slate-900
+                            tabular-nums"
+                        >
                           {progressPct}%
                         </span>
                       </div>
                       <div
-                        className="dark:border-border dark:bg-card h-3 overflow-hidden rounded-md border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
+                        className="dark:border-border dark:bg-card h-3
+                          overflow-hidden rounded-md border-2 border-slate-900
+                          bg-white shadow-[2px_2px_0px_0px_#0f172a]"
                         role="progressbar"
                         aria-valuenow={progressPct}
                         aria-valuemin={0}
@@ -904,8 +1021,15 @@ export default async function AccountDetailPage({
               ) : null}
 
               {schedules.length === 0 ? (
-                <div className="dark:border-border/50 dark:bg-muted/50 border-t-2 border-dashed border-slate-300 bg-slate-50/80 px-5 py-12 text-center">
-                  <p className="dark:text-muted-foreground text-sm font-black tracking-wide text-slate-600 uppercase">
+                <div
+                  className="dark:border-border/50 dark:bg-muted/50 border-t-2
+                    border-dashed border-slate-300 bg-slate-50/80 px-5 py-12
+                    text-center"
+                >
+                  <p
+                    className="dark:text-muted-foreground text-sm font-black
+                      tracking-wide text-slate-600 uppercase"
+                  >
                     No payment schedules yet
                   </p>
                 </div>
@@ -924,12 +1048,12 @@ export default async function AccountDetailPage({
                         const isNext = i === nextHighlightIndex;
                         const paidDiffDays =
                           schedule.paid_date &&
-                            schedule.paid_date !== schedule.due_date
+                          schedule.paid_date !== schedule.due_date
                             ? Math.round(
-                              (new Date(schedule.paid_date).getTime() -
-                                new Date(schedule.due_date).getTime()) /
-                              86400000,
-                            )
+                                (new Date(schedule.paid_date).getTime() -
+                                  new Date(schedule.due_date).getTime()) /
+                                  86400000,
+                              )
                             : null;
                         return (
                           <ScheduleMobileCard
@@ -940,14 +1064,23 @@ export default async function AccountDetailPage({
                               "rounded-xl border-2 px-4 py-3",
                               st.row,
                               isNext
-                                ? "relative my-5 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[3px_3px_0px_0px_#020617]"
-                                : "border-slate-900 shadow-[3px_3px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[3px_3px_0px_0px_#020617]",
+                                ? `relative my-5 border-slate-900
+                                  shadow-[3px_3px_0px_0px_#0f172a]
+                                  dark:border-[#020617]
+                                  dark:shadow-[3px_3px_0px_0px_#020617]`
+                                : `border-slate-900
+                                  shadow-[3px_3px_0px_0px_#0f172a]
+                                  dark:border-[#020617]
+                                  dark:shadow-[3px_3px_0px_0px_#020617]`,
                             )}
                             defaultOpen={
                               isNext || focusScheduleId === schedule.id
                             }
                             actions={
-                              <div className="flex items-start gap-2 overflow-x-auto pb-1">
+                              <div
+                                className="flex items-start gap-2
+                                  overflow-x-auto pb-1"
+                              >
                                 <ScheduleStatusForm
                                   scheduleId={schedule.id}
                                   currentStatus={schedule.status}
@@ -964,8 +1097,8 @@ export default async function AccountDetailPage({
                             }
                             footer={
                               schedule.status === "partial" &&
-                                (!isRolling ||
-                                  (paymentsMap[schedule.id] ?? []).length > 0) ? (
+                              (!isRolling ||
+                                (paymentsMap[schedule.id] ?? []).length > 0) ? (
                                 <div className="space-y-3 pb-2">
                                   {!isRolling ? (
                                     <PartialPaymentForm
@@ -978,7 +1111,7 @@ export default async function AccountDetailPage({
                                     />
                                   ) : null}
                                   {(paymentsMap[schedule.id] ?? []).length >
-                                    0 ? (
+                                  0 ? (
                                     <PaymentHistoryPanel
                                       payments={
                                         (paymentsMap[schedule.id] ??
@@ -995,16 +1128,34 @@ export default async function AccountDetailPage({
                             {isNext && <GlowBorder />}
                             {/* always-visible card header */}
                             <div className="flex items-center gap-2">
-                              <span className="dark:text-muted-foreground text-[11px] font-black tracking-wide text-slate-400 uppercase">
+                              <span
+                                className="dark:text-muted-foreground
+                                  text-[11px] font-black tracking-wide
+                                  text-slate-400 uppercase"
+                              >
                                 #{i + 1}
                               </span>
                               {isNext && (
-                                <span className="inline-block rounded-md border-2 border-slate-900 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-sky-800 dark:text-sky-100 dark:shadow-[2px_2px_0px_0px_#020617]">
+                                <span
+                                  className="inline-block rounded-md border-2
+                                    border-slate-900 bg-sky-200 px-1.5 py-0.5
+                                    text-[9px] font-black tracking-wide
+                                    text-slate-900 uppercase
+                                    shadow-[2px_2px_0px_0px_#0f172a]
+                                    dark:border-[#020617] dark:bg-sky-800
+                                    dark:text-sky-100
+                                    dark:shadow-[2px_2px_0px_0px_#020617]"
+                                >
                                   Next
                                 </span>
                               )}
                               <span
-                                className={`ml-auto shrink-0 rounded-full border-2 px-2 py-0.5 text-[10px] font-black capitalize shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[2px_2px_0px_0px_#020617] ${st.badge}`}
+                                className={`ml-auto shrink-0 rounded-full
+                                  border-2 px-2 py-0.5 text-[10px] font-black
+                                  capitalize shadow-[2px_2px_0px_0px_#0f172a]
+                                  dark:border-[#020617]
+                                  dark:shadow-[2px_2px_0px_0px_#020617]
+                                  ${st.badge}`}
                               >
                                 {schedule.status}
                               </span>
@@ -1012,7 +1163,11 @@ export default async function AccountDetailPage({
                             </div>
 
                             <div className="mt-1 flex items-baseline gap-2">
-                              <p className="dark:text-foreground text-2xl font-black tracking-tight text-slate-900 tabular-nums">
+                              <p
+                                className="dark:text-foreground text-2xl
+                                  font-black tracking-tight text-slate-900
+                                  tabular-nums"
+                              >
                                 {formatMoney(Number(schedule.amount_due ?? 0))}
                               </p>
                               {schedule.status === "paid" ? (
@@ -1028,9 +1183,9 @@ export default async function AccountDetailPage({
                                     );
                                     return due > 0
                                       ? Math.min(
-                                        100,
-                                        Math.round((paid / due) * 100),
-                                      )
+                                          100,
+                                          Math.round((paid / due) * 100),
+                                        )
                                       : 0;
                                   })()}
                                 />
@@ -1060,11 +1215,20 @@ export default async function AccountDetailPage({
 
                             {schedule.status === "paid" ? (
                               schedule.paid_date &&
-                                schedule.paid_date !== schedule.due_date ? (
-                                <p className="mt-0.5 text-sm font-semibold text-amber-600 dark:text-amber-400">
+                              schedule.paid_date !== schedule.due_date ? (
+                                <p
+                                  className={`mt-0.5 text-sm font-semibold ${
+                                    paidDiffDays !== null && paidDiffDays < 0
+                                      ? "text-emerald-600 dark:text-emerald-400"
+                                      : "text-amber-600 dark:text-amber-400"
+                                    }`}
+                                >
                                   {formatDate(schedule.paid_date)}
                                   {paidDiffDays !== null && (
-                                    <span className="ml-1.5 text-[11px] font-semibold opacity-70">
+                                    <span
+                                      className="ml-1.5 text-[11px]
+                                        font-semibold opacity-70"
+                                    >
                                       ·{" "}
                                       {paidDiffDays > 0
                                         ? `${paidDiffDays} day${paidDiffDays === 1 ? "" : "s"} late`
@@ -1073,13 +1237,23 @@ export default async function AccountDetailPage({
                                   )}
                                 </p>
                               ) : (
-                                <p className="dark:text-muted-foreground mt-0.5 flex items-center gap-1 text-sm font-semibold text-slate-600">
+                                <p
+                                  className="dark:text-muted-foreground mt-0.5
+                                    flex items-center gap-1 text-sm
+                                    font-semibold text-slate-600"
+                                >
                                   {formatDate(schedule.due_date)}
-                                  <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
+                                  <Check
+                                    className="size-3 text-emerald-600
+                                      dark:text-emerald-400"
+                                  />
                                 </p>
                               )
                             ) : (
-                              <p className="dark:text-muted-foreground mt-0.5 text-sm font-semibold text-slate-600">
+                              <p
+                                className="dark:text-muted-foreground mt-0.5
+                                  text-sm font-semibold text-slate-600"
+                              >
                                 {formatDate(schedule.due_date)}
                               </p>
                             )}
@@ -1091,9 +1265,9 @@ export default async function AccountDetailPage({
                                 const pct =
                                   due > 0
                                     ? Math.min(
-                                      100,
-                                      Math.round((paid / due) * 100),
-                                    )
+                                        100,
+                                        Math.round((paid / due) * 100),
+                                      )
                                     : 0;
                                 return (
                                   <div className="mt-2">
@@ -1119,7 +1293,10 @@ export default async function AccountDetailPage({
                               })()}
 
                             {schedule.note ? (
-                              <p className="dark:text-muted-foreground mt-1 line-clamp-1 text-xs text-slate-400">
+                              <p
+                                className="dark:text-muted-foreground mt-1
+                                  line-clamp-1 text-xs text-slate-400"
+                              >
                                 {schedule.note}
                               </p>
                             ) : null}
@@ -1130,7 +1307,10 @@ export default async function AccountDetailPage({
                   </div>
                   {/* desktop view */}
                   <div className="mt-3 hidden lg:block print:hidden">
-                    <ul className="grid grid-cols-1 gap-4 p-4 xl:grid-cols-2 xl:p-8">
+                    <ul
+                      className="grid grid-cols-1 gap-4 p-4 xl:grid-cols-2
+                        xl:p-8"
+                    >
                       {indexedSchedules.map(({ s, i }) =>
                         renderDesktopLi(s, i),
                       )}
