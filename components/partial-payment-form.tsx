@@ -8,6 +8,7 @@ import {
 } from "react";
 import { triggerHaptic } from "@/lib/haptics";
 import { toast } from "sonner";
+import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import {
   Dialog,
   DialogContent,
@@ -31,12 +32,15 @@ export default function PartialPaymentForm({
   applyPartialPayment,
   autoFocus: _autoFocus,
   dueDate,
+  borrowerId,
 }: {
   scheduleId: string;
   applyPartialPayment: (formData: FormData) => Promise<void>;
   autoFocus?: boolean;
   dueDate?: string;
+  borrowerId?: string;
 }) {
+  const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
   const defaultDate = dueDate ?? new Date().toISOString().split("T")[0];
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
@@ -72,6 +76,7 @@ export default function PartialPaymentForm({
         .then(() => {
           triggerHaptic("success");
           toast.success("Partial payment recorded");
+          if (borrowerId) invalidateBorrowerDetails(borrowerId);
           handleOpenChange(false);
         })
         .catch(() => {
@@ -86,9 +91,16 @@ export default function PartialPaymentForm({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="dark:text-muted-foreground dark:hover:text-foreground flex cursor-pointer items-center gap-1.5 text-[10px] font-black tracking-wide text-slate-600 uppercase transition-colors hover:text-slate-900"
+          className="dark:text-muted-foreground dark:hover:text-foreground flex
+            cursor-pointer items-center gap-1.5 text-[10px] font-black
+            tracking-wide text-slate-600 uppercase transition-colors
+            hover:text-slate-900"
         >
-          <span className="dark:border-border/50 flex size-4 items-center justify-center rounded border border-slate-300 bg-violet-200 text-[9px] font-black dark:bg-violet-400/25 dark:text-violet-100">
+          <span
+            className="dark:border-border/50 flex size-4 items-center
+              justify-center rounded border border-slate-300 bg-violet-200
+              text-[9px] font-black dark:bg-violet-400/25 dark:text-violet-100"
+          >
             +
           </span>
           Add partial payment
@@ -108,7 +120,8 @@ export default function PartialPaymentForm({
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor={`partial-amt-${scheduleId}`}
-              className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase"
+              className="dark:text-muted-foreground text-[10px] font-black
+                tracking-wide text-slate-600 uppercase"
             >
               Amount paid
             </label>
@@ -121,13 +134,19 @@ export default function PartialPaymentForm({
               autoFocus
               value={formatAmount(amount)}
               onChange={handleAmountChange}
-              className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full rounded-md border-2 border-slate-900 bg-white px-3 py-2 text-sm font-semibold text-slate-900 tabular-nums shadow-[2px_2px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:shadow-none"
+              className="dark:border-border dark:bg-card dark:text-foreground
+                dark:focus-visible:ring-border w-full rounded-md border-2
+                border-slate-900 bg-white px-3 py-2 text-sm font-semibold
+                text-slate-900 tabular-nums shadow-[2px_2px_0px_0px_#0f172a]
+                outline-none focus-visible:ring-2 focus-visible:ring-slate-900
+                dark:shadow-none"
             />
           </div>
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor={`partial-date-${scheduleId}`}
-              className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase"
+              className="dark:text-muted-foreground text-[10px] font-black
+                tracking-wide text-slate-600 uppercase"
             >
               Date
             </label>
@@ -137,13 +156,19 @@ export default function PartialPaymentForm({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full min-w-0 rounded-md border-2 border-slate-900 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:shadow-none"
+              className="dark:border-border dark:bg-card dark:text-foreground
+                dark:focus-visible:ring-border w-full min-w-0 rounded-md
+                border-2 border-slate-900 bg-white px-3 py-2 text-sm
+                font-semibold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a]
+                outline-none focus-visible:ring-2 focus-visible:ring-slate-900
+                dark:shadow-none"
             />
           </div>
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor={`partial-note-${scheduleId}`}
-              className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase"
+              className="dark:text-muted-foreground text-[10px] font-black
+                tracking-wide text-slate-600 uppercase"
             >
               Note (optional)
             </label>
@@ -155,7 +180,12 @@ export default function PartialPaymentForm({
               placeholder="—"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full rounded-md border-2 border-slate-900 bg-white px-3 py-2 text-sm text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900 dark:shadow-none"
+              className="dark:border-border dark:bg-card dark:text-foreground
+                dark:focus-visible:ring-border w-full rounded-md border-2
+                border-slate-900 bg-white px-3 py-2 text-sm text-slate-900
+                shadow-[2px_2px_0px_0px_#0f172a] outline-none
+                focus-visible:ring-2 focus-visible:ring-slate-900
+                dark:shadow-none"
             />
           </div>
         </form>
@@ -165,7 +195,13 @@ export default function PartialPaymentForm({
             form={FORM_ID(scheduleId)}
             disabled={isPending || !amount}
             aria-busy={isPending}
-            className="dark:border-border w-full cursor-pointer rounded-lg border-2 border-slate-900 bg-violet-200 px-4 py-2 text-xs font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-violet-300 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-violet-400/25 dark:text-violet-100 dark:shadow-none dark:hover:bg-violet-400/40"
+            className="dark:border-border w-full cursor-pointer rounded-lg
+              border-2 border-slate-900 bg-violet-200 px-4 py-2 text-xs
+              font-black tracking-wide text-slate-900 uppercase
+              shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-violet-300
+              disabled:cursor-not-allowed disabled:opacity-60
+              dark:bg-violet-400/25 dark:text-violet-100 dark:shadow-none
+              dark:hover:bg-violet-400/40"
           >
             {isPending ? "Recording…" : "Record Payment"}
           </button>

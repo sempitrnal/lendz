@@ -740,11 +740,11 @@ export default function BorrowersList({
                       <div
                         key={borrower.id}
                         className="mb-2 rounded-xl transition-all
-                          active:shadow-none sm:rounded-lg border-2
-                          bg-background shadow-[4px_4px_0px_0px_#0f172a]
-                          hover:shadow-[3px_3px_0px_0px_#0f172a] border-black
-                          dark:bg-slate-900
-                          dark:shadow-[2px_2px_0px_0px_#000000]"
+                          active:shadow-none sm:rounded-lg border-2 bg-[#f8fff9]
+                          border-[#6c9670] shadow-[4px_4px_0px_0px_#6c9670]
+                          hover:shadow-[3px_3px_0px_0px_#6c9670]
+                          dark:border-[#020617] dark:bg-slate-900
+                          dark:shadow-[4px_4px_0px_0px_#020617]"
                       >
                         <Link
                           href={`/borrowers/${borrower.id}`}
@@ -760,8 +760,8 @@ export default function BorrowersList({
                         >
                           <div className="flex flex-1 flex-col p-2 sm:p-3">
                             <span
-                              className="block text-xl font-bold text-slate-900
-                                dark:text-white"
+                              className="block text-xl font-black text-[#49554a]
+                                dark:text-foreground"
                             >
                               {borrower.first_name} {borrower.last_name}
                             </span>
@@ -802,8 +802,8 @@ export default function BorrowersList({
                           </div>
                           <div
                             className="border-t mt-2 rounded-b-lg
-                              border-slate-100 bg-[#fefff3] p-2 text-[11px]
-                              font-medium text-slate-500 dark:border-slate-700
+                              border-[#9fc4a3] bg-[#effcf0] p-2 text-[11px]
+                              font-medium text-[#49554a] dark:border-[#020617]
                               dark:bg-slate-800/50 dark:text-slate-400"
                           >
                             <span className="flex items-center gap-1.5">
@@ -876,11 +876,11 @@ export default function BorrowersList({
                         key={account.id}
                         className="mb-2 rounded-xl transition-all
                           active:shadow-none sm:rounded-lg border-2
-                          border-slate-900 bg-background
-                          shadow-[4px_4px_0px_0px_#0f172a]
-                          hover:shadow-[3px_3px_0px_0px_#0f172a]
-                          dark:border-black dark:bg-slate-900
-                          dark:shadow-[2px_2px_0px_0px_#000000]"
+                          border-[#6c9670] bg-[#f8fff9]
+                          shadow-[4px_4px_0px_0px_#6c9670]
+                          hover:shadow-[3px_3px_0px_0px_#6c9670]
+                          dark:border-[#020617] dark:bg-slate-900
+                          dark:shadow-[4px_4px_0px_0px_#020617]"
                       >
                         <Link
                           href={`/accounts/${account.id}`}
@@ -906,8 +906,8 @@ export default function BorrowersList({
                               className="flex items-start justify-between gap-2"
                             >
                               <span
-                                className="block text-xl font-bold
-                                  text-slate-900 dark:text-white"
+                                className="block text-xl font-black
+                                  text-[#49554a] dark:text-foreground"
                               >
                                 {borrowerObj
                                   ? `${borrowerObj.first_name} ${borrowerObj.last_name}`
@@ -923,8 +923,8 @@ export default function BorrowersList({
                             </div>
                             <div className="mt-1.5 flex items-baseline gap-1.5">
                               <span
-                                className="text-xs font-bold text-slate-900
-                                  dark:text-white"
+                                className="text-xs font-black text-[#49554a]
+                                  dark:text-foreground"
                               >
                                 ₱
                                 {(
@@ -935,8 +935,8 @@ export default function BorrowersList({
                           </div>
                           <div
                             className="border-t mt-2 rounded-b-lg
-                              border-slate-100 bg-[#fefff3] p-2 text-[11px]
-                              font-medium text-slate-500 dark:border-slate-700
+                              border-[#9fc4a3] bg-[#effcf0] p-2 text-[11px]
+                              font-medium text-[#49554a] dark:border-[#020617]
                               dark:bg-slate-800/50 dark:text-slate-400"
                           >
                             <div className="flex flex-col gap-1.5">
@@ -1066,8 +1066,8 @@ export default function BorrowersList({
                       <div className="flex flex-1 flex-col p-2 sm:p-3">
                         <div className="flex items-start justify-between gap-2">
                           <span
-                            className="block text-xl font-bold text-slate-900
-                              dark:text-white"
+                            className="block text-xl font-black text-[#49554a]
+                              dark:text-foreground"
                           >
                             {borrowerName}
                           </span>
@@ -1081,8 +1081,8 @@ export default function BorrowersList({
                         </div>
                         {amountLine && (
                           <p
-                            className="mt-1 text-sm font-bold text-slate-900
-                              dark:text-white"
+                            className="mt-1 text-sm font-black text-[#49554a]
+                              dark:text-foreground"
                           >
                             {amountLine}
                           </p>
@@ -1123,11 +1123,11 @@ export default function BorrowersList({
                         key={update.id}
                         className="mb-2 rounded-xl border transition-all
                           active:shadow-none sm:rounded-lg sm:border-2
-                          border-slate-900 bg-background
-                          shadow-[4px_4px_0px_0px_#0f172a]
-                          hover:shadow-[3px_3px_0px_0px_#0f172a]
-                          dark:border-black dark:bg-slate-900
-                          dark:shadow-[2px_2px_0px_0px_#000000]"
+                          border-[#6c9670] bg-[#f8fff9]
+                          shadow-[4px_4px_0px_0px_#6c9670]
+                          hover:shadow-[3px_3px_0px_0px_#6c9670]
+                          dark:border-[#020617] dark:bg-slate-900
+                          dark:shadow-[4px_4px_0px_0px_#020617]"
                       >
                         {update.account_id ? (
                           <Link
@@ -1147,8 +1147,8 @@ export default function BorrowersList({
                             {content}
                             <div
                               className="border-t mt-2 rounded-b-lg
-                                border-slate-100 bg-[#fefff3] p-2 text-[11px]
-                                font-medium text-slate-500 dark:border-slate-700
+                                border-[#9fc4a3] bg-[#effcf0] p-2 text-[11px]
+                                font-medium text-[#49554a] dark:border-[#020617]
                                 dark:bg-slate-800/50 dark:text-slate-400"
                             >
                               <span className="flex items-center gap-1.5">
@@ -1162,8 +1162,8 @@ export default function BorrowersList({
                             {content}
                             <div
                               className="border-t mt-2 rounded-b-xl
-                                border-slate-100 bg-[#fefff3] p-2 text-[11px]
-                                font-medium text-slate-500 dark:border-slate-700
+                                border-[#9fc4a3] bg-[#effcf0] p-2 text-[11px]
+                                font-medium text-[#49554a] dark:border-[#020617]
                                 dark:bg-slate-800/50 dark:text-slate-400"
                             >
                               <span className="flex items-center gap-1.5">
@@ -1270,7 +1270,7 @@ const MasonryGrid = memo(function MasonryGrid({
   return (
     <div className="flex w-full items-start gap-4">
       {columns.map((col, ci) => (
-        <div key={ci} className="flex min-w-0 flex-1 flex-col gap-4">
+        <div key={ci} className="flex min-w-0 flex-1 flex-col gap-6">
           {col.map((borrower) => (
             <BorrowerCard
               key={borrower.id}

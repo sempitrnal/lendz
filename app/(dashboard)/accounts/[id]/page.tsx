@@ -479,6 +479,7 @@ export default async function AccountDetailPage({
                   updateScheduleStatus={updateScheduleStatus}
                   isRollingManual={isRolling}
                   applyPartialPayment={applyPartialPayment}
+                  borrowerId={borrower?.id}
                 />
                 <ScheduleDeleteButton
                   scheduleId={schedule.id}
@@ -490,6 +491,7 @@ export default async function AccountDetailPage({
                     applyPartialPayment={applyPartialPayment}
                     autoFocus={focusScheduleId === schedule.id}
                     dueDate={schedule.due_date}
+                    borrowerId={borrower?.id}
                   />
                 ) : null}
               </div>
@@ -1088,6 +1090,7 @@ export default async function AccountDetailPage({
                                   updateScheduleStatus={updateScheduleStatus}
                                   isRollingManual={isRolling}
                                   applyPartialPayment={applyPartialPayment}
+                                  borrowerId={borrower?.id}
                                 />
                                 <ScheduleDeleteButton
                                   scheduleId={schedule.id}
@@ -1108,6 +1111,7 @@ export default async function AccountDetailPage({
                                         focusScheduleId === schedule.id
                                       }
                                       dueDate={schedule.due_date}
+                                      borrowerId={borrower?.id}
                                     />
                                   ) : null}
                                   {(paymentsMap[schedule.id] ?? []).length >
@@ -1322,6 +1326,7 @@ export default async function AccountDetailPage({
             <BatchScheduleToolbar
               allIds={schedules.map((s) => s.id)}
               onBatchPaid={batchUpdateScheduleStatus}
+              borrowerId={borrower?.id}
             />
           </ScheduleSelectionProvider>
         ) : null}

@@ -16,3 +16,13 @@ export const OverdueByCategoryChartClient = dynamic(
   () => import("./overdue-by-category-chart"),
   { ssr: false },
 );
+
+export const OverdueAgingChartClient = dynamic(
+  () => import("./overdue-aging-chart"),
+  { ssr: false },
+);
+
+export const CashFlowForecastChartClient = dynamic(
+  () => import("./cash-flow-forecast-chart"),
+  { ssr: false },
+);

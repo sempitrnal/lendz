@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useScheduleSelection } from "./schedule-selection-provider";
 import { X, Check } from "lucide-react";
+import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 
 export type PaidDateStrategy = "due_date" | "custom";
 
@@ -11,11 +12,17 @@ type Props = {
   onBatchPaid: (
     ids: string[],
     strategy: PaidDateStrategy,
-    customDate?: string
+    customDate?: string,
   ) => Promise<void>;
+  borrowerId?: string;
 };
 
-export default function BatchScheduleToolbar({ allIds, onBatchPaid }: Props) {
+export default function BatchScheduleToolbar({
+  allIds,
+  onBatchPaid,
+  borrowerId,
+}: Props) {
+  const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
   const { selectedIds, clearAll } = useScheduleSelection();
   const [showModal, setShowModal] = useState(false);
   const [strategy, setStrategy] = useState<PaidDateStrategy>("due_date");
@@ -30,8 +37,9 @@ export default function BatchScheduleToolbar({ allIds, onBatchPaid }: Props) {
       await onBatchPaid(
         Array.from(selectedIds),
         strategy,
-        strategy === "custom" ? customDate : undefined
+        strategy === "custom" ? customDate : undefined,
       );
+      if (borrowerId) invalidateBorrowerDetails(borrowerId);
       clearAll();
       setShowModal(false);
     });
@@ -40,7 +48,11 @@ export default function BatchScheduleToolbar({ allIds, onBatchPaid }: Props) {
   return (
     <>
       {/* Floating action bar */}
-      <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl border-2 border-slate-900 bg-[#fffefa] px-4 py-3 shadow-[4px_4px_0px_0px_#0f172a]">
+      <div
+        className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2
+          items-center gap-3 rounded-xl border-2 border-slate-900 bg-[#fffefa]
+          px-4 py-3 shadow-[4px_4px_0px_0px_#0f172a]"
+      >
         <span className="text-sm font-black text-slate-900">
           {count} selected
         </span>
@@ -48,14 +60,20 @@ export default function BatchScheduleToolbar({ allIds, onBatchPaid }: Props) {
           type="button"
           onClick={() => setShowModal(true)}
           disabled={isPending}
-          className="rounded-lg border-2 border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 active:translate-y-0 active:shadow-none disabled:cursor-wait disabled:opacity-70"
+          className="rounded-lg border-2 border-slate-900 bg-emerald-200 px-3
+            py-1.5 text-xs font-black uppercase tracking-wide text-slate-900
+            shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300
+            active:translate-y-0 active:shadow-none disabled:cursor-wait
+            disabled:opacity-70"
         >
           {isPending ? "Updating…" : "Mark as paid"}
         </button>
         <button
           type="button"
           onClick={clearAll}
-          className="flex items-center justify-center rounded-lg border-2 border-slate-300 bg-white p-1.5 text-slate-500 transition hover:border-slate-900 hover:text-slate-900"
+          className="flex items-center justify-center rounded-lg border-2
+            border-slate-300 bg-white p-1.5 text-slate-500 transition
+            hover:border-slate-900 hover:text-slate-900"
           aria-label="Clear selection"
         >
           <X className="size-4" />
@@ -64,9 +82,18 @@ export default function BatchScheduleToolbar({ allIds, onBatchPaid }: Props) {
 
       {/* Date strategy modal */}
       {showModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-xl border-2 border-slate-900 bg-[#fffefa] p-5 shadow-[6px_6px_0px_0px_#0f172a]">
-            <h3 className="text-base font-black uppercase tracking-wide text-slate-900">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center
+            bg-black/40 p-4"
+        >
+          <div
+            className="w-full max-w-sm rounded-xl border-2 border-slate-900
+              bg-[#fffefa] p-5 shadow-[6px_6px_0px_0px_#0f172a]"
+          >
+            <h3
+              className="text-base font-black uppercase tracking-wide
+                text-slate-900"
+            >
               Mark {count} as paid
             </h3>
             <p className="mt-1 text-xs font-semibold text-slate-500">
@@ -75,7 +102,12 @@ export default function BatchScheduleToolbar({ allIds, onBatchPaid }: Props) {
 
             <div className="mt-4 space-y-3">
               {/* Option: use due dates */}
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border-2 border-slate-900 bg-emerald-50 p-3 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-100">
+              <label
+                className="flex cursor-pointer items-start gap-3 rounded-lg
+                  border-2 border-slate-900 bg-emerald-50 p-3
+                  shadow-[2px_2px_0px_0px_#0f172a] transition
+                  hover:bg-emerald-100"
+              >
                 <input
                   type="radio"
                   name="dateStrategy"
@@ -95,7 +127,12 @@ export default function BatchScheduleToolbar({ allIds, onBatchPaid }: Props) {
               </label>
 
               {/* Option: custom date */}
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border-2 border-slate-900 bg-violet-50 p-3 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-violet-100">
+              <label
+                className="flex cursor-pointer items-start gap-3 rounded-lg
+                  border-2 border-slate-900 bg-violet-50 p-3
+                  shadow-[2px_2px_0px_0px_#0f172a] transition
+                  hover:bg-violet-100"
+              >
                 <input
                   type="radio"
                   name="dateStrategy"
@@ -117,7 +154,11 @@ export default function BatchScheduleToolbar({ allIds, onBatchPaid }: Props) {
                       value={customDate}
                       onChange={(e) => setCustomDate(e.target.value)}
                       required
-                      className="mt-2 w-full min-w-0 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                      className="mt-2 w-full min-w-0 rounded-md border-2
+                        border-slate-900 bg-white px-2 py-1.5 text-sm
+                        font-semibold text-slate-900
+                        shadow-[1px_1px_0px_0px_#0f172a] outline-none
+                        focus-visible:ring-2 focus-visible:ring-slate-900"
                     />
                   ) : null}
                 </div>
@@ -128,18 +169,23 @@ export default function BatchScheduleToolbar({ allIds, onBatchPaid }: Props) {
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="flex-1 rounded-lg border-2 border-slate-300 bg-white px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-600 transition hover:border-slate-900 hover:text-slate-900"
+                className="flex-1 rounded-lg border-2 border-slate-300 bg-white
+                  px-3 py-2 text-xs font-black uppercase tracking-wide
+                  text-slate-600 transition hover:border-slate-900
+                  hover:text-slate-900"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirm}
-                disabled={
-                  isPending ||
-                  (strategy === "custom" && !customDate)
-                }
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border-2 border-slate-900 bg-emerald-200 px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 active:translate-y-0 active:shadow-none disabled:cursor-wait disabled:opacity-70"
+                disabled={isPending || (strategy === "custom" && !customDate)}
+                className="flex-1 flex items-center justify-center gap-1.5
+                  rounded-lg border-2 border-slate-900 bg-emerald-200 px-3 py-2
+                  text-xs font-black uppercase tracking-wide text-slate-900
+                  shadow-[2px_2px_0px_0px_#0f172a] transition
+                  hover:bg-emerald-300 active:translate-y-0 active:shadow-none
+                  disabled:cursor-wait disabled:opacity-70"
               >
                 <Check className="size-3.5" />
                 {isPending ? "Saving…" : "Confirm"}

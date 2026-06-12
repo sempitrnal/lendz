@@ -187,15 +187,14 @@ export function AccountCard({
 
   return (
     <motion.div
-      className={`relative overflow-hidden rounded-xl border-2 transition-all duration-200 ${
-        account.status === "pending"
-          ? "bg-amber-100 dark:bg-slate-900"
-          : "bg-background dark:bg-slate-900"
-      } ${
-        hasOverdue
-          ? "border-red-500 shadow-[4px_4px_0px_0px_#ef4444] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]"
-          : `${typeAccent.border} shadow-[4px_4px_0px_0px_${typeAccent.shadow}] dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]`
-      } ${isOpening ? "scale-[0.98] opacity-60" : ""} ${selectionMode && selected ? "ring-2 ring-slate-900 dark:ring-amber-400" : ""}`}
+      className={`relative overflow-hidden rounded-xl border-2 border-[#8158a3]
+        bg-[#f1fff2] shadow-[4px_4px_0px_0px_#8158a3] transition-all
+        duration-200 dark:border-[#020617] dark:bg-slate-900
+        dark:shadow-[4px_4px_0px_0px_#020617] ${
+          account.status === "pending" ? "bg-amber-100 dark:bg-slate-900" : ""
+        }
+        ${isOpening ? "scale-[0.98] opacity-60" : ""}
+        ${selectionMode && selected ? "ring-2 ring-slate-900 dark:ring-amber-400" : ""}`}
       whileHover={
         isOpening
           ? undefined
@@ -241,24 +240,37 @@ export function AccountCard({
         aria-disabled={isOpening}
         aria-busy={isOpening}
         aria-label="Open account"
-        className="dark:focus-visible:ring-border w-full min-w-0 cursor-pointer px-4 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+        className="dark:focus-visible:ring-border w-full min-w-0 cursor-pointer
+          px-4 py-3 text-left outline-none focus-visible:ring-2
+          focus-visible:ring-slate-900 focus-visible:ring-offset-2"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <span
-              className={`shrink-0 rounded-md border-2 px-2 py-0.5 text-[10px] font-black tracking-wide uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-[2px_2px_0px_0px_#020617] ${typeBadgeBg} dark:border-[#020617]`}
+              className={`shrink-0 rounded-md border-2 px-2 py-0.5 text-[10px]
+                font-black tracking-wide uppercase
+                shadow-[2px_2px_0px_0px_#0f172a]
+                dark:shadow-[2px_2px_0px_0px_#020617] ${typeBadgeBg}
+                dark:border-[#020617]`}
             >
               {typeLabel}
             </span>
             {account.status !== "pending" && (
-              <span className="text-[11px] font-black text-slate-900 dark:text-slate-100">
+              <span
+                className="text-[11px] font-black text-slate-900
+                  dark:text-slate-100"
+              >
                 {account.interest_rate}%
               </span>
             )}
           </div>
           <span
-            className={`shrink-0 rounded-full border-2 px-2.5 py-0.5 text-[10px] font-black uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-[2px_2px_0px_0px_#020617] ${statusColors.bg} ${statusColors.text} ${statusColors.border} ${statusColors.darkBg} ${statusColors.darkText} ${statusColors.darkBorder}`}
+            className={`shrink-0 mr-3 rounded-full border-2 px-2.5 py-0.5
+              text-[10px] font-black uppercase shadow-[2px_2px_0px_0px_#0f172a]
+              dark:shadow-[2px_2px_0px_0px_#020617] ${statusColors.bg}
+              ${statusColors.text} ${statusColors.border} ${statusColors.darkBg}
+              ${statusColors.darkText} ${statusColors.darkBorder}`}
           >
             {account.status}
           </span>
@@ -266,10 +278,16 @@ export function AccountCard({
 
         {/* Principal */}
         <div className="mt-1.5">
-          <span className="text-2xl font-black tracking-tight text-slate-900 tabular-nums dark:text-white">
+          <span
+            className="text-2xl font-black tracking-tight text-slate-900
+              tabular-nums dark:text-white"
+          >
             ₱{Number(account.principal_amount ?? 0).toLocaleString()}
           </span>
-          <span className="ml-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+          <span
+            className="ml-1.5 text-[11px] font-bold text-slate-500
+              dark:text-slate-400"
+          >
             {account.status === "pending"
               ? "pending"
               : !isManual
@@ -283,11 +301,20 @@ export function AccountCard({
         {/* Release date */}
         {account.release_date && (
           <div className="mt-1.5 flex items-center gap-1.5">
-            <span className="rounded-md border-2 border-slate-900 bg-sky-200 px-2 py-0.5 text-[10px] font-black tracking-wide text-sky-900 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-sky-800 dark:text-sky-100 dark:shadow-[2px_2px_0px_0px_#020617]">
+            <span
+              className="rounded-md border-2 border-slate-900 bg-sky-200 px-2
+                py-0.5 text-[10px] font-black tracking-wide text-sky-900
+                shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]
+                dark:bg-sky-800 dark:text-sky-100
+                dark:shadow-[2px_2px_0px_0px_#020617]"
+            >
               {formatDate(account.release_date)}
             </span>
             {daysSinceRelease > 0 && (
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              <span
+                className="text-[11px] font-bold text-slate-500
+                  dark:text-slate-400"
+              >
                 released {fmtTimeAgo(daysSinceRelease)}
               </span>
             )}
@@ -299,7 +326,14 @@ export function AccountCard({
             type="button"
             data-prevent-account-open
             onClick={() => onActivate(account)}
-            className="mt-2.5 inline-flex items-center gap-1 rounded-lg border-2 border-slate-900 bg-emerald-400 px-3 py-1.5 text-[11px] font-black tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-y-px hover:shadow-[1px_1px_0px_0px_#0f172a] active:translate-y-[2px] active:shadow-none dark:border-[#020617] dark:bg-emerald-500 dark:shadow-[2px_2px_0px_0px_#020617] dark:hover:shadow-[1px_1px_0px_0px_#020617]"
+            className="mt-2.5 inline-flex items-center gap-1 rounded-lg border-2
+              border-slate-900 bg-emerald-400 px-3 py-1.5 text-[11px] font-black
+              tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a]
+              transition hover:translate-y-px
+              hover:shadow-[1px_1px_0px_0px_#0f172a] active:translate-y-[2px]
+              active:shadow-none dark:border-[#020617] dark:bg-emerald-500
+              dark:shadow-[2px_2px_0px_0px_#020617]
+              dark:hover:shadow-[1px_1px_0px_0px_#020617]"
           >
             Activate
           </button>
@@ -308,30 +342,61 @@ export function AccountCard({
         {/* Metrics grid */}
         {account.status !== "pending" && (
           <div
-            className={`mt-3 grid gap-2 ${profitToMake > 0 ? "grid-cols-3" : "grid-cols-2"}`}
+            className={`mt-3 grid gap-2
+            ${profitToMake > 0 ? "grid-cols-3" : "grid-cols-2"}`}
           >
-            <div className="rounded-lg border-2 border-slate-900 bg-amber-50 p-2 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-amber-900/30 dark:shadow-[2px_2px_0px_0px_#020617]">
-              <p className="text-[10px] font-black tracking-wider text-slate-500 uppercase dark:text-slate-400">
+            <div
+              className="rounded-lg border-2 border-slate-900 bg-amber-50 p-2
+                shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]
+                dark:bg-amber-900/30 dark:shadow-[2px_2px_0px_0px_#020617]"
+            >
+              <p
+                className="text-[10px] font-black tracking-wider text-slate-500
+                  uppercase dark:text-slate-400"
+              >
                 Remaining
               </p>
-              <p className="mt-0.5 text-sm font-black text-red-600 tabular-nums dark:text-red-400">
+              <p
+                className="mt-0.5 text-sm font-black text-red-600 tabular-nums
+                  dark:text-red-400"
+              >
                 ₱{fmtCompact(amountLeftToPay)}
               </p>
             </div>
-            <div className="rounded-lg border-2 border-slate-900 bg-emerald-50 p-2 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-emerald-900/30 dark:shadow-[2px_2px_0px_0px_#020617]">
-              <p className="text-[10px] font-black tracking-wider text-slate-500 uppercase dark:text-slate-400">
+            <div
+              className="rounded-lg border-2 border-slate-900 bg-emerald-50 p-2
+                shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]
+                dark:bg-emerald-900/30 dark:shadow-[2px_2px_0px_0px_#020617]"
+            >
+              <p
+                className="text-[10px] font-black tracking-wider text-slate-500
+                  uppercase dark:text-slate-400"
+              >
                 {isManual ? "Paid" : "Collected"}
               </p>
-              <p className="mt-0.5 text-sm font-black text-emerald-700 tabular-nums dark:text-emerald-300">
+              <p
+                className="mt-0.5 text-sm font-black text-emerald-700
+                  tabular-nums dark:text-emerald-300"
+              >
                 ₱{fmtCompact(totalPaid)}
               </p>
             </div>
             {profitToMake > 0 && (
-              <div className="rounded-lg border-2 border-slate-900 bg-violet-50 p-2 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-violet-900/30 dark:shadow-[2px_2px_0px_0px_#020617]">
-                <p className="text-[10px] font-black tracking-wider text-slate-500 uppercase dark:text-slate-400">
+              <div
+                className="rounded-lg border-2 border-slate-900 bg-violet-50 p-2
+                  shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]
+                  dark:bg-violet-900/30 dark:shadow-[2px_2px_0px_0px_#020617]"
+              >
+                <p
+                  className="text-[10px] font-black tracking-wider
+                    text-slate-500 uppercase dark:text-slate-400"
+                >
                   per sched
                 </p>
-                <p className="mt-0.5 text-sm font-black text-violet-700 tabular-nums dark:text-violet-300">
+                <p
+                  className="mt-0.5 text-sm font-black text-violet-700
+                    tabular-nums dark:text-violet-300"
+                >
                   ₱{fmtCompact(profitPerSchedule)}
                 </p>
               </div>
@@ -344,19 +409,25 @@ export function AccountCard({
           <div className="mt-3">
             <div className="flex items-center justify-between text-[10px]">
               <span className="font-semibold text-slate-400">Progress</span>
-              <span className="font-black text-slate-700 tabular-nums dark:text-slate-300">
+              <span
+                className="font-black text-slate-700 tabular-nums
+                  dark:text-slate-300"
+              >
                 {progressPct}%
               </span>
             </div>
             <div
-              className="mt-1.5 h-3 overflow-hidden rounded-full border-2 border-slate-900 bg-white dark:border-[#020617] dark:bg-slate-900"
+              className="mt-1.5 h-3 overflow-hidden rounded-full border-2
+                border-slate-900 bg-white dark:border-[#020617]
+                dark:bg-slate-900"
               role="progressbar"
               aria-valuenow={progressPct}
               aria-valuemin={0}
               aria-valuemax={100}
             >
               <div
-                className="h-full bg-emerald-400 transition-all duration-500 dark:bg-emerald-500"
+                className="h-full bg-emerald-400 transition-all duration-500
+                  dark:bg-emerald-500"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
@@ -453,28 +524,43 @@ export function AccountCard({
 
         {/* Overdue alert */}
         {hasOverdue && (
-          <div className="mt-3 overflow-hidden rounded-xl border-2 border-red-500 bg-red-50 shadow-[3px_3px_0px_0px_#ef4444] dark:border-[#020617] dark:bg-red-900 dark:shadow-[3px_3px_0px_0px_#020617]">
+          <div
+            className="mt-3 overflow-hidden rounded-xl border-2 border-red-500
+              bg-red-50 shadow-[3px_3px_0px_0px_#ef4444] dark:border-[#020617]
+              dark:bg-red-900 dark:shadow-[3px_3px_0px_0px_#020617]"
+          >
             <button
               type="button"
               data-prevent-account-open
               onClick={() => setOverdueExpanded((v) => !v)}
               className="flex w-full items-center gap-2 px-3 py-2"
             >
-              <div className="flex size-5 shrink-0 items-center justify-center rounded-full border border-slate-900 bg-red-500 text-[10px] font-black text-white dark:border-[#020617]">
+              <div
+                className="flex size-5 shrink-0 items-center justify-center
+                  rounded-full border border-slate-900 bg-red-500 text-[10px]
+                  font-black text-white dark:border-[#020617]"
+              >
                 {overdueCount}
               </div>
-              <span className="text-[11px] font-bold text-red-700 dark:text-red-100">
+              <span
+                className="text-[11px] font-bold text-red-700 dark:text-red-100"
+              >
                 overdue
               </span>
-              <span className="ml-auto text-[11px] font-black text-red-800 tabular-nums dark:text-red-100">
+              <span
+                className="ml-auto text-[11px] font-black text-red-800
+                  tabular-nums dark:text-red-100"
+              >
                 ₱{overdueTotal.toLocaleString()}
               </span>
               <ChevronDown
-                className={`size-3.5 text-red-500 transition-transform dark:text-red-200 ${overdueExpanded ? "rotate-180" : ""}`}
+                className={`size-3.5 text-red-500 transition-transform
+                dark:text-red-200 ${overdueExpanded ? "rotate-180" : ""}`}
               />
             </button>
             <div
-              className={`grid transition-[grid-template-rows] duration-200 ${overdueExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+              className={`grid transition-[grid-template-rows] duration-200
+              ${overdueExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
             >
               <div className="overflow-hidden">
                 <div className="space-y-1 px-3 pb-2">
@@ -486,7 +572,9 @@ export function AccountCard({
                       <span className="text-slate-500 dark:text-slate-300">
                         {formatDate(os.due_date)}
                       </span>
-                      <span className="font-black text-red-700 dark:text-red-100">
+                      <span
+                        className="font-black text-red-700 dark:text-red-100"
+                      >
                         ₱{os.amount.toLocaleString()}
                       </span>
                     </div>
@@ -506,11 +594,14 @@ export function AccountCard({
               e.stopPropagation();
               onToggleSelect?.(account.id);
             }}
-            className={`flex size-5 items-center justify-center rounded border-2 transition-colors ${
-              selected
-                ? "border-slate-900 bg-slate-900 dark:border-[#020617] dark:bg-amber-400"
-                : "dark:bg-card border-slate-300 bg-white dark:border-[#020617]"
-            }`}
+            className={`flex size-5 items-center justify-center rounded border-2
+              transition-colors ${
+                selected
+                  ? `border-slate-900 bg-slate-900 dark:border-[#020617]
+                    dark:bg-amber-400`
+                  : `dark:bg-card border-slate-300 bg-white
+                    dark:border-[#020617]`
+              }`}
             aria-label={selected ? "Deselect account" : "Select account"}
           >
             {selected && (

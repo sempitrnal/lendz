@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { triggerHaptic } from "@/lib/haptics";
 import { toast } from "sonner";
+import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 
 const scheduleStatuses = ["pending", "paid", "overdue", "partial"] as const;
 
@@ -28,6 +29,7 @@ type Props = {
   updateScheduleStatus: (formData: FormData) => Promise<void>;
   isRollingManual?: boolean;
   applyPartialPayment?: (formData: FormData) => Promise<void>;
+  borrowerId?: string;
 };
 
 export default function ScheduleStatusForm({
@@ -37,7 +39,9 @@ export default function ScheduleStatusForm({
   updateScheduleStatus,
   isRollingManual,
   applyPartialPayment,
+  borrowerId,
 }: Props) {
+  const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const [paidDate, setPaidDate] = useState(() => {
@@ -97,6 +101,7 @@ export default function ScheduleStatusForm({
         .then(() => {
           triggerHaptic("success");
           toast.success(`Schedule marked as ${status}`);
+          if (borrowerId) invalidateBorrowerDetails(borrowerId);
         })
         .catch(() => {
           triggerHaptic("error");
@@ -121,6 +126,7 @@ export default function ScheduleStatusForm({
           .then(() => {
             triggerHaptic("success");
             toast.success("Payment recorded");
+            if (borrowerId) invalidateBorrowerDetails(borrowerId);
           })
           .catch(() => {
             triggerHaptic("error");
@@ -145,6 +151,7 @@ export default function ScheduleStatusForm({
         .then(() => {
           triggerHaptic("success");
           toast.success(`Schedule marked as ${pendingStatus}`);
+          if (borrowerId) invalidateBorrowerDetails(borrowerId);
         })
         .catch(() => {
           triggerHaptic("error");
@@ -180,7 +187,12 @@ export default function ScheduleStatusForm({
               onClick={() => handleClick(status)}
               disabled={isDisabled}
               aria-pressed={isActive}
-              className={`inline-flex min-h-7 items-center justify-center gap-1 rounded-md border-2 px-2 py-1 text-[10px] font-bold tracking-wide capitalize transition active:translate-x-px active:translate-y-px active:shadow-none sm:min-h-9 sm:gap-1.5 sm:rounded-lg sm:px-2.5 sm:py-1.5 sm:text-xs ${getStatusClasses(status, isActive)} ${isDisabled ? (isActive ? "cursor-default" : "cursor-not-allowed opacity-60") : "cursor-pointer"}`}
+              className={`inline-flex min-h-7 items-center justify-center gap-1
+              rounded-md border-2 px-2 py-1 text-[10px] font-bold tracking-wide
+              capitalize transition active:translate-x-px active:translate-y-px
+              active:shadow-none sm:min-h-9 sm:gap-1.5 sm:rounded-lg sm:px-2.5
+              sm:py-1.5 sm:text-xs ${getStatusClasses(status, isActive)}
+              ${isDisabled ? (isActive ? "cursor-default" : "cursor-not-allowed opacity-60") : "cursor-pointer"}`}
             >
               {isSubmitting ? (
                 <Loader2
@@ -197,10 +209,17 @@ export default function ScheduleStatusForm({
       </form>
 
       {showDatePicker && (
-        <div className="dark:border-border dark:bg-card flex flex-col gap-2 rounded-lg border-2 border-slate-900 bg-white p-3 shadow-[2px_2px_0px_0px_#0f172a]">
+        <div
+          className="dark:border-border dark:bg-card flex flex-col gap-2
+            rounded-lg border-2 border-slate-900 bg-white p-3
+            shadow-[2px_2px_0px_0px_#0f172a]"
+        >
           {isRollingManual && (
             <>
-              <label className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase">
+              <label
+                className="dark:text-muted-foreground text-[10px] font-black
+                  tracking-wide text-slate-600 uppercase"
+              >
                 Amount paid
               </label>
               <input
@@ -212,18 +231,30 @@ export default function ScheduleStatusForm({
                 required
                 value={paidAmount}
                 onChange={(e) => setPaidAmount(e.target.value)}
-                className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full min-w-0 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 tabular-nums shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                className="dark:border-border dark:bg-card dark:text-foreground
+                  dark:focus-visible:ring-border w-full min-w-0 rounded-md
+                  border-2 border-slate-900 bg-white px-2 py-1.5 text-sm
+                  font-semibold text-slate-900 tabular-nums
+                  shadow-[1px_1px_0px_0px_#0f172a] outline-none
+                  focus-visible:ring-2 focus-visible:ring-slate-900"
               />
             </>
           )}
-          <label className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-600 uppercase">
+          <label
+            className="dark:text-muted-foreground text-[10px] font-black
+              tracking-wide text-slate-600 uppercase"
+          >
             {isRollingManual ? "Date paid" : "Payment date (optional)"}
           </label>
           <input
             type="date"
             value={paidDate}
             onChange={(e) => setPaidDate(e.target.value)}
-            className="dark:border-border dark:bg-card dark:text-foreground dark:focus-visible:ring-border w-full min-w-0 rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            className="dark:border-border dark:bg-card dark:text-foreground
+              dark:focus-visible:ring-border w-full min-w-0 rounded-md border-2
+              border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold
+              text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none
+              focus-visible:ring-2 focus-visible:ring-slate-900"
           />
           <div className="flex gap-2">
             <button
@@ -235,7 +266,13 @@ export default function ScheduleStatusForm({
                   ? !paidAmount || Number(paidAmount) <= 0
                   : false)
               }
-              className="dark:border-border flex-1 cursor-pointer rounded-lg border-2 border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-emerald-800/40 dark:text-emerald-100 dark:hover:bg-emerald-800/60"
+              className="dark:border-border flex-1 cursor-pointer rounded-lg
+                border-2 border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs
+                font-black tracking-wide text-slate-900 uppercase
+                shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300
+                disabled:cursor-not-allowed disabled:opacity-70
+                dark:bg-emerald-800/40 dark:text-emerald-100
+                dark:hover:bg-emerald-800/60"
             >
               {isPending ? "…" : "Confirm"}
             </button>
@@ -243,7 +280,12 @@ export default function ScheduleStatusForm({
               type="button"
               onClick={handleDateCancel}
               disabled={isPending}
-              className="dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted flex-1 cursor-pointer rounded-lg border-2 border-slate-900 bg-white px-3 py-1.5 text-xs font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70"
+              className="dark:border-border dark:bg-card dark:text-foreground
+                dark:hover:bg-muted flex-1 cursor-pointer rounded-lg border-2
+                border-slate-900 bg-white px-3 py-1.5 text-xs font-black
+                tracking-wide text-slate-900 uppercase
+                shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-slate-50
+                disabled:cursor-wait disabled:opacity-70"
             >
               Cancel
             </button>

@@ -23,12 +23,9 @@ import { BorrowerSummary } from "./borrower-detail-view";
 import { supabase } from "@/lib/supabase/client";
 import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
 import {
-  amountPaidOnInstallment,
-  isInstallmentFullyPaid,
-  nextCollectionsForDisplay,
-  nextDueScheduleForCollection,
-  remainingOnInstallment,
-} from "@/lib/payment-schedule/schedule-balances";
+  useBorrowerDetails,
+  useInvalidateBorrowerDetails,
+} from "@/lib/hooks/use-borrower-details";
 import dynamic from "next/dynamic";
 
 const NotesCanvas = dynamic(() => import("./notes-canvas"), { ssr: false });
@@ -119,7 +116,11 @@ function StickyBorrowerStrip({
   if (!borrower) return null;
   return (
     <>
-      <div className="bg-background/95 dark:bg-background/95 fixed top-10 mx-auto w-full max-w-[1200px] rounded right-0 left-0 z-30 border sm:top-18 md:top-16">
+      <div
+        className="bg-background/95 dark:bg-background/95 fixed top-10 mx-auto
+          w-full max-w-[1200px] rounded right-0 left-0 z-30 border sm:top-18
+          md:top-16"
+      >
         <div className="flex items-center justify-between px-4 py-2">
           <button
             type="button"
@@ -127,7 +128,10 @@ function StickyBorrowerStrip({
             className="flex min-w-0 flex-1 items-center gap-2 text-left"
           >
             <div className="min-w-0 flex-1">
-              <p className="dark:text-foreground truncate text-sm font-black tracking-wide text-slate-900 uppercase">
+              <p
+                className="dark:text-foreground truncate text-sm font-black
+                  tracking-wide text-slate-900 uppercase"
+              >
                 {borrower.first_name} {borrower.last_name}
               </p>
               {borrower.category && borrower.category.length > 0 && (
@@ -135,7 +139,9 @@ function StickyBorrowerStrip({
                   {borrower.category.map((c) => (
                     <span
                       key={c.id}
-                      className={`rounded border border-slate-900/30 px-1.5 py-0.5 text-[9px] font-black ${isDarkColor(c.color) ? "text-white" : "text-slate-900"}`}
+                      className={`rounded border border-slate-900/30 px-1.5
+                      py-0.5 text-[9px] font-black
+                      ${isDarkColor(c.color) ? "text-white" : "text-slate-900"}`}
                       style={{ backgroundColor: c.color }}
                     >
                       {c.name}
@@ -143,7 +149,10 @@ function StickyBorrowerStrip({
                   ))}
                 </div>
               )}
-              <div className="dark:text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+              <div
+                className="dark:text-muted-foreground mt-0.5 flex flex-wrap
+                  gap-x-3 gap-y-0.5 text-[11px] text-slate-500"
+              >
                 <span>
                   Loaned{" "}
                   <strong className="dark:text-foreground text-slate-700">
@@ -165,7 +174,9 @@ function StickyBorrowerStrip({
               </div>
             </div>
             <ChevronDown
-              className={`dark:text-muted-foreground ml-1 size-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+              className={`dark:text-muted-foreground ml-1 size-4 shrink-0
+                text-slate-500 transition-transform duration-200
+                ${open ? "rotate-180" : ""}`}
             />
           </button>
           <div className="ml-2 shrink-0" data-prevent-strip-open>
@@ -173,7 +184,12 @@ function StickyBorrowerStrip({
           </div>
         </div>
         <div
-          className={`bg-background/95 dark:bg-background/95 absolute top-full right-0 left-0 z-30 overflow-hidden border-x-2 border-b-2 border-slate-900 shadow-[0_4px_0px_0px_#0f172a] backdrop-blur transition-all duration-300 ease-out dark:border-[#020617] dark:shadow-[0_4px_0px_0px_#020617] ${open ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"}`}
+          className={`bg-background/95 dark:bg-background/95 absolute top-full
+            right-0 left-0 z-30 overflow-hidden border-x-2 border-b-2
+            border-slate-900 shadow-[0_4px_0px_0px_#0f172a] backdrop-blur
+            transition-all duration-300 ease-out dark:border-[#020617]
+            dark:shadow-[0_4px_0px_0px_#020617]
+            ${open ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"}`}
         >
           <div className="px-4 pt-2 pb-3">
             <div className="grid grid-cols-2 gap-2 text-[11px]">
@@ -213,25 +229,40 @@ function StickyBorrowerStrip({
               ).map(({ label, value, bg }) => (
                 <div
                   key={label}
-                  className={`border-2 border-slate-900 ${bg} px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]`}
+                  className={`border-2 border-slate-900 ${bg} px-2 py-1.5
+                  shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]`}
                 >
-                  <p className="dark:text-muted-foreground font-black tracking-wide text-slate-500 uppercase">
+                  <p
+                    className="dark:text-muted-foreground font-black
+                      tracking-wide text-slate-500 uppercase"
+                  >
                     {label}
                   </p>
-                  <p className="dark:text-foreground mt-0.5 font-black text-slate-900 tabular-nums">
+                  <p
+                    className="dark:text-foreground mt-0.5 font-black
+                      text-slate-900 tabular-nums"
+                  >
                     ₱{Math.round(value).toLocaleString()}
                   </p>
                 </div>
               ))}
             </div>
             <div className="mt-2 flex items-center gap-2">
-              <div className="h-2 flex-1 overflow-hidden rounded-sm border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-slate-900">
+              <div
+                className="h-2 flex-1 overflow-hidden rounded-sm border-2
+                  border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]
+                  dark:border-[#020617] dark:bg-slate-900"
+              >
                 <div
-                  className="h-full bg-emerald-400 transition-[width] duration-500 ease-out dark:bg-emerald-500"
+                  className="h-full bg-emerald-400 transition-[width]
+                    duration-500 ease-out dark:bg-emerald-500"
                   style={{ width: open ? `${collectedPct}%` : "0%" }}
                 />
               </div>
-              <span className="dark:text-foreground shrink-0 text-[10px] font-black text-slate-700 tabular-nums">
+              <span
+                className="dark:text-foreground shrink-0 text-[10px] font-black
+                  text-slate-700 tabular-nums"
+              >
                 {collectedPct}%
               </span>
             </div>
@@ -248,16 +279,6 @@ export type AccountRow = AccountEditableRow & {
   status: string;
   first_payment_date: string | null;
 };
-type PaymentScheduleLite = {
-  id: string;
-  account_id: string;
-  due_date: string;
-  amount_due: number | null;
-  amount_paid: number | null;
-  remaining_amount: number | null;
-  status: string;
-};
-
 export type AccountComputedMetrics = {
   amountLeftToPay: number;
   profitToMake: number;
@@ -315,32 +336,40 @@ export default function BorrowerAccountsSection({
   >(null);
   const editorRef = useRef<any>(null);
   const router = useRouter();
-  const [notes, setNotes] = useState<any[]>([]);
-  const [accountMetricsById, setAccountMetricsById] = useState<
-    Record<string, AccountComputedMetrics>
-  >(initialMetrics ?? {});
+  const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
+  const {
+    data: queryData,
+    isLoading: isQueryLoading,
+    isError: isQueryError,
+    error: queryError,
+    isFetching,
+  } = useBorrowerDetails(
+    borrowerId,
+    borrower
+      ? {
+          borrower: {
+            id: borrower.id,
+            first_name: borrower.first_name,
+            last_name: borrower.last_name,
+            contact: borrower.contact,
+            created_at: (borrower as any).created_at ?? "",
+          },
+          accounts: (accounts as any[]) ?? [],
+          metrics: (initialMetrics as any) ?? {},
+          notes: [],
+        }
+      : undefined,
+  );
+  const notes = (queryData?.notes ?? []) as any[];
+  const accountMetricsById = (queryData?.metrics ??
+    initialMetrics ??
+    {}) as Record<string, AccountComputedMetrics>;
   const [restoringIds, setRestoringIds] = useState<Set<string>>(new Set());
   const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(
     new Set(),
   );
   const [selectionMode, setSelectionMode] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const fetchNotes = async () => {
-    const { data, error } = await supabase
-      .from("borrower_notes")
-      .select("*")
-      .eq("borrower_id", borrowerId)
-      .order("created_at", {
-        ascending: false,
-      });
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    setNotes(data || []);
-  };
   const deleteNote = async (id: string) => {
     const confirmed = window.confirm("Delete this note?");
 
@@ -356,8 +385,7 @@ export default function BorrowerAccountsSection({
       return;
     }
 
-    setNotes((prev) => prev.filter((n) => n.id !== id));
-
+    invalidateBorrowerDetails(borrowerId);
     setIsNotesOpen(false);
     setSelectedNote(null);
   };
@@ -446,153 +474,9 @@ export default function BorrowerAccountsSection({
     router.prefetch(`/accounts/${id}`);
   };
 
-  const fetchAccountMetrics = async () => {
-    if (!accounts || accounts.length === 0) {
-      setAccountMetricsById({});
-      return;
-    }
-
-    const accountIds = accounts.map((account) => account.id);
-    const { data: schedulesData, error } = await supabase
-      .from("payment_schedules")
-      .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
-      )
-      .in("account_id", accountIds)
-      .order("due_date", { ascending: true });
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    const scheduleRows = (schedulesData ?? []) as PaymentScheduleLite[];
-    const byAccount = new Map<string, PaymentScheduleLite[]>();
-    scheduleRows.forEach((row) => {
-      const prev = byAccount.get(row.account_id) ?? [];
-      prev.push(row);
-      byAccount.set(row.account_id, prev);
-    });
-
-    const computed: Record<string, AccountComputedMetrics> = {};
-    accounts.forEach((account) => {
-      console.log(account);
-      const rows = byAccount.get(account.id) ?? [];
-      const totalPayment = rows.reduce(
-        (sum, row) => sum + Number(row.amount_due ?? 0),
-        0,
-      );
-      const amountPaid = rows.reduce(
-        (sum, row) => sum + amountPaidOnInstallment(row),
-        0,
-      );
-      const amountLeftToPayRaw = rows.reduce(
-        (sum, row) => sum + remainingOnInstallment(row),
-        0,
-      );
-      const amountLeftToPayRolling = rows
-        .filter((row) => row.status !== "partial")
-        .reduce((sum, row) => sum + remainingOnInstallment(row), 0);
-      const principal = Number(account.principal_amount ?? 0);
-      const interestRate = Number(account.interest_rate ?? 0);
-      const isManual = account.schedule_mode === "manual";
-      const isRolling = isManual && account.interest_type === "rolling";
-      const isFlatManual = isManual && !isRolling;
-      const manualFlatTotal = isFlatManual
-        ? principal * (1 + interestRate / 100)
-        : 0;
-      const amountLeftToPay = isFlatManual
-        ? Math.max(0, manualFlatTotal - amountPaid)
-        : isRolling
-          ? amountLeftToPayRolling
-          : amountLeftToPayRaw;
-      const rollingContract = isRolling ? amountPaid + amountLeftToPay : 0;
-      const profitToMake = isFlatManual
-        ? manualFlatTotal - principal
-        : isRolling
-          ? Math.max(0, rollingContract - principal)
-          : Math.max(0, totalPayment - principal);
-      const nextUnpaid = nextDueScheduleForCollection(rows);
-      const nextCollections = nextCollectionsForDisplay(rows).map((r) => ({
-        due_date: r.due_date,
-        amount: remainingOnInstallment(r),
-        amount_due: Math.max(0, Number(r.amount_due ?? 0)),
-        status: r.status,
-      }));
-      const overdueRows = rows.filter(
-        (row) => row.status === "overdue" && !isInstallmentFullyPaid(row),
-      );
-      console.log(account);
-      const daysSinceRelease = account.release_date
-        ? Math.max(
-          0,
-          Math.floor(
-            (Date.now() - new Date(account.release_date).getTime()) /
-            86400000,
-          ),
-        )
-        : 0;
-      const termMonths = Number(account.term_months) || 0;
-      const freq = account.payment_frequency;
-      const installments = isManual
-        ? Number(account.term_installments) || termMonths || 1
-        : freq === "custom"
-          ? Number(account.term_installments) || 1
-          : freq === "bimonthly"
-            ? termMonths * 2 || 1
-            : freq === "weekly"
-              ? termMonths * 4 || 1
-              : termMonths || 1;
-      const profitPerSchedule = profitToMake / installments;
-
-      computed[account.id] = {
-        amountLeftToPay,
-        profitToMake,
-        daysSinceRelease,
-        profitPerSchedule,
-        nextCollectionDate: nextUnpaid?.due_date ?? null,
-        nextCollectionAmount: nextUnpaid
-          ? remainingOnInstallment(nextUnpaid)
-          : 0,
-        nextCollectionAmountDue: nextUnpaid
-          ? Math.max(0, Number(nextUnpaid.amount_due ?? 0))
-          : 0,
-        nextCollectionStatus: nextUnpaid?.status ?? null,
-        nextUnpaidScheduleId: nextUnpaid?.id ?? null,
-        nextCollections,
-        overdueCount: overdueRows.length,
-        overdueTotal: overdueRows.reduce(
-          (sum, row) => sum + remainingOnInstallment(row),
-          0,
-        ),
-        overdueSchedules: [...overdueRows]
-          .sort((a, b) => a.due_date.localeCompare(b.due_date))
-          .map((row) => ({
-            due_date: row.due_date,
-            amount: remainingOnInstallment(row),
-          })),
-        totalDue: isFlatManual ? manualFlatTotal : totalPayment,
-        totalPaid: amountPaid,
-        term_months: account.term_months,
-        term_installments: account.term_installments,
-        schedule_mode: account.schedule_mode,
-      };
-    });
-
-    setAccountMetricsById(computed);
-  };
-
   useEffect(() => {
-    fetchNotes();
-  }, [borrowerId]);
-
-  useEffect(() => {
-    setAccountMetricsById(initialMetrics ?? {});
-  }, [initialMetrics]);
-
-  useEffect(() => {
-    fetchAccountMetrics();
-  }, [accounts]);
+    window.scrollTo(0, 0);
+  }, []);
 
   const summaryStats = useMemo(() => {
     if (!accounts || accounts.length === 0) return null;
@@ -666,13 +550,50 @@ export default function BorrowerAccountsSection({
         />
       )}
 
+      {isQueryLoading && !queryData && (
+        <div className="flex flex-col items-center gap-2 py-8">
+          <div
+            className="size-6 animate-spin rounded-full border-2
+              border-slate-900 border-t-transparent"
+          />
+          <p className="text-xs font-bold text-slate-500">
+            Loading borrower details…
+          </p>
+        </div>
+      )}
+
+      {isQueryError && (
+        <div
+          className="rounded-lg border-2 border-red-500 bg-red-50 p-4 text-sm
+            font-bold text-red-700"
+        >
+          {queryError instanceof Error
+            ? queryError.message
+            : "Failed to load borrower details."}
+        </div>
+      )}
+
+      {isFetching && queryData && (
+        <div className="flex items-center justify-end gap-1.5 px-1 py-1">
+          <span
+            className="inline-block size-2 animate-pulse rounded-full
+              bg-emerald-500"
+          />
+          <span className="text-[10px] font-bold text-slate-400">
+            Refreshing data…
+          </span>
+        </div>
+      )}
+
       <div className="pt-3">
         <button
           type="button"
           onClick={() => {
             router.push("/borrowers", { scroll: false });
           }}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+          className="inline-flex items-center gap-1.5 text-xs font-bold
+            text-slate-600 transition hover:text-slate-900 dark:text-slate-400
+            dark:hover:text-slate-200"
         >
           <ArrowLeft className="size-3.5" />
           back to borrowers
@@ -680,16 +601,26 @@ export default function BorrowerAccountsSection({
       </div>
 
       {selectionMode && (
-        <div className="dark:border-border dark:bg-card sticky top-[52px] z-40 -mx-4 mb-4 border-y-2 border-slate-900 bg-white px-4 py-2 shadow-sm md:top-[68px]">
+        <div
+          className="dark:border-border dark:bg-card sticky top-[52px] z-40
+            -mx-4 mb-4 border-y-2 border-slate-900 bg-white px-4 py-2 shadow-sm
+            md:top-[68px]"
+        >
           <div className="flex items-center justify-between">
-            <span className="dark:text-foreground text-sm font-black text-slate-700">
+            <span
+              className="dark:text-foreground text-sm font-black text-slate-700"
+            >
               {selectedAccountIds.size} selected
             </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={clearSelection}
-                className="dark:border-border dark:bg-card dark:text-foreground rounded-lg border-2 border-slate-900 bg-white px-3 py-1 text-xs font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 active:translate-y-px active:shadow-none"
+                className="dark:border-border dark:bg-card dark:text-foreground
+                  rounded-lg border-2 border-slate-900 bg-white px-3 py-1
+                  text-xs font-bold shadow-[1px_1px_0px_0px_#0f172a] transition
+                  hover:-translate-y-0.5 active:translate-y-px
+                  active:shadow-none"
               >
                 cancel
               </button>
@@ -697,7 +628,12 @@ export default function BorrowerAccountsSection({
                 type="button"
                 disabled={isBulkDeleting}
                 onClick={handleBulkDelete}
-                className="rounded-lg border-2 border-slate-900 bg-red-400 px-3 py-1 text-xs font-bold text-white shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 active:translate-y-px active:shadow-none disabled:opacity-50 dark:border-red-500/50 dark:bg-red-500/80"
+                className="rounded-lg border-2 border-slate-900 bg-red-400 px-3
+                  py-1 text-xs font-bold text-white
+                  shadow-[1px_1px_0px_0px_#0f172a] transition
+                  hover:-translate-y-0.5 active:translate-y-px
+                  active:shadow-none disabled:opacity-50 dark:border-red-500/50
+                  dark:bg-red-500/80"
               >
                 {isBulkDeleting
                   ? "deleting..."
@@ -960,7 +896,12 @@ export default function BorrowerAccountsSection({
       {deletedAccounts.length > 0 && (
         <div className="mt-10">
           <div className="mb-3 flex items-center gap-2">
-            <span className="rounded-full border-2 border-slate-900 bg-red-100 px-2.5 py-1 text-[10px] font-black tracking-widest text-red-800 uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:border-red-400/40 dark:bg-red-400/[0.15] dark:text-red-300">
+            <span
+              className="rounded-full border-2 border-slate-900 bg-red-100
+                px-2.5 py-1 text-[10px] font-black tracking-widest text-red-800
+                uppercase shadow-[2px_2px_0px_0px_#0f172a]
+                dark:border-red-400/40 dark:bg-red-400/[0.15] dark:text-red-300"
+            >
               recently deleted
             </span>
             <span className="text-xs font-semibold text-slate-400">
@@ -975,13 +916,22 @@ export default function BorrowerAccountsSection({
               return (
                 <div
                   key={account.id}
-                  className="dark:border-border dark:bg-card flex items-center justify-between rounded-xl border-2 border-slate-900/40 bg-slate-50 px-4 py-3 opacity-70 shadow-[1px_1px_0px_0px_rgb(15_23_42/0.2)] dark:shadow-none"
+                  className="dark:border-border dark:bg-card flex items-center
+                    justify-between rounded-xl border-2 border-slate-900/40
+                    bg-slate-50 px-4 py-3 opacity-70
+                    shadow-[1px_1px_0px_0px_rgb(15_23_42/0.2)] dark:shadow-none"
                 >
                   <div>
-                    <p className="dark:text-foreground text-sm font-bold text-slate-700">
+                    <p
+                      className="dark:text-foreground text-sm font-bold
+                        text-slate-700"
+                    >
                       {account.type.replace("_", " ")}
                     </p>
-                    <p className="dark:text-muted-foreground text-xs text-slate-500">
+                    <p
+                      className="dark:text-muted-foreground text-xs
+                        text-slate-500"
+                    >
                       ₱{principal.toLocaleString()} ·{" "}
                       {account.payment_frequency}
                     </p>
@@ -990,7 +940,12 @@ export default function BorrowerAccountsSection({
                     type="button"
                     disabled={isRestoring}
                     onClick={() => handleRestoreAccount(account.id)}
-                    className="dark:border-border dark:bg-card dark:text-foreground rounded-lg border-2 border-slate-900 bg-white px-3 py-1.5 text-xs font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 active:translate-y-px active:shadow-none disabled:opacity-50"
+                    className="dark:border-border dark:bg-card
+                      dark:text-foreground rounded-lg border-2 border-slate-900
+                      bg-white px-3 py-1.5 text-xs font-bold
+                      shadow-[1px_1px_0px_0px_#0f172a] transition
+                      hover:-translate-y-0.5 active:translate-y-px
+                      active:shadow-none disabled:opacity-50"
                   >
                     {isRestoring ? "restoring..." : "restore"}
                   </button>
@@ -1004,7 +959,10 @@ export default function BorrowerAccountsSection({
       {/* Speed-dial FAB — portalled to body to escape PageTransition transform stacking context */}
       {isMounted &&
         createPortal(
-          <div className="fixed right-4 bottom-[76px] z-[2] flex flex-col items-end gap-2">
+          <div
+            className="fixed right-4 bottom-[76px] z-[2] flex flex-col items-end
+              gap-2"
+          >
             {fabOpen && (
               <>
                 <button
@@ -1014,7 +972,13 @@ export default function BorrowerAccountsSection({
                     setSelectedNote(null);
                     setIsNotesOpen(true);
                   }}
-                  className="dark:border-border flex items-center gap-2 rounded-full border-2 border-slate-900 bg-yellow-300 px-4 py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a] transition active:translate-y-px active:shadow-[1px_1px_0px_0px_#0f172a] dark:bg-yellow-500 dark:text-slate-900 dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+                  className="dark:border-border flex items-center gap-2
+                    rounded-full border-2 border-slate-900 bg-yellow-300 px-4
+                    py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a]
+                    transition active:translate-y-px
+                    active:shadow-[1px_1px_0px_0px_#0f172a] dark:bg-yellow-500
+                    dark:text-slate-900
+                    dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
                 >
                   <FaPlus className="size-3" /> note
                 </button>
@@ -1025,7 +989,13 @@ export default function BorrowerAccountsSection({
                     setEditingAccount(null);
                     setIsAccountDialogOpen(true);
                   }}
-                  className="dark:border-border flex items-center gap-2 rounded-full border-2 border-slate-900 bg-emerald-300 px-4 py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a] transition active:translate-y-px active:shadow-[1px_1px_0px_0px_#0f172a] dark:bg-emerald-600 dark:text-white dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+                  className="dark:border-border flex items-center gap-2
+                    rounded-full border-2 border-slate-900 bg-emerald-300 px-4
+                    py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a]
+                    transition active:translate-y-px
+                    active:shadow-[1px_1px_0px_0px_#0f172a] dark:bg-emerald-600
+                    dark:text-white
+                    dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
                 >
                   <FaPlus className="size-3" /> loan
                 </button>
@@ -1035,7 +1005,15 @@ export default function BorrowerAccountsSection({
               type="button"
               onClick={() => setFabOpen((v) => !v)}
               aria-label={fabOpen ? "Close actions" : "Open actions"}
-              className={`dark:border-border dark:text-background flex size-14 items-center justify-center rounded-full border-2 border-slate-900 text-slate-900 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-all duration-300 active:scale-95 dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)] ${fabOpen ? "rotate-45 bg-red-400 dark:bg-red-500" : "bg-green-300 dark:bg-green-400"}`}
+              className={`dark:border-border dark:text-background flex size-14
+              items-center justify-center rounded-full border-2 border-slate-900
+              text-slate-900 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)]
+              transition-all duration-300 active:scale-95
+              dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)] ${
+                fabOpen
+                  ? "rotate-45 bg-red-400 dark:bg-red-500"
+                  : "bg-green-300 dark:bg-green-400"
+              }`}
             >
               <FaPlus className="size-5" />
             </button>
@@ -1081,20 +1059,20 @@ export default function BorrowerAccountsSection({
         initialValues={
           activatingAccount
             ? {
-              principal_amount: Number(
-                activatingAccount.principal_amount ?? 0,
-              ),
-              interest_rate: Number(activatingAccount.interest_rate ?? 0),
-              release_date: activatingAccount.release_date ?? "",
-              first_payment_date: activatingAccount.first_payment_date ?? "",
-              payment_frequency:
-                (activatingAccount.payment_frequency as any) ?? "bimonthly",
-              term_months: Number(activatingAccount.term_months ?? 1),
-              schedule_mode:
-                (activatingAccount.schedule_mode as any) ?? "auto",
-              interest_type:
-                (activatingAccount.interest_type as any) ?? "flat",
-            }
+                principal_amount: Number(
+                  activatingAccount.principal_amount ?? 0,
+                ),
+                interest_rate: Number(activatingAccount.interest_rate ?? 0),
+                release_date: activatingAccount.release_date ?? "",
+                first_payment_date: activatingAccount.first_payment_date ?? "",
+                payment_frequency:
+                  (activatingAccount.payment_frequency as any) ?? "bimonthly",
+                term_months: Number(activatingAccount.term_months ?? 1),
+                schedule_mode:
+                  (activatingAccount.schedule_mode as any) ?? "auto",
+                interest_type:
+                  (activatingAccount.interest_type as any) ?? "flat",
+              }
             : {}
         }
       />
@@ -1142,7 +1120,8 @@ export default function BorrowerAccountsSection({
               animate="visible"
               whileHover={{ scale: 1.02, transition: { duration: 0.15 } }}
               whileTap={{ scale: 0.98 }}
-              className="relative aspect-[9/16] w-full overflow-hidden rounded-sm shadow-md"
+              className="relative aspect-[9/16] w-full overflow-hidden
+                rounded-sm shadow-md"
             >
               {note.preview_img_url ? (
                 <img
@@ -1150,7 +1129,10 @@ export default function BorrowerAccountsSection({
                   className="pointer-events-none h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-slate-100">
+                <div
+                  className="flex h-full w-full items-center justify-center
+                    bg-slate-100"
+                >
                   <span className="text-xs text-slate-400">No preview</span>
                 </div>
               )}
@@ -1160,7 +1142,11 @@ export default function BorrowerAccountsSection({
       </motion.div>
 
       <Dialog open={isNotesOpen} onOpenChange={setIsNotesOpen}>
-        <DialogContent className="top-0 h-[100svh] max-h-[100svh] max-w-full translate-y-0 rounded-none sm:top-1/2 sm:h-auto sm:max-h-[95svh] sm:max-w-5xl sm:-translate-y-1/2 sm:rounded-xl">
+        <DialogContent
+          className="top-0 h-[100svh] max-h-[100svh] max-w-full translate-y-0
+            rounded-none sm:top-1/2 sm:h-auto sm:max-h-[95svh] sm:max-w-5xl
+            sm:-translate-y-1/2 sm:rounded-xl"
+        >
           <div className="mt-10 flex items-center justify-between">
             <DialogHeader className="">
               <DialogTitle>
@@ -1171,7 +1157,8 @@ export default function BorrowerAccountsSection({
             {selectedNote && (
               <button
                 onClick={() => deleteNote(selectedNote.id)}
-                className="rounded-md border border-red-200 bg-red-50 px-3 py-1 text-sm text-red-600 hover:bg-red-100"
+                className="rounded-md border border-red-200 bg-red-50 px-3 py-1
+                  text-sm text-red-600 hover:bg-red-100"
               >
                 Delete
               </button>
@@ -1182,15 +1169,8 @@ export default function BorrowerAccountsSection({
             <NotesCanvas
               borrowerId={borrowerId}
               note={selectedNote}
-              onSaved={(newNote) => {
-                if (selectedNote) {
-                  setNotes((prev) =>
-                    prev.map((n) => (n.id === newNote.id ? newNote : n)),
-                  );
-                } else {
-                  setNotes((prev) => [...prev, newNote]);
-                }
-
+              onSaved={() => {
+                invalidateBorrowerDetails(borrowerId);
                 setIsNotesOpen(false);
               }}
             />

@@ -24,6 +24,8 @@ import {
   MonthlyCollectionsChartClient as MonthlyCollectionsChart,
   CollectionRateRingClient as CollectionRateRing,
   OverdueByCategoryChartClient as OverdueByCategoryChart,
+  OverdueAgingChartClient as OverdueAgingChart,
+  CashFlowForecastChartClient as CashFlowForecastChart,
 } from "@/components/dashboard/charts-client";
 
 type ScheduleAggRow = {
@@ -606,6 +608,83 @@ export default async function Dashboard() {
       .sort((a, b) => b.total - a.total);
   })();
 
+  // Overdue aging buckets: days past due from todayIso
+  const overdueAgingData = (() => {
+    const buckets = [
+      { label: "0–30d", rangeLabel: "0–30 days", count: 0, amount: 0 },
+      { label: "31–60d", rangeLabel: "31–60 days", count: 0, amount: 0 },
+      { label: "61–90d", rangeLabel: "61–90 days", count: 0, amount: 0 },
+      { label: "90+d", rangeLabel: "90+ days", count: 0, amount: 0 },
+    ];
+    for (const schedule of pastOverdueCandidates) {
+      const daysOverdue = Math.round(
+        (new Date(todayIso).getTime() - new Date(schedule.due_date).getTime()) /
+          86400000,
+      );
+      const amount = remainingOnInstallment(schedule);
+      const bucket =
+        daysOverdue <= 30
+          ? buckets[0]
+          : daysOverdue <= 60
+            ? buckets[1]
+            : daysOverdue <= 90
+              ? buckets[2]
+              : buckets[3];
+      bucket.count++;
+      bucket.amount += amount;
+    }
+    return buckets.map((b) => ({
+      label: b.label,
+      rangeLabel: b.rangeLabel,
+      count: b.count,
+      amount: Math.round(b.amount),
+    }));
+  })();
+
+  // 30-day cash flow forecast: group unpaid schedules into 5 weekly buckets
+  const cashFlowForecastData = (() => {
+    const weeks: {
+      label: string;
+      weekRange: string;
+      expected: number;
+      count: number;
+      isCurrentWeek: boolean;
+    }[] = [];
+    for (let w = 0; w < 5; w++) {
+      const startD = new Date(now);
+      startD.setDate(startD.getDate() + w * 7);
+      const endD = new Date(startD);
+      endD.setDate(endD.getDate() + 6);
+      const startDate = startD.toLocaleDateString("en-CA", { timeZone: TZ });
+      const endDate = endD.toLocaleDateString("en-CA", { timeZone: TZ });
+      const weekLabel = startD.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        timeZone: TZ,
+      });
+      const endLabel = endD.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        timeZone: TZ,
+      });
+      const schedulesInWeek = unpaidSchedules.filter(
+        (s) => s.due_date >= startDate && s.due_date <= endDate,
+      );
+      const expected = schedulesInWeek.reduce(
+        (sum, s) => sum + remainingOnInstallment(s),
+        0,
+      );
+      weeks.push({
+        label: `Wk ${w + 1}`,
+        weekRange: `${weekLabel} – ${endLabel}`,
+        expected: Math.round(expected),
+        count: schedulesInWeek.length,
+        isCurrentWeek: w === 0,
+      });
+    }
+    return weeks;
+  })();
+
   const completeMonths = monthlyChartData.filter((m) => m.isComplete);
   const totalProfitComplete = completeMonths.reduce((s, m) => s + m.profit, 0);
   const avgMonthlyProfit =
@@ -667,44 +746,72 @@ export default async function Dashboard() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-1 py-2 sm:px-0">
-      <section className="dark:border-border dark:via-card mb-4 rounded-xl border-2 border-slate-900 bg-linear-to-r from-amber-50 via-stone-50 to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:mb-6 sm:p-6 dark:from-amber-950/50 dark:to-orange-950/30">
+      <section
+        className="dark:border-border dark:via-card mb-4 rounded-xl border-2
+          border-slate-900 bg-linear-to-r from-amber-50 via-stone-50
+          to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:mb-6 sm:p-6
+          dark:from-amber-950/50 dark:to-orange-950/30"
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="dark:text-muted-foreground text-xs font-semibold tracking-wider text-slate-600 uppercase">
+            <p
+              className="dark:text-muted-foreground text-xs font-semibold
+                tracking-wider text-slate-600 uppercase"
+            >
               {formattedToday}
             </p>
-            <h1 className="dark:text-foreground mt-1 text-2xl font-black text-slate-900 lowercase sm:text-3xl">
+            <h1
+              className="dark:text-foreground mt-1 text-2xl font-black
+                text-slate-900 lowercase sm:text-3xl"
+            >
               utangz dashboard
             </h1>
           </div>
           <ThemeToggle />
         </div>
-        <p className="dark:text-muted-foreground mt-2 text-sm text-slate-700 sm:max-w-xl">
+        <p
+          className="dark:text-muted-foreground mt-2 text-sm text-slate-700
+            sm:max-w-xl"
+        >
           Quick glance on active collections, upcoming dues, and account
           movement.
         </p>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+      <section
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
+      >
         {summaryCards.map((card) => (
           <article
             key={card.label}
-            className={`dark:border-border dark:from-card dark:via-card dark:to-muted min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br ${card.bg} p-4 shadow-[4px_4px_0px_0px_#0f172a]`}
+            className={`dark:border-border dark:from-card dark:via-card
+            dark:to-muted min-w-0 rounded-xl border-2 border-slate-900
+            bg-linear-to-br ${card.bg} p-4 shadow-[4px_4px_0px_0px_#0f172a]`}
           >
             <div className="mb-3 flex items-center justify-between">
-              <span className="dark:text-muted-foreground text-xs font-bold tracking-wide text-slate-600 uppercase">
+              <span
+                className="dark:text-muted-foreground text-xs font-bold
+                  tracking-wide text-slate-600 uppercase"
+              >
                 {card.label}
               </span>
               <span
-                className={`dark:border-border dark:text-foreground rounded-md border border-slate-900 p-1.5 text-slate-900 ${card.tone}`}
+                className={`dark:border-border dark:text-foreground rounded-md
+                border border-slate-900 p-1.5 text-slate-900 ${card.tone}`}
               >
                 <card.icon className="size-4" />
               </span>
             </div>
-            <p className="dark:text-foreground text-2xl font-black text-slate-900">
+            <p
+              className="dark:text-foreground text-2xl font-black
+                text-slate-900"
+            >
               {card.value}
             </p>
-            <p className="dark:text-muted-foreground mt-1 text-xs font-semibold wrap-break-word text-slate-600">
+            <p
+              className="dark:text-muted-foreground mt-1 text-xs font-semibold
+                wrap-break-word text-slate-600"
+            >
               {card.delta}
             </p>
           </article>
@@ -712,13 +819,24 @@ export default async function Dashboard() {
       </section>
 
       <section className="mt-4 lg:mt-6">
-        <article className="dark:border-border dark:bg-card bg-background min-w-0 rounded-xl border-2 border-slate-900 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+        <article
+          className="dark:border-border dark:bg-card bg-background min-w-0
+            rounded-xl border-2 border-slate-900 p-4
+            shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
+        >
           <div className="mb-4 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="dark:border-border dark:text-foreground rounded-md border border-slate-900 bg-emerald-100 p-1.5 text-slate-900 dark:bg-emerald-900/50">
+              <span
+                className="dark:border-border dark:text-foreground rounded-md
+                  border border-slate-900 bg-emerald-100 p-1.5 text-slate-900
+                  dark:bg-emerald-900/50"
+              >
                 <TrendingUp className="size-4" />
               </span>
-              <h2 className="dark:text-foreground text-base font-black text-slate-900 lowercase">
+              <h2
+                className="dark:text-foreground text-base font-black
+                  text-slate-900 lowercase"
+              >
                 monthly collections
               </h2>
             </div>
@@ -726,23 +844,41 @@ export default async function Dashboard() {
           <MonthlyCollectionsChart data={monthlyChartData} />
 
           {/* Profit per month list */}
-          <div className="dark:border-border mt-4 border-t-2 border-slate-200 pt-3">
-            <p className="dark:text-muted-foreground mb-2 text-[10px] font-black tracking-widest text-slate-400 uppercase">
+          <div
+            className="dark:border-border mt-4 border-t-2 border-slate-200 pt-3"
+          >
+            <p
+              className="dark:text-muted-foreground mb-2 text-[10px] font-black
+                tracking-widest text-slate-400 uppercase"
+            >
               profit per month
             </p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <div
+              className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
+            >
               {monthlyChartData.map((m) => (
                 <div
                   key={m.label}
-                  className="dark:border-border rounded-lg border-2 border-slate-900 bg-amber-50 px-2.5 py-2 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-amber-900/30"
+                  className="dark:border-border rounded-lg border-2
+                    border-slate-900 bg-amber-50 px-2.5 py-2
+                    shadow-[2px_2px_0px_0px_#0f172a] dark:bg-amber-900/30"
                 >
-                  <p className="dark:text-muted-foreground text-[10px] font-black tracking-wide text-slate-500 uppercase">
+                  <p
+                    className="dark:text-muted-foreground text-[10px] font-black
+                      tracking-wide text-slate-500 uppercase"
+                  >
                     {m.fullLabel}
                   </p>
-                  <p className="dark:text-foreground mt-0.5 text-sm font-black text-slate-900 tabular-nums">
+                  <p
+                    className="dark:text-foreground mt-0.5 text-sm font-black
+                      text-slate-900 tabular-nums"
+                  >
                     ₱{m.profit.toLocaleString()}
                   </p>
-                  <p className="dark:text-muted-foreground text-[10px] font-semibold text-slate-500">
+                  <p
+                    className="dark:text-muted-foreground text-[10px]
+                      font-semibold text-slate-500"
+                  >
                     expected ₱{m.expectedProfit.toLocaleString()}
                   </p>
                 </div>
@@ -753,7 +889,11 @@ export default async function Dashboard() {
       </section>
 
       <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1fr_1.6fr]">
-        <article className="dark:border-border dark:bg-card bg-background min-w-0 rounded-xl border-2 border-slate-900 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+        <article
+          className="dark:border-border dark:bg-card bg-background min-w-0
+            rounded-xl border-2 border-slate-900 p-4
+            shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
+        >
           <CollectionRateRing
             data={{
               collected: monthlyChartData[5]?.collected ?? 0,
@@ -767,20 +907,52 @@ export default async function Dashboard() {
             }}
           />
         </article>
-        <article className="dark:border-border dark:bg-card bg-background min-w-0 rounded-xl border-2 border-slate-900 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+        <article
+          className="dark:border-border dark:bg-card bg-background min-w-0
+            rounded-xl border-2 border-slate-900 p-4
+            shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
+        >
           <OverdueByCategoryChart data={overdueByCategory} />
         </article>
       </section>
 
+      <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-2">
+        <article
+          className="dark:border-border dark:bg-card bg-background min-w-0
+            rounded-xl border-2 border-slate-900 p-4
+            shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
+        >
+          <OverdueAgingChart data={overdueAgingData} />
+        </article>
+        <article
+          className="dark:border-border dark:bg-card bg-background min-w-0
+            rounded-xl border-2 border-slate-900 p-4
+            shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
+        >
+          <CashFlowForecastChart data={cashFlowForecastData} />
+        </article>
+      </section>
+
       <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1.3fr_1fr]">
-        <article className="dark:border-border dark:via-card min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br from-cyan-50 via-stone-100 to-blue-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5 dark:from-cyan-950/30 dark:to-blue-950/30">
+        <article
+          className="dark:border-border dark:via-card min-w-0 rounded-xl
+            border-2 border-slate-900 bg-linear-to-br from-cyan-50 via-stone-100
+            to-blue-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5
+            dark:from-cyan-950/30 dark:to-blue-950/30"
+        >
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="dark:text-foreground text-base font-black text-slate-900 lowercase">
+            <h2
+              className="dark:text-foreground text-base font-black
+                text-slate-900 lowercase"
+            >
               due today
             </h2>
             <Link
               href="/borrowers"
-              className="dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted/80 inline-flex items-center gap-1 rounded-md border-2 border-slate-900 bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-900 transition hover:bg-slate-200"
+              className="dark:border-border dark:bg-muted dark:text-foreground
+                dark:hover:bg-muted/80 inline-flex items-center gap-1 rounded-md
+                border-2 border-slate-900 bg-slate-100 px-2.5 py-1 text-xs
+                font-bold text-slate-900 transition hover:bg-slate-200"
             >
               view all
               <ArrowUpRight className="size-3.5" />
@@ -788,22 +960,35 @@ export default async function Dashboard() {
           </div>
           <ul className="space-y-2">
             {dueTodayRows.length === 0 ? (
-              <li className="dark:border-muted-foreground/40 dark:bg-muted dark:text-muted-foreground rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 p-3 text-sm text-slate-600">
+              <li
+                className="dark:border-muted-foreground/40 dark:bg-muted
+                  dark:text-muted-foreground rounded-lg border-2 border-dashed
+                  border-slate-400 bg-slate-50 p-3 text-sm text-slate-600"
+              >
                 No schedules due today.
               </li>
             ) : (
               dueTodayRows.map((entry) => (
                 <li
                   key={entry.id}
-                  className="dark:border-border dark:bg-muted rounded-lg border-2 border-slate-900 bg-slate-50 p-3"
+                  className="dark:border-border dark:bg-muted rounded-lg
+                    border-2 border-slate-900 bg-slate-50 p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="dark:text-foreground font-bold text-slate-900 lowercase">
+                    <p
+                      className="dark:text-foreground font-bold text-slate-900
+                        lowercase"
+                    >
                       {entry.name}
                     </p>
-                    <span className="dark:bg-card dark:text-muted-foreground inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-600 uppercase">
+                    <span
+                      className="dark:bg-card dark:text-muted-foreground
+                        inline-flex items-center gap-1.5 rounded-md bg-white
+                        px-2 py-1 text-xs font-bold text-slate-600 uppercase"
+                    >
                       <span
-                        className="dark:border-border size-2 shrink-0 rounded-full border border-slate-900/25"
+                        className="dark:border-border size-2 shrink-0
+                          rounded-full border border-slate-900/25"
                         style={{
                           backgroundColor: entry.categoryColor ?? "#cbd5e1",
                         }}
@@ -812,11 +997,19 @@ export default async function Dashboard() {
                       {entry.category}
                     </span>
                   </div>
-                  <div className="mt-1 flex items-center justify-between text-sm">
-                    <p className="dark:text-foreground font-semibold text-slate-700">
+                  <div
+                    className="mt-1 flex items-center justify-between text-sm"
+                  >
+                    <p
+                      className="dark:text-foreground font-semibold
+                        text-slate-700"
+                    >
                       PHP {entry.amount.toLocaleString()}
                     </p>
-                    <p className="dark:text-muted-foreground text-xs font-semibold text-slate-600 uppercase">
+                    <p
+                      className="dark:text-muted-foreground text-xs
+                        font-semibold text-slate-600 uppercase"
+                    >
                       {entry.status}
                     </p>
                   </div>
@@ -827,15 +1020,29 @@ export default async function Dashboard() {
         </article>
 
         <div className="min-w-0 space-y-4">
-          <article className="dark:border-border dark:via-card min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br from-emerald-50 via-stone-100 to-lime-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5 dark:from-emerald-950/30 dark:to-lime-950/30">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="dark:text-foreground text-base font-black text-slate-900 lowercase">
+          <article
+            className="dark:border-border dark:via-card min-w-0 rounded-xl
+              border-2 border-slate-900 bg-linear-to-br from-emerald-50
+              via-stone-100 to-lime-100 p-4 shadow-[4px_4px_0px_0px_#0f172a]
+              sm:p-5 dark:from-emerald-950/30 dark:to-lime-950/30"
+          >
+            <div
+              className="mb-3 flex flex-wrap items-center justify-between gap-2"
+            >
+              <h2
+                className="dark:text-foreground text-base font-black
+                  text-slate-900 lowercase"
+              >
                 next collection
               </h2>
               {nextCollectionSchedules.length > 0 ? (
                 <Link
                   href="/next-collection"
-                  className="dark:border-border dark:text-foreground inline-flex items-center gap-1 rounded-md border-2 border-slate-900 bg-emerald-200 px-2.5 py-1 text-xs font-bold text-slate-900 transition hover:bg-emerald-300 dark:bg-emerald-800/50 dark:hover:bg-emerald-800"
+                  className="dark:border-border dark:text-foreground inline-flex
+                    items-center gap-1 rounded-md border-2 border-slate-900
+                    bg-emerald-200 px-2.5 py-1 text-xs font-bold text-slate-900
+                    transition hover:bg-emerald-300 dark:bg-emerald-800/50
+                    dark:hover:bg-emerald-800"
                 >
                   view all
                   <ArrowUpRight className="size-3.5" />
@@ -843,13 +1050,20 @@ export default async function Dashboard() {
               ) : null}
             </div>
             {nextCollectionDate ? (
-              <p className="dark:text-muted-foreground mb-3 text-xs font-semibold tracking-wide text-slate-600 uppercase">
+              <p
+                className="dark:text-muted-foreground mb-3 text-xs font-semibold
+                  tracking-wide text-slate-600 uppercase"
+              >
                 {new Date(nextCollectionDate).toLocaleDateString()} • PHP{" "}
                 {nextCollectionTotal.toLocaleString()}
               </p>
             ) : null}
             {nextCollectionRows.length === 0 ? (
-              <div className="dark:border-muted-foreground/40 dark:bg-muted dark:text-muted-foreground rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              <div
+                className="dark:border-muted-foreground/40 dark:bg-muted
+                  dark:text-muted-foreground rounded-lg border-2 border-dashed
+                  border-slate-400 bg-slate-50 px-3 py-2 text-sm text-slate-600"
+              >
                 No upcoming unpaid schedule.
               </div>
             ) : (
@@ -913,11 +1127,21 @@ export default async function Dashboard() {
                     return <div key={category}>{inner}</div>;
                   });
                 })()}
-                <div className="dark:border-border dark:bg-foreground flex items-center justify-between rounded-lg border-2 border-slate-900 bg-slate-900 px-3 py-2">
-                  <span className="dark:text-background text-xs font-black tracking-wide text-white uppercase">
+                <div
+                  className="dark:border-border dark:bg-foreground flex
+                    items-center justify-between rounded-lg border-2
+                    border-slate-900 bg-slate-900 px-3 py-2"
+                >
+                  <span
+                    className="dark:text-background text-xs font-black
+                      tracking-wide text-white uppercase"
+                  >
                     Total
                   </span>
-                  <span className="dark:text-background text-xs font-black text-white tabular-nums">
+                  <span
+                    className="dark:text-background text-xs font-black
+                      text-white tabular-nums"
+                  >
                     {nextCollectionCount} account
                     {nextCollectionCount === 1 ? "" : "s"} • PHP{" "}
                     {nextCollectionTotal.toLocaleString()}
@@ -927,35 +1151,59 @@ export default async function Dashboard() {
             )}
           </article>
 
-          <article className="dark:border-border dark:via-card rounded-xl border-2 border-slate-900 bg-linear-to-br from-amber-50 via-stone-100 to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5 dark:from-amber-950/30 dark:to-orange-950/30">
-            <h2 className="dark:text-foreground mb-3 text-base font-black text-slate-900 lowercase">
+          <article
+            className="dark:border-border dark:via-card rounded-xl border-2
+              border-slate-900 bg-linear-to-br from-amber-50 via-stone-100
+              to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5
+              dark:from-amber-950/30 dark:to-orange-950/30"
+          >
+            <h2
+              className="dark:text-foreground mb-3 text-base font-black
+                text-slate-900 lowercase"
+            >
               quick actions
             </h2>
             <div className="space-y-2">
               <Link
                 href="/borrowers"
-                className="dark:border-border dark:text-foreground flex items-center justify-between rounded-lg border-2 border-slate-900 bg-emerald-100 px-3 py-2 text-sm font-bold text-slate-900 lowercase transition hover:bg-emerald-200 dark:bg-emerald-900/40 dark:hover:bg-emerald-900/60"
+                className="dark:border-border dark:text-foreground flex
+                  items-center justify-between rounded-lg border-2
+                  border-slate-900 bg-emerald-100 px-3 py-2 text-sm font-bold
+                  text-slate-900 lowercase transition hover:bg-emerald-200
+                  dark:bg-emerald-900/40 dark:hover:bg-emerald-900/60"
               >
                 add borrower
                 <UserRoundPlus className="size-4" />
               </Link>
               <Link
                 href="/categories"
-                className="dark:border-border dark:text-foreground flex items-center justify-between rounded-lg border-2 border-slate-900 bg-sky-100 px-3 py-2 text-sm font-bold text-slate-900 lowercase transition hover:bg-sky-200 dark:bg-sky-900/40 dark:hover:bg-sky-900/60"
+                className="dark:border-border dark:text-foreground flex
+                  items-center justify-between rounded-lg border-2
+                  border-slate-900 bg-sky-100 px-3 py-2 text-sm font-bold
+                  text-slate-900 lowercase transition hover:bg-sky-200
+                  dark:bg-sky-900/40 dark:hover:bg-sky-900/60"
               >
                 manage categories
                 <Plus className="size-4" />
               </Link>
               <Link
                 href="/upcoming"
-                className="dark:border-border dark:text-foreground flex items-center justify-between rounded-lg border-2 border-slate-900 bg-violet-100 px-3 py-2 text-sm font-bold text-slate-900 lowercase transition hover:bg-violet-200 dark:bg-violet-900/40 dark:hover:bg-violet-900/60"
+                className="dark:border-border dark:text-foreground flex
+                  items-center justify-between rounded-lg border-2
+                  border-slate-900 bg-violet-100 px-3 py-2 text-sm font-bold
+                  text-slate-900 lowercase transition hover:bg-violet-200
+                  dark:bg-violet-900/40 dark:hover:bg-violet-900/60"
               >
                 upcoming due dates
                 <Bell className="size-4" />
               </Link>
               <Link
                 href="/audit"
-                className="dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted/80 flex items-center justify-between rounded-lg border-2 border-slate-900 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-900 lowercase transition hover:bg-slate-200"
+                className="dark:border-border dark:bg-muted dark:text-foreground
+                  dark:hover:bg-muted/80 flex items-center justify-between
+                  rounded-lg border-2 border-slate-900 bg-slate-100 px-3 py-2
+                  text-sm font-bold text-slate-900 lowercase transition
+                  hover:bg-slate-200"
               >
                 audit trail
                 <ClipboardList className="size-4" />
@@ -1003,12 +1251,23 @@ export default async function Dashboard() {
         </section>
       ) : null} */}
       <section className="mt-4 lg:mt-6">
-        <article className="dark:border-border dark:bg-card bg-background min-w-0 rounded-xl border-2 border-slate-900 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
+        <article
+          className="dark:border-border dark:bg-card bg-background min-w-0
+            rounded-xl border-2 border-slate-900 p-4
+            shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
+        >
           <div className="mb-4 flex items-center gap-2">
-            <span className="dark:border-border dark:text-foreground rounded-md border border-slate-900 bg-indigo-100 p-1.5 text-slate-900 dark:bg-indigo-900/50">
+            <span
+              className="dark:border-border dark:text-foreground rounded-md
+                border border-slate-900 bg-indigo-100 p-1.5 text-slate-900
+                dark:bg-indigo-900/50"
+            >
               <ClipboardList className="size-4" />
             </span>
-            <h2 className="dark:text-foreground text-base font-black text-slate-900 lowercase">
+            <h2
+              className="dark:text-foreground text-base font-black
+                text-slate-900 lowercase"
+            >
               recent activities
             </h2>
           </div>
@@ -1016,12 +1275,20 @@ export default async function Dashboard() {
           <div className="grid gap-6 md:grid-cols-2">
             {/* Newly Created Borrowers */}
             <div>
-              <h3 className="dark:text-muted-foreground mb-3 text-xs font-black tracking-wider text-slate-500 uppercase">
+              <h3
+                className="dark:text-muted-foreground mb-3 text-xs font-black
+                  tracking-wider text-slate-500 uppercase"
+              >
                 newly created borrowers
               </h3>
               <ul className="space-y-3">
                 {recentBorrowers.length === 0 ? (
-                  <li className="dark:border-muted-foreground/40 dark:bg-muted dark:text-muted-foreground rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 p-3 text-sm text-slate-600">
+                  <li
+                    className="dark:border-muted-foreground/40 dark:bg-muted
+                      dark:text-muted-foreground rounded-lg border-2
+                      border-dashed border-slate-400 bg-slate-50 p-3 text-sm
+                      text-slate-600"
+                  >
                     No recent borrowers created.
                   </li>
                 ) : (
@@ -1030,37 +1297,63 @@ export default async function Dashboard() {
                     return (
                       <li
                         key={borrower.id}
-                        className="dark:border-border dark:bg-muted rounded-lg border-2 border-slate-900 bg-slate-50 shadow-[4px_4px_0px_0px_#0f172a] transition-all hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_0px_#0f172a] active:translate-y-px active:shadow-[2px_2px_0px_0px_#0f172a]"
+                        className="dark:border-border dark:bg-muted rounded-lg
+                          border-2 border-slate-900 bg-slate-50
+                          shadow-[4px_4px_0px_0px_#0f172a] transition-all
+                          hover:-translate-y-0.5
+                          hover:shadow-[6px_6px_0px_0px_#0f172a]
+                          active:translate-y-px
+                          active:shadow-[2px_2px_0px_0px_#0f172a]"
                       >
                         <Link
                           href={`/borrowers/${borrower.id}`}
                           className="block p-3 outline-none"
                         >
-                          <div className="flex items-start justify-between gap-2">
+                          <div
+                            className="flex items-start justify-between gap-2"
+                          >
                             <div className="min-w-0">
-                              <span className="dark:text-foreground block font-bold text-slate-900 lowercase truncate">
+                              <span
+                                className="dark:text-foreground block font-bold
+                                  text-slate-900 lowercase truncate"
+                              >
                                 {borrower.first_name} {borrower.last_name}
                               </span>
                               {borrower.contact && (
-                                <p className="dark:text-muted-foreground text-xs text-slate-500">
+                                <p
+                                  className="dark:text-muted-foreground text-xs
+                                    text-slate-500"
+                                >
                                   {borrower.contact}
                                 </p>
                               )}
                             </div>
-                            <span className="dark:bg-card dark:text-muted-foreground inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-600 uppercase shrink-0 border border-slate-900/10">
+                            <span
+                              className="dark:bg-card dark:text-muted-foreground
+                                inline-flex items-center gap-1.5 rounded-md
+                                bg-white px-2 py-1 text-xs font-bold
+                                text-slate-600 uppercase shrink-0 border
+                                border-slate-900/10"
+                            >
                               <span
-                                className="dark:border-border size-2 shrink-0 rounded-full border border-slate-900/25"
+                                className="dark:border-border size-2 shrink-0
+                                  rounded-full border border-slate-900/25"
                                 style={{
-                                  backgroundColor: categoryMeta.color ?? "#cbd5e1",
+                                  backgroundColor:
+                                    categoryMeta.color ?? "#cbd5e1",
                                 }}
                                 aria-hidden
                               />
                               {categoryMeta.label}
                             </span>
                           </div>
-                          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                          <div
+                            className="mt-2 flex items-center justify-between
+                              text-[11px] text-slate-400"
+                          >
                             <p className="font-semibold">
-                              added on {formatActivityDate(borrower.created_at || "")}
+                              added on{" "}
+                              {formatActivityDate(borrower.created_at || "")}
                             </p>
                           </div>
                         </Link>
@@ -1073,12 +1366,20 @@ export default async function Dashboard() {
 
             {/* Newly Created Accounts */}
             <div>
-              <h3 className="dark:text-muted-foreground mb-3 text-xs font-black tracking-wider text-slate-500 uppercase">
+              <h3
+                className="dark:text-muted-foreground mb-3 text-xs font-black
+                  tracking-wider text-slate-500 uppercase"
+              >
                 newly created accounts
               </h3>
               <ul className="space-y-3">
                 {recentAccounts.length === 0 ? (
-                  <li className="dark:border-muted-foreground/40 dark:bg-muted dark:text-muted-foreground rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 p-3 text-sm text-slate-600">
+                  <li
+                    className="dark:border-muted-foreground/40 dark:bg-muted
+                      dark:text-muted-foreground rounded-lg border-2
+                      border-dashed border-slate-400 bg-slate-50 p-3 text-sm
+                      text-slate-600"
+                  >
                     No recent accounts created.
                   </li>
                 ) : (
@@ -1089,7 +1390,8 @@ export default async function Dashboard() {
                         : account.borrower
                       : null;
                     const isManual = account.schedule_mode === "manual";
-                    const isRolling = isManual && account.interest_type === "rolling";
+                    const isRolling =
+                      isManual && account.interest_type === "rolling";
                     const isCashAdvance = account.type === "cash_advance";
                     const typeLabel = isManual
                       ? isRolling
@@ -1108,41 +1410,77 @@ export default async function Dashboard() {
                     return (
                       <li
                         key={account.id}
-                        className="dark:border-border dark:bg-muted rounded-lg border-2 border-slate-900 bg-slate-50 shadow-[4px_4px_0px_0px_#0f172a] transition-all hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_0px_#0f172a] active:translate-y-px active:shadow-[2px_2px_0px_0px_#0f172a]"
+                        className="dark:border-border dark:bg-muted rounded-lg
+                          border-2 border-slate-900 bg-slate-50
+                          shadow-[4px_4px_0px_0px_#0f172a] transition-all
+                          hover:-translate-y-0.5
+                          hover:shadow-[6px_6px_0px_0px_#0f172a]
+                          active:translate-y-px
+                          active:shadow-[2px_2px_0px_0px_#0f172a]"
                       >
                         <Link
                           href={`/accounts/${account.id}`}
                           className="block p-3 outline-none"
                         >
-                          <div className="flex items-start justify-between gap-2">
+                          <div
+                            className="flex items-start justify-between gap-2"
+                          >
                             <div className="min-w-0">
                               {borrowerObj ? (
-                                <span className="dark:text-foreground block font-bold text-slate-900 lowercase truncate">
-                                  {borrowerObj.first_name} {borrowerObj.last_name}
+                                <span
+                                  className="dark:text-foreground block
+                                    font-bold text-slate-900 lowercase truncate"
+                                >
+                                  {borrowerObj.first_name}{" "}
+                                  {borrowerObj.last_name}
                                 </span>
                               ) : (
-                                <span className="dark:text-foreground block font-bold text-slate-900 lowercase truncate">
+                                <span
+                                  className="dark:text-foreground block
+                                    font-bold text-slate-900 lowercase truncate"
+                                >
                                   Unknown borrower
                                 </span>
                               )}
-                              <p className="dark:text-muted-foreground text-xs text-slate-500 capitalize">
-                                {account.type?.replace("_", " ") || "unknown type"}
+                              <p
+                                className="dark:text-muted-foreground text-xs
+                                  text-slate-500 capitalize"
+                              >
+                                {account.type?.replace("_", " ") ||
+                                  "unknown type"}
                               </p>
                             </div>
-                            <div className="flex flex-col items-end gap-1.5 shrink-0">
-                              <span className="dark:text-foreground text-sm font-black text-slate-900">
-                                ₱{(account.principal_amount ?? 0).toLocaleString()}
+                            <div
+                              className="flex flex-col items-end gap-1.5
+                                shrink-0"
+                            >
+                              <span
+                                className="dark:text-foreground text-sm
+                                  font-black text-slate-900"
+                              >
+                                ₱
+                                {(
+                                  account.principal_amount ?? 0
+                                ).toLocaleString()}
                               </span>
                               <span
-                                className={`rounded-md border-2 px-2 py-0.5 text-[9px] font-black tracking-wide uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-[2px_2px_0px_0px_#020617] ${typeBadgeBg} dark:border-[#020617]`}
+                                className={`rounded-md border-2 px-2 py-0.5
+                                  text-[9px] font-black tracking-wide uppercase
+                                  shadow-[2px_2px_0px_0px_#0f172a]
+                                  dark:shadow-[2px_2px_0px_0px_#020617]
+                                  ${typeBadgeBg} dark:border-[#020617]`}
                               >
                                 {typeLabel}
                               </span>
                             </div>
                           </div>
-                          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                          <div
+                            className="mt-2 flex items-center justify-between
+                              text-[11px] text-slate-400"
+                          >
                             <p className="font-semibold">
-                              created on {formatActivityDate(account.created_at)}
+                              created on{" "}
+                              {formatActivityDate(account.created_at)}
                             </p>
                             {account.release_date && (
                               <p className="font-semibold shrink-0">

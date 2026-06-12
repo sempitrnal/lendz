@@ -107,12 +107,12 @@ export const BorrowerCard = memo(function BorrowerCard({
           didScroll.current = true;
       }}
       className={`relative w-full max-w-full min-w-0 overflow-hidden rounded-xl
-        border-2 bg-[#fffdf6] text-left transition-all duration-150
+        border-2 bg-[#f8fff9] text-left transition-all duration-150
         dark:bg-slate-900 ${
           hasOverdue
-            ? `border-red-500 shadow-[4px_4px_0px_0px_#ef4444]
+            ? `border-red-300 shadow-[4px_4px_0px_0px_#ef4444bb]
               dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]`
-            : `border-slate-900 shadow-[4px_4px_0px_0px_#0f172a]
+            : `border-[#6c9670] shadow-[4px_4px_0px_0px_#6c9670]
               dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]`
         } ${
           isPending
@@ -177,7 +177,7 @@ export const BorrowerCard = memo(function BorrowerCard({
       >
         <div className="flex w-full min-w-0 flex-col">
           <h2
-            className={`dark:text-foreground pr-4 font-black text-slate-900
+            className={`dark:text-foreground pr-4 font-black text-[#49554a]
               uppercase ${compact ? "text-base" : "text-xl"}`}
           >
             {borrower.first_name} {borrower.last_name}
@@ -422,9 +422,9 @@ export const BorrowerCard = memo(function BorrowerCard({
         {!compact && showScheduleSummary && hasNextUnpaid ? (
           <div
             className="mt-4 w-full min-w-0 self-stretch border-2
-              border-slate-900 bg-white p-3 shadow-[2px_2px_0px_0px_#0f172a]
-              dark:border-[#020617] dark:bg-sky-900/30
-              dark:shadow-[2px_2px_0px_0px_#020617]"
+              border-[#9fc4a3] bg-[#effcf0] rounded-md p-3
+              shadow-[2px_2px_0px_0px_#9fc4a3] dark:border-[#020617]
+              dark:bg-sky-900/30 dark:shadow-[2px_2px_0px_0px_#020617]"
           >
             <div
               className="flex w-full min-w-0 flex-wrap items-center
