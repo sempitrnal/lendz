@@ -1,48 +1,21 @@
 "use client";
-import { RiDashboardFill } from "react-icons/ri";
-import {
-  MdAccountBalanceWallet,
-  MdCategory,
-  MdChecklist,
-  MdDelete,
-  MdLogout,
-} from "react-icons/md";
-import Link from "next/link";
+
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { GiHamburgerMenu } from "react-icons/gi";
 import { Loader2 } from "lucide-react";
 import NeobrutButton from "./neobrut-button";
 import ThemeToggle from "./theme-toggle";
-
-import {
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenu,
-} from "./ui/dropdown-menu";
-import { FaUsers } from "react-icons/fa6";
 
 type SiteHeaderProps = {
   isLoggedIn: boolean;
   logoutAction: () => Promise<void>;
 };
-
-const DESKTOP_LINKS = [
-  { href: "/dashboard", label: "dashboard" },
-  { href: "/borrowers", label: "borrowers" },
-  { href: "/accounts", label: "accounts" },
-  { href: "/calendar", label: "calendar" },
-  { href: "/categories", label: "categories" },
-  { href: "/daily-checklist", label: "daily checklist" },
-  { href: "/deleted", label: "trash" },
-];
 
 export default function SiteHeader({
   isLoggedIn,
@@ -50,18 +23,9 @@ export default function SiteHeader({
 }: SiteHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
-
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    DESKTOP_LINKS.forEach(({ href }) => router.prefetch(href));
-  }, [router]);
 
   if (pathname === "/login") return null;
 
@@ -76,7 +40,7 @@ export default function SiteHeader({
     <header
       className="bg-background/80 dark:border-border/50 dark:bg-background/80
         hidden border-b border-slate-200 backdrop-blur sm:sticky sm:top-0
-        sm:z-50 sm:flex sm:flex-col print:hidden"
+        sm:z-50 sm:flex sm:flex-col print:hidden md:ml-[var(--sidebar-width)]"
     >
       <nav
         className="relative mx-auto flex w-full max-w-7xl items-center
@@ -103,36 +67,6 @@ export default function SiteHeader({
               "*utangz"
             )}
           </button>
-          <div
-            className="dark:text-foreground hidden items-center gap-5 text-sm
-              font-medium text-stone-900 sm:flex"
-          >
-            {DESKTOP_LINKS.map(({ href, label }) => {
-              const isLoading = isPending && pendingHref === href;
-              return (
-                <button
-                  key={href}
-                  type="button"
-                  onMouseEnter={() => router.prefetch(href)}
-                  onClick={() => {
-                    setPendingHref(href);
-                    startTransition(() => router.push(href));
-                  }}
-                  className={`dark:hover:text-muted-foreground transition-colors
-                  hover:text-stone-700 ${isLoading ? "opacity-60" : ""}`}
-                >
-                  {isLoading ? (
-                    <span className="inline-flex items-center gap-1">
-                      <Loader2 className="size-3 animate-spin" />
-                      {label}
-                    </span>
-                  ) : (
-                    label
-                  )}
-                </button>
-              );
-            })}
-          </div>
         </div>
         <div className="flex items-center gap-3">
           <ThemeToggle />
