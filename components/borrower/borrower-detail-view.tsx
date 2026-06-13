@@ -47,14 +47,14 @@ export default function BorrowerDetailView({
   }
   return (
     <div className="flex w-full flex-col gap-6">
-      <button
+      {/* <button
         type="button"
         onClick={goBack}
         className="inline-flex items-center gap-1.5 text-xs font-black tracking-wider text-slate-500 uppercase transition hover:text-slate-900 sm:hidden dark:text-slate-400 dark:hover:text-slate-200"
       >
         <ArrowLeft className="size-3.5" />
         back to borrowers
-      </button>
+      </button> */}
       <BorrowerAccountsSection
         borrower={borrower}
         borrowerId={borrower.id}

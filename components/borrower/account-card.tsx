@@ -124,20 +124,20 @@ export function AccountCard({
         ? {
             border: "border-cyan-500",
             shadow: "#06b6d4",
-            strip: "bg-cyan-500",
-            darkStrip: "dark:bg-cyan-400",
+            strip: "bg-cyan-300/80",
+            darkStrip: "dark:bg-cyan-500/80",
           }
         : {
             border: "border-lime-500",
             shadow: "#84cc16",
-            strip: "bg-lime-500",
-            darkStrip: "dark:bg-lime-400",
+            strip: "bg-lime-300/80",
+            darkStrip: "dark:bg-lime-500/80",
           }
       : {
           border: "border-violet-500",
           shadow: "#8b5cf6",
-          strip: "bg-violet-500",
-          darkStrip: "dark:bg-violet-400",
+          strip: "bg-violet-300/80",
+          darkStrip: "dark:bg-violet-500/80",
         };
   const accentStrip = `${typeAccent.strip} ${typeAccent.darkStrip}`;
   const hasOverdue = overdueCount > 0;
@@ -191,7 +191,7 @@ export function AccountCard({
         bg-[#f1fff2] shadow-[4px_4px_0px_0px_#8158a3] transition-all
         duration-200 dark:border-[#020617] dark:bg-slate-900
         dark:shadow-[4px_4px_0px_0px_#020617] ${
-          account.status === "pending" ? "bg-amber-100 dark:bg-slate-900" : ""
+          account.status === "pending" ? " dark:bg-slate-900" : ""
         }
         ${isOpening ? "scale-[0.98] opacity-60" : ""}
         ${selectionMode && selected ? "ring-2 ring-slate-900 dark:ring-amber-400" : ""}`}
@@ -327,7 +327,7 @@ export function AccountCard({
             data-prevent-account-open
             onClick={() => onActivate(account)}
             className="mt-2.5 inline-flex items-center gap-1 rounded-lg border-2
-              border-slate-900 bg-emerald-400 px-3 py-1.5 text-[11px] font-black
+              border-slate-900 bg-emerald-300 px-3 py-1.5 text-[11px] font-black
               tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a]
               transition hover:translate-y-px
               hover:shadow-[1px_1px_0px_0px_#0f172a] active:translate-y-[2px]
@@ -335,7 +335,7 @@ export function AccountCard({
               dark:shadow-[2px_2px_0px_0px_#020617]
               dark:hover:shadow-[1px_1px_0px_0px_#020617]"
           >
-            Activate
+            activate
           </button>
         )}
 

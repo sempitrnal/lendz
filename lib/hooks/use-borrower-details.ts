@@ -12,7 +12,7 @@ export type BorrowerDetailsResponse = {
   };
   accounts: Record<string, unknown>[];
   metrics: Record<string, unknown>;
-  notes: Record<string, unknown>[];
+  notes?: Record<string, unknown>[];
 };
 
 export function borrowerDetailsQueryKey(borrowerId: string) {
@@ -21,7 +21,7 @@ export function borrowerDetailsQueryKey(borrowerId: string) {
 
 export function useBorrowerDetails(
   borrowerId: string,
-  initialData?: BorrowerDetailsResponse,
+  placeholderData?: BorrowerDetailsResponse,
 ) {
   return useQuery({
     queryKey: borrowerDetailsQueryKey(borrowerId),
@@ -34,7 +34,7 @@ export function useBorrowerDetails(
       return res.json();
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    initialData,
+    placeholderData,
   });
 }
 

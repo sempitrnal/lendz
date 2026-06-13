@@ -70,10 +70,17 @@ type AccountRow = {
   created_at: string;
 };
 
+type BorrowerCategoryRow = {
+  id: string;
+  name: string;
+  color: string | null;
+};
+
 type BorrowerRow = {
   id: string;
   first_name: string;
   last_name: string;
+  borrower_categories?: { category: BorrowerCategoryRow }[];
 };
 
 type PaymentScheduleRow = {
@@ -294,6 +301,15 @@ export default async function AccountDetailPage({
   const borrowerName = borrower
     ? `${borrower.first_name} ${borrower.last_name}`
     : "Unknown borrower";
+
+  const borrowerCategories =
+    borrower?.borrower_categories?.map((row) => row.category).filter(Boolean) ??
+    [];
+  const categoryLabel =
+    borrowerCategories.length > 0
+      ? borrowerCategories.map((c) => c.name).join(" / ")
+      : "uncategorized";
+  const categoryColor = borrowerCategories.find((c) => c.color)?.color ?? null;
 
   const indexedSchedules = schedules.map((s, i) => ({ s, i }));
   const totalRemaining = schedules.reduce(
@@ -524,6 +540,8 @@ export default async function AccountDetailPage({
 
       <StickyAccountStrip
         borrowerName={borrowerName}
+        categoryLabel={categoryLabel}
+        categoryColor={categoryColor}
         releaseDate={
           accountRow.release_date ? formatDate(accountRow.release_date) : "—"
         }

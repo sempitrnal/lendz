@@ -356,7 +356,6 @@ export default function BorrowerAccountsSection({
           },
           accounts: (accounts as any[]) ?? [],
           metrics: (initialMetrics as any) ?? {},
-          notes: [],
         }
       : undefined,
   );
@@ -585,7 +584,7 @@ export default function BorrowerAccountsSection({
         </div>
       )}
 
-      <div className="pt-3">
+      <div className="pt-16">
         <button
           type="button"
           onClick={() => {

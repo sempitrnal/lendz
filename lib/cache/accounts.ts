@@ -29,10 +29,17 @@ type AccountRow = {
   created_at: string;
 };
 
+type BorrowerCategoryRow = {
+  id: string;
+  name: string;
+  color: string | null;
+};
+
 type BorrowerRow = {
   id: string;
   first_name: string;
   last_name: string;
+  borrower_categories?: { category: BorrowerCategoryRow }[];
 };
 
 type PaymentScheduleRow = {
@@ -83,7 +90,9 @@ async function fetchAccountDetailPageData(
 
   const { data: borrower } = await supabase
     .from("borrowers")
-    .select("id, first_name, last_name")
+    .select(
+      "id, first_name, last_name, borrower_categories(category:categories(id, name, color))",
+    )
     .eq("id", account.borrower_id)
     .is("deleted_at", null)
     .single();
