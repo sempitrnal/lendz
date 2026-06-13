@@ -239,6 +239,16 @@
 
   body {
     @apply bg-background text-foreground;
+    background-image: radial-gradient(
+      circle,
+      rgba(0, 0, 0, 0.08) 1px,
+      transparent 1px
+    );
+    background-size: 22px 22px;
+  }
+
+  .dark body {
+    background-image: none;
   }
 
   input[type="date"],

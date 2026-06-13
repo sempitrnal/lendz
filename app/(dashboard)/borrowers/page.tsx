@@ -93,10 +93,20 @@ export default async function BorrowersPage({
         metadata
       `,
       )
-      .like("action", "schedule.%")
+      // Only fetch actionable schedule actions — excludes unrelated audit events.
+      .in("action", [
+        "schedule.status_changed",
+        "schedule.payment_applied",
+        "schedule.batch_paid",
+      ])
+      // Exclude schedule.status_changed entries where status was reverted to
+      // pending: these are non-actionable (undone payments) and add noise.
+      // Logic: include if action is NOT status_changed OR if the status is not
+      // pending — covering payment_applied/batch_paid unconditionally.
+      .or("action.neq.schedule.status_changed,metadata->>status.neq.pending")
       .gte("created_at", "2026-06-13")
       .order("created_at", { ascending: false })
-      .limit(6);
+      .limit(9);
     if (auditQuery.error) console.error("auditQuery error:", auditQuery.error);
 
     // Fetch accounts + borrowers for ALL audit log account_ids so names resolve
@@ -114,11 +124,21 @@ export default async function BorrowersPage({
           borrower:borrowers (id, first_name, last_name)
         `,
         )
-        .in("id", auditAccountIds);
+        .in("id", auditAccountIds)
+        // Exclude soft-deleted accounts — deleted accounts should never appear
+        // in payment updates even if historical audit logs reference them.
+        .is("deleted_at", null);
       if (auditAccountsQuery.error)
         console.error("auditAccountsQuery error:", auditAccountsQuery.error);
       auditAccountsData = (auditAccountsQuery.data ?? []) as any[];
     }
+
+    // Set of non-deleted account IDs returned by the filtered accounts query.
+    // Any audit log referencing an ID absent from this set belongs to a deleted
+    // account and will be excluded from the enriched results.
+    const nonDeletedAccountIdSet = new Set<string>(
+      auditAccountsData.map((a: any) => a.id),
+    );
 
     // Build borrower lookup
     const borrowerByAccountId = new Map<
@@ -149,7 +169,7 @@ export default async function BorrowersPage({
       "44807c06-e653-4e8b-9a55-1536d3ba8309",
     ]);
 
-    // Enrich audit logs with borrower info and filter out pending/test-borrower entries
+    // Enrich audit logs with borrower info; apply residual safety-net filters.
     const enrichedAuditLogs = (auditQuery.data ?? [])
       .map((log: any) => {
         const borrower = log.account_id
@@ -163,7 +183,14 @@ export default async function BorrowersPage({
         };
       })
       .filter((log: any) => {
-        // Only include paid-related entries
+        // Exclude logs for deleted accounts: the accounts query already filters
+        // deleted_at IS NULL, so any account_id missing from nonDeletedAccountIdSet
+        // belongs to a soft-deleted account.
+        if (log.account_id && !nonDeletedAccountIdSet.has(log.account_id)) {
+          return false;
+        }
+        // Safety net: keep only paid-related status changes (the audit query
+        // already excludes pending via or() at the DB level, but guard here too).
         if (log.action === "schedule.status_changed") {
           const s = log.metadata?.status;
           return s === "paid" || s === "partial";

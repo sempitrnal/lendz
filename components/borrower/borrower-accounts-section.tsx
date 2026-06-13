@@ -117,9 +117,8 @@ function StickyBorrowerStrip({
   return (
     <>
       <div
-        className="bg-background/95 dark:bg-background/95 fixed top-10 mx-auto
-          w-full max-w-[1200px] rounded right-0 left-0 z-30 border sm:top-18
-          md:top-16"
+        className="bg-[#fefff3] border-b dark:bg-background fixed top-10 mx-auto
+          w-full max-w-[1200px] rounded right-0 left-0 z-30 sm:top-18 md:top-16"
       >
         <div className="flex items-center justify-between px-4 py-2">
           <button
@@ -135,7 +134,7 @@ function StickyBorrowerStrip({
                 {borrower.first_name} {borrower.last_name}
               </p>
               {borrower.category && borrower.category.length > 0 && (
-                <div className="mt-0.5 flex flex-wrap gap-1">
+                <div className="mt-0.5 flex flex-wrap gap-1 mb-2">
                   {borrower.category.map((c) => (
                     <span
                       key={c.id}

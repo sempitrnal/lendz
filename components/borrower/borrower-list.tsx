@@ -1121,8 +1121,8 @@ export default function BorrowersList({
                     return (
                       <div
                         key={update.id}
-                        className="mb-2 rounded-xl border transition-all
-                          active:shadow-none sm:rounded-lg sm:border-2
+                        className="mb-2 rounded-xl transition-all
+                          active:shadow-none sm:rounded-lg border-2
                           border-[#6c9670] bg-[#f8fff9]
                           shadow-[4px_4px_0px_0px_#6c9670]
                           hover:shadow-[3px_3px_0px_0px_#6c9670]

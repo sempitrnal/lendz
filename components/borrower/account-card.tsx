@@ -98,6 +98,17 @@ export function AccountCard({
   }
 
   const isCashAdvance = account.type === "cash_advance";
+  const cardAccentColor = isCashAdvance
+    ? isManual
+      ? isRolling
+        ? "#3d8e86" // teal muted
+        : "#9e8820" // yellow muted
+      : "#b07a30" // amber muted
+    : isManual
+      ? isRolling
+        ? "#4a8fa8" // cyan muted
+        : "#6c9670" // lime muted
+      : "#8158a3"; // violet muted
   const typeAccent = isCashAdvance
     ? isManual
       ? isRolling
@@ -187,9 +198,11 @@ export function AccountCard({
 
   return (
     <motion.div
-      className={`relative overflow-hidden rounded-xl border-2 border-[#8158a3]
-        bg-[#f1fff2] shadow-[4px_4px_0px_0px_#8158a3] transition-all
-        duration-200 dark:border-[#020617] dark:bg-slate-900
+      style={{ "--card-accent": cardAccentColor } as React.CSSProperties}
+      className={`relative overflow-hidden rounded-xl border-2
+        border-[var(--card-accent)] bg-[#f1fff2]
+        shadow-[4px_4px_0px_0px_var(--card-accent)] transition-all duration-200
+        dark:border-[#020617] dark:bg-slate-900
         dark:shadow-[4px_4px_0px_0px_#020617] ${
           account.status === "pending" ? " dark:bg-slate-900" : ""
         }

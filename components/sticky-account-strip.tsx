@@ -83,17 +83,17 @@ export default function StickyAccountStrip({
   return (
     <>
       <div
-        className="bg-background/95 dark:bg-background/95 fixed top-10 mx-auto
-          w-full max-w-[1200px] right-0 left-0 z-40 border sm:top-16 md:top-16"
+        className="bg-[#fefff3] dark:bg-background fixed top-10 mx-auto w-full
+          max-w-[1200px] right-0 left-0 z-40 sm:top-16 md:top-16"
       >
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="dark:border-border/50 flex w-full items-center
-            justify-between border-b border-slate-200 px-4 py-2"
+          className="dark:border-border flex w-full items-center justify-between
+            border-b border-slate-200 px-4 py-2"
         >
           <div className="min-w-0 text-left">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col items-start gap-0.5 mb-2">
               <p
                 className="dark:text-foreground truncate text-sm font-black
                   tracking-wide text-slate-900 uppercase"
@@ -102,19 +102,16 @@ export default function StickyAccountStrip({
               </p>
               {categoryLabel && (
                 <span
-                  className="shrink-0 rounded-sm border-2 border-black px-2
-                    py-0.5 text-[10px] font-semibold"
-                  style={{
-                    backgroundColor: categoryColor ?? "#cbd5e1",
-                    color: isDarkColor(categoryColor ?? "#cbd5e1")
-                      ? "white"
-                      : "black",
-                  }}
+                  className={`rounded border border-slate-900/30 px-1.5 py-0.5
+                  text-[9px] font-black
+                  ${isDarkColor(categoryColor ?? "#cbd5e1") ? "text-white" : "text-slate-900"}`}
+                  style={{ backgroundColor: categoryColor ?? "#cbd5e1" }}
                 >
                   {categoryLabel}
                 </span>
               )}
             </div>
+
             <div
               className="dark:text-muted-foreground mt-0.5 flex flex-wrap
                 gap-x-3 gap-y-0.5 text-[11px] text-slate-500"
