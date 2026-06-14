@@ -108,8 +108,8 @@ export default function SidebarNav() {
                       startTransition(() => router.push(href));
                     }}
                     className={`relative flex w-full items-center gap-3
-                    rounded-lg px-2.5 py-2.5 text-sm font-semibold tracking-wide
-                    uppercase transition-colors ${
+                    rounded-lg px-2.5 py-2.5 text-sm font-extrabold
+                    tracking-tighter uppercase transition-colors ${
                       isActive
                         ? "bg-green-300 text-slate-900 dark:bg-green-400"
                         : `text-slate-500 hover:bg-slate-100

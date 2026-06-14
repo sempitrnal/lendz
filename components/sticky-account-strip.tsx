@@ -83,8 +83,8 @@ export default function StickyAccountStrip({
   return (
     <>
       <div
-        className="bg-[#fefff3] dark:bg-background fixed top-10 mx-auto w-full
-          max-w-[1200px] right-0 left-0 z-40 sm:top-16 md:top-16"
+        className="bg-[#fefff3] dark:bg-background sticky top-10 mx-auto right-0
+          left-0 z-40 sm:top-16 md:top-16 md:left-(--sidebar-width)"
       >
         <button
           type="button"

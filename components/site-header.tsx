@@ -44,30 +44,9 @@ export default function SiteHeader({
     >
       <nav
         className="relative mx-auto flex w-full max-w-7xl items-center
-          justify-between px-4 py-4 sm:px-6"
+          justify-between px-4 py-[14.5px] sm:px-6"
       >
-        <div className="flex items-center gap-5">
-          <button
-            type="button"
-            onMouseEnter={() => router.prefetch("/")}
-            onClick={() => {
-              setPendingHref("/");
-              startTransition(() => router.push("/"));
-            }}
-            className="dark:text-foreground dark:hover:text-muted-foreground
-              text-lg font-black tracking-tight transition-colors
-              hover:text-stone-600"
-          >
-            {isPending && pendingHref === "/" ? (
-              <span className="inline-flex items-center gap-1">
-                <Loader2 className="size-4 animate-spin" />
-                *utangz
-              </span>
-            ) : (
-              "*utangz"
-            )}
-          </button>
-        </div>
+        <div className="flex items-center gap-5"></div>
         <div className="flex items-center gap-3">
           <ThemeToggle />
           {isLoggedIn && (

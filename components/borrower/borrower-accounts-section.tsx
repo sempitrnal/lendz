@@ -117,8 +117,9 @@ function StickyBorrowerStrip({
   return (
     <>
       <div
-        className="bg-[#fefff3] border-b dark:bg-background fixed top-10 mx-auto
-          w-full max-w-[1200px] rounded right-0 left-0 z-30 sm:top-18 md:top-16"
+        className="bg-[#fefff3] border-b dark:bg-background sticky top-10 w-full
+          max-w-[1500px] rounded right-0 left-0 z-30 sm:top-18 md:top-16
+          md:left-(--sidebar-width)"
       >
         <div className="flex items-center justify-between px-4 py-2">
           <button
