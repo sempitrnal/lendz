@@ -269,7 +269,6 @@ function StickyBorrowerStrip({
           </div>
         </div>
       </div>
-      <div className="h-12 sm:h-14" />
     </>
   );
 }
@@ -584,7 +583,7 @@ export default function BorrowerAccountsSection({
         </div>
       )}
 
-      <div className="pt-16">
+      <div className="mt-8">
         <button
           type="button"
           onClick={() => {

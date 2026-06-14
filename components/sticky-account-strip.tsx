@@ -237,7 +237,6 @@ export default function StickyAccountStrip({
         </div>
       </div>
       {/* Spacer so content doesn't hide under fixed strip */}
-      <div className="h-12 sm:h-14" />
     </>
   );
 }

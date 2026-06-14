@@ -241,14 +241,22 @@
     @apply bg-background text-foreground;
     background-image: radial-gradient(
       circle,
-      rgba(0, 0, 0, 0.08) 1px,
+      rgba(0, 0, 0, 0.09) 1px,
       transparent 1px
     );
     background-size: 22px 22px;
+    background-attachment: fixed;
   }
 
   .dark body {
-    background-image: none;
+    @apply bg-background text-foreground;
+    background-image: radial-gradient(
+      circle,
+      rgba(255, 251, 251, 0.05) 1px,
+      transparent 1px
+    );
+    background-size: 22px 22px;
+    background-attachment: fixed;
   }
 
   input[type="date"],
