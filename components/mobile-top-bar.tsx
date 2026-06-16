@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
+import HeaderSearch from "@/components/header-search";
 
 const HIDE_ALL_PATHS = ["/login"];
 const HIDE_BACK_PATHS = [
@@ -33,21 +34,29 @@ export default function MobileTopBar() {
   }
 
   return (
-    <div className="dark:border-border/50 dark:bg-background/90 fixed top-0 right-0 left-0 z-40 flex h-10 items-center justify-between gap-2 border-b border-slate-200 bg-white/90 px-3 backdrop-blur sm:hidden print:hidden">
+    <div
+      className="dark:border-border/50 dark:bg-background/90 fixed top-0 right-0
+        left-0 z-40 flex h-16 items-center justify-between gap-2 border-b
+        border-slate-200 bg-background px-3 backdrop-blur sm:hidden
+        print:hidden"
+    >
       {showToggleOnly ? (
-        <div />
+        <div className="shrink-0" />
       ) : (
         <button
           type="button"
           onClick={handleBack}
           aria-label="Go back"
-          className="dark:border-border dark:bg-card dark:text-foreground flex items-center gap-1.5 rounded-lg border border-slate-900 bg-white px-2 py-1 text-xs font-black shadow-[2px_2px_0px_0px_#0f172a] transition active:shadow-none"
+          className="dark:border-border dark:bg-card dark:text-foreground flex
+            shrink-0 items-center justify-center rounded-lg border
+            border-slate-900 bg-white p-2 text-slate-900
+            shadow-[2px_2px_0px_0px_#0f172a] transition active:shadow-none"
         >
-          <ArrowLeft className="size-3.5" strokeWidth={2.5} />
-          back
+          <ArrowLeft className="size-4" strokeWidth={2.5} />
         </button>
       )}
-      <ThemeToggle size="icon-sm" />
+      <HeaderSearch className="flex-1" />
+      {showToggleOnly && <ThemeToggle size="icon-sm" className="shrink-0" />}
     </div>
   );
 }

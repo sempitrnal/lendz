@@ -83,7 +83,7 @@ export default function StickyAccountStrip({
   return (
     <>
       <div
-        className="bg-[#fefff3] dark:bg-background sticky top-10 mx-auto right-0
+        className="bg-[#fefff3] dark:bg-background sticky top-16 mx-auto right-0
           left-0 z-40 sm:top-16 md:top-16 md:left-(--sidebar-width)"
       >
         <button
@@ -182,14 +182,14 @@ export default function StickyAccountStrip({
                   shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]`}
                 >
                   <p
-                    className="dark:text-muted-foreground font-black
-                      tracking-wide text-slate-500 uppercase"
+                    className="text-[#414d7c] font-bold text md:text-base
+                      font-mono dark:text-[#a98080] uppercase"
                   >
                     {label}
                   </p>
                   <p
-                    className="dark:text-foreground mt-0.5 font-black
-                      text-slate-900 tabular-nums"
+                    className="dark:text-[#c2c2c2] mt-0.5 text-xl md:text-3xl
+                      font-bold text-[#593b5e] tabular-nums"
                   >
                     ₱{Math.round(value).toLocaleString()}
                   </p>
@@ -201,14 +201,14 @@ export default function StickyAccountStrip({
                   dark:border-[#020617] dark:bg-violet-900/30"
               >
                 <p
-                  className="dark:text-muted-foreground font-black tracking-wide
-                    text-slate-500 uppercase"
+                  className="text-[#414d7c] font-bold text md:text-base
+                    font-mono dark:text-[#a98080] uppercase"
                 >
                   Profit / payroll
                 </p>
                 <p
-                  className="dark:text-foreground mt-0.5 font-black
-                    text-slate-900 tabular-nums"
+                  className="dark:text-[#c2c2c2] mt-0.5 text-xl md:text-3xl
+                    font-bold text-[#593b5e] tabular-nums"
                 >
                   ₱{Math.round(profitPerPayroll).toLocaleString()}
                 </p>
@@ -227,8 +227,8 @@ export default function StickyAccountStrip({
                 />
               </div>
               <span
-                className="dark:text-foreground shrink-0 text-[10px] font-black
-                  text-slate-700 tabular-nums"
+                className="dark:text-[#c2c2c2] mt-0.5 text-xl md:text-3xl
+                  font-bold text-[#593b5e] tabular-nums"
               >
                 {progressPct}%
               </span>

@@ -11,6 +11,7 @@ import {
 import { Loader2 } from "lucide-react";
 import NeobrutButton from "./neobrut-button";
 import ThemeToggle from "./theme-toggle";
+import HeaderSearch from "./header-search";
 
 type SiteHeaderProps = {
   isLoggedIn: boolean;
@@ -46,7 +47,9 @@ export default function SiteHeader({
         className="relative mx-auto flex w-full max-w-7xl items-center
           justify-between px-4 py-[14.5px] sm:px-6"
       >
-        <div className="flex items-center gap-5"></div>
+        <div className="flex flex-1 items-center gap-5">
+          <HeaderSearch />
+        </div>
         <div className="flex items-center gap-3">
           <ThemeToggle />
           {isLoggedIn && (

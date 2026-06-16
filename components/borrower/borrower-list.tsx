@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { fetchCategoriesAction } from "@/lib/actions/categories";
 import { formFieldInputClassName } from "@/lib/form-field-classes";
+import { useSeedBorrowersSearch } from "@/hooks/use-borrowers-search";
 
 import AddBorrowerModal from "./add-borrower-modal";
 import { BorrowerCard } from "./borrower-card";
@@ -25,6 +26,9 @@ import {
   Calendar,
   CheckCircle2,
   Banknote,
+  Heart,
+  AlertTriangle,
+  ArrowUpDown,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PullToRefresh } from "@/components/pull-to-refresh";
@@ -121,6 +125,16 @@ export type AccountUpdate = {
     | null;
 };
 
+type SortMode =
+  | "default"
+  | "most-loyal"
+  | "most-accounts"
+  | "biggest-borrower"
+  | "almost-there"
+  | "most-overdue"
+  | "newest-member"
+  | "highest-risk";
+
 type BorrowersListProps = {
   allBorrowers: Borrower[];
   initialSearchQuery?: string;
@@ -139,6 +153,7 @@ export default function BorrowersList({
   recentAccountUpdates = [],
 }: BorrowersListProps) {
   const router = useRouter();
+  const seedBorrowersSearch = useSeedBorrowersSearch();
 
   const formatActivityDate = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -195,11 +210,28 @@ export default function BorrowersList({
     setSelectedCategoryIds((initialCategoryIds as string[] | undefined) ?? []);
   }, [initialCategoryIds]);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>("default");
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [isAddBorrowerModalOpen, setIsAddBorrowerModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (allBorrowers.length > 0) {
+      seedBorrowersSearch(
+        allBorrowers.map((b) => ({
+          id: b.id,
+          first_name: b.first_name,
+          last_name: b.last_name,
+          contact: b.contact ?? null,
+          borrower_categories: b.borrower_categories ?? [],
+        })),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allBorrowers]);
 
   // Restore scroll position when returning from borrower detail
   useEffect(() => {
@@ -309,6 +341,102 @@ export default function BorrowersList({
     }
     return result;
   }, [safeBorrowers, listQuery, safeCategoryIds]);
+
+  // Sort helpers
+  function getTotalPrincipal(b: Borrower): number {
+    const autoPrincipal = (b.account_schedules ?? []).reduce(
+      (sum, s) => sum + (s.principal_amount ?? 0),
+      0,
+    );
+    return autoPrincipal + (b.manual_total_principal ?? 0);
+  }
+
+  function getCompletionRatio(b: Borrower): number {
+    const autoSchedules = b.account_schedules ?? [];
+    const autoTotal = autoSchedules.reduce(
+      (sum, s) => sum + (s.total_schedules ?? 0),
+      0,
+    );
+    const autoPaid = autoSchedules.reduce(
+      (sum, s) => sum + (s.paid_schedules_count ?? 0),
+      0,
+    );
+    const manualPrincipal = b.manual_total_principal ?? 0;
+    const manualPaid = b.manual_total_paid ?? 0;
+
+    const autoWeight = autoTotal;
+    const manualWeight = manualPrincipal > 0 ? 1 : 0;
+    const totalWeight = autoWeight + manualWeight;
+
+    if (totalWeight === 0) return 0;
+
+    const autoRatio = autoTotal > 0 ? autoPaid / autoTotal : 0;
+    const manualRatio =
+      manualPrincipal > 0 ? Math.min(1, manualPaid / manualPrincipal) : 0;
+
+    return (autoRatio * autoWeight + manualRatio * manualWeight) / totalWeight;
+  }
+
+  const SORT_OPTIONS: {
+    value: SortMode;
+    label: string;
+    icon: React.ElementType;
+  }[] = [
+    { value: "default", label: "Default", icon: ArrowUpDown },
+    { value: "most-loyal", label: "Most Loyal", icon: Heart },
+    { value: "most-accounts", label: "Most Accounts", icon: Users },
+    { value: "biggest-borrower", label: "Biggest Borrower", icon: Banknote },
+    { value: "almost-there", label: "Almost There", icon: CheckCircle2 },
+    { value: "most-overdue", label: "Most Overdue", icon: Activity },
+    { value: "newest-member", label: "Newest Member", icon: Calendar },
+    { value: "highest-risk", label: "Highest Risk", icon: AlertTriangle },
+  ];
+
+  const sortedBorrowers = useMemo(() => {
+    if (sortMode === "default") return filteredBorrowers;
+
+    const hasAccounts = (b: Borrower) => (b.accounts_count ?? 0) > 0;
+
+    return [...filteredBorrowers].sort((a, b) => {
+      switch (sortMode) {
+        case "most-loyal":
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+        case "most-accounts":
+          return (b.accounts_count ?? 0) - (a.accounts_count ?? 0);
+        case "biggest-borrower": {
+          const totalA = getTotalPrincipal(a);
+          const totalB = getTotalPrincipal(b);
+          if (totalB !== totalA) return totalB - totalA;
+          return (b.accounts_count ?? 0) - (a.accounts_count ?? 0);
+        }
+        case "almost-there": {
+          const hasA = hasAccounts(a);
+          const hasB = hasAccounts(b);
+          if (hasA && !hasB) return -1;
+          if (!hasA && hasB) return 1;
+          if (!hasA && !hasB) return 0;
+          return getCompletionRatio(b) - getCompletionRatio(a);
+        }
+        case "most-overdue":
+          return (b.overdue_count ?? 0) - (a.overdue_count ?? 0);
+        case "newest-member":
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        case "highest-risk": {
+          const totalA = getTotalPrincipal(a);
+          const totalB = getTotalPrincipal(b);
+          const riskA = totalA > 0 ? (a.overdue_total ?? 0) / totalA : -1;
+          const riskB = totalB > 0 ? (b.overdue_total ?? 0) / totalB : -1;
+          return riskB - riskA;
+        }
+        default:
+          return 0;
+      }
+    });
+  }, [filteredBorrowers, sortMode]);
 
   // Instant client-side suggestions from cached borrowers (no network)
   const suggestions = useMemo(() => {
@@ -885,21 +1013,6 @@ export default function BorrowersList({
                         <Link
                           href={`/accounts/${account.id}`}
                           className="flex h-full flex-col outline-none"
-                          onClick={() => {
-                            if (borrowerObj) {
-                              const cats = borrowerObj.borrower_categories;
-                              const firstColor =
-                                cats && cats.length > 0
-                                  ? cats[0].category.color
-                                  : null;
-                              recordVisit({
-                                id: borrowerObj.id,
-                                first_name: borrowerObj.first_name,
-                                last_name: borrowerObj.last_name,
-                                categoryColor: firstColor ?? null,
-                              });
-                            }
-                          }}
                         >
                           <div className="flex flex-1 flex-col p-2 sm:p-3">
                             <div
@@ -1183,7 +1296,148 @@ export default function BorrowersList({
         </article>
       </section>
 
-      {filteredBorrowers.length === 0 ? (
+      {/* Borrowers list header + sort */}
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="rounded-md border-2 border-slate-900 bg-slate-900 p-1.5
+              text-white dark:border-slate-600 dark:bg-slate-100
+              dark:text-slate-900"
+          >
+            <Users className="size-4" />
+          </span>
+          <h2
+            className="text-base font-black lowercase tracking-wide
+              text-slate-900 dark:text-white"
+          >
+            borrowers
+          </h2>
+          <span
+            className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black
+              text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+          >
+            {sortedBorrowers.length}
+          </span>
+        </div>
+
+        {/* Sort Dropdown */}
+        <div className="relative w-full max-w-[240px]">
+          <button
+            type="button"
+            aria-expanded={isSortDropdownOpen}
+            aria-haspopup="listbox"
+            onClick={() => setIsSortDropdownOpen((prev) => !prev)}
+            className="dark:border-border dark:hover:bg-muted flex w-full
+              items-center justify-between gap-3 rounded-xl border-2
+              border-slate-900/90 px-4 py-2.5 text-left
+              shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition
+              active:translate-y-px
+              active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)]
+              dark:shadow-none"
+          >
+            <span className="flex items-center gap-2">
+              {(() => {
+                const opt = SORT_OPTIONS.find((o) => o.value === sortMode);
+                const Icon = opt?.icon;
+                return (
+                  <>
+                    {Icon && <Icon className="size-4" />}
+                    <span
+                      className="dark:text-foreground text-sm font-bold
+                        tracking-wide text-slate-900 uppercase"
+                    >
+                      {opt?.label ?? "Default"}
+                    </span>
+                  </>
+                );
+              })()}
+            </span>
+
+            <span
+              className="dark:border-border dark:bg-muted
+                dark:text-muted-foreground flex size-8 shrink-0 items-center
+                justify-center rounded-lg border border-slate-900/20 bg-slate-50
+                text-slate-700"
+            >
+              <BsChevronDown
+                className={`size-3.5 transition-transform
+                  ${isSortDropdownOpen ? "rotate-180" : ""}`}
+                aria-hidden
+              />
+            </span>
+          </button>
+
+          {isSortDropdownOpen ? (
+            <div
+              role="listbox"
+              className="dark:border-border dark:bg-card absolute right-0 z-20
+                mt-2 max-h-80 w-72 overflow-y-auto rounded-xl border-2
+                border-slate-900/90 bg-white p-2
+                shadow-[3px_3px_0px_0px_rgb(15_23_42/0.18)] dark:shadow-none"
+            >
+              <div className="flex flex-col gap-1.5">
+                {SORT_OPTIONS.map((option) => {
+                  const isSelected = sortMode === option.value;
+                  const Icon = option.icon;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => {
+                        setSortMode(option.value);
+                        setIsSortDropdownOpen(false);
+                      }}
+                      className={`flex items-center gap-2.5 rounded-lg border
+                        px-3 py-2.5 text-left text-sm font-semibold transition
+                        ${
+                          isSelected
+                            ? `dark:border-border dark:bg-foreground
+                              dark:text-background border-2 border-slate-900
+                              bg-slate-900 text-white
+                              shadow-[1px_1px_0px_0px_rgb(15_23_42/0.5)]
+                              dark:shadow-none`
+                            : `dark:border-border dark:bg-muted
+                              dark:text-foreground dark:hover:border-border
+                              dark:hover:bg-muted/70 border border-slate-900/15
+                              bg-slate-50/60 text-slate-800
+                              shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)]
+                              hover:border-slate-900/35 hover:bg-white
+                              dark:shadow-none`
+                        }`}
+                    >
+                      {Icon && (
+                        <span
+                          className={`flex size-7 shrink-0 items-center
+                            justify-center rounded-md border-2 ${
+                              isSelected
+                                ? "border-white/30 bg-white/15"
+                                : "border-slate-900/15 bg-slate-100"
+                            }`}
+                        >
+                          <Icon className="size-3.5" />
+                        </span>
+                      )}
+                      <span className="truncate">{option.label}</span>
+                      {isSelected ? (
+                        <span
+                          className="ml-auto shrink-0 text-xs font-black"
+                          aria-hidden
+                        >
+                          ✓
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {sortedBorrowers.length === 0 ? (
         <EmptyState
           icon={Users}
           title={
@@ -1205,7 +1459,7 @@ export default function BorrowersList({
       ) : (
         <PullToRefresh>
           <MasonryGrid
-            borrowers={filteredBorrowers}
+            borrowers={sortedBorrowers}
             onBorrowerUpdated={refreshPage}
             onVisit={recordVisit}
           />

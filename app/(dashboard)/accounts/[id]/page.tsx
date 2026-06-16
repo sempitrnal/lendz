@@ -120,7 +120,7 @@ const nb = {
   scheduleShell:
     "overflow-hidden rounded-xl border-2 border-slate-900 bg-background dark:border-[#020617] dark:bg-slate-900",
   scheduleHead:
-    "border-b-2 border-slate-900 bg-green-300 px-4 py-3 sm:px-5 sm:py-4 dark:border-[#020617] dark:bg-emerald-500",
+    "border-b-2 border-slate-900 bg-green-300 px-4 py-3 sm:px-5 sm:py-4 dark:border-[#020617] dark:bg-green-400",
   scheduleTh:
     "border-r-2 border-b-2 border-slate-900 bg-slate-100 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide text-slate-900 last:border-r-0 dark:border-[#020617] dark:bg-slate-800 dark:text-slate-100",
   scheduleTd:
@@ -810,7 +810,7 @@ export default async function AccountDetailPage({
               </div>
             ) : null;
           })()}
-
+        {/* 
         <section aria-labelledby="balances-heading" className="hidden sm:block">
           <h2 id="balances-heading" className={`mb-3 ${nb.label}`}>
             Balances
@@ -916,7 +916,7 @@ export default async function AccountDetailPage({
                   : `${schedules.filter((s) => isInstallmentFullyPaid(s)).length} of ${totalInstallments} installments paid`}
             </span>
           </div>
-        </section>
+        </section> */}
 
         {accountRow.status !== "pending" ? (
           <ScheduleSelectionProvider>
@@ -938,35 +938,18 @@ export default async function AccountDetailPage({
                       Payment schedules
                     </h2>
                     {nextDue ? (
-                      <p
-                        className="dark:text-muted-foreground mt-1.5 text-sm
-                          font-semibold text-slate-800"
-                      >
+                      <p className="mt-1.5 text-sm font-semibold text-slate-800">
                         Next due{" "}
-                        <span
-                          className="dark:text-foreground font-black
-                            text-slate-900"
-                        >
+                        <span className="font-black text-slate-900">
                           {formatDate(nextDue.due_date)}
                         </span>
-                        <span
-                          className="dark:text-muted-foreground text-slate-600"
-                        >
-                          {" "}
-                          ·{" "}
-                        </span>
-                        <span
-                          className="dark:text-foreground font-black
-                            text-slate-900 tabular-nums"
-                        >
+                        <span className="text-slate-600"> · </span>
+                        <span className="font-black text-slate-900 tabular-nums">
                           {formatMoney(remainingOnInstallment(nextDue))}
                         </span>
                         {remainingOnInstallment(nextDue) <
                         Number(nextDue.amount_due ?? 0) ? (
-                          <span
-                            className="dark:text-muted-foreground
-                              text-slate-600"
-                          >
+                          <span className="text-slate-600">
                             {" "}
                             left of{" "}
                             <span
@@ -995,15 +978,11 @@ export default async function AccountDetailPage({
                   {(isManual ? principal > 0 : totalInstallments > 0) ? (
                     <div className="w-full max-w-xs sm:w-48">
                       <div
-                        className="dark:text-muted-foreground mb-1 flex
-                          justify-between text-[10px] font-black tracking-wide
-                          text-slate-800 uppercase"
+                        className="mb-1 flex justify-between text-[10px]
+                          font-black tracking-wide text-slate-800 uppercase"
                       >
                         <span>{isManual ? "Recovered" : "Progress"}</span>
-                        <span
-                          className="dark:text-foreground text-slate-900
-                            tabular-nums"
-                        >
+                        <span className="text-slate-900 tabular-nums">
                           {progressPct}%
                         </span>
                       </div>
