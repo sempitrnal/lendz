@@ -161,7 +161,7 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
                 >
                   {s.first_name} {s.last_name}
                 </span>
-                {s.borrower_categories?.[0]?.category && (
+                {s.borrower_categories?.[0]?.category[0] && (
                   <span
                     className="flex w-fit items-center gap-1 rounded-full border
                       border-slate-900/10 bg-slate-100 px-2 py-0.5 text-[10px]
@@ -173,10 +173,11 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
                       className="size-1.5 shrink-0 rounded-full"
                       style={{
                         backgroundColor:
-                          s.borrower_categories[0].category.color ?? "#cbd5e1",
+                          s.borrower_categories[0].category[0].color ??
+                          "#cbd5e1",
                       }}
                     />
-                    {s.borrower_categories[0].category.name}
+                    {s.borrower_categories[0].category[0].name}
                   </span>
                 )}
               </span>

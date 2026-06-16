@@ -226,7 +226,10 @@ export default function BorrowersList({
           first_name: b.first_name,
           last_name: b.last_name,
           contact: b.contact ?? null,
-          borrower_categories: b.borrower_categories ?? [],
+          borrower_categories:
+            b.borrower_categories?.map((bc) => ({
+              category: [bc.category],
+            })) ?? [],
         })),
       );
     }

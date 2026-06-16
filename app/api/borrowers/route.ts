@@ -7,7 +7,7 @@ export type BorrowerSearchItem = {
   last_name: string;
   contact: string | null;
   borrower_categories: {
-    category: { id: string; name: string; color: string | null };
+    category: { id: string; name: string; color: string | null }[];
   }[];
 };
 
