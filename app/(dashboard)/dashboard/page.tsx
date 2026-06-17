@@ -4,7 +4,6 @@ import {
   CalendarClock,
   Coins,
   HandCoins,
-  Landmark,
   Plus,
   TrendingUp,
   UserRoundPlus,
@@ -24,7 +23,6 @@ import {
   MonthlyCollectionsChartClient as MonthlyCollectionsChart,
   CollectionRateRingClient as CollectionRateRing,
   OverdueByCategoryChartClient as OverdueByCategoryChart,
-  OverdueAgingChartClient as OverdueAgingChart,
   CashFlowForecastChartClient as CashFlowForecastChart,
 } from "@/components/dashboard/charts-client";
 
@@ -74,27 +72,6 @@ type BorrowerRef = {
   }>;
 };
 
-type RecentAccount = {
-  id: string;
-  borrower_id: string | null;
-  type: string | null;
-  principal_amount: number | null;
-  created_at: string;
-  release_date: string | null;
-  schedule_mode: string | null;
-  interest_type: string | null;
-  borrower:
-    | {
-        first_name: string;
-        last_name: string;
-      }
-    | Array<{
-        first_name: string;
-        last_name: string;
-      }>
-    | null;
-};
-
 export default async function Dashboard() {
   const supabase = await createSupabaseServer();
   const now = new Date();
@@ -124,8 +101,6 @@ export default async function Dashboard() {
     { count: newLoansMonthCount },
     { data: accountTotalsData },
     allSchedules,
-    { data: recentBorrowersData },
-    { data: recentAccountsData },
   ] = await Promise.all([
     supabase
       .from("borrowers")
@@ -149,49 +124,6 @@ export default async function Dashboard() {
       )
       .is("deleted_at", null),
     getAllPaymentSchedules(),
-    supabase
-      .from("borrowers")
-      .select(
-        `
-        id,
-        first_name,
-        last_name,
-        contact,
-        created_at,
-        borrower_categories (
-          category:categories (
-            id,
-            name,
-            color
-          )
-        )
-      `,
-      )
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(5),
-    supabase
-      .from("accounts")
-      .select(
-        `
-        id,
-        borrower_id,
-        type,
-        principal_amount,
-        created_at,
-        release_date,
-        schedule_mode,
-        interest_type,
-        borrower:borrowers (
-          id,
-          first_name,
-          last_name
-        )
-      `,
-      )
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(5),
   ]);
 
   const unpaidSchedules = allSchedules.filter((row) => row.status !== "paid");
@@ -377,11 +309,15 @@ export default async function Dashboard() {
   const overdueAccountIds = [
     ...new Set(pastOverdueCandidates.map((row) => row.account_id)),
   ];
+  const thisMonthAccountIds = [
+    ...new Set(thisMonthSchedules.map((row) => row.account_id)),
+  ];
   const accountIdsForBorrowerLookup = [
     ...new Set([
       ...dueAccountIds,
       ...nextCollectionAccountIds,
       ...overdueAccountIds,
+      ...thisMonthAccountIds,
     ]),
   ];
 
@@ -446,127 +382,6 @@ export default async function Dashboard() {
     return { label, color, id };
   };
 
-  const dueTodayRows = dueSchedules.map((schedule) => {
-    const account = accountsById.get(schedule.account_id);
-    const borrower = account ? borrowersById.get(account.borrower_id) : null;
-    const categoryMeta = borrowerCategoryMeta(borrower);
-    return {
-      id: schedule.id,
-      name: borrower
-        ? `${borrower.first_name} ${borrower.last_name}`
-        : "Unknown borrower",
-      category: categoryMeta.label,
-      categoryColor: categoryMeta.color,
-      amount: remainingOnInstallment(schedule),
-      status: schedule.status,
-    };
-  });
-  const nextCollectionRows = (() => {
-    const grouped = new Map<
-      string,
-      {
-        borrowerId: string | null;
-        name: string;
-        category: string;
-        categoryColor: string | null;
-        categoryId: string | null;
-        schedules: Array<{
-          id: string;
-          amountDue: number | null;
-          amount: number;
-        }>;
-      }
-    >();
-
-    for (const schedule of nextCollectionSchedules) {
-      const account = accountsById.get(schedule.account_id);
-      const borrower = account ? borrowersById.get(account.borrower_id) : null;
-      const borrowerId = borrower?.id ?? null;
-      const key = borrowerId ?? `unknown-${schedule.account_id}`;
-
-      const existing = grouped.get(key);
-      if (!existing) {
-        const categoryMeta = borrowerCategoryMeta(borrower);
-        grouped.set(key, {
-          borrowerId,
-          name: borrower
-            ? `${borrower.first_name} ${borrower.last_name}`
-            : "Unknown borrower",
-          category: categoryMeta.label,
-          categoryColor: categoryMeta.color,
-          categoryId: categoryMeta.id,
-          schedules: [],
-        });
-      }
-
-      grouped.get(key)!.schedules.push({
-        id: schedule.id,
-        amountDue: schedule.amount_due,
-        amount: remainingOnInstallment(schedule),
-      });
-    }
-
-    return Array.from(grouped.entries()).map(([key, row]) => {
-      const amount = row.schedules.reduce((sum, s) => sum + s.amount, 0);
-      return {
-        id: `${key}-${nextCollectionDate ?? "none"}`,
-        borrowerId: row.borrowerId,
-        name: row.name,
-        amount,
-        amounts: row.schedules.map((s) => s.amount),
-        category: row.category,
-        categoryColor: row.categoryColor,
-        categoryId: row.categoryId,
-        schedules: row.schedules,
-      };
-    });
-  })();
-
-  const overdueRows = (() => {
-    const grouped = new Map<
-      string,
-      {
-        borrowerId: string | null;
-        name: string;
-        category: string;
-        categoryColor: string | null;
-        seenAccountIds: Set<string>;
-        totalPrincipal: number;
-      }
-    >();
-
-    for (const schedule of pastOverdueCandidates) {
-      const account = accountsById.get(schedule.account_id);
-      const borrower = account ? borrowersById.get(account.borrower_id) : null;
-      const borrowerId = borrower?.id ?? null;
-      const key = borrowerId ?? `unknown-${schedule.account_id}`;
-
-      if (!grouped.has(key)) {
-        const categoryMeta = borrowerCategoryMeta(borrower);
-        grouped.set(key, {
-          borrowerId,
-          name: borrower
-            ? `${borrower.first_name} ${borrower.last_name}`
-            : "Unknown borrower",
-          category: categoryMeta.label,
-          categoryColor: categoryMeta.color,
-          seenAccountIds: new Set(),
-          totalPrincipal: 0,
-        });
-      }
-
-      const entry = grouped.get(key)!;
-      if (account && !entry.seenAccountIds.has(account.id)) {
-        entry.seenAccountIds.add(account.id);
-        entry.totalPrincipal += Number(account.principal_amount ?? 0);
-      }
-    }
-
-    return Array.from(grouped.values()).map(
-      ({ seenAccountIds, ...rest }) => rest,
-    );
-  })();
-
   const overdueByCategory = (() => {
     const map = new Map<
       string,
@@ -606,39 +421,6 @@ export default async function Dashboard() {
         profit: Math.round(g.profit),
       }))
       .sort((a, b) => b.total - a.total);
-  })();
-
-  // Overdue aging buckets: days past due from todayIso
-  const overdueAgingData = (() => {
-    const buckets = [
-      { label: "0–30d", rangeLabel: "0–30 days", count: 0, amount: 0 },
-      { label: "31–60d", rangeLabel: "31–60 days", count: 0, amount: 0 },
-      { label: "61–90d", rangeLabel: "61–90 days", count: 0, amount: 0 },
-      { label: "90+d", rangeLabel: "90+ days", count: 0, amount: 0 },
-    ];
-    for (const schedule of pastOverdueCandidates) {
-      const daysOverdue = Math.round(
-        (new Date(todayIso).getTime() - new Date(schedule.due_date).getTime()) /
-          86400000,
-      );
-      const amount = remainingOnInstallment(schedule);
-      const bucket =
-        daysOverdue <= 30
-          ? buckets[0]
-          : daysOverdue <= 60
-            ? buckets[1]
-            : daysOverdue <= 90
-              ? buckets[2]
-              : buckets[3];
-      bucket.count++;
-      bucket.amount += amount;
-    }
-    return buckets.map((b) => ({
-      label: b.label,
-      rangeLabel: b.rangeLabel,
-      count: b.count,
-      amount: Math.round(b.amount),
-    }));
   })();
 
   // 30-day cash flow forecast: group unpaid schedules into 5 weekly buckets
@@ -692,6 +474,8 @@ export default async function Dashboard() {
       ? Math.round(totalProfitComplete / completeMonths.length)
       : 0;
 
+  const dueSchedulesCount = dueSchedules.length;
+
   const summaryCards = [
     {
       label: "active borrowers",
@@ -701,22 +485,22 @@ export default async function Dashboard() {
       tone: "bg-emerald-100 dark:bg-emerald-900/50",
       bg: "from-emerald-50 via-stone-50 to-emerald-100",
     },
-    {
-      label: "next collection",
-      value: nextCollectionDate
-        ? new Date(nextCollectionDate).toLocaleDateString("en-CA")
-        : "none",
-      delta: nextCollectionDate
-        ? `PHP ${nextCollectionTotal.toLocaleString()} • ${nextCollectionCount} schedule${nextCollectionCount === 1 ? "" : "s"}`
-        : "no upcoming unpaid schedule",
-      icon: CalendarClock,
-      tone: "bg-lime-100 dark:bg-lime-900/50",
-      bg: "from-lime-50 via-stone-50 to-yellow-100",
-    },
+    // {
+    //   label: "next collection",
+    //   value: nextCollectionDate
+    //     ? new Date(nextCollectionDate).toLocaleDateString("en-CA")
+    //     : "none",
+    //   delta: nextCollectionDate
+    //     ? `PHP ${nextCollectionTotal.toLocaleString()} • ${nextCollectionCount} schedule${nextCollectionCount === 1 ? "" : "s"}`
+    //     : "no upcoming unpaid schedule",
+    //   icon: CalendarClock,
+    //   tone: "bg-lime-100 dark:bg-lime-900/50",
+    //   bg: "from-lime-50 via-stone-50 to-yellow-100",
+    // },
     {
       label: "dues today",
       value: `PHP ${dueTotalToday.toLocaleString()}`,
-      delta: `${dueTodayRows.length} schedule${dueTodayRows.length === 1 ? "" : "s"}`,
+      delta: `${dueSchedulesCount} schedule${dueSchedulesCount === 1 ? "" : "s"}`,
       icon: Coins,
       tone: "bg-orange-100 dark:bg-orange-900/50",
       bg: "from-rose-50 via-stone-50 to-orange-100",
@@ -730,19 +514,6 @@ export default async function Dashboard() {
       bg: "from-amber-50 via-stone-50 to-amber-100",
     },
   ] as const;
-
-  const recentBorrowers = (recentBorrowersData ?? []) as BorrowerRef[];
-  const recentAccounts = (recentAccountsData ?? []) as RecentAccount[];
-
-  const formatActivityDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      timeZone: "Asia/Manila",
-    });
-  };
 
   return (
     <main className="mx-auto w-full max-w-5xl px-1 py-2 sm:px-0">
@@ -916,14 +687,7 @@ export default async function Dashboard() {
         </article>
       </section>
 
-      <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-2">
-        <article
-          className="dark:border-border dark:bg-card bg-background min-w-0
-            rounded-xl border-2 border-slate-900 p-4
-            shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
-        >
-          <OverdueAgingChart data={overdueAgingData} />
-        </article>
+      <section className="mt-4 lg:mt-6">
         <article
           className="dark:border-border dark:bg-card bg-background min-w-0
             rounded-xl border-2 border-slate-900 p-4
@@ -933,568 +697,96 @@ export default async function Dashboard() {
         </article>
       </section>
 
-      <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1.3fr_1fr]">
-        <article
-          className="dark:border-border dark:via-card min-w-0 rounded-xl
-            border-2 border-slate-900 bg-linear-to-br from-cyan-50 via-stone-100
-            to-blue-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5
-            dark:from-cyan-950/30 dark:to-blue-950/30"
+      <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1fr_1fr]">
+        <Link
+          href="/due-this-month"
+          className="dark:border-border dark:via-card flex flex-col
+            justify-between rounded-xl border-2 border-slate-900 bg-linear-to-br
+            from-sky-50 via-stone-50 to-indigo-100 p-4
+            shadow-[4px_4px_0px_0px_#0f172a] transition hover:-translate-y-0.5
+            hover:shadow-[6px_6px_0px_0px_#0f172a] active:translate-y-px
+            active:shadow-[2px_2px_0px_0px_#0f172a] sm:p-5 dark:from-sky-950/30
+            dark:to-indigo-950/30"
         >
-          <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <h2
               className="dark:text-foreground text-base font-black
                 text-slate-900 lowercase"
             >
-              due today
+              due this month
             </h2>
+            <span
+              className="dark:bg-card dark:text-muted-foreground inline-flex
+                items-center gap-1.5 rounded-md border-2 border-slate-900
+                bg-white px-2 py-1 text-xs font-bold text-slate-600 uppercase"
+            >
+              {thisMonthSchedules.length} schedule
+              {thisMonthSchedules.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <p className="dark:text-muted-foreground mt-2 text-sm text-slate-600">
+            View all payment schedules due within the current calendar month,
+            grouped by borrower.
+          </p>
+        </Link>
+
+        <article
+          className="dark:border-border dark:via-card rounded-xl border-2
+            border-slate-900 bg-linear-to-br from-amber-50 via-stone-100
+            to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5
+            dark:from-amber-950/30 dark:to-orange-950/30"
+        >
+          <h2
+            className="dark:text-foreground mb-3 text-base font-black
+              text-slate-900 lowercase"
+          >
+            quick actions
+          </h2>
+          <div className="space-y-2">
             <Link
               href="/borrowers"
-              className="dark:border-border dark:bg-muted dark:text-foreground
-                dark:hover:bg-muted/80 inline-flex items-center gap-1 rounded-md
-                border-2 border-slate-900 bg-slate-100 px-2.5 py-1 text-xs
-                font-bold text-slate-900 transition hover:bg-slate-200"
+              className="dark:border-border dark:text-foreground flex
+                items-center justify-between rounded-lg border-2
+                border-slate-900 bg-emerald-100 px-3 py-2 text-sm font-bold
+                text-slate-900 lowercase transition hover:bg-emerald-200
+                dark:bg-emerald-900/40 dark:hover:bg-emerald-900/60"
             >
-              view all
-              <ArrowUpRight className="size-3.5" />
+              add borrower
+              <UserRoundPlus className="size-4" />
             </Link>
-          </div>
-          <ul className="space-y-2">
-            {dueTodayRows.length === 0 ? (
-              <li
-                className="dark:border-muted-foreground/40 dark:bg-muted
-                  dark:text-muted-foreground rounded-lg border-2 border-dashed
-                  border-slate-400 bg-slate-50 p-3 text-sm text-slate-600"
-              >
-                No schedules due today.
-              </li>
-            ) : (
-              dueTodayRows.map((entry) => (
-                <li
-                  key={entry.id}
-                  className="dark:border-border dark:bg-muted rounded-lg
-                    border-2 border-slate-900 bg-slate-50 p-3"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p
-                      className="dark:text-foreground font-bold text-slate-900
-                        lowercase"
-                    >
-                      {entry.name}
-                    </p>
-                    <span
-                      className="dark:bg-card dark:text-muted-foreground
-                        inline-flex items-center gap-1.5 rounded-md bg-white
-                        px-2 py-1 text-xs font-bold text-slate-600 uppercase"
-                    >
-                      <span
-                        className="dark:border-border size-2 shrink-0
-                          rounded-full border border-slate-900/25"
-                        style={{
-                          backgroundColor: entry.categoryColor ?? "#cbd5e1",
-                        }}
-                        aria-hidden
-                      />
-                      {entry.category}
-                    </span>
-                  </div>
-                  <div
-                    className="mt-1 flex items-center justify-between text-sm"
-                  >
-                    <p
-                      className="dark:text-foreground font-semibold
-                        text-slate-700"
-                    >
-                      PHP {entry.amount.toLocaleString()}
-                    </p>
-                    <p
-                      className="dark:text-muted-foreground text-xs
-                        font-semibold text-slate-600 uppercase"
-                    >
-                      {entry.status}
-                    </p>
-                  </div>
-                </li>
-              ))
-            )}
-          </ul>
-        </article>
-
-        <div className="min-w-0 space-y-4">
-          <article
-            className="dark:border-border dark:via-card min-w-0 rounded-xl
-              border-2 border-slate-900 bg-linear-to-br from-emerald-50
-              via-stone-100 to-lime-100 p-4 shadow-[4px_4px_0px_0px_#0f172a]
-              sm:p-5 dark:from-emerald-950/30 dark:to-lime-950/30"
-          >
-            <div
-              className="mb-3 flex flex-wrap items-center justify-between gap-2"
+            <Link
+              href="/categories"
+              className="dark:border-border dark:text-foreground flex
+                items-center justify-between rounded-lg border-2
+                border-slate-900 bg-sky-100 px-3 py-2 text-sm font-bold
+                text-slate-900 lowercase transition hover:bg-sky-200
+                dark:bg-sky-900/40 dark:hover:bg-sky-900/60"
             >
-              <h2
-                className="dark:text-foreground text-base font-black
-                  text-slate-900 lowercase"
-              >
-                next collection
-              </h2>
-              {nextCollectionSchedules.length > 0 ? (
-                <Link
-                  href="/next-collection"
-                  className="dark:border-border dark:text-foreground inline-flex
-                    items-center gap-1 rounded-md border-2 border-slate-900
-                    bg-emerald-200 px-2.5 py-1 text-xs font-bold text-slate-900
-                    transition hover:bg-emerald-300 dark:bg-emerald-800/50
-                    dark:hover:bg-emerald-800"
-                >
-                  view all
-                  <ArrowUpRight className="size-3.5" />
-                </Link>
-              ) : null}
-            </div>
-            {nextCollectionDate ? (
-              <p
-                className="dark:text-muted-foreground mb-3 text-xs font-semibold
-                  tracking-wide text-slate-600 uppercase"
-              >
-                {new Date(nextCollectionDate).toLocaleDateString()} • PHP{" "}
-                {nextCollectionTotal.toLocaleString()}
-              </p>
-            ) : null}
-            {nextCollectionRows.length === 0 ? (
-              <div
-                className="dark:border-muted-foreground/40 dark:bg-muted
-                  dark:text-muted-foreground rounded-lg border-2 border-dashed
-                  border-slate-400 bg-slate-50 px-3 py-2 text-sm text-slate-600"
-              >
-                No upcoming unpaid schedule.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {(() => {
-                  const groups = new Map<
-                    string,
-                    {
-                      color: string | null;
-                      categoryId: string | null;
-                      accountCount: number;
-                      total: number;
-                    }
-                  >();
-                  for (const entry of nextCollectionRows) {
-                    const existing = groups.get(entry.category);
-                    if (existing) {
-                      existing.accountCount += entry.schedules.length;
-                      existing.total += entry.amount;
-                    } else {
-                      groups.set(entry.category, {
-                        color: entry.categoryColor ?? null,
-                        categoryId: entry.categoryId ?? null,
-                        accountCount: entry.schedules.length,
-                        total: entry.amount,
-                      });
-                    }
-                  }
-                  return Array.from(groups.entries()).map(([category, g]) => {
-                    const inner = (
-                      <div className="dark:border-border dark:bg-muted flex items-center justify-between gap-2 rounded-lg border-2 border-slate-900 bg-slate-50 px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="dark:border-border size-2.5 shrink-0 rounded-full border border-slate-900/25"
-                            style={{ backgroundColor: g.color ?? "#cbd5e1" }}
-                            aria-hidden
-                          />
-                          <span className="dark:text-foreground text-xs font-black tracking-wide text-slate-700 uppercase">
-                            {category}
-                          </span>
-                          <span className="dark:border-border dark:bg-card dark:text-muted-foreground rounded-md border border-slate-900/20 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-600 tabular-nums">
-                            {g.accountCount}
-                          </span>
-                        </div>
-                        <span className="dark:text-muted-foreground text-xs font-semibold text-slate-600">
-                          PHP {g.total.toLocaleString()}
-                        </span>
-                      </div>
-                    );
-                    if (g.categoryId) {
-                      return (
-                        <Link
-                          key={category}
-                          href={`/categories/${g.categoryId}`}
-                          className="block transition hover:opacity-80"
-                        >
-                          {inner}
-                        </Link>
-                      );
-                    }
-                    return <div key={category}>{inner}</div>;
-                  });
-                })()}
-                <div
-                  className="dark:border-border dark:bg-foreground flex
-                    items-center justify-between rounded-lg border-2
-                    border-slate-900 bg-slate-900 px-3 py-2"
-                >
-                  <span
-                    className="dark:text-background text-xs font-black
-                      tracking-wide text-white uppercase"
-                  >
-                    Total
-                  </span>
-                  <span
-                    className="dark:text-background text-xs font-black
-                      text-white tabular-nums"
-                  >
-                    {nextCollectionCount} account
-                    {nextCollectionCount === 1 ? "" : "s"} • PHP{" "}
-                    {nextCollectionTotal.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            )}
-          </article>
-
-          <article
-            className="dark:border-border dark:via-card rounded-xl border-2
-              border-slate-900 bg-linear-to-br from-amber-50 via-stone-100
-              to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5
-              dark:from-amber-950/30 dark:to-orange-950/30"
-          >
-            <h2
-              className="dark:text-foreground mb-3 text-base font-black
-                text-slate-900 lowercase"
+              manage categories
+              <Plus className="size-4" />
+            </Link>
+            <Link
+              href="/upcoming"
+              className="dark:border-border dark:text-foreground flex
+                items-center justify-between rounded-lg border-2
+                border-slate-900 bg-violet-100 px-3 py-2 text-sm font-bold
+                text-slate-900 lowercase transition hover:bg-violet-200
+                dark:bg-violet-900/40 dark:hover:bg-violet-900/60"
             >
-              quick actions
-            </h2>
-            <div className="space-y-2">
-              <Link
-                href="/borrowers"
-                className="dark:border-border dark:text-foreground flex
-                  items-center justify-between rounded-lg border-2
-                  border-slate-900 bg-emerald-100 px-3 py-2 text-sm font-bold
-                  text-slate-900 lowercase transition hover:bg-emerald-200
-                  dark:bg-emerald-900/40 dark:hover:bg-emerald-900/60"
-              >
-                add borrower
-                <UserRoundPlus className="size-4" />
-              </Link>
-              <Link
-                href="/categories"
-                className="dark:border-border dark:text-foreground flex
-                  items-center justify-between rounded-lg border-2
-                  border-slate-900 bg-sky-100 px-3 py-2 text-sm font-bold
-                  text-slate-900 lowercase transition hover:bg-sky-200
-                  dark:bg-sky-900/40 dark:hover:bg-sky-900/60"
-              >
-                manage categories
-                <Plus className="size-4" />
-              </Link>
-              <Link
-                href="/upcoming"
-                className="dark:border-border dark:text-foreground flex
-                  items-center justify-between rounded-lg border-2
-                  border-slate-900 bg-violet-100 px-3 py-2 text-sm font-bold
-                  text-slate-900 lowercase transition hover:bg-violet-200
-                  dark:bg-violet-900/40 dark:hover:bg-violet-900/60"
-              >
-                upcoming due dates
-                <Bell className="size-4" />
-              </Link>
-              <Link
-                href="/audit"
-                className="dark:border-border dark:bg-muted dark:text-foreground
-                  dark:hover:bg-muted/80 flex items-center justify-between
-                  rounded-lg border-2 border-slate-900 bg-slate-100 px-3 py-2
-                  text-sm font-bold text-slate-900 lowercase transition
-                  hover:bg-slate-200"
-              >
-                audit trail
-                <ClipboardList className="size-4" />
-              </Link>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      {/* {overdueRows.length > 0 ? (
-        <section className="mt-4 lg:mt-6">
-          <article className="min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br from-rose-50 via-white to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5">
-            <h2 className="mb-3 text-base font-black lowercase text-slate-900">
-              past due
-            </h2>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
-              {overdueRows.length} borrower{overdueRows.length === 1 ? "" : "s"} with overdue schedules
-            </p>
-            <ul className="space-y-2">
-              {overdueRows.map((entry) => (
-                <li
-                  key={entry.borrowerId ?? entry.name}
-                  className="rounded-lg border-2 border-slate-900 bg-slate-50 p-3"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold lowercase text-slate-900">{entry.name}</p>
-                    <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-xs font-bold uppercase text-slate-600">
-                      <span
-                        className="size-2 shrink-0 rounded-full border border-slate-900/25"
-                        style={{ backgroundColor: entry.categoryColor ?? "#cbd5e1" }}
-                        aria-hidden
-                      />
-                      {entry.category}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-sm">
-                    <p className="font-semibold text-slate-700">
-                      Loaned: PHP {entry.totalPrincipal.toLocaleString()}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </article>
-        </section>
-      ) : null} */}
-      <section className="mt-4 lg:mt-6">
-        <article
-          className="dark:border-border dark:bg-card bg-background min-w-0
-            rounded-xl border-2 border-slate-900 p-4
-            shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
-        >
-          <div className="mb-4 flex items-center gap-2">
-            <span
-              className="dark:border-border dark:text-foreground rounded-md
-                border border-slate-900 bg-indigo-100 p-1.5 text-slate-900
-                dark:bg-indigo-900/50"
+              upcoming due dates
+              <Bell className="size-4" />
+            </Link>
+            <Link
+              href="/audit"
+              className="dark:border-border dark:bg-muted dark:text-foreground
+                dark:hover:bg-muted/80 flex items-center justify-between
+                rounded-lg border-2 border-slate-900 bg-slate-100 px-3 py-2
+                text-sm font-bold text-slate-900 lowercase transition
+                hover:bg-slate-200"
             >
+              audit trail
               <ClipboardList className="size-4" />
-            </span>
-            <h2
-              className="dark:text-foreground text-base font-black
-                text-slate-900 lowercase"
-            >
-              recent activities
-            </h2>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Newly Created Borrowers */}
-            <div>
-              <h3
-                className="dark:text-muted-foreground mb-3 text-xs font-black
-                  tracking-wider text-slate-500 uppercase"
-              >
-                newly created borrowers
-              </h3>
-              <ul className="space-y-3">
-                {recentBorrowers.length === 0 ? (
-                  <li
-                    className="dark:border-muted-foreground/40 dark:bg-muted
-                      dark:text-muted-foreground rounded-lg border-2
-                      border-dashed border-slate-400 bg-slate-50 p-3 text-sm
-                      text-slate-600"
-                  >
-                    No recent borrowers created.
-                  </li>
-                ) : (
-                  recentBorrowers.map((borrower) => {
-                    const categoryMeta = borrowerCategoryMeta(borrower);
-                    return (
-                      <li
-                        key={borrower.id}
-                        className="dark:border-border dark:bg-muted rounded-lg
-                          border-2 border-slate-900 bg-slate-50
-                          shadow-[4px_4px_0px_0px_#0f172a] transition-all
-                          hover:-translate-y-0.5
-                          hover:shadow-[6px_6px_0px_0px_#0f172a]
-                          active:translate-y-px
-                          active:shadow-[2px_2px_0px_0px_#0f172a]"
-                      >
-                        <Link
-                          href={`/borrowers/${borrower.id}`}
-                          className="block p-3 outline-none"
-                        >
-                          <div
-                            className="flex items-start justify-between gap-2"
-                          >
-                            <div className="min-w-0">
-                              <span
-                                className="dark:text-foreground block font-bold
-                                  text-slate-900 lowercase truncate"
-                              >
-                                {borrower.first_name} {borrower.last_name}
-                              </span>
-                              {borrower.contact && (
-                                <p
-                                  className="dark:text-muted-foreground text-xs
-                                    text-slate-500"
-                                >
-                                  {borrower.contact}
-                                </p>
-                              )}
-                            </div>
-                            <span
-                              className="dark:bg-card dark:text-muted-foreground
-                                inline-flex items-center gap-1.5 rounded-md
-                                bg-white px-2 py-1 text-xs font-bold
-                                text-slate-600 uppercase shrink-0 border
-                                border-slate-900/10"
-                            >
-                              <span
-                                className="dark:border-border size-2 shrink-0
-                                  rounded-full border border-slate-900/25"
-                                style={{
-                                  backgroundColor:
-                                    categoryMeta.color ?? "#cbd5e1",
-                                }}
-                                aria-hidden
-                              />
-                              {categoryMeta.label}
-                            </span>
-                          </div>
-                          <div
-                            className="mt-2 flex items-center justify-between
-                              text-[11px] text-slate-400"
-                          >
-                            <p className="font-semibold">
-                              added on{" "}
-                              {formatActivityDate(borrower.created_at || "")}
-                            </p>
-                          </div>
-                        </Link>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </div>
-
-            {/* Newly Created Accounts */}
-            <div>
-              <h3
-                className="dark:text-muted-foreground mb-3 text-xs font-black
-                  tracking-wider text-slate-500 uppercase"
-              >
-                newly created accounts
-              </h3>
-              <ul className="space-y-3">
-                {recentAccounts.length === 0 ? (
-                  <li
-                    className="dark:border-muted-foreground/40 dark:bg-muted
-                      dark:text-muted-foreground rounded-lg border-2
-                      border-dashed border-slate-400 bg-slate-50 p-3 text-sm
-                      text-slate-600"
-                  >
-                    No recent accounts created.
-                  </li>
-                ) : (
-                  recentAccounts.map((account) => {
-                    const borrowerObj = account.borrower
-                      ? Array.isArray(account.borrower)
-                        ? account.borrower[0]
-                        : account.borrower
-                      : null;
-                    const isManual = account.schedule_mode === "manual";
-                    const isRolling =
-                      isManual && account.interest_type === "rolling";
-                    const isCashAdvance = account.type === "cash_advance";
-                    const typeLabel = isManual
-                      ? isRolling
-                        ? "rolling"
-                        : "flat"
-                      : isCashAdvance
-                        ? "ca"
-                        : "loan";
-                    const typeBadgeBg = isManual
-                      ? isRolling
-                        ? "bg-cyan-200 text-cyan-900 dark:bg-cyan-800 dark:text-cyan-100"
-                        : "bg-lime-200 text-lime-900 dark:bg-lime-800 dark:text-lime-100"
-                      : isCashAdvance
-                        ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
-                        : "bg-violet-200 text-violet-900 dark:bg-violet-800 dark:text-violet-100";
-                    return (
-                      <li
-                        key={account.id}
-                        className="dark:border-border dark:bg-muted rounded-lg
-                          border-2 border-slate-900 bg-slate-50
-                          shadow-[4px_4px_0px_0px_#0f172a] transition-all
-                          hover:-translate-y-0.5
-                          hover:shadow-[6px_6px_0px_0px_#0f172a]
-                          active:translate-y-px
-                          active:shadow-[2px_2px_0px_0px_#0f172a]"
-                      >
-                        <Link
-                          href={`/accounts/${account.id}`}
-                          className="block p-3 outline-none"
-                        >
-                          <div
-                            className="flex items-start justify-between gap-2"
-                          >
-                            <div className="min-w-0">
-                              {borrowerObj ? (
-                                <span
-                                  className="dark:text-foreground block
-                                    font-bold text-slate-900 lowercase truncate"
-                                >
-                                  {borrowerObj.first_name}{" "}
-                                  {borrowerObj.last_name}
-                                </span>
-                              ) : (
-                                <span
-                                  className="dark:text-foreground block
-                                    font-bold text-slate-900 lowercase truncate"
-                                >
-                                  Unknown borrower
-                                </span>
-                              )}
-                              <p
-                                className="dark:text-muted-foreground text-xs
-                                  text-slate-500 capitalize"
-                              >
-                                {account.type?.replace("_", " ") ||
-                                  "unknown type"}
-                              </p>
-                            </div>
-                            <div
-                              className="flex flex-col items-end gap-1.5
-                                shrink-0"
-                            >
-                              <span
-                                className="dark:text-foreground text-sm
-                                  font-black text-slate-900"
-                              >
-                                ₱
-                                {(
-                                  account.principal_amount ?? 0
-                                ).toLocaleString()}
-                              </span>
-                              <span
-                                className={`rounded-md border-2 px-2 py-0.5
-                                  text-[9px] font-black tracking-wide uppercase
-                                  shadow-[2px_2px_0px_0px_#0f172a]
-                                  dark:shadow-[2px_2px_0px_0px_#020617]
-                                  ${typeBadgeBg} dark:border-[#020617]`}
-                              >
-                                {typeLabel}
-                              </span>
-                            </div>
-                          </div>
-                          <div
-                            className="mt-2 flex items-center justify-between
-                              text-[11px] text-slate-400"
-                          >
-                            <p className="font-semibold">
-                              created on{" "}
-                              {formatActivityDate(account.created_at)}
-                            </p>
-                            {account.release_date && (
-                              <p className="font-semibold shrink-0">
-                                released: {account.release_date}
-                              </p>
-                            )}
-                          </div>
-                        </Link>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </div>
+            </Link>
           </div>
         </article>
       </section>

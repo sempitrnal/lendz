@@ -12,6 +12,7 @@ const HIDE_BACK_PATHS = [
   "/borrowers",
   "/categories",
   "/daily-checklist",
+  "/due-this-month",
 ];
 
 export default function MobileTopBar() {

@@ -13,12 +13,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  CalendarClock,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "dashboard", Icon: LayoutDashboard },
   { href: "/borrowers", label: "borrowers", Icon: Users },
   { href: "/accounts", label: "accounts", Icon: Wallet },
+  { href: "/due-this-month", label: "due this month", Icon: CalendarClock },
   { href: "/calendar", label: "calendar", Icon: CalendarDays },
   { href: "/categories", label: "categories", Icon: Tag },
   { href: "/daily-checklist", label: "checklist", Icon: ClipboardCheck },
