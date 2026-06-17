@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
-import { isDarkColor } from "@/lib/utils";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 
@@ -156,30 +155,39 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
             >
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <span
-                  className="dark:text-foreground truncate text-sm font-black
-                    text-slate-900 uppercase"
+                  className="dark:text-foreground truncate text-sm font-bold
+                    text-slate-900"
                 >
                   {s.first_name} {s.last_name}
                 </span>
-                {s.borrower_categories?.[0]?.category[0] && (
-                  <span
-                    className="flex w-fit items-center gap-1 rounded-full border
-                      border-slate-900/10 bg-slate-100 px-2 py-0.5 text-[10px]
-                      font-semibold text-slate-600 capitalize
-                      dark:border-white/10 dark:bg-slate-800
-                      dark:text-slate-300"
-                  >
-                    <span
-                      className="size-1.5 shrink-0 rounded-full"
-                      style={{
-                        backgroundColor:
-                          s.borrower_categories[0].category[0].color ??
-                          "#cbd5e1",
-                      }}
-                    />
-                    {s.borrower_categories[0].category[0].name}
-                  </span>
-                )}
+                {(() => {
+                  const cats = (s.borrower_categories ?? [])
+                    .flatMap((bc) => bc.category ?? [])
+                    .filter(Boolean);
+                  if (cats.length === 0) return null;
+                  return (
+                    <span className="flex flex-wrap items-center gap-1">
+                      {cats.map((cat) => (
+                        <span
+                          key={cat.id}
+                          className="inline-flex items-center gap-1 rounded-full border
+                            border-slate-900/10 bg-slate-100 px-2 py-0.5 text-[10px]
+                            font-semibold text-slate-600 capitalize
+                            dark:border-white/10 dark:bg-slate-800
+                            dark:text-slate-300"
+                        >
+                          <span
+                            className="size-1.5 shrink-0 rounded-full"
+                            style={{
+                              backgroundColor: cat.color ?? "#cbd5e1",
+                            }}
+                          />
+                          {cat.name}
+                        </span>
+                      ))}
+                    </span>
+                  );
+                })()}
               </span>
               {s.contact && (
                 <span
