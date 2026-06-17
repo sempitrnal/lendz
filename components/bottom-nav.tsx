@@ -58,6 +58,7 @@ export default function BottomNav() {
           right-0 bottom-0 left-0 z-50 border-t-2 border-slate-900
           shadow-[0_-2px_0_0_#0f172a] sm:hidden dark:shadow-[0_-2px_0_0_#0f172a]
           print:hidden"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }}
       >
         <div className="flex h-[52px] items-center px-4">
           <button
