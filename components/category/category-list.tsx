@@ -36,7 +36,9 @@ export default function CategoryList() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => { setIsMounted(true); }, []);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   /* Add dialog */
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -46,7 +48,9 @@ export default function CategoryList() {
 
   /* Edit dialog */
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
+    null,
+  );
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("#22c55e");
   const [isUpdating, setIsUpdating] = useState(false);
@@ -134,10 +138,7 @@ export default function CategoryList() {
   };
 
   const deleteCategory = async (id: string) => {
-    const { error } = await supabase
-      .from("categories")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("categories").delete().eq("id", id);
     if (error) {
       alert(error.message);
       return;
@@ -149,7 +150,10 @@ export default function CategoryList() {
     <div className="flex flex-col gap-6 relative min-h-[60vh]">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black lowercase tracking-tight text-slate-900">
+          <h1
+            className="text-2xl font-black lowercase tracking-tight
+              text-slate-900"
+          >
             Categories
           </h1>
           <p className="text-sm text-slate-500">
@@ -178,27 +182,41 @@ export default function CategoryList() {
       )}
 
       {/* FAB — portalled to body to escape PageTransition transform stacking context */}
-      {isMounted && createPortal(
-        <button
-          type="button"
-          onClick={openAddDialog}
-          aria-label="Add category"
-          className="fixed bottom-[76px] right-4 z-[9999] flex size-14 items-center justify-center rounded-full border-2 border-slate-900 bg-green-400 text-white shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform duration-200 active:scale-95 dark:border-border dark:bg-green-400 dark:text-background dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
-        >
-          <FaPlus className="size-5" />
-        </button>,
-        document.body
-      )}
+      {isMounted &&
+        createPortal(
+          <button
+            type="button"
+            onClick={openAddDialog}
+            aria-label="Add category"
+            className="fixed bottom-[76px] right-4 z-40 flex size-14
+              items-center justify-center rounded-full border-2 border-slate-900
+              bg-green-400 text-white shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)]
+              transition-transform duration-200 active:scale-95
+              dark:border-border dark:bg-green-400 dark:text-background
+              dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+          >
+            <FaPlus className="size-5" />
+          </button>,
+          document.body,
+        )}
 
       {/* Add Category Dialog */}
-      <Dialog open={isAddOpen} onOpenChange={(v) => { if (!v) closeAddDialog(); }}>
+      <Dialog
+        open={isAddOpen}
+        onOpenChange={(v) => {
+          if (!v) closeAddDialog();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add category</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label htmlFor="add_category_name" className={formFieldLabelClassName}>
+              <label
+                htmlFor="add_category_name"
+                className={formFieldLabelClassName}
+              >
                 Name
               </label>
               <input
@@ -212,7 +230,10 @@ export default function CategoryList() {
               />
             </div>
             <div>
-              <label htmlFor="add_category_color" className={formFieldLabelClassName}>
+              <label
+                htmlFor="add_category_color"
+                className={formFieldLabelClassName}
+              >
                 Color
               </label>
               <input
@@ -220,7 +241,8 @@ export default function CategoryList() {
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="h-11 w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
+                className="h-11 w-full cursor-pointer rounded-lg border
+                  border-slate-300 bg-white p-1"
               />
             </div>
             <div className="flex justify-end gap-2">
@@ -240,14 +262,22 @@ export default function CategoryList() {
       </Dialog>
 
       {/* Edit Category Dialog */}
-      <Dialog open={isEditModalOpen} onOpenChange={(v) => { if (!v) closeEditModal(); }}>
+      <Dialog
+        open={isEditModalOpen}
+        onOpenChange={(v) => {
+          if (!v) closeEditModal();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit category</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label htmlFor="edit_category_name" className={formFieldLabelClassName}>
+              <label
+                htmlFor="edit_category_name"
+                className={formFieldLabelClassName}
+              >
                 Name
               </label>
               <input
@@ -259,7 +289,10 @@ export default function CategoryList() {
               />
             </div>
             <div>
-              <label htmlFor="edit_category_color" className={formFieldLabelClassName}>
+              <label
+                htmlFor="edit_category_color"
+                className={formFieldLabelClassName}
+              >
                 Color
               </label>
               <input
@@ -267,7 +300,8 @@ export default function CategoryList() {
                 type="color"
                 value={editColor}
                 onChange={(e) => setEditColor(e.target.value)}
-                className="h-11 w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
+                className="h-11 w-full cursor-pointer rounded-lg border
+                  border-slate-300 bg-white p-1"
               />
             </div>
             <div className="flex justify-end gap-2">

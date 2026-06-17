@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   LayoutDashboard,
   Users,
@@ -71,92 +72,97 @@ export default function BottomNav() {
         </div>
       </nav>
 
-      {/* Drawer overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm
-            sm:hidden"
-          onClick={() => setOpen(false)}
-        />
-      )}
-
-      {/* Drawer */}
-      <div
-        className={`fixed right-0 bottom-0 left-0 z-[90] transform
-          transition-transform duration-300 ease-out sm:hidden ${
-            open ? "translate-y-0" : "translate-y-full"
-          }`}
-      >
-        <div
-          className="dark:border-border rounded-t-2xl border-t-2
-            border-slate-900 bg-white shadow-[0_-4px_0_0_#0f172a] dark:bg-card
-            dark:shadow-[0_-4px_0_0_#020617]"
-        >
-          {/* Drawer header */}
-          <div
-            className="flex items-center justify-between border-b
-              border-slate-100 p-4 dark:border-border/50"
-          >
-            <span
-              className="text-sm font-black text-slate-900 lowercase
-                dark:text-foreground"
+      {/* Drawer — portalled to body to escape PageTransition transform stacking context */}
+      {mounted &&
+        createPortal(
+          <>
+            {open && (
+              <div
+                className="fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm
+                  sm:hidden"
+                onClick={() => setOpen(false)}
+              />
+            )}
+            <div
+              className={`fixed right-0 bottom-0 left-0 z-[9999] transform
+              transition-transform duration-300 ease-out sm:hidden ${
+                open ? "translate-y-0" : "translate-y-full"
+              }`}
             >
-              navigation
-            </span>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="dark:text-muted-foreground flex size-8 items-center
-                justify-center rounded-md text-slate-500 transition
-                active:bg-slate-100 dark:active:bg-muted"
-              aria-label="Close menu"
-            >
-              <X className="size-5" />
-            </button>
-          </div>
-
-          {/* Drawer links */}
-          <div className="grid grid-cols-3 gap-2 p-4">
-            {NAV_ITEMS.map(({ href, label, Icon }) => {
-              const isActive =
-                mounted &&
-                (pathname === href ||
-                  (href !== "/dashboard" && pathname.startsWith(href)));
-              const isLoading = isPending && pendingHref === href;
-              return (
-                <button
-                  key={href}
-                  type="button"
-                  onPointerEnter={() => router.prefetch(href)}
-                  onClick={() => handleNavigate(href)}
-                  className={`flex flex-col items-center gap-1.5 rounded-xl
-                  border-2 p-3 transition ${
-                    isActive
-                      ? `border-slate-900 bg-green-200 text-slate-900
-                        dark:border-border dark:bg-green-900/40
-                        dark:text-green-200`
-                      : `border-slate-200 bg-white text-slate-600
-                        active:bg-slate-100 dark:border-border/60 dark:bg-card
-                        dark:text-muted-foreground dark:active:bg-muted`
-                  } ${isLoading ? "opacity-60" : ""}`}
+              <div
+                className="dark:border-border rounded-t-2xl border-t-2
+                  border-slate-900 bg-white shadow-[0_-4px_0_0_#0f172a]
+                  dark:bg-card dark:shadow-[0_-4px_0_0_#020617]"
+              >
+                {/* Drawer header */}
+                <div
+                  className="flex items-center justify-between border-b
+                    border-slate-100 p-4 dark:border-border/50"
                 >
-                  {isLoading ? (
-                    <Loader2 className="size-5 animate-spin" />
-                  ) : (
-                    <Icon
-                      className="size-5"
-                      strokeWidth={isActive ? 2.5 : 1.75}
-                    />
-                  )}
-                  <span className="text-[10px] font-bold leading-tight">
-                    {label}
+                  <span
+                    className="text-sm font-black text-slate-900 lowercase
+                      dark:text-foreground"
+                  >
+                    navigation
                   </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="dark:text-muted-foreground flex size-8
+                      items-center justify-center rounded-md text-slate-500
+                      transition active:bg-slate-100 dark:active:bg-muted"
+                    aria-label="Close menu"
+                  >
+                    <X className="size-5" />
+                  </button>
+                </div>
+
+                {/* Drawer links */}
+                <div className="grid grid-cols-3 gap-2 p-4">
+                  {NAV_ITEMS.map(({ href, label, Icon }) => {
+                    const isActive =
+                      mounted &&
+                      (pathname === href ||
+                        (href !== "/dashboard" && pathname.startsWith(href)));
+                    const isLoading = isPending && pendingHref === href;
+                    return (
+                      <button
+                        key={href}
+                        type="button"
+                        onPointerEnter={() => router.prefetch(href)}
+                        onClick={() => handleNavigate(href)}
+                        className={`flex flex-col items-center gap-1.5
+                        rounded-xl border-2 p-3 transition ${
+                          isActive
+                            ? `border-slate-900 bg-green-200 text-slate-900
+                              dark:border-border dark:bg-green-900/40
+                              dark:text-green-200`
+                            : `border-slate-200 bg-white text-slate-600
+                              active:bg-slate-100 dark:border-border/60
+                              dark:bg-card dark:text-muted-foreground
+                              dark:active:bg-muted`
+                        } ${isLoading ? "opacity-60" : ""}`}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="size-5 animate-spin" />
+                        ) : (
+                          <Icon
+                            className="size-5"
+                            strokeWidth={isActive ? 2.5 : 1.75}
+                          />
+                        )}
+                        <span className="text-[10px] font-bold leading-tight">
+                          {label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </>,
+          document.body,
+        )}
     </>
   );
 }

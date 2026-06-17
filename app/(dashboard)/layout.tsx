@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import SiteHeader from "@/components/site-header";
 import BottomNav from "@/components/bottom-nav";
 import SidebarNav from "@/components/sidebar-nav";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 
 export default async function DashboardLayout({
   children,
@@ -36,7 +37,9 @@ export default async function DashboardLayout({
           md:px-10 md:pl-[calc(var(--sidebar-width)+1.5rem)]
           lg:pl-[calc(var(--sidebar-width)+2.5rem)]"
       >
-        <div className="pb-[52px] sm:pb-0">{children}</div>
+        <PullToRefresh>
+          <div className="pb-[52px] sm:pb-0">{children}</div>
+        </PullToRefresh>
       </main>
     </>
   );

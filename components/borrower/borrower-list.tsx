@@ -496,7 +496,7 @@ export default function BorrowersList({
             onClick={openAddBorrowerModal}
             aria-label="Add borrower"
             className="dark:border-border dark:text-background fixed right-4
-              bottom-[76px] z-[2] flex size-14 items-center justify-center
+              bottom-[76px] z-40 flex size-14 items-center justify-center
               rounded-full border-2 border-slate-900 bg-green-400 text-slate-900
               shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform
               duration-200 active:scale-95 dark:bg-green-400
