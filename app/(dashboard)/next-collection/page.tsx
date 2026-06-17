@@ -37,7 +37,10 @@ export default async function NextCollectionPage() {
 
     const label =
       entries.length > 0
-        ? entries.map((entry) => entry.name).filter(Boolean).join(" / ")
+        ? entries
+            .map((entry) => entry.name)
+            .filter(Boolean)
+            .join(" / ")
         : "uncategorized";
     const color = entries.find((entry) => entry.color)?.color ?? null;
     return { label, color };
@@ -51,7 +54,11 @@ export default async function NextCollectionPage() {
         name: string;
         category: string;
         categoryColor: string | null;
-        schedules: Array<{ id: string; amountDue: number | null; amount: number }>;
+        schedules: Array<{
+          id: string;
+          amountDue: number | null;
+          amount: number;
+        }>;
       }
     >();
 
@@ -102,7 +109,8 @@ export default async function NextCollectionPage() {
       <div className="mb-4">
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-600 transition hover:text-slate-900"
+          className="inline-flex items-center gap-1.5 text-sm font-bold
+            text-slate-600 transition hover:text-slate-600"
         >
           <ArrowLeft className="size-4" />
           back to dashboard

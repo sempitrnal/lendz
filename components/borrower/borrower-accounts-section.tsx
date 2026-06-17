@@ -410,9 +410,10 @@ export default function BorrowerAccountsSection({
           type="button"
           onClick={() => {
             router.push("/borrowers", { scroll: false });
+            router.refresh();
           }}
           className="inline-flex items-center gap-1.5 text-xs font-bold
-            text-slate-600 transition hover:text-slate-900 dark:text-slate-400
+            text-slate-600 transition hover:text-slate-600 dark:text-slate-400
             dark:hover:text-slate-200"
         >
           <ArrowLeft className="size-3.5" />
@@ -627,7 +628,7 @@ export default function BorrowerAccountsSection({
                   </span>
                 </div>
                 <motion.div
-                  className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3"
+                  className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3"
                   variants={cardContainerVariants}
                 >
                   {group.map((account) => {
@@ -797,7 +798,7 @@ export default function BorrowerAccountsSection({
                     py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a]
                     transition active:translate-y-px
                     active:shadow-[1px_1px_0px_0px_#0f172a] dark:bg-yellow-500
-                    dark:text-slate-900
+                    dark:text-slate-600
                     dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
                 >
                   <FaPlus className="size-3" /> note
@@ -827,7 +828,7 @@ export default function BorrowerAccountsSection({
               aria-label={fabOpen ? "Close actions" : "Open actions"}
               className={`dark:border-border dark:text-background flex size-14
               items-center justify-center rounded-full border-2 border-slate-900
-              text-slate-900 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)]
+              text-slate-600 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)]
               transition-all duration-300 active:scale-95
               dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)] ${
                 fabOpen
@@ -867,6 +868,7 @@ export default function BorrowerAccountsSection({
             onSuccess={() => {
               setIsAccountDialogOpen(false);
               setEditingAccount(null);
+              router.refresh();
             }}
           />
         </DialogContent>

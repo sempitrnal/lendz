@@ -26,7 +26,15 @@ function formatCurrency(v: number) {
 }
 
 export default function CollectionRateRing({ data }: { data: RingData }) {
-  const { collected, expectedSoFar, profit, expectedProfit, expectedProfitSoFar, isComplete, monthLabel } = data;
+  const {
+    collected,
+    expectedSoFar,
+    profit,
+    expectedProfit,
+    expectedProfitSoFar,
+    isComplete,
+    monthLabel,
+  } = data;
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const stroke = isDark ? "#30363d" : "#0f172a";
@@ -50,10 +58,18 @@ export default function CollectionRateRing({ data }: { data: RingData }) {
   return (
     <div className="flex flex-col">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-muted-foreground">
+        <p
+          className="text-[10px] font-black uppercase tracking-widest
+            text-slate-500 dark:text-muted-foreground"
+        >
           collection rate
         </p>
-        <span className="rounded border-2 border-slate-900 bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-muted dark:text-foreground dark:shadow-none">
+        <span
+          className="rounded border-2 border-slate-900 bg-slate-100 px-2 py-0.5
+            text-[10px] font-black uppercase tracking-wide
+            shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-muted
+            dark:text-foreground dark:shadow-none"
+        >
           {isComplete ? monthLabel : `${monthLabel} so far`}
         </span>
       </div>
@@ -114,24 +130,84 @@ export default function CollectionRateRing({ data }: { data: RingData }) {
       </div>
 
       <div className="mt-2 space-y-1.5">
-        <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-slate-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-muted dark:shadow-none">
-          <span className="text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-muted-foreground">Collected</span>
-          <span className="text-xs font-black tabular-nums text-slate-900 dark:text-foreground">{formatCurrency(collected)}</span>
+        <div
+          className="flex items-center justify-between rounded border-2
+            border-slate-900 bg-slate-50 px-2.5 py-1.5
+            shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-muted
+            dark:shadow-none"
+        >
+          <span
+            className="text-[10px] font-black uppercase tracking-wide
+              text-slate-500 dark:text-muted-foreground"
+          >
+            Collected
+          </span>
+          <span
+            className="text-xs font-black tabular-nums text-slate-600
+              dark:text-foreground"
+          >
+            {formatCurrency(collected)}
+          </span>
         </div>
-        <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-slate-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-muted dark:shadow-none">
-          <span className="text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-muted-foreground">Expected so far</span>
-          <span className="text-xs font-black tabular-nums text-slate-900 dark:text-foreground">{formatCurrency(expectedSoFar)}</span>
+        <div
+          className="flex items-center justify-between rounded border-2
+            border-slate-900 bg-slate-50 px-2.5 py-1.5
+            shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-muted
+            dark:shadow-none"
+        >
+          <span
+            className="text-[10px] font-black uppercase tracking-wide
+              text-slate-500 dark:text-muted-foreground"
+          >
+            Expected so far
+          </span>
+          <span
+            className="text-xs font-black tabular-nums text-slate-600
+              dark:text-foreground"
+          >
+            {formatCurrency(expectedSoFar)}
+          </span>
         </div>
         {isComplete && expectedProfit > 0 && (
-          <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-amber-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-[#241a00] dark:shadow-none">
-            <span className="text-[10px] font-black uppercase tracking-wide text-amber-700 dark:text-[#e3b341]">Interest rate</span>
-            <span className="text-xs font-black tabular-nums text-amber-800 dark:text-[#e3b341]">{profitPct}%</span>
+          <div
+            className="flex items-center justify-between rounded border-2
+              border-slate-900 bg-amber-50 px-2.5 py-1.5
+              shadow-[2px_2px_0px_0px_#0f172a] dark:border-border
+              dark:bg-[#241a00] dark:shadow-none"
+          >
+            <span
+              className="text-[10px] font-black uppercase tracking-wide
+                text-amber-700 dark:text-[#e3b341]"
+            >
+              Interest rate
+            </span>
+            <span
+              className="text-xs font-black tabular-nums text-amber-800
+                dark:text-[#e3b341]"
+            >
+              {profitPct}%
+            </span>
           </div>
         )}
         {!isComplete && expectedProfitSoFar > 0 && (
-          <div className="flex items-center justify-between rounded border-2 border-slate-900 bg-amber-50 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-[#241a00] dark:shadow-none">
-            <span className="text-[10px] font-black uppercase tracking-wide text-amber-700 dark:text-[#e3b341]">Exp. interest so far</span>
-            <span className="text-xs font-black tabular-nums text-amber-800 dark:text-[#e3b341]">{formatCurrency(expectedProfitSoFar)}</span>
+          <div
+            className="flex items-center justify-between rounded border-2
+              border-slate-900 bg-amber-50 px-2.5 py-1.5
+              shadow-[2px_2px_0px_0px_#0f172a] dark:border-border
+              dark:bg-[#241a00] dark:shadow-none"
+          >
+            <span
+              className="text-[10px] font-black uppercase tracking-wide
+                text-amber-700 dark:text-[#e3b341]"
+            >
+              Exp. interest so far
+            </span>
+            <span
+              className="text-xs font-black tabular-nums text-amber-800
+                dark:text-[#e3b341]"
+            >
+              {formatCurrency(expectedProfitSoFar)}
+            </span>
           </div>
         )}
       </div>

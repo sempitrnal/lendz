@@ -7,7 +7,10 @@ import {
   Clock,
   ExternalLink,
 } from "lucide-react";
-import { getUpcomingDueDatesData, type UpcomingEntry } from "@/lib/cache/upcoming-due-dates";
+import {
+  getUpcomingDueDatesData,
+  type UpcomingEntry,
+} from "@/lib/cache/upcoming-due-dates";
 import { formatDate } from "@/lib/utils";
 
 function formatMoney(n: number) {
@@ -17,7 +20,12 @@ function formatMoney(n: number) {
 function StatusBadge({ days }: { days: number }) {
   if (days < 0) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md border-2 border-rose-700 bg-rose-100 px-2 py-0.5 text-[10px] font-black tracking-wide text-rose-800 uppercase dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
+      <span
+        className="inline-flex items-center gap-1 rounded-md border-2
+          border-rose-700 bg-rose-100 px-2 py-0.5 text-[10px] font-black
+          tracking-wide text-rose-800 uppercase dark:border-rose-800
+          dark:bg-rose-950/60 dark:text-rose-300"
+      >
         <AlertTriangle className="size-2.5" />
         overdue {Math.abs(days)}d
       </span>
@@ -25,7 +33,12 @@ function StatusBadge({ days }: { days: number }) {
   }
   if (days === 0) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md border-2 border-orange-600 bg-orange-100 px-2 py-0.5 text-[10px] font-black tracking-wide text-orange-800 uppercase dark:border-orange-700 dark:bg-orange-950/60 dark:text-orange-300">
+      <span
+        className="inline-flex items-center gap-1 rounded-md border-2
+          border-orange-600 bg-orange-100 px-2 py-0.5 text-[10px] font-black
+          tracking-wide text-orange-800 uppercase dark:border-orange-700
+          dark:bg-orange-950/60 dark:text-orange-300"
+      >
         <Clock className="size-2.5" />
         due today
       </span>
@@ -33,7 +46,12 @@ function StatusBadge({ days }: { days: number }) {
   }
   if (days <= 3) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md border-2 border-amber-600 bg-amber-100 px-2 py-0.5 text-[10px] font-black tracking-wide text-amber-800 uppercase dark:border-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+      <span
+        className="inline-flex items-center gap-1 rounded-md border-2
+          border-amber-600 bg-amber-100 px-2 py-0.5 text-[10px] font-black
+          tracking-wide text-amber-800 uppercase dark:border-amber-700
+          dark:bg-amber-950/60 dark:text-amber-300"
+      >
         <Clock className="size-2.5" />
         in {days}d
       </span>
@@ -41,14 +59,24 @@ function StatusBadge({ days }: { days: number }) {
   }
   if (days <= 7) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md border-2 border-yellow-600 bg-yellow-100 px-2 py-0.5 text-[10px] font-black tracking-wide text-yellow-800 uppercase dark:border-yellow-700 dark:bg-yellow-950/60 dark:text-yellow-300">
+      <span
+        className="inline-flex items-center gap-1 rounded-md border-2
+          border-yellow-600 bg-yellow-100 px-2 py-0.5 text-[10px] font-black
+          tracking-wide text-yellow-800 uppercase dark:border-yellow-700
+          dark:bg-yellow-950/60 dark:text-yellow-300"
+      >
         <Calendar className="size-2.5" />
         in {days}d
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-md border-2 border-emerald-600 bg-emerald-100 px-2 py-0.5 text-[10px] font-black tracking-wide text-emerald-800 uppercase dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+    <span
+      className="inline-flex items-center gap-1 rounded-md border-2
+        border-emerald-600 bg-emerald-100 px-2 py-0.5 text-[10px] font-black
+        tracking-wide text-emerald-800 uppercase dark:border-emerald-700
+        dark:bg-emerald-950/60 dark:text-emerald-300"
+    >
       <Calendar className="size-2.5" />
       in {days}d
     </span>
@@ -86,13 +114,16 @@ function UpcomingCard({ entry }: { entry: UpcomingEntry }) {
 
   return (
     <div
-      className={`min-w-0 rounded-xl border-2 p-4 ${borderColor} ${shadowColor} ${bgColor}`}
+      className={`min-w-0 rounded-xl border-2 p-4 ${borderColor} ${shadowColor}
+        ${bgColor}`}
     >
       <div className="mb-2.5 flex items-start justify-between gap-2">
         <StatusBadge days={entry.daysUntilDue} />
         <Link
           href={`/accounts/${entry.accountId}`}
-          className="dark:text-muted-foreground flex shrink-0 items-center gap-1 text-[10px] font-bold text-slate-500 transition hover:text-slate-900 dark:hover:text-slate-200"
+          className="dark:text-muted-foreground flex shrink-0 items-center gap-1
+            text-[10px] font-bold text-slate-500 transition hover:text-slate-600
+            dark:hover:text-slate-200"
           aria-label="View account"
         >
           account
@@ -105,39 +136,62 @@ function UpcomingCard({ entry }: { entry: UpcomingEntry }) {
           href={`/borrowers/${entry.borrowerId}`}
           className="group block min-w-0"
         >
-          <p className="dark:text-foreground truncate text-sm font-black tracking-tight text-slate-900 lowercase transition group-hover:underline">
+          <p
+            className="dark:text-foreground truncate text-sm font-black
+              tracking-tight text-slate-600 lowercase transition
+              group-hover:underline"
+          >
             {entry.borrowerName}
           </p>
         </Link>
       ) : (
-        <p className="dark:text-foreground truncate text-sm font-black tracking-tight text-slate-900 lowercase">
+        <p
+          className="dark:text-foreground truncate text-sm font-black
+            tracking-tight text-slate-600 lowercase"
+        >
           {entry.borrowerName}
         </p>
       )}
 
       <div className="mt-2.5 space-y-1.5">
         <div className="flex items-center justify-between gap-2 text-xs">
-          <span className="dark:text-muted-foreground font-semibold text-slate-600">
+          <span
+            className="dark:text-muted-foreground font-semibold text-slate-600"
+          >
             Due date
           </span>
-          <span className="dark:text-foreground font-black tabular-nums text-slate-900">
+          <span
+            className="dark:text-foreground font-black tabular-nums
+              text-slate-600"
+          >
             {formatDate(entry.dueDate)}
           </span>
         </div>
         <div className="flex items-center justify-between gap-2 text-xs">
-          <span className="dark:text-muted-foreground font-semibold text-slate-600">
+          <span
+            className="dark:text-muted-foreground font-semibold text-slate-600"
+          >
             Payment due
           </span>
-          <span className="dark:text-foreground font-black tabular-nums text-slate-900">
+          <span
+            className="dark:text-foreground font-black tabular-nums
+              text-slate-600"
+          >
             {formatMoney(entry.amountDue)}
           </span>
         </div>
         {entry.remaining < entry.amountDue && entry.amountDue > 0 ? (
           <div className="flex items-center justify-between gap-2 text-xs">
-            <span className="dark:text-muted-foreground font-semibold text-slate-600">
+            <span
+              className="dark:text-muted-foreground font-semibold
+                text-slate-600"
+            >
               Remaining
             </span>
-            <span className="font-black tabular-nums text-rose-700 dark:text-rose-400">
+            <span
+              className="font-black tabular-nums text-rose-700
+                dark:text-rose-400"
+            >
               {formatMoney(entry.remaining)}
             </span>
           </div>
@@ -146,7 +200,12 @@ function UpcomingCard({ entry }: { entry: UpcomingEntry }) {
 
       {entry.scheduleStatus === "partial" ? (
         <div className="mt-2.5">
-          <span className="dark:border-border dark:bg-muted dark:text-muted-foreground rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-500">
+          <span
+            className="dark:border-border dark:bg-muted
+              dark:text-muted-foreground rounded border border-slate-300
+              bg-white px-1.5 py-0.5 text-[10px] font-bold uppercase
+              text-slate-500"
+          >
             partial
           </span>
         </div>
@@ -157,7 +216,12 @@ function UpcomingCard({ entry }: { entry: UpcomingEntry }) {
 
 function SectionEmptyState({ label }: { label: string }) {
   return (
-    <div className="dark:border-muted-foreground/30 dark:bg-muted dark:text-muted-foreground rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm font-semibold text-slate-500">
+    <div
+      className="dark:border-muted-foreground/30 dark:bg-muted
+        dark:text-muted-foreground rounded-xl border-2 border-dashed
+        border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm font-semibold
+        text-slate-500"
+    >
       No borrowers {label}.
     </div>
   );
@@ -182,18 +246,23 @@ function UpcomingSection({
 }: SectionProps) {
   return (
     <section>
-      <div className={`mb-3 flex items-center gap-2.5`}>
+      <div className={"mb-3 flex items-center gap-2.5"}>
         <span
-          className={`dark:border-border inline-flex items-center justify-center rounded-md border border-slate-900 p-1.5 ${iconClass}`}
+          className={`dark:border-border inline-flex items-center justify-center
+            rounded-md border border-slate-900 p-1.5 ${iconClass}`}
         >
           <Calendar className="size-4" />
         </span>
-        <h2 className="dark:text-foreground text-base font-black text-slate-900 lowercase">
+        <h2
+          className="dark:text-foreground text-base font-black text-slate-600
+            lowercase"
+        >
           {title}
         </h2>
         {count > 0 ? (
           <span
-            className={`rounded-full border-2 border-slate-900 px-2.5 py-0.5 text-xs font-black tabular-nums ${accentClass}`}
+            className={`rounded-full border-2 border-slate-900 px-2.5 py-0.5
+              text-xs font-black tabular-nums ${accentClass}`}
           >
             {count}
           </span>
@@ -229,25 +298,39 @@ export default async function UpcomingDueDatesPage() {
   const { overdue, withinSevenDays, withinFourteenDays } =
     await getUpcomingDueDatesData(todayIso);
 
-  const totalCount = overdue.length + withinSevenDays.length + withinFourteenDays.length;
+  const totalCount =
+    overdue.length + withinSevenDays.length + withinFourteenDays.length;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-1 py-2 sm:px-0">
       <div className="mb-4">
         <Link
           href="/dashboard"
-          className="dark:text-muted-foreground dark:hover:text-foreground inline-flex items-center gap-1.5 text-sm font-bold text-slate-600 transition hover:text-slate-900"
+          className="dark:text-muted-foreground dark:hover:text-foreground
+            inline-flex items-center gap-1.5 text-sm font-bold text-slate-600
+            transition hover:text-slate-600"
         >
           <ArrowLeft className="size-4" />
           back to dashboard
         </Link>
       </div>
 
-      <section className="dark:border-border dark:via-card mb-6 rounded-xl border-2 border-slate-900 bg-linear-to-r from-violet-50 via-stone-50 to-indigo-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-6 dark:from-violet-950/30 dark:to-indigo-950/20">
-        <p className="dark:text-muted-foreground text-xs font-semibold tracking-wider text-slate-600 uppercase">
+      <section
+        className="dark:border-border dark:via-card mb-6 rounded-xl border-2
+          border-slate-900 bg-linear-to-r from-violet-50 via-stone-50
+          to-indigo-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-6
+          dark:from-violet-950/30 dark:to-indigo-950/20"
+      >
+        <p
+          className="dark:text-muted-foreground text-xs font-semibold
+            tracking-wider text-slate-600 uppercase"
+        >
           {formattedToday}
         </p>
-        <h1 className="dark:text-foreground mt-1 text-2xl font-black text-slate-900 lowercase sm:text-3xl">
+        <h1
+          className="dark:text-foreground mt-1 text-2xl font-black
+            text-slate-600 lowercase sm:text-3xl"
+        >
           upcoming due dates
         </h1>
         <p className="dark:text-muted-foreground mt-2 text-sm text-slate-600">
@@ -265,7 +348,7 @@ export default async function UpcomingDueDatesPage() {
             entries={overdue}
             emptyLabel="with overdue balances"
             accentClass="bg-rose-100 text-rose-900 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800"
-            iconClass="bg-rose-100 text-slate-900 dark:bg-rose-900/40 dark:text-rose-300"
+            iconClass="bg-rose-100 text-slate-600 dark:bg-rose-900/40 dark:text-rose-300"
           />
         ) : null}
 
@@ -275,7 +358,7 @@ export default async function UpcomingDueDatesPage() {
           entries={withinSevenDays}
           emptyLabel="due in the next 7 days"
           accentClass="bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800"
-          iconClass="bg-amber-100 text-slate-900 dark:bg-amber-900/40 dark:text-amber-300"
+          iconClass="bg-amber-100 text-slate-600 dark:bg-amber-900/40 dark:text-amber-300"
         />
 
         <UpcomingSection
@@ -284,18 +367,29 @@ export default async function UpcomingDueDatesPage() {
           entries={withinFourteenDays}
           emptyLabel="due in 8–14 days"
           accentClass="bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
-          iconClass="bg-emerald-100 text-slate-900 dark:bg-emerald-900/40 dark:text-emerald-300"
+          iconClass="bg-emerald-100 text-slate-600 dark:bg-emerald-900/40 dark:text-emerald-300"
         />
       </div>
 
       {totalCount === 0 ? (
         <section className="mt-8">
-          <div className="dark:border-border dark:bg-card flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 py-16 text-center">
-            <Calendar className="dark:text-muted-foreground mb-3 size-10 text-slate-400" />
-            <p className="dark:text-foreground text-sm font-black text-slate-900 lowercase">
+          <div
+            className="dark:border-border dark:bg-card flex flex-col
+              items-center justify-center rounded-xl border-2 border-dashed
+              border-slate-300 bg-slate-50 py-16 text-center"
+          >
+            <Calendar
+              className="dark:text-muted-foreground mb-3 size-10 text-slate-400"
+            />
+            <p
+              className="dark:text-foreground text-sm font-black text-slate-600
+                lowercase"
+            >
               all clear
             </p>
-            <p className="dark:text-muted-foreground mt-1 text-sm text-slate-500">
+            <p
+              className="dark:text-muted-foreground mt-1 text-sm text-slate-500"
+            >
               No accounts due in the next 14 days.
             </p>
           </div>

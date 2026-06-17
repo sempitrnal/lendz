@@ -134,7 +134,10 @@ export default async function PublicAccountViewPage({ params }: Props) {
     : "Borrower";
 
   return (
-    <div className="relative space-y-4 p-2 sm:space-y-5 md:p-0 lg:grid lg:grid-cols-12 lg:gap-8 lg:space-y-0">
+    <div
+      className="relative space-y-4 p-2 sm:space-y-5 md:p-0 lg:grid
+        lg:grid-cols-12 lg:gap-8 lg:space-y-0"
+    >
       <div className="absolute top-0 right-0 md:-top-10 md:-right-24">
         <ThemeToggle />
       </div>
@@ -142,68 +145,117 @@ export default async function PublicAccountViewPage({ params }: Props) {
       <div className="space-y-3 sm:space-y-4 lg:col-span-4 lg:space-y-5">
         {/* Header */}
         <div className="text-center lg:text-left">
-          <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase dark:text-zinc-500">
+          <p
+            className="text-[10px] font-black tracking-[0.2em] text-slate-400
+              uppercase dark:text-zinc-500"
+          >
             Loan Details
           </p>
-          <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900 uppercase dark:text-zinc-100">
+          <h1
+            className="mt-1 text-2xl font-black tracking-tight text-slate-600
+              uppercase dark:text-zinc-100"
+          >
             {borrowerName}
           </h1>
           <span
-            className={`mt-2 inline-block rounded-full border-2 px-3 py-1 text-[10px] font-black tracking-widest uppercase shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-none ${
-              account.type === "cash_advance"
-                ? "border-amber-700 bg-amber-100 text-amber-900 dark:border-amber-400/50 dark:bg-amber-400/20 dark:text-amber-300"
-                : "border-violet-700 bg-violet-100 text-violet-900 dark:border-violet-400/50 dark:bg-violet-400/20 dark:text-violet-300"
-            }`}
+            className={`mt-2 inline-block rounded-full border-2 px-3 py-1
+              text-[10px] font-black tracking-widest uppercase
+              shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-none ${
+                account.type === "cash_advance"
+                  ? `border-amber-700 bg-amber-100 text-amber-900
+                    dark:border-amber-400/50 dark:bg-amber-400/20
+                    dark:text-amber-300`
+                  : `border-violet-700 bg-violet-100 text-violet-900
+                    dark:border-violet-400/50 dark:bg-violet-400/20
+                    dark:text-violet-300`
+              }`}
           >
             {account.type.replace("_", " ")}
           </span>
         </div>
 
         {/* Loan Summary */}
-        <div className="rounded-xl border-2 border-slate-900 bg-white p-2.5 shadow-[3px_3px_0px_0px_#0f172a] dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-none">
+        <div
+          className="rounded-xl border-2 border-slate-900 bg-white p-2.5
+            shadow-[3px_3px_0px_0px_#0f172a] dark:border-zinc-700
+            dark:bg-zinc-900 dark:shadow-none"
+        >
           <div className="grid grid-cols-2 gap-2.5 text-sm">
             <div>
-              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-zinc-500">
+              <p
+                className="text-[10px] font-bold tracking-wider text-slate-400
+                  uppercase dark:text-zinc-500"
+              >
                 Principal
               </p>
-              <p className="text-lg font-black text-slate-900 dark:text-zinc-100">
+              <p
+                className="text-lg font-black text-slate-600 dark:text-zinc-100"
+              >
                 {formatMoney(principal)}
               </p>
             </div>
             <div>
-              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-zinc-500">
+              <p
+                className="text-[10px] font-bold tracking-wider text-slate-400
+                  uppercase dark:text-zinc-500"
+              >
                 Interest Rate
               </p>
-              <p className="text-lg font-black text-slate-900 dark:text-zinc-100">
+              <p
+                className="text-lg font-black text-slate-600 dark:text-zinc-100"
+              >
                 {interestRate}%
               </p>
             </div>
             <div>
-              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-zinc-500">
+              <p
+                className="text-[10px] font-bold tracking-wider text-slate-400
+                  uppercase dark:text-zinc-500"
+              >
                 Term
               </p>
-              <p className="text-lg font-black text-slate-900 dark:text-zinc-100">
+              <p
+                className="text-lg font-black text-slate-600 dark:text-zinc-100"
+              >
                 {account.term_months ?? 0}{" "}
-                <span className="text-sm font-semibold text-slate-500 dark:text-zinc-500">
+                <span
+                  className="text-sm font-semibold text-slate-500
+                    dark:text-zinc-500"
+                >
                   {account.term_months === 1 ? "month" : "months"}
                 </span>
               </p>
             </div>
             <div>
-              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-zinc-500">
+              <p
+                className="text-[10px] font-bold tracking-wider text-slate-400
+                  uppercase dark:text-zinc-500"
+              >
                 Frequency
               </p>
-              <p className="text-lg font-black text-slate-900 capitalize dark:text-zinc-100">
+              <p
+                className="text-lg font-black text-slate-600 capitalize
+                  dark:text-zinc-100"
+              >
                 {account.payment_frequency?.replace("_", " ") ?? "—"}
               </p>
             </div>
           </div>
           {account.release_date && (
-            <div className="mt-3 border-t border-dashed border-slate-200 pt-3 dark:border-zinc-700">
-              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-zinc-500">
+            <div
+              className="mt-3 border-t border-dashed border-slate-200 pt-3
+                dark:border-zinc-700"
+            >
+              <p
+                className="text-[10px] font-bold tracking-wider text-slate-400
+                  uppercase dark:text-zinc-500"
+              >
                 Released
               </p>
-              <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300">
+              <p
+                className="text-sm font-semibold text-slate-700
+                  dark:text-zinc-300"
+              >
                 {formatDate(account.release_date)}
               </p>
             </div>
@@ -211,33 +263,55 @@ export default async function PublicAccountViewPage({ params }: Props) {
         </div>
 
         {/* Progress */}
-        <div className="rounded-xl border-2 border-slate-900 bg-white p-2.5 shadow-[3px_3px_0px_0px_#0f172a] dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-none">
+        <div
+          className="rounded-xl border-2 border-slate-900 bg-white p-2.5
+            shadow-[3px_3px_0px_0px_#0f172a] dark:border-zinc-700
+            dark:bg-zinc-900 dark:shadow-none"
+        >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-zinc-500">
+              <p
+                className="text-[10px] font-bold tracking-wider text-slate-400
+                  uppercase dark:text-zinc-500"
+              >
                 Progress
               </p>
-              <p className="text-3xl font-black text-slate-900 dark:text-zinc-100">
+              <p
+                className="text-3xl font-black text-slate-600
+                  dark:text-zinc-100"
+              >
                 {progressPct}%
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm font-black text-emerald-700 dark:text-emerald-400">
+              <p
+                className="text-sm font-black text-emerald-700
+                  dark:text-emerald-400"
+              >
                 {formatMoney(paidTotal)}
               </p>
-              <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">
+              <p
+                className="text-[10px] font-bold text-slate-400
+                  dark:text-zinc-500"
+              >
                 of {formatMoney(totalDue)}
               </p>
             </div>
           </div>
-          <div className="mt-2.5 h-3 overflow-hidden rounded-full border-2 border-slate-900 bg-slate-100 dark:border-zinc-700 dark:bg-zinc-800">
+          <div
+            className="mt-2.5 h-3 overflow-hidden rounded-full border-2
+              border-slate-900 bg-slate-100 dark:border-zinc-700
+              dark:bg-zinc-800"
+          >
             <div
               className="h-full bg-emerald-400 transition-all"
               style={{ width: `${progressPct}%` }}
             />
           </div>
           <div className="mt-2 flex justify-between text-xs">
-            <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+            <span
+              className="font-semibold text-emerald-700 dark:text-emerald-400"
+            >
               {paidCount} paid
             </span>
             <span className="font-semibold text-rose-700 dark:text-rose-400">
@@ -248,11 +322,20 @@ export default async function PublicAccountViewPage({ params }: Props) {
 
         {/* Next Due */}
         {nextDue && (
-          <div className="rounded-xl border-2 border-sky-600 bg-sky-50 p-2.5 shadow-[3px_3px_0px_0px_#0369a1] dark:border-sky-500 dark:bg-sky-900/20 dark:shadow-none">
-            <p className="text-[10px] font-black tracking-widest text-sky-700 uppercase dark:text-sky-300">
+          <div
+            className="rounded-xl border-2 border-sky-600 bg-sky-50 p-2.5
+              shadow-[3px_3px_0px_0px_#0369a1] dark:border-sky-500
+              dark:bg-sky-900/20 dark:shadow-none"
+          >
+            <p
+              className="text-[10px] font-black tracking-widest text-sky-700
+                uppercase dark:text-sky-300"
+            >
               Next Payment Due
             </p>
-            <p className="mt-1 text-xl font-black text-sky-900 dark:text-sky-100">
+            <p
+              className="mt-1 text-xl font-black text-sky-900 dark:text-sky-100"
+            >
               {formatMoney(Number(nextDue.amount_due ?? 0))}
             </p>
             <p className="text-sm font-semibold text-sky-700 dark:text-sky-300">
@@ -264,7 +347,10 @@ export default async function PublicAccountViewPage({ params }: Props) {
 
       {/* Right column — schedule */}
       <div className="lg:col-span-8">
-        <p className="mb-3 text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase dark:text-zinc-500">
+        <p
+          className="mb-3 text-[10px] font-black tracking-[0.2em] text-slate-400
+            uppercase dark:text-zinc-500"
+        >
           Payment Schedule
         </p>
         <div className="space-y-1">
@@ -279,47 +365,76 @@ export default async function PublicAccountViewPage({ params }: Props) {
             return (
               <div
                 key={schedule.id}
-                className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border-2 p-2 ${isNext ? "border-sky-600 shadow-[2px_2px_0px_0px_#0369a1] dark:border-sky-500 dark:shadow-none" : "border-slate-900 shadow-[2px_2px_0px_0px_#0f172a] dark:border-zinc-700 dark:shadow-none"} ${statusRowClasses(schedule.status)}`}
+                className={`flex flex-wrap items-center gap-x-3 gap-y-1
+                rounded-lg border-2 p-2 ${
+                  isNext
+                    ? `border-sky-600 shadow-[2px_2px_0px_0px_#0369a1]
+                      dark:border-sky-500 dark:shadow-none`
+                    : `border-slate-900 shadow-[2px_2px_0px_0px_#0f172a]
+                      dark:border-zinc-700 dark:shadow-none`
+                } ${statusRowClasses(schedule.status)}`}
               >
                 {/* Index + Next */}
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-black text-slate-400 dark:text-zinc-500">
+                  <span
+                    className="text-[10px] font-black text-slate-400
+                      dark:text-zinc-500"
+                  >
                     #{i + 1}
                   </span>
                   {isNext && (
-                    <span className="rounded border border-sky-600 bg-sky-100 px-1 py-px text-[7px] font-black tracking-wide text-sky-800 uppercase dark:border-sky-500 dark:bg-sky-900/40 dark:text-sky-300">
+                    <span
+                      className="rounded border border-sky-600 bg-sky-100 px-1
+                        py-px text-[7px] font-black tracking-wide text-sky-800
+                        uppercase dark:border-sky-500 dark:bg-sky-900/40
+                        dark:text-sky-300"
+                    >
                       Next
                     </span>
                   )}
                 </div>
 
                 {/* Amount */}
-                <span className="text-base font-black text-slate-900 dark:text-zinc-100">
+                <span
+                  className="text-base font-black text-slate-600
+                    dark:text-zinc-100"
+                >
                   {formatMoney(due)}
                 </span>
 
                 {/* Date */}
-                <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400">
+                <span
+                  className="text-[10px] font-semibold text-slate-500
+                    dark:text-zinc-400"
+                >
                   {formatDate(schedule.due_date)}
                 </span>
 
                 {/* Partial mini indicator */}
                 {schedule.status === "partial" && (
-                  <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                  <span
+                    className="text-[9px] font-bold text-amber-600
+                      dark:text-amber-400"
+                  >
                     {partialPct}%
                   </span>
                 )}
 
                 {/* Paid date inline */}
                 {schedule.status === "paid" && schedule.paid_date && (
-                  <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span
+                    className="text-[9px] font-semibold text-emerald-600
+                      dark:text-emerald-400"
+                  >
                     {formatDate(schedule.paid_date)}
                   </span>
                 )}
 
                 {/* Status badge — pushed right */}
                 <span
-                  className={`ml-auto rounded-full border-2 px-2 py-px text-[8px] font-black tracking-wider uppercase ${statusBadgeClasses(schedule.status)}`}
+                  className={`ml-auto rounded-full border-2 px-2 py-px
+                  text-[8px] font-black tracking-wider uppercase
+                  ${statusBadgeClasses(schedule.status)}`}
                 >
                   {schedule.status}
                 </span>
@@ -331,7 +446,10 @@ export default async function PublicAccountViewPage({ params }: Props) {
 
       {/* Footer */}
       <div className="pt-4 pb-6 text-center sm:pt-6 sm:pb-8 lg:col-span-12">
-        <p className="text-[10px] font-bold tracking-widest text-slate-300 uppercase dark:text-zinc-700">
+        <p
+          className="text-[10px] font-bold tracking-widest text-slate-300
+            uppercase dark:text-zinc-700"
+        >
           Powered by Utangz
         </p>
       </div>

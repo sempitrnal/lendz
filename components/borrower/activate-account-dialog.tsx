@@ -26,7 +26,7 @@ type ActivateAccountDialogProps = {
 };
 
 const inputClass =
-  "mt-1 w-full rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2 focus:ring-green-300 dark:border-border dark:bg-card dark:text-foreground dark:shadow-none";
+  "mt-1 w-full rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2 focus:ring-green-300 dark:border-border dark:bg-card dark:text-foreground dark:shadow-none";
 
 export default function ActivateAccountDialog({
   open,
@@ -180,7 +180,10 @@ export default function ActivateAccountDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-sm font-black tracking-wide text-slate-900 uppercase">
+          <DialogTitle
+            className="text-sm font-black tracking-wide text-slate-600
+              uppercase"
+          >
             activate account
           </DialogTitle>
         </DialogHeader>
@@ -188,7 +191,10 @@ export default function ActivateAccountDialog({
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           {/* Principal */}
           <div>
-            <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+            <label
+              className="dark:text-muted-foreground text-[10px] font-bold
+                tracking-wider text-slate-500 uppercase"
+            >
               principal amount
             </label>
             <input
@@ -214,7 +220,10 @@ export default function ActivateAccountDialog({
 
           {/* Interest rate */}
           <div>
-            <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+            <label
+              className="dark:text-muted-foreground text-[10px] font-bold
+                tracking-wider text-slate-500 uppercase"
+            >
               interest rate (%)
             </label>
             <input
@@ -255,10 +264,16 @@ export default function ActivateAccountDialog({
                     setInterestRate(rate);
                     setInterestRateText(String(rate));
                   }}
-                  className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                  className={`dark:border-border rounded-md border-2
+                  border-slate-900 px-4 py-2 text-sm font-bold
+                  shadow-[1px_1px_0px_0px_#0f172a] transition
+                  hover:-translate-y-0.5 dark:shadow-none ${
                     interestRate === rate
-                      ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                      : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-900 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
+                      ? `dark:bg-foreground dark:text-background bg-slate-900
+                        text-white`
+                      : `dark:text-foreground bg-gradient-to-br from-emerald-50
+                        to-sky-50 text-slate-600 dark:bg-gradient-to-br
+                        dark:from-slate-800 dark:to-slate-900`
                   }`}
                 >
                   {rate}%
@@ -269,7 +284,10 @@ export default function ActivateAccountDialog({
 
           {/* Release date */}
           <div>
-            <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+            <label
+              className="dark:text-muted-foreground text-[10px] font-bold
+                tracking-wider text-slate-500 uppercase"
+            >
               release date
             </label>
             <input
@@ -282,7 +300,10 @@ export default function ActivateAccountDialog({
 
           {/* Schedule mode */}
           <div>
-            <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+            <label
+              className="dark:text-muted-foreground text-[10px] font-bold
+                tracking-wider text-slate-500 uppercase"
+            >
               schedule mode
             </label>
             <select
@@ -302,7 +323,10 @@ export default function ActivateAccountDialog({
           {/* Interest type (only when manual) */}
           {isManual && (
             <div>
-              <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+              <label
+                className="dark:text-muted-foreground text-[10px] font-bold
+                  tracking-wider text-slate-500 uppercase"
+              >
                 interest type
               </label>
               <select
@@ -323,7 +347,10 @@ export default function ActivateAccountDialog({
           {/* First payment date */}
           {!isManual && (
             <div>
-              <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+              <label
+                className="dark:text-muted-foreground text-[10px] font-bold
+                  tracking-wider text-slate-500 uppercase"
+              >
                 first payment date
               </label>
               <input
@@ -342,10 +369,17 @@ export default function ActivateAccountDialog({
                       key={value}
                       type="button"
                       onClick={() => setFirstPaymentDate(value)}
-                      className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                      className={`dark:border-border rounded-md border-2
+                      border-slate-900 px-4 py-2 text-sm font-bold
+                      shadow-[1px_1px_0px_0px_#0f172a] transition
+                      hover:-translate-y-0.5 dark:shadow-none ${
                         firstPaymentDate === value
-                          ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                          : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-900 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
+                          ? `dark:bg-foreground dark:text-background
+                            bg-slate-900 text-white`
+                          : `dark:text-foreground bg-gradient-to-br
+                            from-emerald-50 to-sky-50 text-slate-600
+                            dark:bg-gradient-to-br dark:from-slate-800
+                            dark:to-slate-900`
                       }`}
                     >
                       {label}
@@ -358,17 +392,22 @@ export default function ActivateAccountDialog({
           {/* Skipped schedules toggle */}
           {!isManual && (
             <div>
-              <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+              <label
+                className="dark:text-muted-foreground text-[10px] font-bold
+                  tracking-wider text-slate-500 uppercase"
+              >
                 calculate skipped schedules
               </label>
               <div className="mt-1 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setCalculateSkipped(true)}
-                  className={`rounded-md border-2 border-slate-900 px-3 py-1.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                  className={`rounded-md border-2 border-slate-900 px-3 py-1.5
+                  text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a]
+                  transition hover:-translate-y-0.5 dark:shadow-none ${
                     calculateSkipped
-                      ? "bg-emerald-300 text-slate-900"
-                      : "bg-white text-slate-900"
+                      ? "bg-emerald-300 text-slate-600"
+                      : "bg-white text-slate-600"
                   }`}
                 >
                   yes
@@ -376,10 +415,12 @@ export default function ActivateAccountDialog({
                 <button
                   type="button"
                   onClick={() => setCalculateSkipped(false)}
-                  className={`rounded-md border-2 border-slate-900 px-3 py-1.5 text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                  className={`rounded-md border-2 border-slate-900 px-3 py-1.5
+                  text-[10px] font-bold shadow-[1px_1px_0px_0px_#0f172a]
+                  transition hover:-translate-y-0.5 dark:shadow-none ${
                     !calculateSkipped
-                      ? "bg-red-300 text-slate-900"
-                      : "bg-white text-slate-900"
+                      ? "bg-red-300 text-slate-600"
+                      : "bg-white text-slate-600"
                   }`}
                 >
                   no
@@ -391,7 +432,10 @@ export default function ActivateAccountDialog({
           {/* Payment frequency */}
           {!isManual && (
             <div>
-              <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+              <label
+                className="dark:text-muted-foreground text-[10px] font-bold
+                  tracking-wider text-slate-500 uppercase"
+              >
                 payment frequency
               </label>
               <select
@@ -415,7 +459,10 @@ export default function ActivateAccountDialog({
           {/* Term */}
           {!isManual && (
             <div>
-              <label className="dark:text-muted-foreground text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+              <label
+                className="dark:text-muted-foreground text-[10px] font-bold
+                  tracking-wider text-slate-500 uppercase"
+              >
                 {isCustom ? "term installments (gives)" : "term (months)"}
               </label>
               <input

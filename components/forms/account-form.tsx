@@ -377,11 +377,15 @@ export default function AccountForm({
         <label className={formFieldLabelClassName}>Account type</label>
         <div className="flex gap-3">
           <label
-            className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
-              typeValue === "loan"
-                ? "bg-emerald-300 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-emerald-400"
-                : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
-            }`}
+            className={`flex cursor-pointer items-center gap-2 rounded-lg
+              border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
+              dark:text-slate-800 ${
+                typeValue === "loan"
+                  ? `bg-emerald-300 shadow-[2px_2px_0px_0px_#0f172a]
+                    dark:bg-emerald-400`
+                  : `bg-white hover:bg-slate-50 dark:bg-slate-800
+                    dark:text-white`
+              }`}
           >
             <input
               type="radio"
@@ -392,11 +396,14 @@ export default function AccountForm({
             <span>loan</span>
           </label>
           <label
-            className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
-              typeValue === "cash_advance"
-                ? "bg-amber-300 shadow-[2px_2px_0px_0px_#0f172a]"
-                : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
-            }`}
+            className={`flex cursor-pointer items-center gap-2 rounded-lg
+              border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
+              dark:text-slate-800 ${
+                typeValue === "cash_advance"
+                  ? "bg-amber-300 shadow-[2px_2px_0px_0px_#0f172a]"
+                  : `bg-white hover:bg-slate-50 dark:bg-slate-800
+                    dark:text-white`
+              }`}
           >
             <input
               type="radio"
@@ -416,11 +423,15 @@ export default function AccountForm({
         <label className={formFieldLabelClassName}>Schedule mode</label>
         <div className="flex gap-3">
           <label
-            className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
-              scheduleMode === "auto"
-                ? "bg-sky-300 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-sky-400"
-                : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
-            }`}
+            className={`flex cursor-pointer items-center gap-2 rounded-lg
+              border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
+              dark:text-slate-800 ${
+                scheduleMode === "auto"
+                  ? `bg-sky-300 shadow-[2px_2px_0px_0px_#0f172a]
+                    dark:bg-sky-400`
+                  : `bg-white hover:bg-slate-50 dark:bg-slate-800
+                    dark:text-white`
+              }`}
           >
             <input
               type="radio"
@@ -434,11 +445,15 @@ export default function AccountForm({
             </span>
           </label>
           <label
-            className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
-              scheduleMode === "manual"
-                ? "bg-violet-300 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-violet-400"
-                : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
-            }`}
+            className={`flex cursor-pointer items-center gap-2 rounded-lg
+              border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
+              dark:text-slate-800 ${
+                scheduleMode === "manual"
+                  ? `bg-violet-300 shadow-[2px_2px_0px_0px_#0f172a]
+                    dark:bg-violet-400`
+                  : `bg-white hover:bg-slate-50 dark:bg-slate-800
+                    dark:text-white`
+              }`}
           >
             <input
               type="radio"
@@ -459,10 +474,14 @@ export default function AccountForm({
           <label className={formFieldLabelClassName}>Account status</label>
           <div className="flex gap-3">
             <label
-              className={`dark flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
+              className={`dark flex cursor-pointer items-center gap-2 rounded-lg
+              border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
+              dark:text-slate-800 ${
                 !isPending
-                  ? "bg-emerald-300 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-emerald-400"
-                  : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
+                  ? `bg-emerald-300 shadow-[2px_2px_0px_0px_#0f172a]
+                    dark:bg-emerald-400`
+                  : `bg-white hover:bg-slate-50 dark:bg-slate-800
+                    dark:text-white`
               }`}
             >
               <input
@@ -474,10 +493,13 @@ export default function AccountForm({
               <span>active</span>
             </label>
             <label
-              className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
+              className={`flex cursor-pointer items-center gap-2 rounded-lg
+              border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
+              dark:text-slate-800 ${
                 isPending
                   ? "bg-amber-300 shadow-[2px_2px_0px_0px_#0f172a]"
-                  : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
+                  : `bg-white hover:bg-slate-50 dark:bg-slate-800
+                    dark:text-white`
               }`}
             >
               <input
@@ -505,10 +527,13 @@ export default function AccountForm({
             {(["flat", "rolling"] as const).map((type) => (
               <label
                 key={type}
-                className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
+                className={`flex cursor-pointer items-center gap-2 rounded-lg
+                border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
+                dark:text-slate-800 ${
                   interestType === type
                     ? "bg-violet-300 shadow-[2px_2px_0px_0px_#0f172a]"
-                    : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
+                    : `bg-white hover:bg-slate-50 dark:bg-slate-800
+                      dark:text-white`
                 }`}
               >
                 <input
@@ -538,7 +563,10 @@ export default function AccountForm({
           Principal amount
         </label>
         <div className="relative">
-          <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-lg font-bold text-slate-400">
+          <span
+            className="pointer-events-none absolute top-1/2 left-3
+              -translate-y-1/2 text-lg font-bold text-slate-400"
+          >
             ₱
           </span>
           <input
@@ -573,7 +601,8 @@ export default function AccountForm({
               }
             }}
             onFocus={(e) => e.target.select()}
-            className={`${formFieldInputClassName} pl-8 text-right text-lg font-bold`}
+            className={`${formFieldInputClassName} pl-8 text-right text-lg
+              font-bold`}
           />
         </div>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -585,10 +614,16 @@ export default function AccountForm({
                 setValue("principal_amount", amt);
                 setPrincipalText(amt.toLocaleString());
               }}
-              className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+              className={`dark:border-border rounded-md border-2
+              border-slate-900 px-4 py-2 text-sm font-bold
+              shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5
+              dark:shadow-none ${
                 Number(value) === amt
-                  ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                  : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-900 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
+                  ? `dark:bg-foreground dark:text-background bg-slate-900
+                    text-white`
+                  : `dark:text-foreground bg-gradient-to-br from-emerald-50
+                    to-sky-50 text-slate-600 dark:bg-gradient-to-br
+                    dark:from-slate-800 dark:to-slate-900`
               }`}
             >
               {amt.toLocaleString()}
@@ -647,10 +682,16 @@ export default function AccountForm({
                 setValue("interest_rate", rate);
                 setInterestRateText(String(rate));
               }}
-              className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+              className={`dark:border-border rounded-md border-2
+              border-slate-900 px-4 py-2 text-sm font-bold
+              shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5
+              dark:shadow-none ${
                 interestRateValue === rate
-                  ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                  : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-900 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
+                  ? `dark:bg-foreground dark:text-background bg-slate-900
+                    text-white`
+                  : `dark:text-foreground bg-gradient-to-br from-emerald-50
+                    to-sky-50 text-slate-600 dark:bg-gradient-to-br
+                    dark:from-slate-800 dark:to-slate-900`
               }`}
             >
               {rate}%
@@ -684,7 +725,12 @@ export default function AccountForm({
                 const today = new Date().toISOString().split("T")[0];
                 setValue("release_date", today);
               }}
-              className="dark:border-border dark:text-foreground rounded-md border-2 border-slate-900 bg-gradient-to-br from-emerald-50 to-sky-50 px-4 py-2 text-sm font-bold text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900 dark:shadow-none"
+              className="dark:border-border dark:text-foreground rounded-md
+                border-2 border-slate-900 bg-gradient-to-br from-emerald-50
+                to-sky-50 px-4 py-2 text-sm font-bold text-slate-600
+                shadow-[1px_1px_0px_0px_#0f172a] transition
+                hover:-translate-y-0.5 dark:bg-gradient-to-br
+                dark:from-slate-800 dark:to-slate-900 dark:shadow-none"
             >
               today
             </button>
@@ -754,7 +800,7 @@ export default function AccountForm({
                     className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
                       firstPaymentDateValue === value
                         ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                        : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-900 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
+                        : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-600 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
                     }`}
                   >
                     {label}
@@ -780,10 +826,14 @@ export default function AccountForm({
             </label>
             <div className="flex gap-3">
               <label
-                className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
+                className={`flex cursor-pointer items-center gap-2 rounded-lg
+                border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
+                dark:text-slate-800 ${
                   calculateSkipped
-                    ? "bg-emerald-300 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-emerald-400"
-                    : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
+                    ? `bg-emerald-300 shadow-[2px_2px_0px_0px_#0f172a]
+                      dark:bg-emerald-400`
+                    : `bg-white hover:bg-slate-50 dark:bg-slate-800
+                      dark:text-white`
                 }`}
               >
                 <input
@@ -796,10 +846,14 @@ export default function AccountForm({
                 <span>yes</span>
               </label>
               <label
-                className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-2 text-sm font-bold transition dark:text-slate-800 ${
+                className={`flex cursor-pointer items-center gap-2 rounded-lg
+                border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
+                dark:text-slate-800 ${
                   !calculateSkipped
-                    ? "bg-red-300 shadow-[2px_2px_0px_0px_#0f172a] dark:bg-red-400"
-                    : "bg-white hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
+                    ? `bg-red-300 shadow-[2px_2px_0px_0px_#0f172a]
+                      dark:bg-red-400`
+                    : `bg-white hover:bg-slate-50 dark:bg-slate-800
+                      dark:text-white`
                 }`}
               >
                 <input
@@ -836,7 +890,10 @@ export default function AccountForm({
             {releaseDateValue &&
               firstPaymentDateValue &&
               frequency === "bimonthly" && (
-                <p className="mt-1.5 text-sm font-bold text-slate-600 dark:text-slate-300">
+                <p
+                  className="mt-1.5 text-sm font-bold text-slate-600
+                    dark:text-slate-300"
+                >
                   {(() => {
                     const day = new Date(firstPaymentDateValue).getDate();
                     const [a1, a2] = deriveBimonthlyAnchors(day);
@@ -901,10 +958,16 @@ export default function AccountForm({
                     setValue("term_months", m);
                     setTermMonthsText(String(m));
                   }}
-                  className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                  className={`dark:border-border rounded-md border-2
+                  border-slate-900 px-4 py-2 text-sm font-bold
+                  shadow-[1px_1px_0px_0px_#0f172a] transition
+                  hover:-translate-y-0.5 dark:shadow-none ${
                     Number(termMonthsValue) === m
-                      ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                      : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-900 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
+                      ? `dark:bg-foreground dark:text-background bg-slate-900
+                        text-white`
+                      : `dark:text-foreground bg-gradient-to-br from-emerald-50
+                        to-sky-50 text-slate-600 dark:bg-gradient-to-br
+                        dark:from-slate-800 dark:to-slate-900`
                   }`}
                 >
                   {m}

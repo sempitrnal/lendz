@@ -94,7 +94,7 @@ export default function PartialPaymentForm({
           className="dark:text-muted-foreground dark:hover:text-foreground flex
             cursor-pointer items-center gap-1.5 text-[10px] font-black
             tracking-wide text-slate-600 uppercase transition-colors
-            hover:text-slate-900"
+            hover:text-slate-600"
         >
           <span
             className="dark:border-border/50 flex size-4 items-center
@@ -137,7 +137,7 @@ export default function PartialPaymentForm({
               className="dark:border-border dark:bg-card dark:text-foreground
                 dark:focus-visible:ring-border w-full rounded-md border-2
                 border-slate-900 bg-white px-3 py-2 text-sm font-semibold
-                text-slate-900 tabular-nums shadow-[2px_2px_0px_0px_#0f172a]
+                text-slate-600 tabular-nums shadow-[2px_2px_0px_0px_#0f172a]
                 outline-none focus-visible:ring-2 focus-visible:ring-slate-900
                 dark:shadow-none"
             />
@@ -159,7 +159,7 @@ export default function PartialPaymentForm({
               className="dark:border-border dark:bg-card dark:text-foreground
                 dark:focus-visible:ring-border w-full min-w-0 rounded-md
                 border-2 border-slate-900 bg-white px-3 py-2 text-sm
-                font-semibold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a]
+                font-semibold text-slate-600 shadow-[2px_2px_0px_0px_#0f172a]
                 outline-none focus-visible:ring-2 focus-visible:ring-slate-900
                 dark:shadow-none"
             />
@@ -182,7 +182,7 @@ export default function PartialPaymentForm({
               onChange={(e) => setNote(e.target.value)}
               className="dark:border-border dark:bg-card dark:text-foreground
                 dark:focus-visible:ring-border w-full rounded-md border-2
-                border-slate-900 bg-white px-3 py-2 text-sm text-slate-900
+                border-slate-900 bg-white px-3 py-2 text-sm text-slate-600
                 shadow-[2px_2px_0px_0px_#0f172a] outline-none
                 focus-visible:ring-2 focus-visible:ring-slate-900
                 dark:shadow-none"
@@ -197,7 +197,7 @@ export default function PartialPaymentForm({
             aria-busy={isPending}
             className="dark:border-border w-full cursor-pointer rounded-lg
               border-2 border-slate-900 bg-violet-200 px-4 py-2 text-xs
-              font-black tracking-wide text-slate-900 uppercase
+              font-black tracking-wide text-slate-600 uppercase
               shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-violet-300
               disabled:cursor-not-allowed disabled:opacity-60
               dark:bg-violet-400/25 dark:text-violet-100 dark:shadow-none

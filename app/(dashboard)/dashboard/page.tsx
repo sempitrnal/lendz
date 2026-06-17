@@ -533,7 +533,7 @@ export default async function Dashboard() {
             </p>
             <h1
               className="dark:text-foreground mt-1 text-2xl font-black
-                text-slate-900 lowercase sm:text-3xl"
+                text-slate-600 lowercase sm:text-3xl"
             >
               utangz dashboard
             </h1>
@@ -568,14 +568,14 @@ export default async function Dashboard() {
               </span>
               <span
                 className={`dark:border-border dark:text-foreground rounded-md
-                border border-slate-900 p-1.5 text-slate-900 ${card.tone}`}
+                border border-slate-900 p-1.5 text-slate-600 ${card.tone}`}
               >
                 <card.icon className="size-4" />
               </span>
             </div>
             <p
               className="dark:text-foreground text-2xl font-black
-                text-slate-900"
+                text-slate-600"
             >
               {card.value}
             </p>
@@ -599,14 +599,14 @@ export default async function Dashboard() {
             <div className="flex items-center gap-2">
               <span
                 className="dark:border-border dark:text-foreground rounded-md
-                  border border-slate-900 bg-emerald-100 p-1.5 text-slate-900
+                  border border-slate-900 bg-emerald-100 p-1.5 text-slate-600
                   dark:bg-emerald-900/50"
               >
                 <TrendingUp className="size-4" />
               </span>
               <h2
                 className="dark:text-foreground text-base font-black
-                  text-slate-900 lowercase"
+                  text-slate-600 lowercase"
               >
                 monthly collections
               </h2>
@@ -642,7 +642,7 @@ export default async function Dashboard() {
                   </p>
                   <p
                     className="dark:text-foreground mt-0.5 text-sm font-black
-                      text-slate-900 tabular-nums"
+                      text-slate-600 tabular-nums"
                   >
                     ₱{m.profit.toLocaleString()}
                   </p>
@@ -711,7 +711,7 @@ export default async function Dashboard() {
           <div className="flex items-center justify-between">
             <h2
               className="dark:text-foreground text-base font-black
-                text-slate-900 lowercase"
+                text-slate-600 lowercase"
             >
               due this month
             </h2>
@@ -738,7 +738,7 @@ export default async function Dashboard() {
         >
           <h2
             className="dark:text-foreground mb-3 text-base font-black
-              text-slate-900 lowercase"
+              text-slate-600 lowercase"
           >
             quick actions
           </h2>
@@ -748,7 +748,7 @@ export default async function Dashboard() {
               className="dark:border-border dark:text-foreground flex
                 items-center justify-between rounded-lg border-2
                 border-slate-900 bg-emerald-100 px-3 py-2 text-sm font-bold
-                text-slate-900 lowercase transition hover:bg-emerald-200
+                text-slate-600 lowercase transition hover:bg-emerald-200
                 dark:bg-emerald-900/40 dark:hover:bg-emerald-900/60"
             >
               add borrower
@@ -759,7 +759,7 @@ export default async function Dashboard() {
               className="dark:border-border dark:text-foreground flex
                 items-center justify-between rounded-lg border-2
                 border-slate-900 bg-sky-100 px-3 py-2 text-sm font-bold
-                text-slate-900 lowercase transition hover:bg-sky-200
+                text-slate-600 lowercase transition hover:bg-sky-200
                 dark:bg-sky-900/40 dark:hover:bg-sky-900/60"
             >
               manage categories
@@ -770,7 +770,7 @@ export default async function Dashboard() {
               className="dark:border-border dark:text-foreground flex
                 items-center justify-between rounded-lg border-2
                 border-slate-900 bg-violet-100 px-3 py-2 text-sm font-bold
-                text-slate-900 lowercase transition hover:bg-violet-200
+                text-slate-600 lowercase transition hover:bg-violet-200
                 dark:bg-violet-900/40 dark:hover:bg-violet-900/60"
             >
               upcoming due dates
@@ -781,7 +781,7 @@ export default async function Dashboard() {
               className="dark:border-border dark:bg-muted dark:text-foreground
                 dark:hover:bg-muted/80 flex items-center justify-between
                 rounded-lg border-2 border-slate-900 bg-slate-100 px-3 py-2
-                text-sm font-bold text-slate-900 lowercase transition
+                text-sm font-bold text-slate-600 lowercase transition
                 hover:bg-slate-200"
             >
               audit trail

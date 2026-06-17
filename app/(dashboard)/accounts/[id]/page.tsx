@@ -122,9 +122,9 @@ const nb = {
   scheduleHead:
     "border-b-2 border-slate-900 bg-green-300 px-4 py-3 sm:px-5 sm:py-4 dark:border-[#020617] dark:bg-green-400",
   scheduleTh:
-    "border-r-2 border-b-2 border-slate-900 bg-slate-100 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide text-slate-900 last:border-r-0 dark:border-[#020617] dark:bg-slate-800 dark:text-slate-100",
+    "border-r-2 border-b-2 border-slate-900 bg-slate-100 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide text-slate-600 last:border-r-0 dark:border-[#020617] dark:bg-slate-800 dark:text-slate-100",
   scheduleTd:
-    "border-r-2 border-b-2 border-slate-900 px-3 py-2.5 align-middle text-slate-900 last:border-r-0 dark:border-[#020617] dark:text-slate-100",
+    "border-r-2 border-b-2 border-slate-900 px-3 py-2.5 align-middle text-slate-600 last:border-r-0 dark:border-[#020617] dark:text-slate-100",
 };
 
 function formatMoney(value: number) {
@@ -146,7 +146,7 @@ function getAccountStatusClasses(status: string) {
   }
   return {
     badge:
-      "border-slate-700/80 bg-slate-50 text-slate-900 ring-1 ring-slate-600/10",
+      "border-slate-700/80 bg-slate-50 text-slate-600 ring-1 ring-slate-600/10",
   };
 }
 
@@ -356,7 +356,7 @@ export default async function AccountDetailPage({
             <span
               className="inline-block rounded-md border-2 border-slate-900
                 bg-sky-200 px-1.5 py-0.5 text-[9px] font-black tracking-wide
-                text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a]
+                text-slate-600 uppercase shadow-[2px_2px_0px_0px_#0f172a]
                 dark:border-[#020617] dark:bg-sky-800 dark:text-sky-100
                 dark:shadow-[2px_2px_0px_0px_#020617]"
             >
@@ -377,7 +377,7 @@ export default async function AccountDetailPage({
         <div className="mt-2 flex items-baseline gap-2">
           <p
             className="dark:text-foreground text-3xl font-black tracking-tight
-              text-slate-900 tabular-nums"
+              text-slate-600 tabular-nums"
           >
             {formatMoney(Number(schedule.amount_due ?? 0))}
           </p>
@@ -562,7 +562,7 @@ export default async function AccountDetailPage({
           href={`/borrowers/${accountRow.borrower_id}`}
           className="dark:text-muted-foreground dark:hover:text-foreground
             inline-flex items-center gap-1 text-xs font-black tracking-wider
-            text-slate-500 uppercase transition hover:text-slate-900"
+            text-slate-500 uppercase transition hover:text-slate-600"
         >
           <span>←</span>
           <span>{borrowerName}</span>
@@ -575,7 +575,7 @@ export default async function AccountDetailPage({
           >
             <div className="min-w-0 flex-1">
               <h1
-                className="mt-1 font-black tracking-tight text-slate-900
+                className="mt-1 font-black tracking-tight text-slate-600
                   uppercase sm:text-xl"
               ></h1>
             </div>
@@ -642,13 +642,13 @@ export default async function AccountDetailPage({
               {/* <dl className="grid gap-2 text-sm sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-1">
                 <div className={`${nb.cardSoft} px-3 py-2`}>
                   <dt className={nb.label}>Interest</dt>
-                  <dd className="mt-0.5 text-lg font-black tabular-nums text-slate-900">
+                  <dd className="mt-0.5 text-lg font-black tabular-nums text-slate-600">
                     {accountRow.interest_rate ?? 0}%
                   </dd>
                 </div>
                 <div className={`${nb.cardSoft} px-3 py-2`}>
                   <dt className={nb.label}>Term / frequency</dt>
-                  <dd className="mt-0.5 font-semibold leading-snug text-slate-900">
+                  <dd className="mt-0.5 font-semibold leading-snug text-slate-600">
                     {accountRow.term_months ?? 0}{" "}
                     <span className="font-normal text-slate-500">{accountRow.payment_frequency === "custom" ? accountRow.term_months === 1 ? "give" : "gives" : accountRow.term_months === 1 ? "month" : "months"}</span>
                     <span className="mx-1.5 text-slate-300">·</span>
@@ -824,7 +824,7 @@ export default async function AccountDetailPage({
               <p className={nb.label}>Principal</p>
               <p
                 className="dark:text-foreground mt-1.5 text-4xl font-black
-                  tracking-tight text-slate-900"
+                  tracking-tight text-slate-600"
               >
                 <AnimatedNumber
                   value={Number(accountRow.principal_amount ?? 0)}
@@ -846,7 +846,7 @@ export default async function AccountDetailPage({
               <p className={nb.label}>Remaining</p>
               <p
                 className="dark:text-foreground mt-1.5 text-4xl font-black
-                  tracking-tight text-slate-900"
+                  tracking-tight text-slate-600"
               >
                 <AnimatedNumber value={amountLeft} prefix="₱" />
               </p>
@@ -865,7 +865,7 @@ export default async function AccountDetailPage({
               <p className={nb.label}>Collected</p>
               <p
                 className="dark:text-foreground mt-1.5 text-4xl font-black
-                  tracking-tight text-slate-900"
+                  tracking-tight text-slate-600"
               >
                 <AnimatedNumber value={amountPaid} prefix="₱" />
               </p>
@@ -885,7 +885,7 @@ export default async function AccountDetailPage({
               <p className={nb.label}>Projected profit</p>
               <p
                 className="dark:text-foreground mt-1.5 text-4xl font-black
-                  tracking-tight text-slate-900"
+                  tracking-tight text-slate-600"
               >
                 <AnimatedNumber value={Math.max(0, profit)} prefix="₱" />
               </p>
@@ -901,7 +901,7 @@ export default async function AccountDetailPage({
             className={`mt-3 ${nb.inset} dark:text-muted-foreground px-4 py-3
               text-sm text-slate-700`}
           >
-            <span className="dark:text-foreground font-semibold text-slate-900">
+            <span className="dark:text-foreground font-semibold text-slate-600">
               Total contract
             </span>{" "}
             <span className="tabular-nums">
@@ -932,7 +932,7 @@ export default async function AccountDetailPage({
                   <div>
                     <h2
                       id="schedule-heading"
-                      className="text-sm font-black tracking-wide text-slate-900
+                      className="text-sm font-black tracking-wide text-slate-600
                         uppercase"
                     >
                       Payment schedules
@@ -940,11 +940,11 @@ export default async function AccountDetailPage({
                     {nextDue ? (
                       <p className="mt-1.5 text-sm font-semibold text-slate-800">
                         Next due{" "}
-                        <span className="font-black text-slate-900">
+                        <span className="font-black text-slate-600">
                           {formatDate(nextDue.due_date)}
                         </span>
                         <span className="text-slate-600"> · </span>
-                        <span className="font-black text-slate-900 tabular-nums">
+                        <span className="font-black text-slate-600 tabular-nums">
                           {formatMoney(remainingOnInstallment(nextDue))}
                         </span>
                         {remainingOnInstallment(nextDue) <
@@ -982,7 +982,7 @@ export default async function AccountDetailPage({
                           font-black tracking-wide text-slate-800 uppercase"
                       >
                         <span>{isManual ? "Recovered" : "Progress"}</span>
-                        <span className="text-slate-900 tabular-nums">
+                        <span className="text-slate-600 tabular-nums">
                           {progressPct}%
                         </span>
                       </div>
@@ -1141,7 +1141,7 @@ export default async function AccountDetailPage({
                                   className="inline-block rounded-md border-2
                                     border-slate-900 bg-sky-200 px-1.5 py-0.5
                                     text-[9px] font-black tracking-wide
-                                    text-slate-900 uppercase
+                                    text-slate-600 uppercase
                                     shadow-[2px_2px_0px_0px_#0f172a]
                                     dark:border-[#020617] dark:bg-sky-800
                                     dark:text-sky-100
@@ -1166,7 +1166,7 @@ export default async function AccountDetailPage({
                             <div className="mt-1 flex items-baseline gap-2">
                               <p
                                 className="dark:text-foreground text-2xl
-                                  font-black tracking-tight text-slate-900
+                                  font-black tracking-tight text-slate-600
                                   tabular-nums"
                               >
                                 {formatMoney(Number(schedule.amount_due ?? 0))}

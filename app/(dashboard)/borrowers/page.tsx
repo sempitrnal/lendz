@@ -218,7 +218,6 @@ export default async function BorrowersPage({
       <div className="flex flex-col">
         <BorrowersList
           allBorrowers={allBorrowers}
-          initialSearchQuery={searchQuery}
           initialCategoryIds={categoryIds}
           newlyCreatedBorrowers={(borrowersQuery.data ?? []) as any}
           newlyCreatedAccounts={(accountsQuery.data ?? []) as any}

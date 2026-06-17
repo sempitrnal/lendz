@@ -18,6 +18,7 @@ import { useSeedBorrowersSearch } from "@/hooks/use-borrowers-search";
 import AddBorrowerModal from "./add-borrower-modal";
 import { BorrowerCard } from "./borrower-card";
 import { BsChevronDown } from "react-icons/bs";
+import { BsChevronUp } from "react-icons/bs";
 import { FaPlus } from "react-icons/fa6";
 import {
   Users,
@@ -137,7 +138,6 @@ type SortMode =
 
 type BorrowersListProps = {
   allBorrowers: Borrower[];
-  initialSearchQuery?: string;
   initialCategoryIds?: string[];
   newlyCreatedBorrowers?: Borrower[];
   newlyCreatedAccounts?: RecentAccount[];
@@ -146,7 +146,6 @@ type BorrowersListProps = {
 
 export default function BorrowersList({
   allBorrowers,
-  initialSearchQuery = "",
   initialCategoryIds = [],
   newlyCreatedBorrowers = [],
   newlyCreatedAccounts = [],
@@ -178,34 +177,11 @@ export default function BorrowersList({
     const color = entries.find((entry) => entry.color)?.color ?? null;
     return { label, color };
   };
-  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const [listQuery, setListQuery] = useState(initialSearchQuery);
-  const listDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeSuggestion, setActiveSuggestion] = useState(-1);
-  const searchWrapperRef = useRef<HTMLDivElement>(null);
-
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(
     initialCategoryIds ?? [],
   );
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        searchWrapperRef.current &&
-        !searchWrapperRef.current.contains(e.target as Node)
-      ) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
   // Sync local state when server prop changes (e.g. back/forward navigation)
-  useEffect(() => {
-    setSearchQuery(initialSearchQuery ?? "");
-  }, [initialSearchQuery]);
   useEffect(() => {
     setSelectedCategoryIds((initialCategoryIds as string[] | undefined) ?? []);
   }, [initialCategoryIds]);
@@ -263,6 +239,23 @@ export default function BorrowersList({
     }[]
   >([]);
 
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
+    new Set([
+      "newly-created-borrowers",
+      "newly-created-accounts",
+      "payment-updates",
+    ]),
+  );
+
+  const toggleSection = (key: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem(RECENT_KEY);
@@ -312,29 +305,11 @@ export default function BorrowersList({
     });
   }, []);
 
-  // Debounce list filtering so typing stays responsive
-  useEffect(() => {
-    if (listDebounceRef.current) clearTimeout(listDebounceRef.current);
-    listDebounceRef.current = setTimeout(() => {
-      setListQuery(searchQuery);
-    }, 250);
-  }, [searchQuery]);
-
   const safeBorrowers = (allBorrowers as Borrower[] | undefined) ?? [];
   const safeCategoryIds = (selectedCategoryIds as string[] | undefined) ?? [];
 
   const filteredBorrowers = useMemo(() => {
     let result = safeBorrowers;
-    const q = listQuery.trim().toLowerCase();
-    if (q) {
-      result = result.filter(
-        (b) =>
-          b.first_name.toLowerCase().includes(q) ||
-          b.last_name.toLowerCase().includes(q) ||
-          `${b.first_name} ${b.last_name}`.toLowerCase().includes(q) ||
-          (b.contact ?? "").toLowerCase().includes(q),
-      );
-    }
     if (safeCategoryIds.length > 0) {
       result = result.filter((b) =>
         b.borrower_categories?.some((bc) =>
@@ -343,7 +318,7 @@ export default function BorrowersList({
       );
     }
     return result;
-  }, [safeBorrowers, listQuery, safeCategoryIds]);
+  }, [safeBorrowers, safeCategoryIds]);
 
   // Sort helpers
   function getTotalPrincipal(b: Borrower): number {
@@ -441,32 +416,17 @@ export default function BorrowersList({
     });
   }, [filteredBorrowers, sortMode]);
 
-  // Instant client-side suggestions from cached borrowers (no network)
-  const suggestions = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
-    return safeBorrowers
-      .filter(
-        (b) =>
-          b.first_name.toLowerCase().includes(q) ||
-          b.last_name.toLowerCase().includes(q) ||
-          `${b.first_name} ${b.last_name}`.toLowerCase().includes(q) ||
-          (b.contact ?? "").toLowerCase().includes(q),
-      )
-      .slice(0, 6);
-  }, [safeBorrowers, searchQuery]);
-
-  const openSuggestion = useCallback(
-    (s: Borrower) => {
-      setShowSuggestions(false);
+  const openBorrower = useCallback(
+    (borrower: Borrower) => {
       sessionStorage.setItem("borrowers-list-scroll", String(window.scrollY));
       recordVisit({
-        id: s.id,
-        first_name: s.first_name,
-        last_name: s.last_name,
-        categoryColor: s.borrower_categories?.[0]?.category?.color ?? null,
+        id: borrower.id,
+        first_name: borrower.first_name,
+        last_name: borrower.last_name,
+        categoryColor:
+          borrower.borrower_categories?.[0]?.category?.color ?? null,
       });
-      router.push(`/borrowers/${s.id}`);
+      router.push(`/borrowers/${borrower.id}`);
     },
     [recordVisit, router],
   );
@@ -497,7 +457,7 @@ export default function BorrowersList({
             aria-label="Add borrower"
             className="dark:border-border dark:text-background fixed right-4
               bottom-[76px] z-40 flex size-14 items-center justify-center
-              rounded-full border-2 border-slate-900 bg-green-400 text-slate-900
+              rounded-full border-2 border-slate-900 bg-green-400 text-slate-600
               shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform
               duration-200 active:scale-95 dark:bg-green-400
               dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
@@ -571,116 +531,6 @@ export default function BorrowersList({
           </div>
         ) : null}
 
-        <div ref={searchWrapperRef} className="relative">
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => {
-              const v = e.target.value;
-              setSearchQuery(v);
-              setShowSuggestions(v.trim().length > 0);
-              setActiveSuggestion(-1);
-            }}
-            onFocus={() => {
-              if (searchQuery.trim()) setShowSuggestions(true);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                setShowSuggestions(false);
-                return;
-              }
-              if (!showSuggestions || suggestions.length === 0) return;
-              if (e.key === "ArrowDown") {
-                e.preventDefault();
-                setActiveSuggestion((p) =>
-                  Math.min(p + 1, suggestions.length - 1),
-                );
-              } else if (e.key === "ArrowUp") {
-                e.preventDefault();
-                setActiveSuggestion((p) => Math.max(p - 1, -1));
-              } else if (e.key === "Enter" && activeSuggestion >= 0) {
-                e.preventDefault();
-                openSuggestion(suggestions[activeSuggestion]);
-              }
-            }}
-            placeholder="Search by name or contact"
-            className={formFieldInputClassName}
-            aria-label="Search borrowers"
-            aria-autocomplete="list"
-            aria-expanded={showSuggestions}
-            autoComplete="off"
-          />
-          {showSuggestions && suggestions.length > 0 && (
-            <div
-              role="listbox"
-              className="dark:border-border dark:bg-card absolute top-full
-                right-0 left-0 z-30 mt-1 overflow-hidden rounded-xl border-2
-                border-slate-900 bg-white
-                shadow-[3px_3px_0px_0px_rgb(15_23_42/0.85)]
-                dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
-            >
-              {suggestions.map((s, i) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  role="option"
-                  aria-selected={i === activeSuggestion}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    openSuggestion(s);
-                  }}
-                  onMouseEnter={() => setActiveSuggestion(i)}
-                  className={`dark:border-border/50 flex w-full items-center
-                  justify-between gap-3 border-b border-slate-100 px-3 py-2.5
-                  text-left transition-colors last:border-b-0 ${
-                    i === activeSuggestion
-                      ? "dark:bg-muted bg-slate-100"
-                      : "dark:bg-card bg-white"
-                  }`}
-                >
-                  <span
-                    className="flex min-w-0 flex-1 items-center gap-1.5
-                      truncate"
-                  >
-                    <span
-                      className="dark:text-foreground text-sm font-black
-                        text-slate-900 uppercase"
-                    >
-                      {s.first_name} {s.last_name}
-                    </span>
-                    {s.borrower_categories?.[0]?.category && (
-                      <span className="flex shrink-0 items-center gap-1">
-                        <span
-                          className="size-2 shrink-0 rounded-full"
-                          style={{
-                            backgroundColor:
-                              s.borrower_categories[0].category.color ??
-                              "#cbd5e1",
-                          }}
-                        />
-                        <span
-                          className="dark:text-muted-foreground text-[10px]
-                            font-semibold text-slate-400 capitalize"
-                        >
-                          {s.borrower_categories[0].category.name}
-                        </span>
-                      </span>
-                    )}
-                  </span>
-                  {s.contact && (
-                    <span
-                      className="dark:text-muted-foreground shrink-0 text-[10px]
-                        text-slate-400 tabular-nums"
-                    >
-                      {s.contact}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div className="relative">
           <p
             className="dark:text-muted-foreground mb-1.5 text-[10px] font-bold
@@ -703,7 +553,7 @@ export default function BorrowersList({
           >
             <span
               className="dark:text-foreground text-sm font-bold tracking-wide
-                text-slate-900 uppercase"
+                text-slate-600 uppercase"
             >
               {safeCategoryIds.length > 0
                 ? `${safeCategoryIds.length} selected`
@@ -824,13 +674,13 @@ export default function BorrowersList({
           <div className="mb-4 flex items-center gap-2">
             <span
               className="rounded-md border-2 border-slate-900 bg-indigo-200
-                p-1.5 text-slate-900 dark:border-slate-700 dark:bg-indigo-400
-                dark:text-slate-900"
+                p-1.5 text-slate-600 dark:border-slate-700 dark:bg-indigo-400
+                dark:text-slate-600"
             >
               <ClipboardList className="size-4" />
             </span>
             <h2
-              className="text-base font-black text-slate-900 lowercase
+              className="text-base font-black text-slate-600 lowercase
                 dark:text-white"
             >
               recent activities
@@ -840,459 +690,521 @@ export default function BorrowersList({
           <div className="flex flex-col gap-4 sm:gap-6">
             {/* Newly Created Borrowers */}
             <div>
-              <h3
-                className="mb-7 inline-flex items-center gap-1.5 rounded-lg
-                  border border-slate-900 bg-white px-3 py-1.5 text-[10px]
-                  font-black tracking-wider text-slate-900 uppercase
-                  shadow-[2px_2px_0px_0px_#0f172a] sm:mb-3 dark:border-slate-600
-                  dark:bg-slate-800 dark:text-white dark:shadow-none"
+              <button
+                type="button"
+                onClick={() => toggleSection("newly-created-borrowers")}
+                className="mb-3 inline-flex cursor-pointer items-center gap-1.5
+                  rounded-lg border border-slate-900 bg-white px-3 py-1.5
+                  text-[10px] font-black tracking-wider text-slate-600 uppercase
+                  shadow-[2px_2px_0px_0px_#0f172a] transition
+                  hover:-translate-y-px sm:mb-3 dark:border-slate-600
+                  dark:bg-slate-800 dark:text-white dark:shadow-none
+                  select-none"
               >
                 <Users className="size-3.5" />
                 newly created borrowers
-              </h3>
-              <div
-                className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3
-                  md:grid-cols-3"
-              >
-                {newlyCreatedBorrowers.length === 0 ? (
-                  <div
-                    className="rounded-xl border border-dashed border-slate-300
-                      bg-slate-50 p-3 text-sm font-medium text-slate-500
-                      sm:rounded-lg sm:border-2 sm:border-dashed
-                      sm:border-slate-400 dark:border-slate-600
-                      dark:bg-slate-800/50 dark:text-slate-400"
-                  >
-                    No recent borrowers created.
-                  </div>
+                {collapsedSections.has("newly-created-borrowers") ? (
+                  <BsChevronDown className="size-3" />
                 ) : (
-                  newlyCreatedBorrowers.map((borrower) => {
-                    const categoryMeta = getCategoryMeta(borrower);
-                    return (
-                      <div
-                        key={borrower.id}
-                        className="mb-2 rounded-xl transition-all
-                          active:shadow-none sm:rounded-lg border-2 bg-[#f8fff9]
-                          border-[#6c9670] shadow-[4px_4px_0px_0px_#6c9670]
-                          hover:shadow-[3px_3px_0px_0px_#6c9670]
-                          dark:border-[#020617] dark:bg-slate-900
-                          dark:shadow-[4px_4px_0px_0px_#020617]"
-                      >
-                        <Link
-                          href={`/borrowers/${borrower.id}`}
-                          className="flex h-full flex-col outline-none"
-                          onClick={() =>
-                            recordVisit({
-                              id: borrower.id,
-                              first_name: borrower.first_name,
-                              last_name: borrower.last_name,
-                              categoryColor: categoryMeta.color ?? null,
-                            })
-                          }
-                        >
-                          <div className="flex flex-1 flex-col p-2 sm:p-3">
-                            <span
-                              className="block text-xl font-black text-[#49554a]
-                                dark:text-foreground"
-                            >
-                              {borrower.first_name} {borrower.last_name}
-                            </span>
-                            {borrower.contact && (
-                              <p
-                                className="text-[11px] font-semibold
-                                  text-slate-600 sm:text-xs dark:text-slate-300"
-                              >
-                                {borrower.contact}
-                              </p>
-                            )}
-                            <span
-                              className="mt-1 inline-flex w-fit items-center
-                                gap-1.5 rounded-sm border-2 text-xs border-black
-                                font-semibold bg-slate-100 px-2 py-0.5
-                                text-[10px] text-slate-700 dark:bg-slate-700
-                                dark:text-slate-300"
-                              style={{
-                                backgroundColor:
-                                  categoryMeta.color ?? "#cbd5e1",
-                                color: isDarkColor(
-                                  categoryMeta.color ?? "#cbd5e1",
-                                )
-                                  ? "white"
-                                  : "black",
-                              }}
-                            >
-                              {/* <span
-                                className="size-2 shrink-0 rounded-full"
-                                style={{
-                                  backgroundColor:
-                                    categoryMeta.color ?? "#cbd5e1",
-                                }}
-                                aria-hidden
-                              /> */}
-                              {categoryMeta.label}
-                            </span>
-                          </div>
-                          <div
-                            className="border-t mt-2 rounded-b-lg
-                              border-[#9fc4a3] bg-[#effcf0] p-2 text-[11px]
-                              font-medium text-[#49554a] dark:border-[#020617]
-                              dark:bg-slate-800/50 dark:text-slate-400"
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <Calendar className="size-3 shrink-0" />
-                              Added{" "}
-                              {formatActivityDate(borrower.created_at || "")}
-                            </span>
-                          </div>
-                        </Link>
-                      </div>
-                    );
-                  })
+                  <BsChevronUp className="size-3" />
                 )}
+              </button>
+              <div
+                className={`grid transition-all duration-300 ease-out ${
+                  collapsedSections.has("newly-created-borrowers")
+                    ? "grid-rows-[0fr]"
+                    : "grid-rows-[1fr]"
+                  }`}
+              >
+                <div className="overflow-hidden">
+                  <div
+                    className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3
+                      md:grid-cols-3"
+                  >
+                    {newlyCreatedBorrowers.length === 0 ? (
+                      <div
+                        className="rounded-xl border border-dashed
+                          border-slate-300 bg-slate-50 p-3 text-sm font-medium
+                          text-slate-500 sm:rounded-lg sm:border-2
+                          sm:border-dashed sm:border-slate-400
+                          dark:border-slate-600 dark:bg-slate-800/50
+                          dark:text-slate-400"
+                      >
+                        No recent borrowers created.
+                      </div>
+                    ) : (
+                      newlyCreatedBorrowers.map((borrower) => {
+                        const categoryMeta = getCategoryMeta(borrower);
+                        return (
+                          <div
+                            key={borrower.id}
+                            className="mb-2 rounded-lg border-2 border-slate-900
+                              bg-white transition-all dark:border-border
+                              dark:bg-card"
+                          >
+                            <Link
+                              href={`/borrowers/${borrower.id}`}
+                              className="flex h-full flex-col outline-none"
+                              onClick={() =>
+                                recordVisit({
+                                  id: borrower.id,
+                                  first_name: borrower.first_name,
+                                  last_name: borrower.last_name,
+                                  categoryColor: categoryMeta.color ?? null,
+                                })
+                              }
+                            >
+                              <div className="flex flex-1 flex-col p-2 sm:p-3">
+                                <span
+                                  className="block text-xl font-bold
+                                    text-slate-700 lowercase
+                                    dark:text-foreground"
+                                >
+                                  {borrower.first_name} {borrower.last_name}
+                                </span>
+                                {borrower.contact && (
+                                  <p
+                                    className="text-[11px] font-semibold
+                                      text-slate-600 sm:text-xs
+                                      dark:text-slate-300"
+                                  >
+                                    {borrower.contact}
+                                  </p>
+                                )}
+                                <span
+                                  className="mt-1 inline-flex w-fit items-center
+                                    gap-1.5 rounded-full border
+                                    border-slate-900/15 px-2.5 py-0.5
+                                    text-[10px] font-bold uppercase
+                                    dark:border-border/40"
+                                >
+                                  <span
+                                    className="size-2 shrink-0 rounded-full
+                                      border border-slate-900/15"
+                                    style={{
+                                      backgroundColor:
+                                        categoryMeta.color ?? "#cbd5e1",
+                                    }}
+                                  />
+                                  {categoryMeta.label}
+                                </span>
+                              </div>
+                              <div
+                                className="border-t mt-2 rounded-b-lg
+                                  border-slate-100 bg-slate-50 p-2 text-[11px]
+                                  font-medium text-slate-600
+                                  dark:border-border/50 dark:bg-muted/40
+                                  dark:text-muted-foreground"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <Calendar className="size-3 shrink-0" />
+                                  Added{" "}
+                                  {formatActivityDate(
+                                    borrower.created_at || "",
+                                  )}
+                                </span>
+                              </div>
+                            </Link>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Newly Created Accounts */}
             <div>
-              <h3
-                className="mb-7 inline-flex items-center gap-1.5 rounded-lg
-                  border border-slate-900 bg-white px-3 py-1.5 text-[10px]
-                  font-black tracking-wider text-slate-900 uppercase
-                  shadow-[2px_2px_0px_0px_#0f172a] sm:mb-3 dark:border-slate-600
-                  dark:bg-slate-800 dark:text-white dark:shadow-none"
+              <button
+                type="button"
+                onClick={() => toggleSection("newly-created-accounts")}
+                className="mb-3 inline-flex cursor-pointer items-center gap-1.5
+                  rounded-lg border border-slate-900 bg-white px-3 py-1.5
+                  text-[10px] font-black tracking-wider text-slate-600 uppercase
+                  shadow-[2px_2px_0px_0px_#0f172a] transition
+                  hover:-translate-y-px sm:mb-3 dark:border-slate-600
+                  dark:bg-slate-800 dark:text-white dark:shadow-none
+                  select-none"
               >
                 <ClipboardList className="size-3.5" />
                 newly created accounts
-              </h3>
-              <div
-                className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3
-                  md:grid-cols-3"
-              >
-                {newlyCreatedAccounts.length === 0 ? (
-                  <div
-                    className="rounded-xl border border-dashed border-slate-300
-                      bg-slate-50 p-3 text-sm font-medium text-slate-500
-                      sm:rounded-lg sm:border-2 sm:border-dashed
-                      sm:border-slate-400 dark:border-slate-600
-                      dark:bg-slate-800/50 dark:text-slate-400"
-                  >
-                    No recent accounts created.
-                  </div>
+                {collapsedSections.has("newly-created-accounts") ? (
+                  <BsChevronDown className="size-3" />
                 ) : (
-                  newlyCreatedAccounts.map((account) => {
-                    const borrowerObj = account.borrower
-                      ? Array.isArray(account.borrower)
-                        ? account.borrower[0]
-                        : account.borrower
-                      : null;
-                    const isManual = account.schedule_mode === "manual";
-                    const isRolling =
-                      isManual && account.interest_type === "rolling";
-                    const isCashAdvance = account.type === "cash_advance";
-                    const typeLabel = isManual
-                      ? isRolling
-                        ? "rolling"
-                        : "flat"
-                      : isCashAdvance
-                        ? "ca"
-                        : "loan";
-                    const typeBadgeBg = isManual
-                      ? isRolling
-                        ? "bg-cyan-200 text-cyan-900 dark:bg-cyan-800 dark:text-cyan-100"
-                        : "bg-lime-200 text-lime-900 dark:bg-lime-800 dark:text-lime-100"
-                      : isCashAdvance
-                        ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
-                        : "bg-violet-200 text-violet-900 dark:bg-violet-800 dark:text-violet-100";
-                    return (
-                      <div
-                        key={account.id}
-                        className="mb-2 rounded-xl transition-all
-                          active:shadow-none sm:rounded-lg border-2
-                          border-[#6c9670] bg-[#f8fff9]
-                          shadow-[4px_4px_0px_0px_#6c9670]
-                          hover:shadow-[3px_3px_0px_0px_#6c9670]
-                          dark:border-[#020617] dark:bg-slate-900
-                          dark:shadow-[4px_4px_0px_0px_#020617]"
-                      >
-                        <Link
-                          href={`/accounts/${account.id}`}
-                          className="flex h-full flex-col outline-none"
-                        >
-                          <div className="flex flex-1 flex-col p-2 sm:p-3">
-                            <div
-                              className="flex items-start justify-between gap-2"
-                            >
-                              <span
-                                className="block text-xl font-black
-                                  text-[#49554a] dark:text-foreground"
-                              >
-                                {borrowerObj
-                                  ? `${borrowerObj.first_name} ${borrowerObj.last_name}`
-                                  : "Unknown borrower"}
-                              </span>
-                              <span
-                                className={`min-w-0 truncate rounded-sm border-2
-                                  border-black px-2 py-0.5 text-[10px]
-                                  font-semibold ${typeBadgeBg}`}
-                              >
-                                {typeLabel}
-                              </span>
-                            </div>
-                            <div className="mt-1.5 flex items-baseline gap-1.5">
-                              <span
-                                className="text-xs font-black text-[#49554a]
-                                  dark:text-foreground"
-                              >
-                                ₱
-                                {(
-                                  account.principal_amount ?? 0
-                                ).toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
-                          <div
-                            className="border-t mt-2 rounded-b-lg
-                              border-[#9fc4a3] bg-[#effcf0] p-2 text-[11px]
-                              font-medium text-[#49554a] dark:border-[#020617]
-                              dark:bg-slate-800/50 dark:text-slate-400"
-                          >
-                            <div className="flex flex-col gap-1.5">
-                              <span className="flex items-center gap-1.5">
-                                <Calendar className="size-3 shrink-0" />
-                                Created {formatActivityDate(account.created_at)}
-                              </span>
-                              {account.release_date && (
-                                <span className="flex items-center gap-1.5">
-                                  <CheckCircle2
-                                    className="size-3 shrink-0 text-emerald-600
-                                      dark:text-emerald-400"
-                                  />
-                                  Released{" "}
-                                  {formatActivityDate(account.release_date)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </Link>
-                      </div>
-                    );
-                  })
+                  <BsChevronUp className="size-3" />
                 )}
+              </button>
+              <div
+                className={`grid transition-all duration-300 ease-out ${
+                  collapsedSections.has("newly-created-accounts")
+                    ? "grid-rows-[0fr]"
+                    : "grid-rows-[1fr]"
+                  }`}
+              >
+                <div className="overflow-hidden">
+                  <div
+                    className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3
+                      md:grid-cols-3"
+                  >
+                    {newlyCreatedAccounts.length === 0 ? (
+                      <div
+                        className="rounded-xl border border-dashed
+                          border-slate-300 bg-slate-50 p-3 text-sm font-medium
+                          text-slate-500 sm:rounded-lg sm:border-2
+                          sm:border-dashed sm:border-slate-400
+                          dark:border-slate-600 dark:bg-slate-800/50
+                          dark:text-slate-400"
+                      >
+                        No recent accounts created.
+                      </div>
+                    ) : (
+                      newlyCreatedAccounts.map((account) => {
+                        const borrowerObj = account.borrower
+                          ? Array.isArray(account.borrower)
+                            ? account.borrower[0]
+                            : account.borrower
+                          : null;
+                        const isManual = account.schedule_mode === "manual";
+                        const isRolling =
+                          isManual && account.interest_type === "rolling";
+                        const isCashAdvance = account.type === "cash_advance";
+                        const typeLabel = isManual
+                          ? isRolling
+                            ? "rolling"
+                            : "flat"
+                          : isCashAdvance
+                            ? "ca"
+                            : "loan";
+                        const typeBadgeBg = isManual
+                          ? isRolling
+                            ? "bg-cyan-200 text-cyan-900 dark:bg-cyan-800 dark:text-cyan-100"
+                            : "bg-lime-200 text-lime-900 dark:bg-lime-800 dark:text-lime-100"
+                          : isCashAdvance
+                            ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
+                            : "bg-violet-200 text-violet-900 dark:bg-violet-800 dark:text-violet-100";
+                        return (
+                          <div
+                            key={account.id}
+                            className="mb-2 rounded-lg border-2 border-slate-900
+                              bg-white transition-all dark:border-border
+                              dark:bg-card"
+                          >
+                            <Link
+                              href={`/accounts/${account.id}`}
+                              className="flex h-full flex-col outline-none"
+                            >
+                              <div className="flex flex-1 flex-col p-2 sm:p-3">
+                                <div
+                                  className="flex items-start justify-between
+                                    gap-2"
+                                >
+                                  <span
+                                    className="block text-xl font-bold
+                                      text-slate-700 lowercase
+                                      dark:text-foreground"
+                                  >
+                                    {borrowerObj
+                                      ? `${borrowerObj.first_name} ${borrowerObj.last_name}`
+                                      : "Unknown borrower"}
+                                  </span>
+                                  <span
+                                    className={`min-w-0 truncate rounded-md px-2
+                                      py-0.5 text-[10px] font-black uppercase
+                                      ${typeBadgeBg}`}
+                                  >
+                                    {typeLabel}
+                                  </span>
+                                </div>
+                                <div
+                                  className="mt-1.5 flex items-baseline gap-1.5"
+                                >
+                                  <span
+                                    className="text-xs font-bold text-slate-600
+                                      dark:text-foreground"
+                                  >
+                                    ₱
+                                    {(
+                                      account.principal_amount ?? 0
+                                    ).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                              <div
+                                className="border-t mt-2 rounded-b-lg
+                                  border-slate-100 bg-slate-50 p-2 text-[11px]
+                                  font-medium text-slate-600
+                                  dark:border-border/50 dark:bg-muted/40
+                                  dark:text-muted-foreground"
+                              >
+                                <div className="flex flex-col gap-1.5">
+                                  <span className="flex items-center gap-1.5">
+                                    <Calendar className="size-3 shrink-0" />
+                                    Created{" "}
+                                    {formatActivityDate(account.created_at)}
+                                  </span>
+                                  {account.release_date && (
+                                    <span className="flex items-center gap-1.5">
+                                      <CheckCircle2
+                                        className="size-3 shrink-0
+                                          text-emerald-600
+                                          dark:text-emerald-400"
+                                      />
+                                      Released{" "}
+                                      {formatActivityDate(account.release_date)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </Link>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Payment Updates */}
             <div>
-              <h3
-                className="mb-2 inline-flex items-center gap-1.5 rounded-lg
-                  border border-slate-900 bg-white px-3 py-1.5 text-[10px]
-                  font-black tracking-wider text-slate-900 uppercase
-                  shadow-[2px_2px_0px_0px_#0f172a] sm:mb-3 dark:border-slate-600
-                  dark:bg-slate-800 dark:text-white dark:shadow-none"
+              <button
+                type="button"
+                onClick={() => toggleSection("payment-updates")}
+                className="mb-3 inline-flex cursor-pointer items-center gap-1.5
+                  rounded-lg border border-slate-900 bg-white px-3 py-1.5
+                  text-[10px] font-black tracking-wider text-slate-600 uppercase
+                  shadow-[2px_2px_0px_0px_#0f172a] transition
+                  hover:-translate-y-px sm:mb-3 dark:border-slate-600
+                  dark:bg-slate-800 dark:text-white dark:shadow-none
+                  select-none"
               >
                 <Activity className="size-3.5" />
                 payment updates
-              </h3>
-              <div
-                className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3
-                  md:grid-cols-3"
-              >
-                {recentAccountUpdates.length === 0 ? (
-                  <div
-                    className="rounded-xl border border-dashed border-slate-300
-                      bg-slate-50 p-3 text-sm font-medium text-slate-500
-                      sm:rounded-lg sm:border-2 sm:border-dashed
-                      sm:border-slate-400 dark:border-slate-600
-                      dark:bg-slate-800/50 dark:text-slate-400"
-                  >
-                    No recent payment updates.
-                  </div>
+                {collapsedSections.has("payment-updates") ? (
+                  <BsChevronDown className="size-3" />
                 ) : (
-                  recentAccountUpdates.map((update) => {
-                    const meta = update.metadata ?? {};
-                    const accountObj = update.account
-                      ? Array.isArray(update.account)
-                        ? update.account[0]
-                        : update.account
-                      : null;
-                    const borrowerRaw = accountObj?.borrower;
-                    const borrower = borrowerRaw
-                      ? Array.isArray(borrowerRaw)
-                        ? borrowerRaw[0]
-                        : borrowerRaw
-                      : null;
-                    const borrowerName = borrower
-                      ? `${borrower.first_name} ${borrower.last_name}`
-                      : "Unknown borrower";
-
-                    // Determine paid state for badge + display
-                    const statusVal = meta.status || meta.newStatus || "";
-                    const isPaid =
-                      statusVal === "paid" ||
-                      update.action === "schedule.batch_paid";
-                    const isPartial = statusVal === "partial";
-
-                    const badgeStyle = isPaid
-                      ? {
-                          label: "Paid",
-                          bg: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200",
-                        }
-                      : isPartial
-                        ? {
-                            label: "Partial",
-                            bg: "bg-purple-100 text-amber-800 dark:bg-purple-900/60 dark:text-amber-200",
-                          }
-                        : {
-                            label: update.action.replace(/.*\./, ""),
-                            bg: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
-                          };
-
-                    // Extract display fields
-                    let amountLine: string | null = null;
-                    let dueDate: string | null = null;
-                    let paidDate: string | null = null;
-                    let remaining: number | null = null;
-
-                    if (update.action === "schedule.payment_applied") {
-                      const amt = Number(meta.amount ?? 0);
-                      if (amt > 0) amountLine = `₱${amt.toLocaleString()}`;
-                      dueDate = (meta.due_date as string) || null;
-                      paidDate = (meta.paymentDate as string) || null;
-                      const rem = Number(meta.remaining_amount ?? 0);
-                      if (rem > 0) remaining = rem;
-                    } else if (update.action === "schedule.status_changed") {
-                      const due = Number(meta.amount_due ?? 0);
-                      if (due > 0) amountLine = `₱${due.toLocaleString()}`;
-                      dueDate = (meta.due_date as string) || null;
-                      paidDate = (meta.paid_date as string) || null;
-                      const rem = Number(meta.remaining_amount ?? 0);
-                      if (rem > 0) remaining = rem;
-                    } else if (update.action === "schedule.batch_paid") {
-                      const ids = meta.ids as string[] | undefined;
-                      const count = ids?.length ?? 0;
-                      if (count > 0)
-                        amountLine = `${count} schedule${count === 1 ? "" : "s"}`;
-                      paidDate = (meta.customDate as string) || null;
-                    }
-
-                    if (!amountLine && !dueDate && !paidDate) {
-                      amountLine = update.description;
-                    }
-
-                    const content = (
-                      <div className="flex flex-1 flex-col p-2 sm:p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <span
-                            className="block text-xl font-black text-[#49554a]
-                              dark:text-foreground"
-                          >
-                            {borrowerName}
-                          </span>
-                          <span
-                            className={`shrink-0 rounded-sm border-2
-                              border-black px-2 py-0.5 text-[10px] font-semibold
-                              ${badgeStyle.bg}`}
-                          >
-                            {badgeStyle.label}
-                          </span>
-                        </div>
-                        {amountLine && (
-                          <p
-                            className="mt-1 text-sm font-black text-[#49554a]
-                              dark:text-foreground"
-                          >
-                            {amountLine}
-                          </p>
-                        )}
-                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                          {dueDate && (
-                            <span
-                              className="flex items-center gap-1 text-[11px]
-                                font-medium text-slate-500 dark:text-slate-400"
-                            >
-                              <Calendar className="size-3" />
-                              Due {formatActivityDate(dueDate)}
-                            </span>
-                          )}
-                          {paidDate && (
-                            <span
-                              className="flex items-center gap-1 text-[11px]
-                                font-medium text-slate-500 dark:text-slate-400"
-                            >
-                              <Banknote className="size-3" />
-                              Paid {formatActivityDate(paidDate)}
-                            </span>
-                          )}
-                          {remaining !== null && remaining > 0 && (
-                            <span
-                              className="flex items-center gap-1 text-[11px]
-                                font-medium text-slate-500 dark:text-slate-400"
-                            >
-                              ₱{remaining.toLocaleString()} remaining
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-
-                    return (
+                  <BsChevronUp className="size-3" />
+                )}
+              </button>
+              <div
+                className={`grid transition-all duration-300 ease-out ${
+                  collapsedSections.has("payment-updates")
+                    ? "grid-rows-[0fr]"
+                    : "grid-rows-[1fr]"
+                  }`}
+              >
+                <div className="overflow-hidden">
+                  <div
+                    className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3
+                      md:grid-cols-3"
+                  >
+                    {recentAccountUpdates.length === 0 ? (
                       <div
-                        key={update.id}
-                        className="mb-2 rounded-xl transition-all
-                          active:shadow-none sm:rounded-lg border-2
-                          border-[#6c9670] bg-[#f8fff9]
-                          shadow-[4px_4px_0px_0px_#6c9670]
-                          hover:shadow-[3px_3px_0px_0px_#6c9670]
-                          dark:border-[#020617] dark:bg-slate-900
-                          dark:shadow-[4px_4px_0px_0px_#020617]"
+                        className="rounded-xl border border-dashed
+                          border-slate-300 bg-slate-50 p-3 text-sm font-medium
+                          text-slate-500 sm:rounded-lg sm:border-2
+                          sm:border-dashed sm:border-slate-400
+                          dark:border-slate-600 dark:bg-slate-800/50
+                          dark:text-slate-400"
                       >
-                        {update.account_id ? (
-                          <Link
-                            href={`/accounts/${update.account_id}`}
-                            className="flex h-full flex-col outline-none"
-                            onClick={() => {
-                              if (borrower) {
-                                recordVisit({
-                                  id: borrower.id || update.account_id || "",
-                                  first_name: borrower.first_name,
-                                  last_name: borrower.last_name,
-                                  categoryColor: null,
-                                });
+                        No recent payment updates.
+                      </div>
+                    ) : (
+                      recentAccountUpdates.map((update) => {
+                        const meta = update.metadata ?? {};
+                        const accountObj = update.account
+                          ? Array.isArray(update.account)
+                            ? update.account[0]
+                            : update.account
+                          : null;
+                        const borrowerRaw = accountObj?.borrower;
+                        const borrower = borrowerRaw
+                          ? Array.isArray(borrowerRaw)
+                            ? borrowerRaw[0]
+                            : borrowerRaw
+                          : null;
+                        const borrowerName = borrower
+                          ? `${borrower.first_name} ${borrower.last_name}`
+                          : "Unknown borrower";
+
+                        // Determine paid state for badge + display
+                        const statusVal = meta.status || meta.newStatus || "";
+                        const isPaid =
+                          statusVal === "paid" ||
+                          update.action === "schedule.batch_paid";
+                        const isPartial = statusVal === "partial";
+
+                        const badgeStyle = isPaid
+                          ? {
+                              label: "Paid",
+                              bg: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200",
+                            }
+                          : isPartial
+                            ? {
+                                label: "Partial",
+                                bg: "bg-purple-100 text-amber-800 dark:bg-purple-900/60 dark:text-amber-200",
                               }
-                            }}
-                          >
-                            {content}
+                            : {
+                                label: update.action.replace(/.*\./, ""),
+                                bg: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
+                              };
+
+                        // Extract display fields
+                        let amountLine: string | null = null;
+                        let dueDate: string | null = null;
+                        let paidDate: string | null = null;
+                        let remaining: number | null = null;
+
+                        if (update.action === "schedule.payment_applied") {
+                          const amt = Number(meta.amount ?? 0);
+                          if (amt > 0) amountLine = `₱${amt.toLocaleString()}`;
+                          dueDate = (meta.due_date as string) || null;
+                          paidDate = (meta.paymentDate as string) || null;
+                          const rem = Number(meta.remaining_amount ?? 0);
+                          if (rem > 0) remaining = rem;
+                        } else if (
+                          update.action === "schedule.status_changed"
+                        ) {
+                          const due = Number(meta.amount_due ?? 0);
+                          if (due > 0) amountLine = `₱${due.toLocaleString()}`;
+                          dueDate = (meta.due_date as string) || null;
+                          paidDate = (meta.paid_date as string) || null;
+                          const rem = Number(meta.remaining_amount ?? 0);
+                          if (rem > 0) remaining = rem;
+                        } else if (update.action === "schedule.batch_paid") {
+                          const ids = meta.ids as string[] | undefined;
+                          const count = ids?.length ?? 0;
+                          if (count > 0)
+                            amountLine = `${count} schedule${count === 1 ? "" : "s"}`;
+                          paidDate = (meta.customDate as string) || null;
+                        }
+
+                        if (!amountLine && !dueDate && !paidDate) {
+                          amountLine = update.description;
+                        }
+
+                        const content = (
+                          <div className="flex flex-1 flex-col p-2 sm:p-3">
                             <div
-                              className="border-t mt-2 rounded-b-lg
-                                border-[#9fc4a3] bg-[#effcf0] p-2 text-[11px]
-                                font-medium text-[#49554a] dark:border-[#020617]
-                                dark:bg-slate-800/50 dark:text-slate-400"
+                              className="flex items-start justify-between gap-2"
                             >
-                              <span className="flex items-center gap-1.5">
-                                <Activity className="size-3" />
-                                {formatActivityDate(update.created_at)}
+                              <span
+                                className="block text-xl font-bold
+                                  text-slate-700 lowercase dark:text-foreground"
+                              >
+                                {borrowerName}
+                              </span>
+                              <span
+                                className={`shrink-0 rounded-md px-2 py-0.5
+                                  text-[10px] font-black uppercase
+                                  ${badgeStyle.bg}`}
+                              >
+                                {badgeStyle.label}
                               </span>
                             </div>
-                          </Link>
-                        ) : (
-                          <div className="flex h-full flex-col">
-                            {content}
-                            <div
-                              className="border-t mt-2 rounded-b-xl
-                                border-[#9fc4a3] bg-[#effcf0] p-2 text-[11px]
-                                font-medium text-[#49554a] dark:border-[#020617]
-                                dark:bg-slate-800/50 dark:text-slate-400"
-                            >
-                              <span className="flex items-center gap-1.5">
-                                <Activity className="size-3" />
-                                {formatActivityDate(update.created_at)}
-                              </span>
+                            {amountLine && (
+                              <p
+                                className="mt-1 text-sm font-bold text-slate-600
+                                  dark:text-foreground"
+                              >
+                                {amountLine}
+                              </p>
+                            )}
+                            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                              {dueDate && (
+                                <span
+                                  className="flex items-center gap-1 text-[11px]
+                                    font-medium text-slate-500
+                                    dark:text-slate-400"
+                                >
+                                  <Calendar className="size-3" />
+                                  Due {formatActivityDate(dueDate)}
+                                </span>
+                              )}
+                              {paidDate && (
+                                <span
+                                  className="flex items-center gap-1 text-[11px]
+                                    font-medium text-slate-500
+                                    dark:text-slate-400"
+                                >
+                                  <Banknote className="size-3" />
+                                  Paid {formatActivityDate(paidDate)}
+                                </span>
+                              )}
+                              {remaining !== null && remaining > 0 && (
+                                <span
+                                  className="flex items-center gap-1 text-[11px]
+                                    font-medium text-slate-500
+                                    dark:text-slate-400"
+                                >
+                                  ₱{remaining.toLocaleString()} remaining
+                                </span>
+                              )}
                             </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
+                        );
+
+                        return (
+                          <div
+                            key={update.id}
+                            className="mb-2 rounded-lg border-2 border-slate-900
+                              bg-white transition-all dark:border-border
+                              dark:bg-card"
+                          >
+                            {update.account_id ? (
+                              <Link
+                                href={`/accounts/${update.account_id}`}
+                                className="flex h-full flex-col outline-none"
+                                onClick={() => {
+                                  if (borrower) {
+                                    recordVisit({
+                                      id:
+                                        borrower.id || update.account_id || "",
+                                      first_name: borrower.first_name,
+                                      last_name: borrower.last_name,
+                                      categoryColor: null,
+                                    });
+                                  }
+                                }}
+                              >
+                                {content}
+                                <div
+                                  className="border-t mt-2 rounded-b-lg
+                                    border-slate-100 bg-slate-50 p-2 text-[11px]
+                                    font-medium text-slate-600
+                                    dark:border-border/50 dark:bg-muted/40
+                                    dark:text-muted-foreground"
+                                >
+                                  <span className="flex items-center gap-1.5">
+                                    <Activity className="size-3" />
+                                    {formatActivityDate(update.created_at)}
+                                  </span>
+                                </div>
+                              </Link>
+                            ) : (
+                              <div className="flex h-full flex-col">
+                                {content}
+                                <div
+                                  className="border-t mt-2 rounded-b-lg
+                                    border-slate-100 bg-slate-50 p-2 text-[11px]
+                                    font-medium text-slate-600
+                                    dark:border-border/50 dark:bg-muted/40
+                                    dark:text-muted-foreground"
+                                >
+                                  <span className="flex items-center gap-1.5">
+                                    <Activity className="size-3" />
+                                    {formatActivityDate(update.created_at)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1305,13 +1217,13 @@ export default function BorrowersList({
           <span
             className="rounded-md border-2 border-slate-900 bg-slate-900 p-1.5
               text-white dark:border-slate-600 dark:bg-slate-100
-              dark:text-slate-900"
+              dark:text-slate-600"
           >
             <Users className="size-4" />
           </span>
           <h2
             className="text-base font-black lowercase tracking-wide
-              text-slate-900 dark:text-white"
+              text-slate-600 dark:text-white"
           >
             borrowers
           </h2>
@@ -1347,7 +1259,7 @@ export default function BorrowersList({
                     {Icon && <Icon className="size-4" />}
                     <span
                       className="dark:text-foreground text-sm font-bold
-                        tracking-wide text-slate-900 uppercase"
+                        tracking-wide text-slate-600 uppercase"
                     >
                       {opt?.label ?? "Default"}
                     </span>
@@ -1444,17 +1356,15 @@ export default function BorrowersList({
         <EmptyState
           icon={Users}
           title={
-            safeCategoryIds.length > 0 || listQuery.trim()
-              ? "No matches found"
-              : "No borrowers yet"
+            safeCategoryIds.length > 0 ? "No matches found" : "No borrowers yet"
           }
           description={
-            safeCategoryIds.length > 0 || listQuery.trim()
+            safeCategoryIds.length > 0
               ? "Try adjusting your search or clearing category filters."
               : "Add your first borrower to start tracking loans and collections."
           }
           action={
-            safeCategoryIds.length === 0 && !listQuery.trim()
+            safeCategoryIds.length === 0
               ? { label: "Add borrower", href: "/borrowers" }
               : undefined
           }

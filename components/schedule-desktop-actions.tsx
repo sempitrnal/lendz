@@ -18,7 +18,9 @@ export function ScheduleDesktopActions({
 }) {
   // Default to showing the status buttons only when pending or when there is
   // no payment history to display; otherwise default to the payment history.
-  const [showButtons, setShowButtons] = useState(status === "pending" || !hasHistory);
+  const [showButtons, setShowButtons] = useState(
+    status === "pending" || !hasHistory,
+  );
 
   useEffect(() => {
     if (status === "paid" && hasHistory) {
@@ -33,7 +35,12 @@ export function ScheduleDesktopActions({
           type="button"
           title={showButtons ? "Show payment history" : "Show status buttons"}
           onClick={() => setShowButtons((v) => !v)}
-          className="absolute -top-1.5 -right-1 inline-flex size-6 items-center justify-center rounded-full border-2 border-slate-900 bg-white text-slate-700 shadow-[1px_1px_0px_0px_#0f172a] transition hover:bg-slate-50 hover:text-slate-900 cursor-pointer dark:border-border dark:bg-card dark:text-muted-foreground dark:shadow-none dark:hover:bg-muted dark:hover:text-foreground"
+          className="absolute -top-1.5 -right-1 inline-flex size-6 items-center
+            justify-center rounded-full border-2 border-slate-900 bg-white
+            text-slate-700 shadow-[1px_1px_0px_0px_#0f172a] transition
+            hover:bg-slate-50 hover:text-slate-600 cursor-pointer
+            dark:border-border dark:bg-card dark:text-muted-foreground
+            dark:shadow-none dark:hover:bg-muted dark:hover:text-foreground"
         >
           {showButtons ? (
             <History className="size-3 shrink-0" aria-hidden />

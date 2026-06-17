@@ -22,10 +22,19 @@ export default function PendingActivationBanner({
 
   return (
     <>
-      <div className="rounded-xl border-2 border-amber-600 bg-amber-50 p-4 shadow-[4px_4px_0px_0px_#d97706]">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        className="rounded-xl border-2 border-amber-600 bg-amber-50 p-4
+          shadow-[4px_4px_0px_0px_#d97706]"
+      >
+        <div
+          className="flex flex-col gap-3 sm:flex-row sm:items-center
+            sm:justify-between"
+        >
           <div>
-            <p className="text-sm font-black tracking-wide text-amber-900 uppercase">
+            <p
+              className="text-sm font-black tracking-wide text-amber-900
+                uppercase"
+            >
               pending activation
             </p>
             <p className="mt-1 text-xs text-amber-800">
@@ -40,7 +49,10 @@ export default function PendingActivationBanner({
           <button
             type="button"
             onClick={() => setDialogOpen(true)}
-            className="rounded-lg border-2 border-slate-900 bg-emerald-400 px-4 py-2 text-sm font-black tracking-wide text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition-transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+            className="rounded-lg border-2 border-slate-900 bg-emerald-400 px-4
+              py-2 text-sm font-black tracking-wide text-slate-600 uppercase
+              shadow-[2px_2px_0px_0px_#0f172a] transition-transform
+              hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
           >
             activate account
           </button>

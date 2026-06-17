@@ -256,7 +256,7 @@ export default async function DueThisMonthPage() {
             </p>
             <h1
               className="dark:text-foreground mt-1 text-2xl font-black
-                text-slate-900 lowercase sm:text-3xl"
+                text-slate-600 lowercase sm:text-3xl"
             >
               due this month
             </h1>
@@ -293,7 +293,7 @@ export default async function DueThisMonthPage() {
           </p>
           <p
             className="dark:text-foreground mt-1 text-2xl font-black
-              text-slate-900"
+              text-slate-600"
           >
             {pending.length}
           </p>
@@ -318,7 +318,7 @@ export default async function DueThisMonthPage() {
           </p>
           <p
             className="dark:text-foreground mt-1 text-2xl font-black
-              text-slate-900"
+              text-slate-600"
           >
             {paid.length}
           </p>
@@ -484,7 +484,7 @@ export default async function DueThisMonthPage() {
                       </span>
                       <span
                         className="dark:text-foreground text-sm font-black
-                          text-slate-900"
+                          text-slate-600"
                       >
                         PHP {totalRemaining.toLocaleString()}
                       </span>
@@ -556,7 +556,7 @@ export default async function DueThisMonthPage() {
                       <Link
                         href={b.borrowerId ? `/borrowers/${b.borrowerId}` : "#"}
                         className="dark:text-foreground block truncate text-sm
-                          font-black text-slate-900 lowercase transition
+                          font-black text-slate-600 lowercase transition
                           hover:opacity-70"
                       >
                         {b.name}
@@ -638,7 +638,7 @@ export default async function DueThisMonthPage() {
                       </span>
                       <span
                         className="dark:text-foreground text-sm font-black
-                          text-slate-900"
+                          text-slate-600"
                       >
                         PHP {totalPaid.toLocaleString()}
                       </span>

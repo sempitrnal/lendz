@@ -13,26 +13,81 @@ type AuditLog = {
   metadata: Record<string, unknown> | null;
 };
 
-const ACTION_STYLES: Record<string, { label: string; bg: string; text: string }> = {
-  "schedule.payment_applied":  { label: "Payment",        bg: "bg-emerald-100", text: "text-emerald-800" },
-  "schedule.status_changed":   { label: "Status",         bg: "bg-sky-100",     text: "text-sky-800" },
-  "schedule.batch_paid":       { label: "Batch Paid",     bg: "bg-violet-100",  text: "text-violet-800" },
-  "schedule.payment_deleted":  { label: "Payment Del.",   bg: "bg-red-100",     text: "text-red-800" },
-  "schedule.deleted":          { label: "Sched. Del.",    bg: "bg-red-100",     text: "text-red-800" },
-  "schedule.added":            { label: "Sched. Added",   bg: "bg-lime-100",    text: "text-lime-800" },
-  "account.created":           { label: "Account +",      bg: "bg-lime-100",    text: "text-lime-800" },
-  "account.updated":           { label: "Account Edit",   bg: "bg-amber-100",   text: "text-amber-800" },
-  "account.deleted":           { label: "Account Del.",   bg: "bg-red-100",     text: "text-red-800" },
-  "borrower.created":          { label: "Borrower +",     bg: "bg-lime-100",    text: "text-lime-800" },
-  "borrower.updated":          { label: "Borrower Edit",  bg: "bg-amber-100",   text: "text-amber-800" },
-  "borrower.deleted":          { label: "Borrower Del.",  bg: "bg-red-100",     text: "text-red-800" },
+const ACTION_STYLES: Record<
+  string,
+  { label: string; bg: string; text: string }
+> = {
+  "schedule.payment_applied": {
+    label: "Payment",
+    bg: "bg-emerald-100",
+    text: "text-emerald-800",
+  },
+  "schedule.status_changed": {
+    label: "Status",
+    bg: "bg-sky-100",
+    text: "text-sky-800",
+  },
+  "schedule.batch_paid": {
+    label: "Batch Paid",
+    bg: "bg-violet-100",
+    text: "text-violet-800",
+  },
+  "schedule.payment_deleted": {
+    label: "Payment Del.",
+    bg: "bg-red-100",
+    text: "text-red-800",
+  },
+  "schedule.deleted": {
+    label: "Sched. Del.",
+    bg: "bg-red-100",
+    text: "text-red-800",
+  },
+  "schedule.added": {
+    label: "Sched. Added",
+    bg: "bg-lime-100",
+    text: "text-lime-800",
+  },
+  "account.created": {
+    label: "Account +",
+    bg: "bg-lime-100",
+    text: "text-lime-800",
+  },
+  "account.updated": {
+    label: "Account Edit",
+    bg: "bg-amber-100",
+    text: "text-amber-800",
+  },
+  "account.deleted": {
+    label: "Account Del.",
+    bg: "bg-red-100",
+    text: "text-red-800",
+  },
+  "borrower.created": {
+    label: "Borrower +",
+    bg: "bg-lime-100",
+    text: "text-lime-800",
+  },
+  "borrower.updated": {
+    label: "Borrower Edit",
+    bg: "bg-amber-100",
+    text: "text-amber-800",
+  },
+  "borrower.deleted": {
+    label: "Borrower Del.",
+    bg: "bg-red-100",
+    text: "text-red-800",
+  },
 };
 
 function formatTs(ts: string) {
   const d = new Date(ts);
   return d.toLocaleString("en-PH", {
-    month: "short", day: "numeric", year: "numeric",
-    hour: "numeric", minute: "2-digit", hour12: true,
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
     timeZone: "Asia/Manila",
   });
 }
@@ -63,12 +118,18 @@ export default async function AuditPage({
   const logs = (data ?? []) as AuditLog[];
   const totalPages = Math.max(1, Math.ceil((count ?? 0) / pageSize));
 
-  const actionOptions = Object.entries(ACTION_STYLES).map(([k, v]) => ({ value: k, label: v.label }));
+  const actionOptions = Object.entries(ACTION_STYLES).map(([k, v]) => ({
+    value: k,
+    label: v.label,
+  }));
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-16 pt-8">
       <div className="mb-6 flex flex-col gap-1">
-        <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900">
+        <h1
+          className="text-2xl font-black uppercase tracking-tight
+            text-slate-600"
+        >
           Audit Trail
         </h1>
         <p className="text-sm text-slate-500">
@@ -80,11 +141,12 @@ export default async function AuditPage({
       <div className="mb-4 flex flex-wrap gap-2">
         <Link
           href="/audit"
-          className={`rounded-md border-2 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide transition ${
-            !filterAction
-              ? "border-slate-900 bg-slate-900 text-white"
-              : "border-slate-300 text-slate-600 hover:border-slate-900"
-          }`}
+          className={`rounded-md border-2 px-2.5 py-1 text-[11px] font-black
+            uppercase tracking-wide transition ${
+              !filterAction
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-300 text-slate-600 hover:border-slate-900"
+            }`}
         >
           All
         </Link>
@@ -92,7 +154,8 @@ export default async function AuditPage({
           <Link
             key={opt.value}
             href={`/audit?action=${opt.value}`}
-            className={`rounded-md border-2 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide transition ${
+            className={`rounded-md border-2 px-2.5 py-1 text-[11px] font-black
+            uppercase tracking-wide transition ${
               filterAction === opt.value
                 ? "border-slate-900 bg-slate-900 text-white"
                 : "border-slate-300 text-slate-600 hover:border-slate-900"
@@ -105,7 +168,10 @@ export default async function AuditPage({
 
       {/* Log list */}
       {logs.length === 0 ? (
-        <div className="rounded-xl border-2 border-dashed border-slate-300 px-6 py-16 text-center text-sm text-slate-400">
+        <div
+          className="rounded-xl border-2 border-dashed border-slate-300 px-6
+            py-16 text-center text-sm text-slate-400"
+        >
           No audit events yet.
         </div>
       ) : (
@@ -121,18 +187,23 @@ export default async function AuditPage({
               return (
                 <div
                   key={log.id}
-                  className="rounded-xl border-2 border-slate-900 bg-white p-3 shadow-[3px_3px_0px_0px_#0f172a]"
+                  className="rounded-xl border-2 border-slate-900 bg-white p-3
+                    shadow-[3px_3px_0px_0px_#0f172a]"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span
-                      className={`inline-block shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${style.bg} ${style.text}`}
+                      className={`inline-block shrink-0 rounded-md border px-2
+                        py-0.5 text-[10px] font-black uppercase tracking-wide
+                        ${style.bg} ${style.text}`}
                     >
                       {style.label}
                     </span>
                     {log.account_id ? (
                       <Link
                         href={`/accounts/${log.account_id}`}
-                        className="shrink-0 rounded border border-slate-300 px-1.5 py-0.5 text-[11px] font-mono text-slate-500 hover:border-slate-900 hover:text-slate-900"
+                        className="shrink-0 rounded border border-slate-300
+                          px-1.5 py-0.5 text-[11px] font-mono text-slate-500
+                          hover:border-slate-900 hover:text-slate-600"
                       >
                         {log.account_id.slice(0, 8)}…
                       </Link>
@@ -150,20 +221,35 @@ export default async function AuditPage({
           </div>
 
           {/* Desktop table */}
-          <div className="hidden overflow-hidden rounded-xl border-2 border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] sm:block">
+          <div
+            className="hidden overflow-hidden rounded-xl border-2
+              border-slate-900 shadow-[4px_4px_0px_0px_#0f172a] sm:block"
+          >
             <table className="w-full text-sm">
               <thead className="border-b-2 border-slate-900 bg-slate-100">
                 <tr>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-wide text-slate-600">
+                  <th
+                    className="px-4 py-2.5 text-left text-[10px] font-black
+                      uppercase tracking-wide text-slate-600"
+                  >
                     Time
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-wide text-slate-600">
+                  <th
+                    className="px-4 py-2.5 text-left text-[10px] font-black
+                      uppercase tracking-wide text-slate-600"
+                  >
                     Action
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-wide text-slate-600">
+                  <th
+                    className="px-4 py-2.5 text-left text-[10px] font-black
+                      uppercase tracking-wide text-slate-600"
+                  >
                     Description
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-wide text-slate-600">
+                  <th
+                    className="px-4 py-2.5 text-left text-[10px] font-black
+                      uppercase tracking-wide text-slate-600"
+                  >
                     Account
                   </th>
                 </tr>
@@ -177,12 +263,17 @@ export default async function AuditPage({
                   };
                   return (
                     <tr key={log.id} className="hover:bg-slate-50">
-                      <td className="whitespace-nowrap px-4 py-3 text-xs tabular-nums text-slate-500">
+                      <td
+                        className="whitespace-nowrap px-4 py-3 text-xs
+                          tabular-nums text-slate-500"
+                      >
                         {formatTs(log.created_at)}
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className={`inline-block rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${style.bg} ${style.text}`}
+                          className={`inline-block rounded-md border px-2 py-0.5
+                            text-[10px] font-black uppercase tracking-wide
+                            ${style.bg} ${style.text}`}
                         >
                           {style.label}
                         </span>
@@ -194,7 +285,9 @@ export default async function AuditPage({
                         {log.account_id ? (
                           <Link
                             href={`/accounts/${log.account_id}`}
-                            className="rounded border border-slate-300 px-1.5 py-0.5 text-[11px] font-mono text-slate-500 hover:border-slate-900 hover:text-slate-900"
+                            className="rounded border border-slate-300 px-1.5
+                              py-0.5 text-[11px] font-mono text-slate-500
+                              hover:border-slate-900 hover:text-slate-600"
                           >
                             {log.account_id.slice(0, 8)}…
                           </Link>
@@ -212,7 +305,8 @@ export default async function AuditPage({
       )}
 
       <p className="mt-4 text-center text-xs text-slate-400">
-        Showing latest {logs.length} of {count ?? 0} event{count !== 1 ? "s" : ""}
+        Showing latest {logs.length} of {count ?? 0} event
+        {count !== 1 ? "s" : ""}
       </p>
     </div>
   );

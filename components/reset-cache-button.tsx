@@ -27,7 +27,10 @@ export default function ResetCacheButton() {
       type="button"
       onClick={handleReset}
       disabled={isResetting}
-      className="dark:border-border dark:bg-card dark:hover:bg-muted dark:text-foreground inline-flex items-center gap-1.5 rounded-lg border-2 border-slate-900 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 transition hover:bg-slate-50 disabled:opacity-50"
+      className="dark:border-border dark:bg-card dark:hover:bg-muted
+        dark:text-foreground inline-flex items-center gap-1.5 rounded-lg
+        border-2 border-slate-900 bg-white px-3 py-1.5 text-xs font-bold
+        text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
     >
       {isResetting ? "resetting…" : "reset cache"}
     </button>

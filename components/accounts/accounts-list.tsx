@@ -59,14 +59,11 @@ function AccountCatalogCard({ account }: { account: AccountListItem }) {
   return (
     <Link
       href={`/accounts/${account.id}`}
-      className="group block w-full min-w-0 rounded-xl border-2 border-slate-900
-        bg-linear-to-br from-violet-50 via-white to-fuchsia-50 p-4 text-left
-        shadow-[4px_4px_0px_0px_#0f172a] transition hover:-translate-y-0.5
-        hover:from-violet-100 hover:to-fuchsia-100 focus-visible:outline-2
-        focus-visible:outline-offset-2 focus-visible:outline-slate-900
-        dark:border-border dark:from-violet-950/20 dark:via-card
-        dark:to-fuchsia-950/20 dark:shadow-none dark:hover:from-violet-950/30
-        dark:hover:to-fuchsia-950/30 dark:focus-visible:outline-border"
+      className="group block w-full min-w-0 rounded-lg border-2 border-slate-900
+        bg-white p-4 text-left transition hover:-translate-y-0.5
+        focus-visible:outline-2 focus-visible:outline-offset-2
+        focus-visible:outline-slate-900 dark:border-border dark:bg-card
+        dark:focus-visible:outline-border"
     >
       <p
         className="text-[10px] font-bold uppercase tracking-[0.14em]
@@ -75,7 +72,7 @@ function AccountCatalogCard({ account }: { account: AccountListItem }) {
         Borrower
       </p>
       <p
-        className="mt-0.5 truncate text-lg font-black uppercase text-slate-900
+        className="mt-0.5 truncate text-lg font-bold lowercase text-slate-700
           dark:text-foreground"
       >
         {name}
@@ -87,15 +84,15 @@ function AccountCatalogCard({ account }: { account: AccountListItem }) {
             return (
               <span
                 key={id}
-                className="inline-flex items-center rounded-md border
-                  border-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase
-                  shadow-[2px_2px_0px_0px_#1e293b] dark:border-border
-                  dark:shadow-none"
-                style={{
-                  backgroundColor: color ?? "#333",
-                  color: isDarkColor(color ?? "333") ? "white" : "#1e1a4d",
-                }}
+                className="inline-flex items-center gap-1.5 rounded-full border
+                  border-slate-900/15 px-2.5 py-0.5 text-[10px] font-bold
+                  uppercase dark:border-border/40"
               >
+                <span
+                  className="size-2 shrink-0 rounded-full border
+                    border-slate-900/15"
+                  style={{ backgroundColor: color ?? "#cbd5e1" }}
+                />
                 {catName}
               </span>
             );
@@ -103,8 +100,8 @@ function AccountCatalogCard({ account }: { account: AccountListItem }) {
         </div>
       ) : null}
       <p
-        className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-600
-          dark:text-muted-foreground"
+        className="mt-2 text-xs font-medium uppercase tracking-wide
+          text-slate-500 dark:text-muted-foreground"
       >
         {account.type.replace("_", " ")}
         <span className="mx-1.5 text-slate-300 dark:text-border">·</span>
@@ -117,14 +114,13 @@ function AccountCatalogCard({ account }: { account: AccountListItem }) {
               tracking-wide text-slate-600 dark:text-muted-foreground"
           >
             <span>Schedule progress</span>
-            <span className="tabular-nums text-slate-900 dark:text-foreground">
+            <span className="tabular-nums text-slate-600 dark:text-foreground">
               {prog.pct}%
             </span>
           </div>
           <div
-            className="mt-1 h-2 overflow-hidden rounded-md border-2
-              border-slate-900 bg-white shadow-[1px_1px_0px_0px_#0f172a]
-              dark:border-border dark:bg-muted dark:shadow-none"
+            className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100
+              dark:bg-slate-800"
             role="progressbar"
             aria-valuenow={prog.pct}
             aria-valuemin={0}
@@ -152,54 +148,44 @@ function AccountCatalogCard({ account }: { account: AccountListItem }) {
           No payment schedule
         </p>
       )}
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <div
-          className="rounded-lg border-2 border-slate-900 bg-white/80 px-2
-            py-1.5 dark:border-border dark:bg-muted/80"
-        >
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs">
+        <div>
           <p
-            className="font-bold uppercase tracking-wide text-slate-500
-              dark:text-muted-foreground"
+            className="text-[9px] font-bold uppercase tracking-wide
+              text-slate-500 dark:text-muted-foreground"
           >
             Principal
           </p>
           <p
-            className="font-black tabular-nums text-slate-900
+            className="font-bold tabular-nums text-slate-600
               dark:text-foreground"
           >
             {formatPrincipal(account.principal_amount)}
           </p>
         </div>
-        <div
-          className="rounded-lg border-2 border-slate-900 bg-white/80 px-2
-            py-1.5 dark:border-border dark:bg-muted/80"
-        >
+        <div>
           <p
-            className="font-bold uppercase tracking-wide text-slate-500
-              dark:text-muted-foreground"
+            className="text-[9px] font-bold uppercase tracking-wide
+              text-slate-500 dark:text-muted-foreground"
           >
             Interest
           </p>
           <p
-            className="font-black tabular-nums text-slate-900
+            className="font-bold tabular-nums text-slate-600
               dark:text-foreground"
           >
             {rate}%
           </p>
         </div>
-        <div
-          className="col-span-2 rounded-lg border-2 border-slate-900
-            bg-sky-100/70 px-2 py-1.5 dark:border-border dark:bg-sky-900/30"
-        >
+        <div>
           <p
-            className="font-bold uppercase tracking-wide text-slate-500
-              dark:text-muted-foreground"
+            className="text-[9px] font-bold uppercase tracking-wide
+              text-slate-500 dark:text-muted-foreground"
           >
-            Payment frequency
+            Frequency
           </p>
           <p
-            className="font-black capitalize text-slate-900
-              dark:text-foreground"
+            className="font-bold capitalize text-slate-600 dark:text-foreground"
           >
             {freq}
           </p>
@@ -315,7 +301,7 @@ export default function AccountsList({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-foreground">
+        <h1 className="text-2xl font-bold text-slate-600 dark:text-foreground">
           Accounts
         </h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-muted-foreground">
@@ -328,7 +314,7 @@ export default function AccountsList({
           py-3 shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] dark:border-border
           dark:bg-muted/50 dark:shadow-none"
       >
-        <p className="text-sm font-bold text-slate-900 dark:text-foreground">
+        <p className="text-sm font-bold text-slate-600 dark:text-foreground">
           <span className="tabular-nums">{shown}</span>
           <span
             className="font-normal text-slate-600 dark:text-muted-foreground"

@@ -235,7 +235,7 @@ export default function OverdueAgingChart({
                 </p>
                 <p
                   className="mt-0.5 text-base font-black tabular-nums
-                    text-slate-900 dark:text-white"
+                    text-slate-600 dark:text-white"
                 >
                   {b.count}
                 </p>

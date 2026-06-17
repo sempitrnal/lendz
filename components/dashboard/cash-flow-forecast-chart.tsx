@@ -267,7 +267,7 @@ export default function CashFlowForecastChart({
             30-day total
           </p>
           <p
-            className="mt-0.5 text-sm font-black tabular-nums text-slate-900
+            className="mt-0.5 text-sm font-black tabular-nums text-slate-600
               dark:text-white"
           >
             {formatCurrency(totalForecast)}
@@ -285,7 +285,7 @@ export default function CashFlowForecastChart({
             peak week
           </p>
           <p
-            className="mt-0.5 text-sm font-black tabular-nums text-slate-900
+            className="mt-0.5 text-sm font-black tabular-nums text-slate-600
               dark:text-white"
           >
             {peakWeek?.label ?? "—"}
@@ -309,7 +309,7 @@ export default function CashFlowForecastChart({
             schedules
           </p>
           <p
-            className="mt-0.5 text-sm font-black tabular-nums text-slate-900
+            className="mt-0.5 text-sm font-black tabular-nums text-slate-600
               dark:text-white"
           >
             {data.reduce((s, w) => s + w.count, 0)}

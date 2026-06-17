@@ -63,15 +63,13 @@ export default function DailyChecklistCategoryList() {
     setIsSaving(true);
     const maxSort = categories.reduce(
       (max, c) => Math.max(max, c.sort_order),
-      -1
+      -1,
     );
-    const { error } = await supabase
-      .from("daily_checklist_categories")
-      .insert({
-        name: trimmed,
-        color,
-        sort_order: maxSort + 1,
-      });
+    const { error } = await supabase.from("daily_checklist_categories").insert({
+      name: trimmed,
+      color,
+      sort_order: maxSort + 1,
+    });
     setIsSaving(false);
 
     if (error) {
@@ -158,8 +156,17 @@ export default function DailyChecklistCategoryList() {
 
   return (
     <div className="flex flex-col gap-6">
-      <article className="rounded-xl border-2 border-slate-900 bg-linear-to-r from-violet-50 via-white to-fuchsia-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] dark:border-border dark:from-violet-950/20 dark:via-card dark:to-fuchsia-950/20 dark:shadow-none sm:p-5">
-        <h2 className="mb-3 text-base font-black lowercase text-slate-900 dark:text-foreground">
+      <article
+        className="rounded-xl border-2 border-slate-900 bg-linear-to-r
+          from-violet-50 via-white to-fuchsia-100 p-4
+          shadow-[4px_4px_0px_0px_#0f172a] dark:border-border
+          dark:from-violet-950/20 dark:via-card dark:to-fuchsia-950/20
+          dark:shadow-none sm:p-5"
+      >
+        <h2
+          className="mb-3 text-base font-black lowercase text-slate-600
+            dark:text-foreground"
+        >
           add category
         </h2>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -169,14 +176,19 @@ export default function DailyChecklistCategoryList() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Category name"
-              className="w-full rounded-md border-2 border-slate-900 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:-translate-y-0.5 focus:translate-x-0.5 focus:shadow-[4px_4px_0px_0px_#334155] dark:border-border dark:bg-card dark:text-foreground dark:focus:shadow-none"
+              className="w-full rounded-md border-2 border-slate-900 bg-white
+                px-3 py-2 text-sm text-slate-600 outline-none transition
+                focus:-translate-y-0.5 focus:translate-x-0.5
+                focus:shadow-[4px_4px_0px_0px_#334155] dark:border-border
+                dark:bg-card dark:text-foreground dark:focus:shadow-none"
             />
           </div>
           <input
             type="color"
             value={color}
             onChange={(e) => setColor(e.target.value)}
-            className="h-10 w-16 cursor-pointer rounded-md border-2 border-slate-900 bg-white p-1 dark:border-border dark:bg-card"
+            className="h-10 w-16 cursor-pointer rounded-md border-2
+              border-slate-900 bg-white p-1 dark:border-border dark:bg-card"
             aria-label="Category color"
           />
           <NeobrutButton
@@ -192,22 +204,33 @@ export default function DailyChecklistCategoryList() {
 
       <div>
         {loading ? (
-          <p className="text-sm text-slate-500 dark:text-muted-foreground">Loading categories...</p>
+          <p className="text-sm text-slate-500 dark:text-muted-foreground">
+            Loading categories...
+          </p>
         ) : categories.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-muted-foreground">No categories yet.</p>
+          <p className="text-sm text-slate-500 dark:text-muted-foreground">
+            No categories yet.
+          </p>
         ) : (
           <ul className="space-y-2">
             {categories.map((category, index) => (
               <li
                 key={category.id}
-                className="flex items-center gap-2 rounded-lg border-2 border-slate-900 bg-white px-3 py-2 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-card dark:shadow-none"
+                className="flex items-center gap-2 rounded-lg border-2
+                  border-slate-900 bg-white px-3 py-2
+                  shadow-[2px_2px_0px_0px_#0f172a] dark:border-border
+                  dark:bg-card dark:shadow-none"
               >
                 <span
-                  className="inline-block size-4 shrink-0 rounded-sm border border-slate-900/25"
+                  className="inline-block size-4 shrink-0 rounded-sm border
+                    border-slate-900/25"
                   style={{ backgroundColor: category.color }}
                   aria-hidden
                 />
-                <span className="min-w-0 flex-1 text-sm font-bold text-slate-900 dark:text-foreground">
+                <span
+                  className="min-w-0 flex-1 text-sm font-bold text-slate-600
+                    dark:text-foreground"
+                >
                   {category.name}
                 </span>
                 <div className="flex items-center gap-1">
@@ -215,7 +238,10 @@ export default function DailyChecklistCategoryList() {
                     type="button"
                     disabled={index === 0}
                     onClick={() => moveCategory(index, "up")}
-                    className="rounded border border-slate-300 px-1.5 py-0.5 text-xs text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:border-border dark:text-muted-foreground dark:hover:bg-muted"
+                    className="rounded border border-slate-300 px-1.5 py-0.5
+                      text-xs text-slate-600 transition hover:bg-slate-100
+                      disabled:opacity-40 dark:border-border
+                      dark:text-muted-foreground dark:hover:bg-muted"
                     title="Move up"
                   >
                     ↑
@@ -224,7 +250,10 @@ export default function DailyChecklistCategoryList() {
                     type="button"
                     disabled={index === categories.length - 1}
                     onClick={() => moveCategory(index, "down")}
-                    className="rounded border border-slate-300 px-1.5 py-0.5 text-xs text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:border-border dark:text-muted-foreground dark:hover:bg-muted"
+                    className="rounded border border-slate-300 px-1.5 py-0.5
+                      text-xs text-slate-600 transition hover:bg-slate-100
+                      disabled:opacity-40 dark:border-border
+                      dark:text-muted-foreground dark:hover:bg-muted"
                     title="Move down"
                   >
                     ↓
@@ -232,14 +261,16 @@ export default function DailyChecklistCategoryList() {
                   <button
                     type="button"
                     onClick={() => openEditModal(category)}
-                    className="text-xs font-bold uppercase text-sky-700 dark:text-sky-400"
+                    className="text-xs font-bold uppercase text-sky-700
+                      dark:text-sky-400"
                   >
                     edit
                   </button>
                   <button
                     type="button"
                     onClick={() => setDeleteTarget(category)}
-                    className="text-xs font-bold uppercase text-rose-700 dark:text-rose-400"
+                    className="text-xs font-bold uppercase text-rose-700
+                      dark:text-rose-400"
                   >
                     delete
                   </button>
@@ -260,7 +291,10 @@ export default function DailyChecklistCategoryList() {
       >
         <div className="space-y-4">
           <div>
-            <label htmlFor="edit_category_name" className={formFieldLabelClassName}>
+            <label
+              htmlFor="edit_category_name"
+              className={formFieldLabelClassName}
+            >
               Name
             </label>
             <input
@@ -272,7 +306,10 @@ export default function DailyChecklistCategoryList() {
             />
           </div>
           <div>
-            <label htmlFor="edit_category_color" className={formFieldLabelClassName}>
+            <label
+              htmlFor="edit_category_color"
+              className={formFieldLabelClassName}
+            >
               Color
             </label>
             <input
@@ -280,7 +317,8 @@ export default function DailyChecklistCategoryList() {
               type="color"
               value={editColor}
               onChange={(e) => setEditColor(e.target.value)}
-              className="h-11 w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-1 dark:border-border dark:bg-card"
+              className="h-11 w-full cursor-pointer rounded-lg border
+                border-slate-300 bg-white p-1 dark:border-border dark:bg-card"
             />
           </div>
           <div className="flex justify-end gap-2">
@@ -309,8 +347,10 @@ export default function DailyChecklistCategoryList() {
         <div className="space-y-4">
           <p className="text-sm text-slate-700 dark:text-muted-foreground">
             Are you sure you want to delete{" "}
-            <strong className="dark:text-foreground">{deleteTarget?.name}</strong>? Checklist items using this
-            category will become uncategorized.
+            <strong className="dark:text-foreground">
+              {deleteTarget?.name}
+            </strong>
+            ? Checklist items using this category will become uncategorized.
           </p>
           <div className="flex justify-end gap-2">
             <NeobrutButton

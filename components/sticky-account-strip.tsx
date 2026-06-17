@@ -96,7 +96,7 @@ export default function StickyAccountStrip({
             <div className="flex flex-col items-start gap-0.5 mb-2">
               <p
                 className="dark:text-foreground truncate text-sm font-black
-                  tracking-wide text-slate-900 uppercase"
+                  tracking-wide text-slate-600 uppercase"
               >
                 {borrowerName}
               </p>
@@ -104,7 +104,7 @@ export default function StickyAccountStrip({
                 <span
                   className={`rounded border border-slate-900/30 px-1.5 py-0.5
                   text-[9px] font-black
-                  ${isDarkColor(categoryColor ?? "#cbd5e1") ? "text-white" : "text-slate-900"}`}
+                  ${isDarkColor(categoryColor ?? "#cbd5e1") ? "text-white" : "text-slate-600"}`}
                   style={{ backgroundColor: categoryColor ?? "#cbd5e1" }}
                 >
                   {categoryLabel}

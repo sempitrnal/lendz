@@ -160,7 +160,7 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
           aria-expanded={showSuggestions && visibleItems.length > 0}
           className="dark:border-border dark:bg-card dark:text-foreground
             dark:placeholder:text-muted-foreground h-9 w-full rounded-lg border
-            border-slate-900/30 bg-white py-2 pr-3 pl-9 text-sm text-slate-900
+            border-slate-900/30 bg-white py-2 pr-3 pl-9 text-sm text-slate-600
             outline-none placeholder:text-slate-400 transition
             focus:border-slate-900
             focus:shadow-[3px_3px_0px_0px_rgb(15_23_42/0.15)]
@@ -210,7 +210,7 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <span
                   className="dark:text-foreground truncate text-sm font-bold
-                    text-slate-900 uppercase"
+                    text-slate-600 uppercase"
                 >
                   {s.first_name} {s.last_name}
                 </span>

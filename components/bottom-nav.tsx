@@ -101,7 +101,7 @@ export default function BottomNav() {
                     border-slate-100 p-4 dark:border-border/50"
                 >
                   <span
-                    className="text-sm font-black text-slate-900 lowercase
+                    className="text-sm font-black text-slate-600 lowercase
                       dark:text-foreground"
                   >
                     navigation
@@ -135,7 +135,7 @@ export default function BottomNav() {
                         className={`flex flex-col items-center gap-1.5
                         rounded-xl border-2 p-3 transition ${
                           isActive
-                            ? `border-slate-900 bg-green-200 text-slate-900
+                            ? `border-slate-900 bg-green-200 text-slate-600
                               dark:border-border dark:bg-green-900/40
                               dark:text-green-200`
                             : `border-slate-200 bg-white text-slate-600

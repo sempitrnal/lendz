@@ -601,7 +601,11 @@ export default function NotesCanvas({
   return (
     <div className="flex h-full flex-col gap-2">
       {/* Persistent top bar — save / clear / hide always showing */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-slate-900 bg-white p-2 shadow-[3px_3px_0px_0px_#0f172a]">
+      <div
+        className="flex flex-wrap items-center justify-between gap-2 rounded-xl
+          border-2 border-slate-900 bg-white p-2
+          shadow-[3px_3px_0px_0px_#0f172a]"
+      >
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -609,7 +613,10 @@ export default function NotesCanvas({
               void saveNotes();
             }}
             disabled={saving}
-            className="rounded-md border-2 border-slate-900 bg-emerald-200 px-3 py-1 text-xs font-bold text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-50"
+            className="rounded-md border-2 border-slate-900 bg-emerald-200 px-3
+              py-1 text-xs font-bold text-slate-600 uppercase
+              shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5
+              hover:-translate-y-0.5 disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save"}
           </button>
@@ -617,7 +624,10 @@ export default function NotesCanvas({
           <button
             type="button"
             onClick={clearCanvas}
-            className="rounded-md border-2 border-slate-900 bg-rose-100 px-3 py-1 text-xs font-bold text-rose-800 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5"
+            className="rounded-md border-2 border-slate-900 bg-rose-100 px-3
+              py-1 text-xs font-bold text-rose-800 uppercase
+              shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5
+              hover:-translate-y-0.5"
           >
             Clear
           </button>
@@ -626,7 +636,10 @@ export default function NotesCanvas({
         <button
           type="button"
           onClick={() => setShowTools((p) => !p)}
-          className="rounded-md border-2 border-slate-900 bg-slate-900 px-2.5 py-1 text-xs font-bold text-white uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5"
+          className="rounded-md border-2 border-slate-900 bg-slate-900 px-2.5
+            py-1 text-xs font-bold text-white uppercase
+            shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5
+            hover:-translate-y-0.5"
         >
           {showTools ? "Hide tools" : "Show tools"}
         </button>
@@ -636,14 +649,21 @@ export default function NotesCanvas({
       <div className="relative min-h-0 flex-1 sm:min-h-[480px]">
         {/* Drawing toolbar — floats over the canvas */}
         {showTools && (
-          <div className="absolute top-[2px] left-2 z-20 flex flex-wrap items-center gap-1.5 rounded-xl border-2 border-slate-900 bg-white/95 p-1.5 shadow-[3px_3px_0px_0px_#0f172a] backdrop-blur-sm">
+          <div
+            className="absolute top-[2px] left-2 z-20 flex flex-wrap
+              items-center gap-1.5 rounded-xl border-2 border-slate-900
+              bg-white/95 p-1.5 shadow-[3px_3px_0px_0px_#0f172a]
+              backdrop-blur-sm"
+          >
             <button
               type="button"
               onClick={() => setActiveTool("pen")}
-              className={`rounded-md border-2 border-slate-900 px-2 py-1 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
+              className={`rounded-md border-2 border-slate-900 px-2 py-1
+              text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a]
+              transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
                 activeTool === "pen"
                   ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-900"
+                  : "bg-white text-slate-600"
               }`}
             >
               <Pencil className="size-3.5" />
@@ -652,10 +672,12 @@ export default function NotesCanvas({
             <button
               type="button"
               onClick={() => setActiveTool("eraser")}
-              className={`rounded-md border-2 border-slate-900 px-2 py-1 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
+              className={`rounded-md border-2 border-slate-900 px-2 py-1
+              text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a]
+              transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
                 activeTool === "eraser"
                   ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-900"
+                  : "bg-white text-slate-600"
               }`}
             >
               <Eraser className="size-3.5" />
@@ -665,10 +687,12 @@ export default function NotesCanvas({
               type="button"
               onClick={() => setActiveTool("pan")}
               title="Pan / scroll canvas"
-              className={`rounded-md border-2 border-slate-900 px-2 py-1 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
+              className={`rounded-md border-2 border-slate-900 px-2 py-1
+              text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a]
+              transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
                 activeTool === "pan"
                   ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-900"
+                  : "bg-white text-slate-600"
               }`}
             >
               <Hand className="size-3.5" />
@@ -677,10 +701,12 @@ export default function NotesCanvas({
             <button
               type="button"
               onClick={() => setActiveTool("select")}
-              className={`rounded-md border-2 border-slate-900 px-2 py-1 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
+              className={`rounded-md border-2 border-slate-900 px-2 py-1
+              text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a]
+              transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
                 activeTool === "select"
                   ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-900"
+                  : "bg-white text-slate-600"
               }`}
             >
               <MousePointer2 className="size-3.5" />
@@ -693,7 +719,9 @@ export default function NotesCanvas({
                 onChange={(e) => setBrushColor(e.target.value)}
                 disabled={activeTool !== "pen"}
                 title="Brush color (pen)"
-                className="h-6 w-8 cursor-pointer rounded border-2 border-slate-300 bg-white p-0.5 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-6 w-8 cursor-pointer rounded border-2
+                  border-slate-300 bg-white p-0.5 disabled:cursor-not-allowed
+                  disabled:opacity-40"
               />
             </label>
 
@@ -702,7 +730,9 @@ export default function NotesCanvas({
                 type="button"
                 onClick={() => zoomCanvas(1 / 1.2)}
                 title="Zoom out"
-                className="rounded-md border-2 border-slate-900 bg-white p-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5"
+                className="rounded-md border-2 border-slate-900 bg-white p-1
+                  text-slate-600 shadow-[2px_2px_0px_0px_#0f172a] transition
+                  hover:translate-x-0.5 hover:-translate-y-0.5"
               >
                 <ZoomOut className="size-3.5" />
               </button>
@@ -710,7 +740,10 @@ export default function NotesCanvas({
                 type="button"
                 onClick={resetZoom}
                 title="Reset zoom"
-                className="rounded-md border-2 border-slate-900 bg-white px-1.5 py-1 text-[9px] font-black text-slate-900 tabular-nums shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5"
+                className="rounded-md border-2 border-slate-900 bg-white px-1.5
+                  py-1 text-[9px] font-black text-slate-600 tabular-nums
+                  shadow-[2px_2px_0px_0px_#0f172a] transition
+                  hover:translate-x-0.5 hover:-translate-y-0.5"
               >
                 {Math.round(zoom * 100)}%
               </button>
@@ -718,7 +751,9 @@ export default function NotesCanvas({
                 type="button"
                 onClick={() => zoomCanvas(1.2)}
                 title="Zoom in"
-                className="rounded-md border-2 border-slate-900 bg-white p-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5"
+                className="rounded-md border-2 border-slate-900 bg-white p-1
+                  text-slate-600 shadow-[2px_2px_0px_0px_#0f172a] transition
+                  hover:translate-x-0.5 hover:-translate-y-0.5"
               >
                 <ZoomIn className="size-3.5" />
               </button>
@@ -729,7 +764,10 @@ export default function NotesCanvas({
               onClick={undo}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
-              className="rounded-md border-2 border-slate-900 bg-white p-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-40 disabled:shadow-none"
+              className="rounded-md border-2 border-slate-900 bg-white p-1
+                text-slate-600 shadow-[2px_2px_0px_0px_#0f172a] transition
+                hover:translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-40
+                disabled:shadow-none"
             >
               <Undo2 className="size-3.5" />
             </button>
@@ -738,17 +776,25 @@ export default function NotesCanvas({
               onClick={redo}
               disabled={!canRedo}
               title="Redo (Ctrl+Shift+Z)"
-              className="rounded-md border-2 border-slate-900 bg-white p-1 text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-40 disabled:shadow-none"
+              className="rounded-md border-2 border-slate-900 bg-white p-1
+                text-slate-600 shadow-[2px_2px_0px_0px_#0f172a] transition
+                hover:translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-40
+                disabled:shadow-none"
             >
               <Undo2 className="size-3.5 -scale-x-100" />
             </button>
           </div>
         )}
 
-        <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+        <div
+          className="absolute inset-0 flex items-center justify-center
+            overflow-hidden"
+        >
           <div
             ref={containerRef}
-            className="relative aspect-[9/16] max-h-full w-full max-w-full overflow-hidden rounded-xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a]"
+            className="relative aspect-[9/16] max-h-full w-full max-w-full
+              overflow-hidden rounded-xl border-2 border-slate-900
+              shadow-[3px_3px_0px_0px_#0f172a]"
             style={{ backgroundColor: NOTES_CANVAS_PAPER, touchAction: "none" }}
           >
             <canvas

@@ -106,15 +106,9 @@ export const BorrowerCard = memo(function BorrowerCard({
         if (Math.abs(e.touches[0].clientY - touchStartY.current) > 8)
           didScroll.current = true;
       }}
-      className={`relative w-full max-w-full min-w-0 overflow-hidden rounded-xl
-        border-2 bg-[#f8fff9] text-left transition-all duration-150
-        dark:bg-slate-900 ${
-          hasOverdue
-            ? `border-red-300 shadow-[4px_4px_0px_0px_#ef4444bb]
-              dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]`
-            : `border-[#6c9670] shadow-[4px_4px_0px_0px_#6c9670]
-              dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]`
-        } ${
+      className={`relative w-full max-w-full min-w-0 rounded-lg border-2
+        border-slate-300 bg-white text-left transition-all duration-150
+        dark:border-border dark:bg-card ${
           isPending
             ? ""
             : `active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#0f172a]
@@ -138,12 +132,10 @@ export const BorrowerCard = memo(function BorrowerCard({
         {borrower.contact ? (
           <Link
             href={`tel:${borrower.contact}`}
-            className="touch-manipulation rounded-md border-2 border-slate-900
-              bg-indigo-100 p-1.5 text-indigo-700
-              shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-indigo-200
-              active:translate-y-px active:shadow-none dark:border-[#020617]
-              dark:bg-indigo-900/40 dark:text-indigo-300
-              dark:shadow-[2px_2px_0px_0px_#020617] dark:hover:bg-indigo-900/60"
+            className="touch-manipulation rounded-md border border-slate-900/30
+              bg-slate-50 p-1.5 text-slate-600 transition hover:bg-slate-100
+              active:translate-y-px dark:border-border/50 dark:bg-muted
+              dark:text-slate-300 dark:hover:bg-muted/70"
             aria-label={`Call ${borrower.first_name} ${borrower.last_name}`}
           >
             <Phone className="size-3.5" />
@@ -177,8 +169,8 @@ export const BorrowerCard = memo(function BorrowerCard({
       >
         <div className="flex w-full min-w-0 flex-col">
           <h2
-            className={`dark:text-foreground pr-4 font-black text-[#49554a]
-              uppercase ${compact ? "text-base" : "text-xl"}`}
+            className={`dark:text-foreground pr-4 font-bold text-slate-700
+              lowercase ${compact ? "text-base" : "text-xl"}`}
           >
             {borrower.first_name} {borrower.last_name}
           </h2>
@@ -192,18 +184,16 @@ export const BorrowerCard = memo(function BorrowerCard({
                   return (
                     <div
                       key={id}
-                      className="flex items-center rounded-md border-2
-                        border-slate-900 px-2 py-0.5 text-[10px] font-bold
-                        uppercase shadow-[2px_2px_0px_0px_#0f172a]
-                        dark:border-[#020617]
-                        dark:shadow-[2px_2px_0px_0px_#020617]"
-                      style={{
-                        backgroundColor: color ?? "#333",
-                        color: isDarkColor(color ?? "333")
-                          ? "white"
-                          : "#1e1a4d",
-                      }}
+                      className="flex items-center gap-1.5 rounded-full
+                        text-[10px] font-bold uppercase dark:border-border/40"
                     >
+                      <span
+                        className="size-2 shrink-0 rounded-full border
+                          border-slate-900/15"
+                        style={{
+                          backgroundColor: color ?? "#cbd5e1",
+                        }}
+                      />
                       {name}
                     </div>
                   );
@@ -211,35 +201,42 @@ export const BorrowerCard = memo(function BorrowerCard({
               )}
             </div>
           )}
+          {!compact && categories.length > 0 && hasNextUnpaid && (
+            <div className="relative mt-3 h-px">
+              <div
+                className="absolute -left-4 -right-4 top-0 h-px bg-slate-200
+                  dark:bg-border/50"
+              />
+            </div>
+          )}
         </div>
 
         {!compact && showScheduleSummary && borrower.all_accounts_pending ? (
           <div
-            className="mt-4 w-full min-w-0 rounded-xl border-2 border-amber-600
-              bg-amber-50 p-3 shadow-[2px_2px_0px_0px_#d97706]
-              dark:border-[#020617] dark:bg-amber-900/30
-              dark:shadow-[2px_2px_0px_0px_#020617]"
+            className="mt-4 w-full min-w-0 rounded-lg border border-slate-200
+              bg-slate-50 p-3 dark:border-border/50 dark:bg-muted/40"
           >
             <p
-              className="text-[10px] font-black tracking-widest text-amber-800
-                uppercase dark:text-amber-300"
+              className="text-[10px] font-bold tracking-widest text-slate-500
+                uppercase dark:text-muted-foreground"
             >
               pending loan
             </p>
             <p
-              className="mt-1 text-sm font-black text-amber-900
-                dark:text-amber-200"
+              className="mt-1 text-sm font-bold text-slate-600
+                dark:text-foreground"
             >
               ₱{(borrower.pending_principal_total ?? 0).toLocaleString()}{" "}
               <span
-                className="text-xs font-bold text-amber-700 dark:text-amber-400"
+                className="text-xs font-medium text-slate-500
+                  dark:text-muted-foreground"
               >
                 principal
               </span>
             </p>
             <p
-              className="mt-1 text-[10px] font-bold text-amber-700
-                dark:text-amber-400"
+              className="mt-1 text-[10px] font-medium text-slate-500
+                dark:text-muted-foreground"
             >
               Awaiting release — no collection schedules yet
             </p>
@@ -254,15 +251,11 @@ export const BorrowerCard = memo(function BorrowerCard({
               const groups: {
                 key: string;
                 label: string;
-                accent: string;
-                bg: string;
                 items: typeof manualSchedules;
               }[] = [
                 {
                   key: "flat-loan",
                   label: "manual flat",
-                  accent: "text-lime-700",
-                  bg: "bg-lime-50 dark:bg-lime-900/20",
                   items: manualSchedules.filter(
                     (s) =>
                       s.type !== "cash_advance" &&
@@ -272,8 +265,6 @@ export const BorrowerCard = memo(function BorrowerCard({
                 {
                   key: "rolling-loan",
                   label: "manual rolling",
-                  accent: "text-cyan-700",
-                  bg: "bg-cyan-50 dark:bg-cyan-900/20",
                   items: manualSchedules.filter(
                     (s) =>
                       s.type !== "cash_advance" &&
@@ -283,8 +274,6 @@ export const BorrowerCard = memo(function BorrowerCard({
                 {
                   key: "flat-ca",
                   label: "manual flat ca",
-                  accent: "text-yellow-700",
-                  bg: "bg-yellow-50 dark:bg-yellow-900/20",
                   items: manualSchedules.filter(
                     (s) =>
                       s.type === "cash_advance" &&
@@ -294,8 +283,6 @@ export const BorrowerCard = memo(function BorrowerCard({
                 {
                   key: "rolling-ca",
                   label: "manual rolling ca",
-                  accent: "text-teal-700",
-                  bg: "bg-teal-50 dark:bg-teal-900/20",
                   items: manualSchedules.filter(
                     (s) =>
                       s.type === "cash_advance" &&
@@ -323,32 +310,32 @@ export const BorrowerCard = memo(function BorrowerCard({
                     return (
                       <div
                         key={g.key}
-                        className={`mt-2 w-full min-w-0 rounded-lg border-2 border-slate-900 p-2.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[2px_2px_0px_0px_#020617] ${g.bg}`}
+                        className="mt-2 w-full min-w-0 rounded-lg border
+                          border-slate-200 bg-slate-50 p-2.5 dark:border-border/50
+                          dark:bg-muted/40"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div>
-                            <p
-                              className={`text-[9px] font-black tracking-wider uppercase ${g.accent} dark:text-opacity-80`}
-                            >
+                            <p className="text-[9px] font-bold tracking-wider text-slate-500 uppercase dark:text-muted-foreground">
                               {g.label}
                             </p>
-                            <p className="dark:text-foreground text-xs font-black text-slate-900 tabular-nums">
+                            <p className="text-xs font-bold text-slate-600 tabular-nums dark:text-foreground">
                               ₱{principal.toLocaleString()}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-[9px] font-black tracking-wider text-emerald-600 uppercase dark:text-emerald-400">
+                            <p className="text-[9px] font-bold tracking-wider text-emerald-600 uppercase dark:text-emerald-400">
                               paid
                             </p>
-                            <p className="text-xs font-black text-emerald-700 tabular-nums dark:text-emerald-300">
+                            <p className="text-xs font-bold text-emerald-700 tabular-nums dark:text-emerald-300">
                               ₱{paid.toLocaleString()}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-[9px] font-black tracking-wider text-rose-600 uppercase dark:text-rose-400">
+                            <p className="text-[9px] font-bold tracking-wider text-rose-600 uppercase dark:text-rose-400">
                               left
                             </p>
-                            <p className="text-xs font-black text-rose-700 tabular-nums dark:text-rose-300">
+                            <p className="text-xs font-bold text-rose-700 tabular-nums dark:text-rose-300">
                               ₱{remaining.toLocaleString()}
                             </p>
                           </div>
@@ -356,7 +343,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                         {principal > 0 && (
                           <div className="mt-2 flex items-center gap-2">
                             <div
-                              className="h-3 flex-1 overflow-hidden rounded-full border-2 border-slate-900 bg-white dark:border-[#020617] dark:bg-slate-900"
+                              className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
                               role="progressbar"
                               aria-valuenow={pct}
                               aria-valuemin={0}
@@ -364,11 +351,11 @@ export const BorrowerCard = memo(function BorrowerCard({
                               aria-label={`${g.label} payment progress`}
                             >
                               <div
-                                className="h-full bg-emerald-400"
+                                className="h-full bg-emerald-400 transition-all"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
-                            <p className="dark:text-foreground shrink-0 text-[9px] font-black text-stone-700">
+                            <p className="shrink-0 text-[9px] font-bold text-slate-600 dark:text-slate-300">
                               {pct}%
                             </p>
                           </div>
@@ -384,7 +371,7 @@ export const BorrowerCard = memo(function BorrowerCard({
         {/* Compact upcoming-due display */}
         {compact && showScheduleSummary && hasNextUnpaid ? (
           <div className="mt-3 flex items-center gap-2 text-xs">
-            <span className="dark:text-foreground font-black text-slate-900">
+            <span className="dark:text-foreground font-black text-slate-600">
               {formatDate(nextDate)}
             </span>
             <span className="font-bold text-slate-500">
@@ -392,24 +379,22 @@ export const BorrowerCard = memo(function BorrowerCard({
             </span>
             {nextStatus ? (
               <span
-                className={`rounded-md border-2 border-slate-900 px-1.5 py-0
-                  text-[8px] font-black uppercase
-                  shadow-[1px_1px_0px_0px_#0f172a] dark:border-[#020617]
-                  dark:shadow-[1px_1px_0px_0px_#020617] ${
+                className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px]
+                  font-black uppercase ${
                     nextStatus === "overdue"
-                      ? `bg-red-100 text-red-700 dark:bg-red-800
-                        dark:text-red-100`
+                      ? `bg-rose-100 text-rose-800 dark:bg-rose-900/40
+                        dark:text-rose-200`
                       : nextStatus === "paid"
-                        ? `bg-emerald-100 text-emerald-700 dark:bg-emerald-800
-                          dark:text-emerald-100`
+                        ? `bg-emerald-100 text-emerald-800
+                          dark:bg-emerald-900/40 dark:text-emerald-200`
                         : nextStatus === "pending"
-                          ? `bg-amber-100 text-amber-700 dark:bg-amber-800
-                            dark:text-amber-100`
+                          ? `bg-amber-100 text-amber-800 dark:bg-amber-900/40
+                            dark:text-amber-200`
                           : nextStatus === "partial"
-                            ? `bg-purple-100 text-purple-700 dark:bg-purple-800
-                              dark:text-purple-100`
-                            : `bg-blue-100 text-blue-700 dark:bg-blue-800
-                              dark:text-blue-100`
+                            ? `bg-purple-100 text-purple-800
+                              dark:bg-purple-900/40 dark:text-purple-200`
+                            : `bg-sky-100 text-sky-800 dark:bg-sky-900/40
+                              dark:text-sky-200`
                   }`}
               >
                 {nextStatus}
@@ -421,10 +406,9 @@ export const BorrowerCard = memo(function BorrowerCard({
         {/* Full next-collection section for non-compact mode */}
         {!compact && showScheduleSummary && hasNextUnpaid ? (
           <div
-            className="mt-4 w-full min-w-0 self-stretch border-2
-              border-[#9fc4a3] bg-[#effcf0] rounded-md p-3
-              shadow-[2px_2px_0px_0px_#9fc4a3] dark:border-[#020617]
-              dark:bg-sky-900/30 dark:shadow-[2px_2px_0px_0px_#020617]"
+            className="mt-4 w-full min-w-0 self-stretch rounded-lg border
+              border-slate-200 bg-fuchsia-50/80 p-3 dark:border-border/50
+              dark:bg-muted/40"
           >
             <div
               className="flex w-full min-w-0 flex-wrap items-center
@@ -504,7 +488,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                   }}
                                 >
                                   <div className="flex flex-col gap-2">
-                                    <p className="dark:text-foreground mt-2 flex items-center gap-2 text-sm font-black text-slate-900">
+                                    <p className="dark:text-foreground mt-2 flex items-center gap-2 text-sm font-black text-slate-600">
                                       {formatDate(schedule.due_date)}
                                       {schedules.length > 1 ? (
                                         <span className="w-max text-xs font-bold text-stone-500">
@@ -525,7 +509,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                       ) : null}
                                       {schedule.status ? (
                                         <span
-                                          className={`ml-1 rounded-md border-2 border-slate-900 px-1.5 py-0.5 text-[8px] font-black uppercase shadow-[1px_1px_0px_0px_#0f172a] dark:border-[#020617] dark:shadow-[1px_1px_0px_0px_#020617] ${schedule.status === "overdue" ? "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-100" : schedule.status === "paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-800 dark:text-emerald-100" : schedule.status === "pending" ? "bg-amber-100 text-amber-700 dark:bg-amber-800 dark:text-amber-100" : schedule.status === "partial" ? "bg-purple-100 text-purple-700 dark:bg-purple-800 dark:text-purple-100" : "bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100"}`}
+                                          className={`ml-1 shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase ${schedule.status === "overdue" ? "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200" : schedule.status === "paid" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200" : schedule.status === "pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200" : schedule.status === "partial" ? "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200" : "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200"}`}
                                         >
                                           {schedule.status}
                                         </span>
@@ -582,7 +566,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                         return (
                                           <>
                                             <div
-                                              className="h-3 w-full overflow-hidden rounded-full border-2 border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a] md:w-40 dark:border-[#020617] dark:bg-slate-900 dark:shadow-[2px_2px_0px_0px_#020617]"
+                                              className="h-2 w-full overflow-hidden rounded-full border border-slate-200 dark:border-border bg-white md:w-40 dark:bg-slate-800"
                                               role="progressbar"
                                               aria-valuenow={pct}
                                               aria-valuemin={0}
@@ -590,7 +574,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                               aria-label="Payment progress"
                                             >
                                               <div
-                                                className="h-full bg-emerald-400"
+                                                className="h-full bg-emerald-400 transition-all"
                                                 style={{ width: `${pct}%` }}
                                               />
                                             </div>
@@ -646,7 +630,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                                   expandedOverdue[i] ??
                                                   defaultOpen;
                                                 return (
-                                                  <div className="mt-1 w-full rounded-md border-2 border-red-900 bg-red-50/80 px-2 py-1.5 dark:border-[#020617] dark:bg-red-900 dark:shadow-[2px_2px_0px_0px_#020617]">
+                                                  <div className="mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 dark:border-border/50 dark:bg-muted/40">
                                                     <button
                                                       type="button"
                                                       data-prevent-borrower-card-open
@@ -660,7 +644,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                                       }}
                                                       className="flex w-full items-center justify-between gap-2"
                                                     >
-                                                      <span className="text-[9px] font-black tracking-wide text-red-700 uppercase dark:text-red-300">
+                                                      <span className="text-[9px] font-bold tracking-wide text-rose-600 uppercase dark:text-rose-400">
                                                         Overdue installments ·{" "}
                                                         {
                                                           schedule
@@ -669,7 +653,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                                         }
                                                       </span>
                                                       <ChevronDown
-                                                        className={`size-3 text-red-600 transition-transform duration-200 dark:text-red-400 ${isOpen ? "rotate-180" : ""}`}
+                                                        className={`size-3 text-rose-500 transition-transform duration-200 dark:text-rose-400 ${isOpen ? "rotate-180" : ""}`}
                                                       />
                                                     </button>
                                                     <div
@@ -713,7 +697,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                         );
                                       })()}
                                     </div>
-                                    <div className="dark:bg-border my-2 h-px bg-slate-800" />
+                                    <div className="my-2 h-px bg-slate-200 dark:bg-border/50" />
                                   </div>
                                   {isThisAccountPending && (
                                     <div className="dark:bg-card/60 pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-white/60">
@@ -753,7 +737,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                       </p>
                       <p
                         className="dark:text-foreground text-sm font-black
-                          text-slate-900 tabular-nums"
+                          text-slate-600 tabular-nums"
                       >
                         {`₱${nextAmount.toLocaleString()}`}
                         {schedules.length === 1 &&
@@ -801,7 +785,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                     <div className="px-2 pb-2">
                       <div className="space-y-1">
                         {(borrower.overdue_schedules ?? []).map((s, i) => (
-                          <p key={i} className="text-sm font-black text-slate-900 flex items-center gap-2">
+                          <p key={i} className="text-sm font-black text-slate-600 flex items-center gap-2">
                             {formatDate(s.due_date)}
                             <span className="font-bold text-stone-500 text-xs w-max">
                               ₱{s.amount.toLocaleString()}
@@ -829,12 +813,11 @@ export const BorrowerCard = memo(function BorrowerCard({
                 e.stopPropagation();
                 quickAction.onClick();
               }}
-              className="rounded-md border-2 border-slate-900 bg-emerald-400
-                px-2 py-1 text-[11px] font-black text-slate-900 uppercase
-                shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300
-                active:translate-y-px active:shadow-none disabled:cursor-wait
-                disabled:opacity-70 dark:border-[#020617] dark:bg-emerald-500
-                dark:text-slate-900 dark:shadow-[2px_2px_0px_0px_#020617]"
+              className="rounded-md border border-slate-900/30 bg-emerald-50
+                px-3 py-1.5 text-[11px] font-bold text-emerald-800 transition
+                hover:bg-emerald-100 active:translate-y-px disabled:cursor-wait
+                disabled:opacity-70 dark:border-border/50 dark:bg-emerald-900/30
+                dark:text-emerald-300"
             >
               {quickAction.isLoading ? "Updating..." : quickAction.label}
             </button>
@@ -844,7 +827,7 @@ export const BorrowerCard = memo(function BorrowerCard({
         {isPending ? (
           <div
             className="dark:bg-card/50 pointer-events-none absolute inset-0 flex
-              items-center justify-center rounded-xl bg-white/50"
+              items-center justify-center rounded-lg bg-white/50"
           >
             <Loader2
               className="dark:text-muted-foreground h-6 w-6 animate-spin

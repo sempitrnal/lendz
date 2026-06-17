@@ -41,7 +41,7 @@ export function StickyBorrowerStrip({
             <div className="min-w-0 flex-1">
               <p
                 className="dark:text-foreground truncate text-sm font-black
-                  tracking-wide text-slate-900 uppercase"
+                  tracking-wide text-slate-600 uppercase"
               >
                 {borrower.first_name} {borrower.last_name}
               </p>
@@ -52,7 +52,7 @@ export function StickyBorrowerStrip({
                       key={c.id}
                       className={`rounded border border-slate-900/30 px-1.5
                       py-0.5 text-[9px] font-black
-                      ${isDarkColor(c.color) ? "text-white" : "text-slate-900"}`}
+                      ${isDarkColor(c.color) ? "text-white" : "text-slate-600"}`}
                       style={{ backgroundColor: c.color }}
                     >
                       {c.name}

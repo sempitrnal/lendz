@@ -50,7 +50,7 @@ export default function MobileTopBar() {
           aria-label="Go back"
           className="dark:border-border dark:bg-card dark:text-foreground flex
             shrink-0 items-center justify-center rounded-lg border
-            border-slate-900 bg-white p-2 text-slate-900
+            border-slate-900 bg-white p-2 text-slate-600
             shadow-[2px_2px_0px_0px_#0f172a] transition active:shadow-none"
         >
           <ArrowLeft className="size-4" strokeWidth={2.5} />

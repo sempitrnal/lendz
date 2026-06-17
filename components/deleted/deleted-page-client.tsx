@@ -240,7 +240,10 @@ export default function DeletedPageClient({
             <button
               type="button"
               onClick={clearSelection}
-              className="dark:border-border dark:bg-card dark:text-foreground rounded-lg border-2 border-slate-900 bg-white px-2.5 py-1 text-xs font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 active:translate-y-px active:shadow-none"
+              className="dark:border-border dark:bg-card dark:text-foreground
+                rounded-lg border-2 border-slate-900 bg-white px-2.5 py-1
+                text-xs font-bold shadow-[1px_1px_0px_0px_#0f172a] transition
+                hover:-translate-y-0.5 active:translate-y-px active:shadow-none"
             >
               clear
             </button>
@@ -248,7 +251,11 @@ export default function DeletedPageClient({
               type="button"
               disabled={isRestoring}
               onClick={handleBulkRestore}
-              className="rounded-lg border-2 border-slate-900 bg-lime-300 px-2.5 py-1 text-xs font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 active:translate-y-px active:shadow-none disabled:opacity-50 dark:border-lime-600 dark:bg-lime-400/80"
+              className="rounded-lg border-2 border-slate-900 bg-lime-300 px-2.5
+                py-1 text-xs font-bold shadow-[1px_1px_0px_0px_#0f172a]
+                transition hover:-translate-y-0.5 active:translate-y-px
+                active:shadow-none disabled:opacity-50 dark:border-lime-600
+                dark:bg-lime-400/80"
             >
               {isRestoring ? "restoring..." : "restore"}
             </button>
@@ -256,7 +263,11 @@ export default function DeletedPageClient({
               type="button"
               disabled={isPermaDeleting}
               onClick={handleBulkPermaDelete}
-              className="rounded-lg border-2 border-slate-900 bg-red-400 px-2.5 py-1 text-xs font-bold text-white shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 active:translate-y-px active:shadow-none disabled:opacity-50 dark:border-red-500/50 dark:bg-red-500/80"
+              className="rounded-lg border-2 border-slate-900 bg-red-400 px-2.5
+                py-1 text-xs font-bold text-white
+                shadow-[1px_1px_0px_0px_#0f172a] transition
+                hover:-translate-y-0.5 active:translate-y-px active:shadow-none
+                disabled:opacity-50 dark:border-red-500/50 dark:bg-red-500/80"
             >
               {isPermaDeleting ? "deleting..." : "perma delete"}
             </button>
@@ -268,7 +279,11 @@ export default function DeletedPageClient({
       <section>
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="rounded-full border-2 border-slate-900 bg-indigo-200 px-2.5 py-1 text-[10px] font-black tracking-widest text-indigo-900 uppercase shadow-[1px_1px_0px_0px_#0f172a]">
+            <span
+              className="rounded-full border-2 border-slate-900 bg-indigo-200
+                px-2.5 py-1 text-[10px] font-black tracking-widest
+                text-indigo-900 uppercase shadow-[1px_1px_0px_0px_#0f172a]"
+            >
               borrowers
             </span>
             <span className="text-xs font-semibold text-slate-400">
@@ -280,7 +295,8 @@ export default function DeletedPageClient({
               <button
                 type="button"
                 onClick={selectAllBorrowers}
-                className="text-xs font-bold text-slate-500 underline decoration-2 underline-offset-2 hover:text-slate-700"
+                className="text-xs font-bold text-slate-500 underline
+                  decoration-2 underline-offset-2 hover:text-slate-700"
               >
                 select all
               </button>
@@ -288,7 +304,8 @@ export default function DeletedPageClient({
               <button
                 type="button"
                 onClick={() => setConfirmClearAll("borrowers")}
-                className="text-xs font-bold text-red-400 underline decoration-2 underline-offset-2 hover:text-red-600"
+                className="text-xs font-bold text-red-400 underline decoration-2
+                  underline-offset-2 hover:text-red-600"
               >
                 clear all
               </button>
@@ -297,7 +314,10 @@ export default function DeletedPageClient({
         </div>
 
         {borrowers.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-6 text-center text-sm text-slate-400">
+          <p
+            className="rounded-xl border border-dashed p-6 text-center text-sm
+              text-slate-400"
+          >
             No deleted borrowers
           </p>
         ) : (
@@ -311,27 +331,34 @@ export default function DeletedPageClient({
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 transition-all ${
-                    selected
-                      ? "border-indigo-500 bg-indigo-50 shadow-[2px_2px_0px_0px_#6366f1] dark:border-indigo-400 dark:bg-indigo-900/20"
-                      : "dark:border-border dark:bg-card border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
-                  }`}
+                  className={`flex items-center gap-3 rounded-xl border-2 px-4
+                    py-3 transition-all ${
+                      selected
+                        ? `border-indigo-500 bg-indigo-50
+                          shadow-[2px_2px_0px_0px_#6366f1]
+                          dark:border-indigo-400 dark:bg-indigo-900/20`
+                        : `dark:border-border dark:bg-card border-slate-900
+                          bg-white shadow-[2px_2px_0px_0px_#0f172a]`
+                    }`}
                 >
                   <button
                     type="button"
                     onClick={() => toggleBorrower(b.id)}
-                    className={`flex size-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
-                      selected
-                        ? "border-slate-900 bg-slate-900 dark:border-amber-400 dark:bg-amber-400"
-                        : "dark:bg-card border-slate-300 bg-white dark:border-slate-600"
-                    }`}
+                    className={`flex size-5 shrink-0 items-center justify-center
+                      rounded border-2 transition-colors ${
+                        selected
+                          ? `border-slate-900 bg-slate-900 dark:border-amber-400
+                            dark:bg-amber-400`
+                          : `dark:bg-card border-slate-300 bg-white
+                            dark:border-slate-600`
+                      }`}
                     aria-label={
                       selected ? "Deselect borrower" : "Select borrower"
                     }
                   >
                     {selected && (
                       <svg
-                        className="size-3 text-white dark:text-slate-900"
+                        className="size-3 text-white dark:text-slate-600"
                         viewBox="0 0 14 14"
                         fill="none"
                       >
@@ -357,7 +384,10 @@ export default function DeletedPageClient({
                     </p>
                   </div>
                   {b.contact && (
-                    <span className="hidden shrink-0 text-xs text-slate-500 sm:inline">
+                    <span
+                      className="hidden shrink-0 text-xs text-slate-500
+                        sm:inline"
+                    >
                       {b.contact}
                     </span>
                   )}
@@ -372,7 +402,11 @@ export default function DeletedPageClient({
       <section>
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="rounded-full border-2 border-slate-900 bg-violet-200 px-2.5 py-1 text-[10px] font-black tracking-widest text-violet-900 uppercase shadow-[1px_1px_0px_0px_#0f172a]">
+            <span
+              className="rounded-full border-2 border-slate-900 bg-violet-200
+                px-2.5 py-1 text-[10px] font-black tracking-widest
+                text-violet-900 uppercase shadow-[1px_1px_0px_0px_#0f172a]"
+            >
               accounts
             </span>
             <span className="text-xs font-semibold text-slate-400">
@@ -384,7 +418,8 @@ export default function DeletedPageClient({
               <button
                 type="button"
                 onClick={selectAllAccounts}
-                className="text-xs font-bold text-slate-500 underline decoration-2 underline-offset-2 hover:text-slate-700"
+                className="text-xs font-bold text-slate-500 underline
+                  decoration-2 underline-offset-2 hover:text-slate-700"
               >
                 select all
               </button>
@@ -392,7 +427,8 @@ export default function DeletedPageClient({
               <button
                 type="button"
                 onClick={() => setConfirmClearAll("accounts")}
-                className="text-xs font-bold text-red-400 underline decoration-2 underline-offset-2 hover:text-red-600"
+                className="text-xs font-bold text-red-400 underline decoration-2
+                  underline-offset-2 hover:text-red-600"
               >
                 clear all
               </button>
@@ -401,7 +437,10 @@ export default function DeletedPageClient({
         </div>
 
         {accounts.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-6 text-center text-sm text-slate-400">
+          <p
+            className="rounded-xl border border-dashed p-6 text-center text-sm
+              text-slate-400"
+          >
             No deleted accounts
           </p>
         ) : (
@@ -416,27 +455,34 @@ export default function DeletedPageClient({
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 transition-all ${
-                    selected
-                      ? "border-violet-500 bg-violet-50 shadow-[2px_2px_0px_0px_#8b5cf6] dark:border-violet-400 dark:bg-violet-900/20"
-                      : "dark:border-border dark:bg-card border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]"
-                  }`}
+                  className={`flex items-center gap-3 rounded-xl border-2 px-4
+                    py-3 transition-all ${
+                      selected
+                        ? `border-violet-500 bg-violet-50
+                          shadow-[2px_2px_0px_0px_#8b5cf6]
+                          dark:border-violet-400 dark:bg-violet-900/20`
+                        : `dark:border-border dark:bg-card border-slate-900
+                          bg-white shadow-[2px_2px_0px_0px_#0f172a]`
+                    }`}
                 >
                   <button
                     type="button"
                     onClick={() => toggleAccount(a.id)}
-                    className={`flex size-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
-                      selected
-                        ? "border-slate-900 bg-slate-900 dark:border-amber-400 dark:bg-amber-400"
-                        : "dark:bg-card border-slate-300 bg-white dark:border-slate-600"
-                    }`}
+                    className={`flex size-5 shrink-0 items-center justify-center
+                      rounded border-2 transition-colors ${
+                        selected
+                          ? `border-slate-900 bg-slate-900 dark:border-amber-400
+                            dark:bg-amber-400`
+                          : `dark:bg-card border-slate-300 bg-white
+                            dark:border-slate-600`
+                      }`}
                     aria-label={
                       selected ? "Deselect account" : "Select account"
                     }
                   >
                     {selected && (
                       <svg
-                        className="size-3 text-white dark:text-slate-900"
+                        className="size-3 text-white dark:text-slate-600"
                         viewBox="0 0 14 14"
                         fill="none"
                       >
@@ -465,11 +511,12 @@ export default function DeletedPageClient({
                         a.deleted_at ?? a.created_at ?? "",
                       ).toLocaleDateString()}{" "}
                       <span
-                        className={`rounded px-1 py-px text-[10px] font-bold uppercase ${
-                          a.type === "cash_advance"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-violet-100 text-violet-800"
-                        }`}
+                        className={`rounded px-1 py-px text-[10px] font-bold
+                          uppercase ${
+                            a.type === "cash_advance"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-violet-100 text-violet-800"
+                          }`}
                       >
                         {a.type?.replace("_", " ")}
                       </span>

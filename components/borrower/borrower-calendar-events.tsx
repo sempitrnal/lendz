@@ -14,10 +14,18 @@ export default async function BorrowerCalendarEvents({
   if (upcoming.length === 0) return null;
 
   return (
-    <div className="rounded-xl border-2 border-slate-900 bg-white shadow-[4px_4px_0px_0px_#0f172a]">
-      <div className="flex items-center gap-2 border-b-2 border-slate-900 bg-green-300 px-4 py-3">
-        <CalendarDays className="size-5 text-slate-900" />
-        <h2 className="text-sm font-black tracking-wide text-slate-900 uppercase">
+    <div
+      className="rounded-xl border-2 border-slate-900 bg-white
+        shadow-[4px_4px_0px_0px_#0f172a]"
+    >
+      <div
+        className="flex items-center gap-2 border-b-2 border-slate-900
+          bg-green-300 px-4 py-3"
+      >
+        <CalendarDays className="size-5 text-slate-600" />
+        <h2
+          className="text-sm font-black tracking-wide text-slate-600 uppercase"
+        >
           scheduled
         </h2>
       </div>
@@ -30,16 +38,16 @@ export default async function BorrowerCalendarEvents({
             <Link
               key={evt.id}
               href={`/calendar`}
-              className={`flex items-center justify-between border-b border-slate-200 px-4 py-3 transition-colors last:border-b-0 hover:bg-slate-50 ${
-                isPast ? "opacity-70" : ""
-              }`}
+              className={`flex items-center justify-between border-b
+              border-slate-200 px-4 py-3 transition-colors last:border-b-0
+              hover:bg-slate-50 ${isPast ? "opacity-70" : ""}`}
             >
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs font-bold text-slate-500">
                   {formatDate(evt.event_date)}
                   {isPast ? " (past)" : ""}
                 </span>
-                <span className="text-sm font-black text-slate-900">
+                <span className="text-sm font-black text-slate-600">
                   {evt.title || "Scheduled visit"}
                 </span>
                 {evt.amount > 0 ? (

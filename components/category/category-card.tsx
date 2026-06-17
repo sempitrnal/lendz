@@ -73,7 +73,7 @@ export default function CategoryCard({
               <span className="block size-3 rounded-full bg-white/90" />
             </span>
             <p
-              className="truncate text-base font-black lowercase text-slate-900
+              className="truncate text-base font-black lowercase text-slate-600
                 dark:text-foreground"
             >
               {category.name}

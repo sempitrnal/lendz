@@ -152,7 +152,7 @@ export default function CategoryList() {
         <div>
           <h1
             className="text-2xl font-black lowercase tracking-tight
-              text-slate-900 dark:text-foreground"
+              text-slate-600 dark:text-foreground"
           >
             Categories
           </h1>

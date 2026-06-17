@@ -234,7 +234,7 @@ export default function ScheduleStatusForm({
                 className="dark:border-border dark:bg-card dark:text-foreground
                   dark:focus-visible:ring-border w-full min-w-0 rounded-md
                   border-2 border-slate-900 bg-white px-2 py-1.5 text-sm
-                  font-semibold text-slate-900 tabular-nums
+                  font-semibold text-slate-600 tabular-nums
                   shadow-[1px_1px_0px_0px_#0f172a] outline-none
                   focus-visible:ring-2 focus-visible:ring-slate-900"
               />
@@ -253,7 +253,7 @@ export default function ScheduleStatusForm({
             className="dark:border-border dark:bg-card dark:text-foreground
               dark:focus-visible:ring-border w-full min-w-0 rounded-md border-2
               border-slate-900 bg-white px-2 py-1.5 text-sm font-semibold
-              text-slate-900 shadow-[1px_1px_0px_0px_#0f172a] outline-none
+              text-slate-600 shadow-[1px_1px_0px_0px_#0f172a] outline-none
               focus-visible:ring-2 focus-visible:ring-slate-900"
           />
           <div className="flex gap-2">
@@ -268,7 +268,7 @@ export default function ScheduleStatusForm({
               }
               className="dark:border-border flex-1 cursor-pointer rounded-lg
                 border-2 border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs
-                font-black tracking-wide text-slate-900 uppercase
+                font-black tracking-wide text-slate-600 uppercase
                 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300
                 disabled:cursor-not-allowed disabled:opacity-70
                 dark:bg-emerald-800/40 dark:text-emerald-100
@@ -283,7 +283,7 @@ export default function ScheduleStatusForm({
               className="dark:border-border dark:bg-card dark:text-foreground
                 dark:hover:bg-muted flex-1 cursor-pointer rounded-lg border-2
                 border-slate-900 bg-white px-3 py-1.5 text-xs font-black
-                tracking-wide text-slate-900 uppercase
+                tracking-wide text-slate-600 uppercase
                 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-slate-50
                 disabled:cursor-wait disabled:opacity-70"
             >

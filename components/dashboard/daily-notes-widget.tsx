@@ -111,7 +111,8 @@ function CategorySection({
 
   return (
     <div
-      className="dark:border-border rounded-xl border-2 border-slate-900 p-3 shadow-[3px_3px_0px_0px_#0f172a] sm:p-4 dark:shadow-none"
+      className="dark:border-border rounded-xl border-2 border-slate-900 p-3
+        shadow-[3px_3px_0px_0px_#0f172a] sm:p-4 dark:shadow-none"
       style={{
         backgroundColor: bgColor ?? (isDark ? "#161b22" : "#f8fafc"),
         borderColor: borderColor ?? undefined,
@@ -124,19 +125,27 @@ function CategorySection({
       >
         {category && (
           <span
-            className="dark:border-border/50 inline-block size-3 shrink-0 rounded-sm border border-slate-900/25"
+            className="dark:border-border/50 inline-block size-3 shrink-0
+              rounded-sm border border-slate-900/25"
             style={{ backgroundColor: category.color }}
             aria-hidden
           />
         )}
-        <h3 className="dark:text-foreground text-sm font-black text-slate-900 lowercase">
+        <h3
+          className="dark:text-foreground text-sm font-black text-slate-600
+            lowercase"
+        >
           {category ? category.name : "uncategorized"}
         </h3>
-        <span className="dark:text-muted-foreground text-xs font-semibold text-slate-500">
+        <span
+          className="dark:text-muted-foreground text-xs font-semibold
+            text-slate-500"
+        >
           {checkedCount}/{items.length}
         </span>
         <ChevronDown
-          className={`dark:text-muted-foreground ml-auto size-4 text-slate-600 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+          className={`dark:text-muted-foreground ml-auto size-4 text-slate-600
+            transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -147,20 +156,31 @@ function CategorySection({
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               placeholder={`Add item${category ? ` to ${category.name}` : ""}...`}
-              className="dark:border-border dark:bg-card dark:text-foreground w-full rounded-md border-2 border-slate-900 bg-white px-2 py-1.5 text-sm text-slate-900"
+              className="dark:border-border dark:bg-card dark:text-foreground
+                w-full rounded-md border-2 border-slate-900 bg-white px-2 py-1.5
+                text-sm text-slate-600"
             />
             <button
               type="button"
               onClick={() => void handleAdd()}
               disabled={saving}
-              className="dark:border-border shrink-0 rounded-md border-2 border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs font-bold text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300 dark:shadow-none dark:hover:bg-emerald-900/40"
+              className="dark:border-border shrink-0 rounded-md border-2
+                border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs font-bold
+                text-slate-600 uppercase shadow-[2px_2px_0px_0px_#0f172a]
+                transition hover:bg-emerald-300 dark:bg-emerald-900/30
+                dark:text-emerald-300 dark:shadow-none
+                dark:hover:bg-emerald-900/40"
             >
               {saving ? "..." : "add"}
             </button>
           </div>
 
           {sorted.length === 0 ? (
-            <p className="dark:border-border/50 dark:bg-card/60 dark:text-muted-foreground rounded-md border-2 border-dashed border-slate-400 bg-white/60 px-3 py-2 text-xs text-slate-500">
+            <p
+              className="dark:border-border/50 dark:bg-card/60
+                dark:text-muted-foreground rounded-md border-2 border-dashed
+                border-slate-400 bg-white/60 px-3 py-2 text-xs text-slate-500"
+            >
               No items yet.
             </p>
           ) : (
@@ -169,11 +189,14 @@ function CategorySection({
                 <li
                   key={item.id}
                   onClick={() => onToggle(item)}
-                  className={`dark:border-border flex cursor-pointer items-center gap-2 rounded-lg border-2 border-slate-900 px-3 py-1.5 transition ${
-                    item.is_checked
-                      ? "bg-green-200 opacity-80 dark:bg-[#0f2417]"
-                      : "dark:bg-card dark:hover:bg-muted bg-white hover:bg-slate-100"
-                  }`}
+                  className={`dark:border-border flex cursor-pointer
+                    items-center gap-2 rounded-lg border-2 border-slate-900 px-3
+                    py-1.5 transition ${
+                      item.is_checked
+                        ? "bg-green-200 opacity-80 dark:bg-[#0f2417]"
+                        : `dark:bg-card dark:hover:bg-muted bg-white
+                          hover:bg-slate-100`
+                    }`}
                 >
                   <button
                     type="button"
@@ -182,16 +205,27 @@ function CategorySection({
                       onToggle(item);
                     }}
                     title={item.is_checked ? "Uncheck" : "Check"}
-                    className={`dark:border-border shrink-0 rounded-md border-2 border-slate-900 p-1 transition ${
-                      item.is_checked
-                        ? "bg-emerald-400 text-white dark:bg-[#2ea043]"
-                        : "dark:bg-card dark:text-muted-foreground bg-white text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
-                    }`}
+                    className={`dark:border-border shrink-0 rounded-md border-2
+                      border-slate-900 p-1 transition ${
+                        item.is_checked
+                          ? "bg-emerald-400 text-white dark:bg-[#2ea043]"
+                          : `dark:bg-card dark:text-muted-foreground bg-white
+                            text-slate-400 hover:bg-emerald-50
+                            hover:text-emerald-600 dark:hover:bg-emerald-900/20
+                            dark:hover:text-emerald-400`
+                      }`}
                   >
                     <Check className="size-3.5" />
                   </button>
                   <span
-                    className={`min-w-0 flex-1 -translate-y-[0.8px] overflow-hidden text-lg font-bold break-words whitespace-pre-wrap ${item.is_checked ? "dark:text-muted-foreground text-slate-500 line-through" : "dark:text-foreground text-slate-900"}`}
+                    className={`min-w-0 flex-1 -translate-y-[0.8px]
+                      overflow-hidden text-lg font-bold break-words
+                      whitespace-pre-wrap ${
+                        item.is_checked
+                          ? `dark:text-muted-foreground text-slate-500
+                            line-through`
+                          : "dark:text-foreground text-slate-600"
+                      }`}
                   >
                     {item.label}
                   </span>
@@ -204,7 +238,11 @@ function CategorySection({
                         setEditLabelValue(item.label);
                       }}
                       title="Edit"
-                      className="dark:border-border dark:bg-card dark:text-muted-foreground rounded-md border-2 border-slate-900 bg-white p-1 text-slate-600 transition hover:bg-violet-50 hover:text-violet-700 dark:hover:bg-violet-900/20 dark:hover:text-violet-400"
+                      className="dark:border-border dark:bg-card
+                        dark:text-muted-foreground rounded-md border-2
+                        border-slate-900 bg-white p-1 text-slate-600 transition
+                        hover:bg-violet-50 hover:text-violet-700
+                        dark:hover:bg-violet-900/20 dark:hover:text-violet-400"
                     >
                       <Pencil className="size-3.5" />
                     </button>
@@ -215,7 +253,10 @@ function CategorySection({
                         onDelete(item.id);
                       }}
                       title="Delete"
-                      className="dark:border-border dark:bg-card rounded-md border-2 border-slate-900 bg-white p-1 text-rose-600 transition hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-900/20 dark:hover:text-rose-400"
+                      className="dark:border-border dark:bg-card rounded-md
+                        border-2 border-slate-900 bg-white p-1 text-rose-600
+                        transition hover:bg-rose-50 hover:text-rose-700
+                        dark:hover:bg-rose-900/20 dark:hover:text-rose-400"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -239,14 +280,21 @@ function CategorySection({
         {editingItem && (
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-bold tracking-wide text-slate-900 lowercase dark:text-zinc-100">
+              <label
+                className="mb-1 block text-sm font-bold tracking-wide
+                  text-slate-600 lowercase dark:text-zinc-100"
+              >
                 label
               </label>
               <textarea
                 value={editLabelValue}
                 onChange={(e) => setEditLabelValue(e.target.value)}
                 rows={4}
-                className="dark:border-border dark:bg-card dark:text-foreground w-full resize-none rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm text-slate-900 transition outline-none focus:translate-x-0.5 focus:-translate-y-0.5 focus:shadow-[4px_4px_0px_0px_#334155] dark:focus:shadow-none"
+                className="dark:border-border dark:bg-card dark:text-foreground
+                  w-full resize-none rounded-lg border-2 border-slate-900
+                  bg-white px-3 py-2 text-sm text-slate-600 transition
+                  outline-none focus:translate-x-0.5 focus:-translate-y-0.5
+                  focus:shadow-[4px_4px_0px_0px_#334155] dark:focus:shadow-none"
                 autoFocus
               />
             </div>
@@ -254,7 +302,11 @@ function CategorySection({
               <button
                 type="button"
                 onClick={() => setEditingItem(null)}
-                className="dark:border-border dark:bg-card dark:text-foreground rounded-md border-2 border-slate-900 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5 dark:shadow-none"
+                className="dark:border-border dark:bg-card dark:text-foreground
+                  rounded-md border-2 border-slate-900 bg-white px-3 py-1.5
+                  text-xs font-bold text-slate-600 uppercase
+                  shadow-[2px_2px_0px_0px_#0f172a] transition
+                  hover:translate-x-0.5 hover:-translate-y-0.5 dark:shadow-none"
               >
                 cancel
               </button>
@@ -267,7 +319,11 @@ function CategorySection({
                   }
                   setEditingItem(null);
                 }}
-                className="dark:border-border rounded-md border-2 border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs font-bold text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5 dark:bg-emerald-900/40 dark:text-emerald-300 dark:shadow-none"
+                className="dark:border-border rounded-md border-2
+                  border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs font-bold
+                  text-slate-600 uppercase shadow-[2px_2px_0px_0px_#0f172a]
+                  transition hover:translate-x-0.5 hover:-translate-y-0.5
+                  dark:bg-emerald-900/40 dark:text-emerald-300 dark:shadow-none"
               >
                 save
               </button>
@@ -467,13 +523,26 @@ export default function DailyNotesWidget() {
 
   return (
     <div className="flex flex-col gap-5">
-      <article className="dark:border-border dark:via-card rounded-xl border-2 border-slate-900 bg-linear-to-br from-violet-50 via-white to-fuchsia-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5 dark:from-violet-950/20 dark:to-fuchsia-950/20 dark:shadow-none">
+      <article
+        className="dark:border-border dark:via-card rounded-xl border-2
+          border-slate-900 bg-linear-to-br from-violet-50 via-white
+          to-fuchsia-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5
+          dark:from-violet-950/20 dark:to-fuchsia-950/20 dark:shadow-none"
+      >
         <div className="flex items-center justify-between">
-          <h2 className="dark:text-foreground text-base font-black text-slate-900 lowercase"></h2>
+          <h2
+            className="dark:text-foreground text-base font-black text-slate-600
+              lowercase"
+          ></h2>
           <div className="flex items-center gap-2">
             <Link
               href="/daily-checklist/categories"
-              className="dark:border-border dark:bg-card dark:text-foreground inline-flex items-center gap-1 rounded-md border-2 border-slate-900 bg-white px-2 py-1 text-xs font-bold text-slate-900 uppercase shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5 hover:-translate-y-0.5 dark:shadow-none"
+              className="dark:border-border dark:bg-card dark:text-foreground
+                inline-flex items-center gap-1 rounded-md border-2
+                border-slate-900 bg-white px-2 py-1 text-xs font-bold
+                text-slate-600 uppercase shadow-[2px_2px_0px_0px_#0f172a]
+                transition hover:translate-x-0.5 hover:-translate-y-0.5
+                dark:shadow-none"
             >
               <Settings className="size-3" />
               categories
@@ -485,13 +554,20 @@ export default function DailyNotesWidget() {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="dark:border-border dark:bg-card dark:text-foreground w-full min-w-0 rounded-md border-2 border-slate-900 px-2 py-1.5 text-sm font-semibold text-slate-900"
+            className="dark:border-border dark:bg-card dark:text-foreground
+              w-full min-w-0 rounded-md border-2 border-slate-900 px-2 py-1.5
+              text-sm font-semibold text-slate-600"
           />
         </div>
       </article>
 
       {loading ? (
-        <div className="dark:border-border/50 dark:bg-muted dark:text-muted-foreground rounded-xl border-2 border-dashed border-slate-400 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+        <div
+          className="dark:border-border/50 dark:bg-muted
+            dark:text-muted-foreground rounded-xl border-2 border-dashed
+            border-slate-400 bg-slate-50 px-4 py-6 text-center text-sm
+            text-slate-600"
+        >
           Loading checklist...
         </div>
       ) : (

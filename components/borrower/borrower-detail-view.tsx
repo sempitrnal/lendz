@@ -43,6 +43,7 @@ export default function BorrowerDetailView({
       window.history.back();
     } else {
       router.push("/borrowers", { scroll: false });
+      router.refresh();
     }
   }
   return (

@@ -111,20 +111,29 @@ export default function AddEventModal({
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-sm font-black uppercase tracking-wide text-slate-900 dark:text-foreground">
+          <DialogTitle
+            className="text-sm font-black uppercase tracking-wide text-slate-600
+              dark:text-foreground"
+          >
             schedule borrower
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {error ? (
-            <p className="rounded bg-red-50 px-3 py-2 text-xs font-bold text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            <p
+              className="rounded bg-red-50 px-3 py-2 text-xs font-bold
+                text-red-700 dark:bg-red-900/30 dark:text-red-400"
+            >
               {error}
             </p>
           ) : null}
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+            <label
+              className="text-[10px] font-bold uppercase tracking-wider
+                text-slate-500 dark:text-muted-foreground"
+            >
               borrower
             </label>
             <div className="relative">
@@ -139,12 +148,27 @@ export default function AddEventModal({
                   }
                 }}
                 placeholder="search borrowers..."
-                className="w-full rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2 focus:ring-green-300 dark:border-border dark:bg-card dark:text-foreground"
+                className="w-full rounded-lg border-2 border-slate-900 bg-white
+                  px-3 py-2 text-sm font-bold text-slate-600
+                  shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2
+                  focus:ring-green-300 dark:border-border dark:bg-card
+                  dark:text-foreground"
               />
               {borrowerSearch.trim() && !borrowerId && (
-                <div className="absolute left-0 right-0 top-full z-50 mt-1 flex max-h-40 flex-col gap-0.5 overflow-auto rounded-lg border-2 border-slate-900 bg-white p-1 shadow-[2px_2px_0px_0px_#0f172a] dark:border-border dark:bg-card">
+                <div
+                  className="absolute left-0 right-0 top-full z-50 mt-1 flex
+                    max-h-40 flex-col gap-0.5 overflow-auto rounded-lg border-2
+                    border-slate-900 bg-white p-1
+                    shadow-[2px_2px_0px_0px_#0f172a] dark:border-border
+                    dark:bg-card"
+                >
                   {filteredBorrowers.length === 0 ? (
-                    <p className="px-3 py-2 text-xs font-bold text-slate-400 dark:text-muted-foreground">no matches</p>
+                    <p
+                      className="px-3 py-2 text-xs font-bold text-slate-400
+                        dark:text-muted-foreground"
+                    >
+                      no matches
+                    </p>
                   ) : (
                     filteredBorrowers.map((b) => (
                       <button
@@ -155,7 +179,10 @@ export default function AddEventModal({
                           setBorrowerSearch(`${b.first_name} ${b.last_name}`);
                           setAccountId("");
                         }}
-                        className="rounded-md px-3 py-2 text-left text-sm font-bold text-slate-900 transition-colors hover:bg-green-100 dark:text-foreground dark:hover:bg-green-900/30"
+                        className="rounded-md px-3 py-2 text-left text-sm
+                          font-bold text-slate-600 transition-colors
+                          hover:bg-green-100 dark:text-foreground
+                          dark:hover:bg-green-900/30"
                       >
                         {b.first_name} {b.last_name}
                       </button>
@@ -165,8 +192,12 @@ export default function AddEventModal({
               )}
             </div>
             {borrowerId && (
-              <p className="mt-1 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                selected: {borrowers.find((b) => b.id === borrowerId)?.first_name}{" "}
+              <p
+                className="mt-1 text-xs font-bold text-emerald-700
+                  dark:text-emerald-400"
+              >
+                selected:{" "}
+                {borrowers.find((b) => b.id === borrowerId)?.first_name}{" "}
                 {borrowers.find((b) => b.id === borrowerId)?.last_name}
               </p>
             )}
@@ -174,18 +205,26 @@ export default function AddEventModal({
 
           {borrowerId && availableAccounts.length > 0 ? (
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+              <label
+                className="text-[10px] font-bold uppercase tracking-wider
+                  text-slate-500 dark:text-muted-foreground"
+              >
                 loan (optional)
               </label>
               <select
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
-                className="rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2 focus:ring-green-300 dark:border-border dark:bg-card dark:text-foreground"
+                className="rounded-lg border-2 border-slate-900 bg-white px-3
+                  py-2 text-sm font-bold text-slate-600
+                  shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2
+                  focus:ring-green-300 dark:border-border dark:bg-card
+                  dark:text-foreground"
               >
                 <option value="">select loan</option>
                 {availableAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
-                    ₱{Number(a.principal_amount ?? 0).toLocaleString()} — {a.status}
+                    ₱{Number(a.principal_amount ?? 0).toLocaleString()} —{" "}
+                    {a.status}
                   </option>
                 ))}
               </select>
@@ -193,19 +232,29 @@ export default function AddEventModal({
           ) : null}
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+            <label
+              className="text-[10px] font-bold uppercase tracking-wider
+                text-slate-500 dark:text-muted-foreground"
+            >
               date
             </label>
             <input
               type="date"
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
-              className="rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2 focus:ring-green-300 dark:border-border dark:bg-card dark:text-foreground"
+              className="rounded-lg border-2 border-slate-900 bg-white px-3 py-2
+                text-sm font-bold text-slate-600
+                shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2
+                focus:ring-green-300 dark:border-border dark:bg-card
+                dark:text-foreground"
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+            <label
+              className="text-[10px] font-bold uppercase tracking-wider
+                text-slate-500 dark:text-muted-foreground"
+            >
               amount
             </label>
             <input
@@ -215,12 +264,19 @@ export default function AddEventModal({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0"
-              className="rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2 focus:ring-green-300 dark:border-border dark:bg-card dark:text-foreground"
+              className="rounded-lg border-2 border-slate-900 bg-white px-3 py-2
+                text-sm font-bold text-slate-600
+                shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2
+                focus:ring-green-300 dark:border-border dark:bg-card
+                dark:text-foreground"
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+            <label
+              className="text-[10px] font-bold uppercase tracking-wider
+                text-slate-500 dark:text-muted-foreground"
+            >
               title (optional)
             </label>
             <input
@@ -228,19 +284,30 @@ export default function AddEventModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. renewal, follow-up"
-              className="rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2 focus:ring-green-300 dark:border-border dark:bg-card dark:text-foreground"
+              className="rounded-lg border-2 border-slate-900 bg-white px-3 py-2
+                text-sm font-bold text-slate-600
+                shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2
+                focus:ring-green-300 dark:border-border dark:bg-card
+                dark:text-foreground"
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+            <label
+              className="text-[10px] font-bold uppercase tracking-wider
+                text-slate-500 dark:text-muted-foreground"
+            >
               note (optional)
             </label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
-              className="rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2 focus:ring-green-300 dark:border-border dark:bg-card dark:text-foreground"
+              className="rounded-lg border-2 border-slate-900 bg-white px-3 py-2
+                text-sm font-bold text-slate-600
+                shadow-[2px_2px_0px_0px_#0f172a] outline-none focus:ring-2
+                focus:ring-green-300 dark:border-border dark:bg-card
+                dark:text-foreground"
             />
           </div>
 

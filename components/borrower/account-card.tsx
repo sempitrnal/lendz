@@ -98,59 +98,6 @@ export function AccountCard({
   }
 
   const isCashAdvance = account.type === "cash_advance";
-  const cardAccentColor = isCashAdvance
-    ? isManual
-      ? isRolling
-        ? "#3d8e86" // teal muted
-        : "#9e8820" // yellow muted
-      : "#b07a30" // amber muted
-    : isManual
-      ? isRolling
-        ? "#4a8fa8" // cyan muted
-        : "#6c9670" // lime muted
-      : "#8158a3"; // violet muted
-  const typeAccent = isCashAdvance
-    ? isManual
-      ? isRolling
-        ? {
-            border: "border-teal-500",
-            shadow: "#14b8a6",
-            strip: "bg-teal-500",
-            darkStrip: "dark:bg-teal-400",
-          }
-        : {
-            border: "border-yellow-500",
-            shadow: "#eab308",
-            strip: "bg-yellow-500",
-            darkStrip: "dark:bg-yellow-400",
-          }
-      : {
-          border: "border-amber-500",
-          shadow: "#f59e0b",
-          strip: "bg-amber-500",
-          darkStrip: "dark:bg-amber-400",
-        }
-    : isManual
-      ? isRolling
-        ? {
-            border: "border-cyan-500",
-            shadow: "#06b6d4",
-            strip: "bg-cyan-300/80",
-            darkStrip: "dark:bg-cyan-500/80",
-          }
-        : {
-            border: "border-lime-500",
-            shadow: "#84cc16",
-            strip: "bg-lime-300/80",
-            darkStrip: "dark:bg-lime-500/80",
-          }
-      : {
-          border: "border-violet-500",
-          shadow: "#8b5cf6",
-          strip: "bg-violet-300/80",
-          darkStrip: "dark:bg-violet-500/80",
-        };
-  const accentStrip = `${typeAccent.strip} ${typeAccent.darkStrip}`;
   const hasOverdue = overdueCount > 0;
 
   const typeLabel = isManual
@@ -198,14 +145,8 @@ export function AccountCard({
 
   return (
     <motion.div
-      style={{ "--card-accent": cardAccentColor } as React.CSSProperties}
-      className={`relative overflow-hidden rounded-xl border-2
-        border-[var(--card-accent)] bg-[#f1fff2]
-        shadow-[4px_4px_0px_0px_var(--card-accent)] transition-all duration-200
-        dark:border-[#020617] dark:bg-slate-900
-        dark:shadow-[4px_4px_0px_0px_#020617] ${
-          account.status === "pending" ? " dark:bg-slate-900" : ""
-        }
+      className={`relative overflow-hidden rounded-lg border border-slate-300
+        bg-white transition-all duration-200 dark:border-border dark:bg-card
         ${isOpening ? "scale-[0.98] opacity-60" : ""}
         ${selectionMode && selected ? "ring-2 ring-slate-900 dark:ring-amber-400" : ""}`}
       whileHover={
@@ -226,9 +167,6 @@ export function AccountCard({
           : { scale: 0.98, y: 0, transition: { duration: 0.1 } }
       }
     >
-      {/* Top accent */}
-      <div className={`h-1.5 w-full ${accentStrip}`} />
-
       <div
         role="button"
         tabIndex={isOpening ? -1 : 0}
@@ -261,29 +199,24 @@ export function AccountCard({
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <span
-              className={`shrink-0 rounded-md border-2 px-2 py-0.5 text-[10px]
-                font-black tracking-wide uppercase
-                shadow-[2px_2px_0px_0px_#0f172a]
-                dark:shadow-[2px_2px_0px_0px_#020617] ${typeBadgeBg}
-                dark:border-[#020617]`}
+              className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-black
+                tracking-wide uppercase ${typeBadgeBg}`}
             >
               {typeLabel}
             </span>
             {account.status !== "pending" && (
               <span
-                className="text-[11px] font-black text-slate-900
-                  dark:text-slate-100"
+                className="text-[11px] font-bold text-slate-500
+                  dark:text-slate-400"
               >
                 {account.interest_rate}%
               </span>
             )}
           </div>
           <span
-            className={`shrink-0 mr-3 rounded-full border-2 px-2.5 py-0.5
-              text-[10px] font-black uppercase shadow-[2px_2px_0px_0px_#0f172a]
-              dark:shadow-[2px_2px_0px_0px_#020617] ${statusColors.bg}
-              ${statusColors.text} ${statusColors.border} ${statusColors.darkBg}
-              ${statusColors.darkText} ${statusColors.darkBorder}`}
+            className={`shrink-0 rounded-full mr-3 translate-y-[4px] px-2.5
+              py-0.5 text-[8px] font-black uppercase ${statusColors.bg}
+              ${statusColors.text}`}
           >
             {account.status}
           </span>
@@ -292,14 +225,14 @@ export function AccountCard({
         {/* Principal */}
         <div className="mt-1.5">
           <span
-            className="text-2xl font-black tracking-tight text-slate-900
-              tabular-nums dark:text-white"
+            className="text-2xl font-bold tracking-tight text-slate-600
+              tabular-nums dark:text-foreground"
           >
             ₱{Number(account.principal_amount ?? 0).toLocaleString()}
           </span>
           <span
-            className="ml-1.5 text-[11px] font-bold text-slate-500
-              dark:text-slate-400"
+            className="ml-1.5 text-[11px] font-medium text-slate-500
+              dark:text-muted-foreground"
           >
             {account.status === "pending"
               ? "pending"
@@ -315,18 +248,15 @@ export function AccountCard({
         {account.release_date && (
           <div className="mt-1.5 flex items-center gap-1.5">
             <span
-              className="rounded-md border-2 border-slate-900 bg-sky-200 px-2
-                py-0.5 text-[10px] font-black tracking-wide text-sky-900
-                shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]
-                dark:bg-sky-800 dark:text-sky-100
-                dark:shadow-[2px_2px_0px_0px_#020617]"
+              className="rounded-md bg-sky-100 px-2 py-0.5 text-[10px] font-bold
+                tracking-wide text-sky-800 dark:bg-sky-900/30 dark:text-sky-300"
             >
               {formatDate(account.release_date)}
             </span>
             {daysSinceRelease > 0 && (
               <span
-                className="text-[11px] font-bold text-slate-500
-                  dark:text-slate-400"
+                className="text-[11px] font-medium text-slate-500
+                  dark:text-muted-foreground"
               >
                 released {fmtTimeAgo(daysSinceRelease)}
               </span>
@@ -339,76 +269,58 @@ export function AccountCard({
             type="button"
             data-prevent-account-open
             onClick={() => onActivate(account)}
-            className="mt-2.5 inline-flex items-center gap-1 rounded-lg border-2
-              border-slate-900 bg-emerald-300 px-3 py-1.5 text-[11px] font-black
-              tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a]
-              transition hover:translate-y-px
-              hover:shadow-[1px_1px_0px_0px_#0f172a] active:translate-y-[2px]
-              active:shadow-none dark:border-[#020617] dark:bg-emerald-500
-              dark:shadow-[2px_2px_0px_0px_#020617]
-              dark:hover:shadow-[1px_1px_0px_0px_#020617]"
+            className="mt-2.5 inline-flex items-center gap-1 rounded-md border
+              border-slate-900/30 bg-emerald-50 px-3 py-1.5 text-[11px]
+              font-bold text-emerald-800 transition hover:bg-emerald-100
+              active:translate-y-px dark:border-border/50 dark:bg-emerald-900/30
+              dark:text-emerald-300"
           >
             activate
           </button>
         )}
 
-        {/* Metrics grid */}
+        {/* Metrics */}
         {account.status !== "pending" && (
-          <div
-            className={`mt-3 grid gap-2
-            ${profitToMake > 0 ? "grid-cols-3" : "grid-cols-2"}`}
-          >
-            <div
-              className="rounded-lg border-2 border-slate-900 bg-amber-50 p-2
-                shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]
-                dark:bg-amber-900/30 dark:shadow-[2px_2px_0px_0px_#020617]"
-            >
+          <div className="mt-3 flex items-center gap-4">
+            <div>
               <p
-                className="text-[10px] font-black tracking-wider text-slate-500
-                  uppercase dark:text-slate-400"
+                className="text-[9px] font-bold tracking-wider text-slate-500
+                  uppercase dark:text-muted-foreground"
               >
                 Remaining
               </p>
               <p
-                className="mt-0.5 text-sm font-black text-red-600 tabular-nums
-                  dark:text-red-400"
+                className="text-sm font-bold text-rose-600 tabular-nums
+                  dark:text-rose-400"
               >
                 ₱{fmtCompact(amountLeftToPay)}
               </p>
             </div>
-            <div
-              className="rounded-lg border-2 border-slate-900 bg-emerald-50 p-2
-                shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]
-                dark:bg-emerald-900/30 dark:shadow-[2px_2px_0px_0px_#020617]"
-            >
+            <div>
               <p
-                className="text-[10px] font-black tracking-wider text-slate-500
-                  uppercase dark:text-slate-400"
+                className="text-[9px] font-bold tracking-wider text-slate-500
+                  uppercase dark:text-muted-foreground"
               >
                 {isManual ? "Paid" : "Collected"}
               </p>
               <p
-                className="mt-0.5 text-sm font-black text-emerald-700
-                  tabular-nums dark:text-emerald-300"
+                className="text-sm font-bold text-emerald-700 tabular-nums
+                  dark:text-emerald-300"
               >
                 ₱{fmtCompact(totalPaid)}
               </p>
             </div>
             {profitToMake > 0 && (
-              <div
-                className="rounded-lg border-2 border-slate-900 bg-violet-50 p-2
-                  shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]
-                  dark:bg-violet-900/30 dark:shadow-[2px_2px_0px_0px_#020617]"
-              >
+              <div>
                 <p
-                  className="text-[10px] font-black tracking-wider
-                    text-slate-500 uppercase dark:text-slate-400"
+                  className="text-[9px] font-bold tracking-wider text-slate-500
+                    uppercase dark:text-muted-foreground"
                 >
                   per sched
                 </p>
                 <p
-                  className="mt-0.5 text-sm font-black text-violet-700
-                    tabular-nums dark:text-violet-300"
+                  className="text-sm font-bold text-[#30153b] tabular-nums
+                    dark:text-violet-300"
                 >
                   ₱{fmtCompact(profitPerSchedule)}
                 </p>
@@ -421,26 +333,26 @@ export function AccountCard({
         {totalDue > 0 && (
           <div className="mt-3">
             <div className="flex items-center justify-between text-[10px]">
-              <span className="font-semibold text-slate-400">Progress</span>
+              <span className="font-medium text-slate-400 dark:text-slate-500">
+                Progress
+              </span>
               <span
-                className="font-black text-slate-700 tabular-nums
+                className="font-bold text-slate-700 tabular-nums
                   dark:text-slate-300"
               >
                 {progressPct}%
               </span>
             </div>
             <div
-              className="mt-1.5 h-3 overflow-hidden rounded-full border-2
-                border-slate-900 bg-white dark:border-[#020617]
-                dark:bg-slate-900"
+              className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100
+                dark:bg-slate-800"
               role="progressbar"
               aria-valuenow={progressPct}
               aria-valuemin={0}
               aria-valuemax={100}
             >
               <div
-                className="h-full bg-emerald-400 transition-all duration-500
-                  dark:bg-emerald-500"
+                className="h-full bg-emerald-400 transition-all duration-500"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
@@ -458,17 +370,17 @@ export function AccountCard({
                 ) ?? null;
               if (!nextPending) return null;
               return (
-                <div className="mt-3 flex items-center gap-2 rounded-sm border border-slate-900 bg-amber-100/80 p-2 dark:bg-[#092e40]">
-                  <span className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                <div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-border/50 dark:bg-muted/40">
+                  <span className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-muted-foreground">
                     Next pending
                   </span>
                   <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
                     {formatDate(nextPending.due_date)}
                   </span>
-                  <span className="text-[11px] font-black text-slate-900 tabular-nums dark:text-slate-100">
+                  <span className="text-[11px] font-bold text-slate-600 tabular-nums dark:text-slate-100">
                     ₱{nextPending.amount.toLocaleString()}
                   </span>
-                  <span className="rounded-md border-2 border-slate-900 bg-amber-200 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-700 uppercase shadow-[1px_1px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-amber-800 dark:text-amber-100 dark:shadow-[1px_1px_0px_0px_#020617]">
+                  <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-800 uppercase dark:bg-amber-900/40 dark:text-amber-200">
                     pending
                   </span>
                 </div>
@@ -493,22 +405,22 @@ export function AccountCard({
                   {visible.map((p, i) => (
                     <div
                       key={i}
-                      className="bgp flex items-center justify-between gap-2 rounded-lg border-2 border-slate-900 bg-purple-100 px-2.5 py-1.5 shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-purple-950/50 dark:shadow-[2px_2px_0px_0px_#020617]"
+                      className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 dark:border-border/50 dark:bg-muted/40"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-black text-slate-600 dark:text-slate-400">
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
                           {formatDate(p.due_date)}
                         </span>
-                        <span className="text-[11px] font-black text-slate-900 tabular-nums dark:text-slate-200">
+                        <span className="text-[11px] font-bold text-slate-600 tabular-nums dark:text-slate-200">
                           ₱{p.amount.toLocaleString()}
                         </span>
                         {p.amount_due > p.amount && (
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500">
                             of ₱{p.amount_due.toLocaleString()}
                           </span>
                         )}
                       </div>
-                      <span className="rounded-md border-2 border-slate-900 bg-purple-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-purple-700 uppercase shadow-[1px_1px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-purple-800 dark:text-purple-100 dark:shadow-[1px_1px_0px_0px_#020617]">
+                      <span className="rounded-md bg-purple-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-purple-800 uppercase dark:bg-purple-900/40 dark:text-purple-200">
                         partial
                       </span>
                     </div>
@@ -538,9 +450,8 @@ export function AccountCard({
         {/* Overdue alert */}
         {hasOverdue && (
           <div
-            className="mt-3 overflow-hidden rounded-xl border-2 border-red-500
-              bg-red-50 shadow-[3px_3px_0px_0px_#ef4444] dark:border-[#020617]
-              dark:bg-red-900 dark:shadow-[3px_3px_0px_0px_#020617]"
+            className="mt-3 overflow-hidden rounded-lg border border-slate-200
+              bg-slate-50 dark:border-border/50 dark:bg-muted/40"
           >
             <button
               type="button"
@@ -550,25 +461,25 @@ export function AccountCard({
             >
               <div
                 className="flex size-5 shrink-0 items-center justify-center
-                  rounded-full border border-slate-900 bg-red-500 text-[10px]
-                  font-black text-white dark:border-[#020617]"
+                  rounded-full bg-rose-500 text-[10px] font-bold text-white"
               >
                 {overdueCount}
               </div>
               <span
-                className="text-[11px] font-bold text-red-700 dark:text-red-100"
+                className="text-[11px] font-bold text-rose-600
+                  dark:text-rose-400"
               >
                 overdue
               </span>
               <span
-                className="ml-auto text-[11px] font-black text-red-800
-                  tabular-nums dark:text-red-100"
+                className="ml-auto text-[11px] font-bold text-rose-700
+                  tabular-nums dark:text-rose-300"
               >
                 ₱{overdueTotal.toLocaleString()}
               </span>
               <ChevronDown
-                className={`size-3.5 text-red-500 transition-transform
-                dark:text-red-200 ${overdueExpanded ? "rotate-180" : ""}`}
+                className={`size-3.5 text-rose-500 transition-transform
+                dark:text-rose-400 ${overdueExpanded ? "rotate-180" : ""}`}
               />
             </button>
             <div
@@ -607,19 +518,18 @@ export function AccountCard({
               e.stopPropagation();
               onToggleSelect?.(account.id);
             }}
-            className={`flex size-5 items-center justify-center rounded border-2
+            className={`flex size-5 items-center justify-center rounded border
               transition-colors ${
                 selected
-                  ? `border-slate-900 bg-slate-900 dark:border-[#020617]
+                  ? `border-slate-900 bg-slate-900 dark:border-border
                     dark:bg-amber-400`
-                  : `dark:bg-card border-slate-300 bg-white
-                    dark:border-[#020617]`
+                  : "border-slate-300 bg-white dark:border-border dark:bg-card"
               }`}
             aria-label={selected ? "Deselect account" : "Select account"}
           >
             {selected && (
               <svg
-                className="size-3 text-white dark:text-slate-900"
+                className="size-3 text-white dark:text-slate-600"
                 viewBox="0 0 14 14"
                 fill="none"
               >

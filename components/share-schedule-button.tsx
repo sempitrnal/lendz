@@ -222,7 +222,11 @@ export default function ShareScheduleButton({
         type="button"
         onClick={capture}
         disabled={rendering}
-        className="dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted flex items-center gap-1.5 rounded border-2 border-slate-900 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-900 shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-slate-50 active:translate-y-px active:shadow-none"
+        className="dark:border-border dark:bg-card dark:text-foreground
+          dark:hover:bg-muted flex items-center gap-1.5 rounded border-2
+          border-slate-900 bg-white px-2.5 py-1.5 text-[11px] font-bold
+          text-slate-600 shadow-[2px_2px_0px_0px_#0f172a] transition
+          hover:bg-slate-50 active:translate-y-px active:shadow-none"
       >
         {rendering ? (
           <span className="animate-spin">⏳</span>

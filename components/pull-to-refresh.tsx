@@ -226,7 +226,7 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
         <div
           className="mb-1 flex items-center gap-2 rounded-full border-2
             border-slate-900 bg-white px-3 py-1.5 text-xs font-black uppercase
-            tracking-wide text-slate-900 shadow-[2px_2px_0px_0px_#0f172a]
+            tracking-wide text-slate-600 shadow-[2px_2px_0px_0px_#0f172a]
             dark:border-border dark:bg-card dark:text-foreground
             dark:shadow-none"
         >

@@ -27,7 +27,7 @@ import { isDarkColor } from "@/lib/utils";
 type CategoryOption = {
   id: string;
   name: string;
-  color: string
+  color: string;
 };
 
 export type BorrowerEditFormProps = {
@@ -47,9 +47,8 @@ export default function BorrowerEditForm({
 }: BorrowerEditFormProps) {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(
-    initialCategoryIds
-  );
+  const [selectedCategoryIds, setSelectedCategoryIds] =
+    useState<string[]>(initialCategoryIds);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
 
@@ -62,18 +61,21 @@ export default function BorrowerEditForm({
     defaultValues: {
       first_name: initial.first_name,
       last_name: initial.last_name,
-      contact: initial.contact
-        ? formatContactNumber(initial.contact)
-        : "",
+      contact: initial.contact ? formatContactNumber(initial.contact) : "",
     },
   });
 
-  const { ref: contactRef, onChange: contactOnChange, ...contactRest } =
-    register("contact");
+  const {
+    ref: contactRef,
+    onChange: contactOnChange,
+    ...contactRest
+  } = register("contact");
 
   useEffect(() => {
     fetchCategoriesAction().then((rows) => {
-      setCategories(rows.map((c) => ({ id: c.id, name: c.name, color: c.color ?? "" })));
+      setCategories(
+        rows.map((c) => ({ id: c.id, name: c.name, color: c.color ?? "" })),
+      );
     });
   }, []);
 
@@ -83,9 +85,7 @@ export default function BorrowerEditForm({
       .update({
         first_name: values.first_name,
         last_name: values.last_name,
-        contact: values.contact?.trim()
-          ? values.contact.trim()
-          : null,
+        contact: values.contact?.trim() ? values.contact.trim() : null,
       })
       .eq("id", borrowerId);
 
@@ -125,29 +125,32 @@ export default function BorrowerEditForm({
   };
 
   const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(categorySearch.trim().toLowerCase())
+    category.name.toLowerCase().includes(categorySearch.trim().toLowerCase()),
   );
-  console.log(filteredCategories)
+  console.log(filteredCategories);
 
   const selectedCategoryNames = categories
     .filter((category) => selectedCategoryIds.includes(category.id))
     .map((category) => {
       return {
         name: category.name,
-        color: category.color
-      }
+        color: category.color,
+      };
     });
 
   const toggleCategory = (categoryId: string) => {
     setSelectedCategoryIds((prev) =>
       prev.includes(categoryId)
         ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
+        : [...prev, categoryId],
     );
   };
 
   return (
-    <div className="rounded-lg border bg-white p-6 shadow-sm">
+    <div
+      className="rounded-lg border bg-white p-6 shadow-sm dark:border-border
+        dark:bg-card"
+    >
       <div className="flex items-start justify-between gap-4">
         <form
           id="borrower-edit-form"
@@ -175,10 +178,7 @@ export default function BorrowerEditForm({
           </div>
 
           <div>
-            <label
-              htmlFor="edit_last_name"
-              className={formFieldLabelClassName}
-            >
+            <label htmlFor="edit_last_name" className={formFieldLabelClassName}>
               Last Name
             </label>
             <input
@@ -195,10 +195,7 @@ export default function BorrowerEditForm({
           </div>
 
           <div>
-            <label
-              htmlFor="edit_contact"
-              className={formFieldLabelClassName}
-            >
+            <label htmlFor="edit_contact" className={formFieldLabelClassName}>
               Contact Number
             </label>
             <input
@@ -210,9 +207,7 @@ export default function BorrowerEditForm({
               placeholder="(0977) 123-4567"
               {...contactRest}
               onChange={(e) => {
-                const formatted = formatContactNumber(
-                  e.target.value
-                );
+                const formatted = formatContactNumber(e.target.value);
                 e.target.value = formatted;
                 contactOnChange(e);
               }}
@@ -229,55 +224,64 @@ export default function BorrowerEditForm({
             <div className="relative">
               <button
                 type="button"
-                onClick={() =>
-                  setIsCategoryDropdownOpen((prev) => !prev)
-                }
-                className={`${formFieldInputClassName} flex w-full items-center justify-between`}
+                onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
+                className={`${formFieldInputClassName} flex w-full items-center
+                  justify-between`}
               >
                 <div className="flex flex-wrap gap-2">
                   {selectedCategoryNames.length > 0
                     ? selectedCategoryNames.map((e) => {
-                      return (
-                        <div
-                          key={e.name}
-                          style={{ backgroundColor: e.color }}
-                          className={`flex items-center gap-2 rounded px-2 py-1 text-sm font-medium shadow-[4px_4px_0px_#1e1a4d] ${isDarkColor(e.color)
-                            ? "text-white"
-                            : "text-indigo-950"
-                            }`}
-                        >
-                          <span>{e.name}</span>
-
-                          <span
-
-                            onClick={(b) => {
-                              b.stopPropagation()
-                              setSelectedCategoryIds((prev) =>
-                                prev.filter((id) => {
-                                  const category = categories.find(
-                                    (c) => c.id === id
-                                  );
-
-                                  return category?.name !== e.name;
-                                })
-                              );
-                            }}
-                            className="ml-1 text-xs font-black opacity-80 hover:opacity-100 cursor-pointer"
+                        return (
+                          <div
+                            key={e.name}
+                            style={{ backgroundColor: e.color }}
+                            className={`flex items-center gap-2 rounded px-2
+                              py-1 text-sm font-medium
+                              shadow-[4px_4px_0px_#1e1a4d] ${
+                                isDarkColor(e.color)
+                                  ? "text-white"
+                                  : "text-indigo-950"
+                              }`}
                           >
-                            {"x"}
-                          </span>
-                        </div>
-                      );
-                    })
+                            <span>{e.name}</span>
+
+                            <span
+                              onClick={(b) => {
+                                b.stopPropagation();
+                                setSelectedCategoryIds((prev) =>
+                                  prev.filter((id) => {
+                                    const category = categories.find(
+                                      (c) => c.id === id,
+                                    );
+
+                                    return category?.name !== e.name;
+                                  }),
+                                );
+                              }}
+                              className="ml-1 text-xs font-black opacity-80
+                                hover:opacity-100 cursor-pointer"
+                            >
+                              {"x"}
+                            </span>
+                          </div>
+                        );
+                      })
                     : "Select categories"}
                 </div>
-                <span className="ml-2 text-xs text-slate-500">
+                <span
+                  className="ml-2 text-xs text-slate-500
+                    dark:text-muted-foreground"
+                >
                   {isCategoryDropdownOpen ? "▲" : "▼"}
                 </span>
               </button>
 
               {isCategoryDropdownOpen ? (
-                <div className="absolute z-20 mt-2 w-full rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+                <div
+                  className="absolute z-20 mt-2 w-full rounded-lg border
+                    border-slate-200 bg-white p-2 shadow-lg dark:border-border
+                    dark:bg-card"
+                >
                   <input
                     id="edit_borrower_categories_search"
                     type="text"
@@ -289,16 +293,23 @@ export default function BorrowerEditForm({
 
                   <div className="mt-2 max-h-48 space-y-1 overflow-y-auto pr-1">
                     {filteredCategories.length === 0 ? (
-                      <p className="px-2 py-1 text-sm text-gray-500">
+                      <p
+                        className="px-2 py-1 text-sm text-gray-500
+                          dark:text-muted-foreground"
+                      >
                         No categories found.
                       </p>
                     ) : (
                       filteredCategories.map((category) => {
-                        const checked = selectedCategoryIds.includes(category.id);
+                        const checked = selectedCategoryIds.includes(
+                          category.id,
+                        );
                         return (
                           <label
                             key={category.id}
-                            className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-slate-50"
+                            className="flex cursor-pointer items-center gap-2
+                              rounded-md px-2 py-1 hover:bg-slate-50
+                              dark:hover:bg-muted"
                           >
                             <input
                               type="checkbox"
@@ -308,7 +319,9 @@ export default function BorrowerEditForm({
                             />
                             <span
                               className="h-3 w-3 rounded-full border"
-                              style={{ backgroundColor: category.color ?? "#cbd5e1" }}
+                              style={{
+                                backgroundColor: category.color ?? "#cbd5e1",
+                              }}
                             />
                             <span className="text-sm">{category.name}</span>
                           </label>
@@ -321,7 +334,10 @@ export default function BorrowerEditForm({
                     <button
                       type="button"
                       onClick={() => setIsCategoryDropdownOpen(false)}
-                      className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      className="rounded border border-slate-300 px-2 py-1
+                        text-xs font-semibold text-slate-700 hover:bg-slate-100
+                        dark:border-border/60 dark:text-muted-foreground
+                        dark:hover:bg-muted"
                     >
                       Done
                     </button>
@@ -329,7 +345,7 @@ export default function BorrowerEditForm({
                 </div>
               ) : null}
             </div>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-muted-foreground">
               Search and tick one or more categories.
             </p>
           </div>
@@ -338,7 +354,7 @@ export default function BorrowerEditForm({
               href={`/borrowers/${borrowerId}`}
               className={neobrutButtonClassName(
                 "white",
-                "mt-5 inline-flex items-center justify-center"
+                "mt-5 inline-flex items-center justify-center",
               )}
             >
               Cancel
