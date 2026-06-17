@@ -106,6 +106,7 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
     setShowSuggestions(false);
     setInput("");
     setDebouncedQuery("");
+    inputRef.current?.blur();
     router.push(`/borrowers/${borrower.id}`);
   }
 
