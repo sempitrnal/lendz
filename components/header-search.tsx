@@ -2,12 +2,34 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { Clock, Search } from "lucide-react";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 
+const RECENT_KEY = "lendz:search-recent";
+
 interface HeaderSearchProps {
   className?: string;
+}
+
+function loadRecent(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+function saveRecent(id: string) {
+  try {
+    const current = loadRecent();
+    const next = [id, ...current.filter((x) => x !== id)].slice(0, 5);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    // ignore
+  }
 }
 
 export default function HeaderSearch({ className }: HeaderSearchProps) {
@@ -18,10 +40,15 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [recentIds, setRecentIds] = useState<string[]>([]);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setRecentIds(loadRecent());
+  }, []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -46,6 +73,8 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const isQuery = debouncedQuery.trim().length > 0;
+
   const suggestions = useMemo<BorrowerSearchItem[]>(() => {
     const q = debouncedQuery.trim().toLowerCase();
     if (!q) return [];
@@ -60,7 +89,20 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
       .slice(0, 6);
   }, [borrowers, debouncedQuery]);
 
+  const recents = useMemo<BorrowerSearchItem[]>(() => {
+    const map = new Map(borrowers.map((b) => [b.id, b]));
+    return recentIds
+      .map((id) => map.get(id))
+      .filter((b): b is BorrowerSearchItem => Boolean(b));
+  }, [borrowers, recentIds]);
+
+  const visibleItems = isQuery ? suggestions : recents;
+
   function navigate(borrower: BorrowerSearchItem) {
+    saveRecent(borrower.id);
+    setRecentIds((prev) =>
+      [borrower.id, ...prev.filter((x) => x !== borrower.id)].slice(0, 5),
+    );
     setShowSuggestions(false);
     setInput("");
     setDebouncedQuery("");
@@ -86,11 +128,11 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
           onChange={(e) => {
             const v = e.target.value;
             setInput(v);
-            setShowSuggestions(v.trim().length > 0);
+            setShowSuggestions(true);
             setActiveIndex(-1);
           }}
           onFocus={() => {
-            if (input.trim()) setShowSuggestions(true);
+            setShowSuggestions(true);
           }}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
@@ -98,23 +140,23 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
               inputRef.current?.blur();
               return;
             }
-            if (!showSuggestions || suggestions.length === 0) return;
+            if (!showSuggestions || visibleItems.length === 0) return;
             if (e.key === "ArrowDown") {
               e.preventDefault();
-              setActiveIndex((p) => Math.min(p + 1, suggestions.length - 1));
+              setActiveIndex((p) => Math.min(p + 1, visibleItems.length - 1));
             } else if (e.key === "ArrowUp") {
               e.preventDefault();
               setActiveIndex((p) => Math.max(p - 1, -1));
             } else if (e.key === "Enter" && activeIndex >= 0) {
               e.preventDefault();
-              navigate(suggestions[activeIndex]);
+              navigate(visibleItems[activeIndex]);
             }
           }}
           placeholder="Search borrowers…"
           autoComplete="off"
           aria-label="Search borrowers"
           aria-autocomplete="list"
-          aria-expanded={showSuggestions && suggestions.length > 0}
+          aria-expanded={showSuggestions && visibleItems.length > 0}
           className="dark:border-border dark:bg-card dark:text-foreground
             dark:placeholder:text-muted-foreground h-9 w-full rounded-lg border
             border-slate-900/30 bg-white py-2 pr-3 pl-9 text-sm text-slate-900
@@ -125,7 +167,7 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
         />
       </div>
 
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && visibleItems.length > 0 && (
         <div
           role="listbox"
           className="dark:border-border dark:bg-card absolute top-full right-0
@@ -134,7 +176,18 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
             shadow-[3px_3px_0px_0px_rgb(15_23_42/0.85)]
             dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
         >
-          {suggestions.map((s, i) => (
+          {!isQuery && (
+            <div
+              className="dark:border-border/40 flex items-center gap-1.5
+                border-b border-slate-100 px-3 py-1.5 text-[10px] font-black
+                uppercase tracking-wide text-slate-400
+                dark:text-muted-foreground"
+            >
+              <Clock className="size-3" />
+              Recently visited
+            </div>
+          )}
+          {visibleItems.map((s, i) => (
             <button
               key={s.id}
               type="button"
@@ -156,7 +209,7 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <span
                   className="dark:text-foreground truncate text-sm font-bold
-                    text-slate-900"
+                    text-slate-900 uppercase"
                 >
                   {s.first_name} {s.last_name}
                 </span>
