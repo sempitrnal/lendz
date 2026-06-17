@@ -27,6 +27,7 @@ export default function SiteHeader({
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   if (pathname === "/login") return null;
 
@@ -48,9 +49,14 @@ export default function SiteHeader({
           justify-between px-4 py-[14.5px] sm:px-6"
       >
         <div className="flex flex-1 items-center gap-5">
-          <HeaderSearch />
+          <HeaderSearch onFocusChange={setSearchFocused} />
         </div>
-        <div className="flex items-center gap-3">
+        <div
+          className={`flex items-center gap-3 overflow-hidden transition-all
+            duration-200 ease-in-out ${
+              searchFocused ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"
+            }`}
+        >
           <ThemeToggle />
           {isLoggedIn && (
             <form action={openModal} className="hidden sm:block">

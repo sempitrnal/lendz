@@ -98,7 +98,9 @@ export default function AccountCardMenu({
             type="button"
             data-prevent-account-open
             aria-label="Account actions"
-            className="absolute right-[-10px] rounded p-0.5 outline-none hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-slate-900"
+            className="absolute right-[-10px] text-slate-400 rounded p-0.5
+              outline-none hover:bg-black/5 focus-visible:ring-2
+              focus-visible:ring-slate-900"
             onClick={(e) => e.stopPropagation()}
           >
             <BsThreeDotsVertical className="size-5 cursor-pointer" />

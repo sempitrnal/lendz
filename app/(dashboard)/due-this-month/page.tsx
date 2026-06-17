@@ -175,11 +175,46 @@ export default async function DueThisMonthPage() {
     a.name.localeCompare(b.name),
   );
 
-  const pending = borrowers.filter((b) =>
-    b.schedules.some((s) => s.status !== "paid"),
-  );
-  const paid = borrowers.filter((b) =>
-    b.schedules.every((s) => s.status === "paid"),
+  // Group borrowers by category
+  const borrowersByCategory = new Map<
+    string,
+    {
+      label: string;
+      color: string | null;
+      pending: typeof borrowers;
+      paid: typeof borrowers;
+      pendingTotal: number;
+      paidTotal: number;
+    }
+  >();
+
+  for (const b of borrowers) {
+    const key = b.category;
+    if (!borrowersByCategory.has(key)) {
+      borrowersByCategory.set(key, {
+        label: key,
+        color: b.categoryColor,
+        pending: [],
+        paid: [],
+        pendingTotal: 0,
+        paidTotal: 0,
+      });
+    }
+    const entry = borrowersByCategory.get(key)!;
+    if (b.schedules.some((s) => s.status !== "paid")) {
+      entry.pending.push(b);
+      entry.pendingTotal += b.schedules.reduce(
+        (sum, s) => sum + s.remaining,
+        0,
+      );
+    } else {
+      entry.paid.push(b);
+      entry.paidTotal += b.schedules.reduce((sum, s) => sum + s.amountDue, 0);
+    }
+  }
+
+  const categoryEntries = Array.from(borrowersByCategory.values()).sort(
+    (a, b) => a.label.localeCompare(b.label),
   );
 
   const monthLabel = now.toLocaleDateString("en-US", {
@@ -213,6 +248,7 @@ export default async function DueThisMonthPage() {
       status: string;
       items: number[];
       total: number;
+      totalPaid: number;
     }[] = [];
 
     for (const s of schedules) {
@@ -220,12 +256,14 @@ export default async function DueThisMonthPage() {
       if (last && last.date === s.dueDate && last.status === s.status) {
         last.items.push(getAmount(s));
         last.total += getAmount(s);
+        last.totalPaid += s.amountPaid;
       } else {
         groups.push({
           date: s.dueDate,
           status: s.status,
           items: [getAmount(s)],
           total: getAmount(s),
+          totalPaid: s.amountPaid,
         });
       }
     }
@@ -233,18 +271,22 @@ export default async function DueThisMonthPage() {
     return groups;
   }
 
-  const totalPendingAmount = pending.reduce(
-    (sum, b) => sum + b.schedules.reduce((s, sc) => s + sc.remaining, 0),
+  const totalPendingAmount = categoryEntries.reduce(
+    (sum, cat) =>
+      sum +
+      cat.pending.reduce(
+        (s, b) => s + b.schedules.reduce((sc, sch) => sc + sch.remaining, 0),
+        0,
+      ),
     0,
   );
 
   return (
     <main className="mx-auto w-full max-w-5xl px-1 py-2 sm:px-0">
       <section
-        className="dark:border-border dark:via-card mb-4 rounded-xl border-2
-          border-slate-900 bg-linear-to-r from-sky-50 via-stone-50 to-indigo-100
-          p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:mb-6 sm:p-6
-          dark:from-sky-950/50 dark:to-indigo-950/30"
+        className="dark:border-border dark:via-card mb-4 rounded-xl border
+          border-slate-400 bg-linear-to-r from-sky-50 via-stone-50 to-indigo-100
+          p-4 sm:mb-6 sm:p-6 dark:from-sky-950/50 dark:to-indigo-950/30"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -263,8 +305,8 @@ export default async function DueThisMonthPage() {
           </div>
           <span
             className="dark:border-border dark:text-foreground inline-flex
-              items-center gap-1.5 rounded-md border-2 border-slate-900 bg-white
-              px-2.5 py-1 text-xs font-bold text-slate-600 uppercase
+              items-center gap-1.5 rounded-md border border-slate-400 bg-white
+              px-2.5 py-1 text-xs font-bold text-slate-500 uppercase
               dark:bg-card"
           >
             <CalendarDays className="size-3.5" />
@@ -280,10 +322,9 @@ export default async function DueThisMonthPage() {
       {/* Summary bar */}
       <section className="mb-4 grid gap-3 sm:grid-cols-2 lg:mb-6">
         <div
-          className="dark:border-border dark:via-card min-w-0 rounded-xl
-            border-2 border-slate-900 bg-linear-to-br from-orange-50
-            via-stone-50 to-amber-100 p-4 shadow-[4px_4px_0px_0px_#0f172a]
-            dark:from-orange-950/30 dark:to-amber-950/30"
+          className="dark:border-border dark:via-card min-w-0 rounded-xl border
+            border-slate-400 bg-linear-to-br from-orange-50 via-stone-50
+            to-amber-100 p-4 dark:from-orange-950/30 dark:to-amber-950/30"
         >
           <p
             className="dark:text-muted-foreground text-xs font-bold
@@ -295,7 +336,7 @@ export default async function DueThisMonthPage() {
             className="dark:text-foreground mt-1 text-2xl font-black
               text-slate-600"
           >
-            {pending.length}
+            {categoryEntries.reduce((sum, c) => sum + c.pending.length, 0)}
           </p>
           <p
             className="dark:text-muted-foreground mt-0.5 text-xs font-semibold
@@ -305,10 +346,9 @@ export default async function DueThisMonthPage() {
           </p>
         </div>
         <div
-          className="dark:border-border dark:via-card min-w-0 rounded-xl
-            border-2 border-slate-900 bg-linear-to-br from-emerald-50
-            via-stone-50 to-lime-100 p-4 shadow-[4px_4px_0px_0px_#0f172a]
-            dark:from-emerald-950/30 dark:to-lime-950/30"
+          className="dark:border-border dark:via-card min-w-0 rounded-xl border
+            border-slate-400 bg-linear-to-br from-emerald-50 via-stone-50
+            to-lime-100 p-4 dark:from-emerald-950/30 dark:to-lime-950/30"
         >
           <p
             className="dark:text-muted-foreground text-xs font-bold
@@ -320,7 +360,7 @@ export default async function DueThisMonthPage() {
             className="dark:text-foreground mt-1 text-2xl font-black
               text-slate-600"
           >
-            {paid.length}
+            {categoryEntries.reduce((sum, c) => sum + c.paid.length, 0)}
           </p>
           <p
             className="dark:text-muted-foreground mt-0.5 text-xs font-semibold
@@ -331,325 +371,371 @@ export default async function DueThisMonthPage() {
         </div>
       </section>
 
-      {/* Pending group */}
-      <section className="mb-4 lg:mb-6">
-        <details open className="group">
-          <summary
-            className="dark:border-border flex cursor-pointer list-none
-              items-center justify-between rounded-xl border-2 border-slate-900
-              bg-orange-50 px-4 py-3 dark:bg-orange-950/30"
-          >
-            <div className="flex items-center gap-2">
-              <span
-                className="dark:text-foreground text-sm font-black tracking-wide
-                  text-slate-800 uppercase"
-              >
-                pending
-              </span>
-              <span
-                className="dark:bg-card dark:text-muted-foreground rounded-md
-                  border border-slate-900/20 bg-white px-2 py-0.5 text-[10px]
-                  font-bold text-slate-600 tabular-nums"
-              >
-                {pending.length}
-              </span>
-            </div>
-            <ChevronDown
-              className="size-4 shrink-0 text-slate-600 transition-transform
-                group-open:rotate-180"
+      {/* Categories */}
+      {categoryEntries.map((cat) => (
+        <section key={cat.label} className="mb-6">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span
+              className="size-2.5 rounded-full border border-slate-900/25"
+              style={{
+                backgroundColor: cat.color ?? "#cbd5e1",
+              }}
             />
-          </summary>
-
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {pending.length === 0 ? (
-              <div
-                className="dark:border-muted-foreground/40 dark:bg-muted
-                  dark:text-muted-foreground col-span-full rounded-lg border-2
-                  border-dashed border-slate-400 bg-slate-50 p-4 text-sm
-                  text-slate-600"
-              >
-                No pending schedules this month.
-              </div>
-            ) : (
-              pending.map((b) => {
-                const totalRemaining = b.schedules.reduce(
-                  (sum, s) => sum + s.remaining,
-                  0,
-                );
-                const totalDue = b.schedules.reduce(
-                  (sum, s) => sum + s.amountDue,
-                  0,
-                );
-                return (
-                  <article
-                    key={b.borrowerId ?? b.name}
-                    className="dark:border-border dark:bg-card flex flex-col
-                      rounded-lg border-2 border-slate-900 bg-white"
-                  >
-                    {/* Card header */}
-                    <div
-                      className="flex flex-col gap-1 border-b-2 border-slate-100
-                        p-3 dark:border-border/50"
-                    >
-                      <Link
-                        href={b.borrowerId ? `/borrowers/${b.borrowerId}` : "#"}
-                        className="dark:text-foreground block truncate text-xl
-                          font-bold text-slate-700 lowercase transition
-                          hover:opacity-70"
-                      >
-                        {b.name}
-                      </Link>
-                      <span
-                        className="dark:text-muted-foreground inline-flex
-                          items-center gap-1.5 text-[10px] font-bold
-                          text-slate-500 uppercase"
-                      >
-                        <span
-                          className="size-2 shrink-0 rounded-full border
-                            border-slate-900/25"
-                          style={{
-                            backgroundColor: b.categoryColor ?? "#cbd5e1",
-                          }}
-                          aria-hidden
-                        />
-                        {b.category}
-                      </span>
-                    </div>
-
-                    {/* Schedule rows */}
-                    <div className="flex-1 p-3">
-                      <div className="space-y-2">
-                        {groupSchedulesByDate(b.schedules, (s) =>
-                          s.status === "paid" ? s.amountDue : s.remaining,
-                        ).map((g, i) => (
-                          <div
-                            key={g.date + i}
-                            className="flex items-center justify-between gap-2"
-                          >
-                            <div className="min-w-0">
-                              <p
-                                className="text-[10px] font-semibold
-                                  text-slate-500 uppercase
-                                  dark:text-muted-foreground"
-                              >
-                                {formatDate(g.date)}
-                                {g.items.length > 1 && (
-                                  <span
-                                    className="ml-1 font-bold text-slate-400"
-                                  >
-                                    (×{g.items.length})
-                                  </span>
-                                )}
-                              </p>
-                              <p
-                                className="text-xs font-bold text-slate-800
-                                  dark:text-foreground"
-                              >
-                                PHP {g.total.toLocaleString()}
-                              </p>
-                            </div>
-                            <span
-                              className={`shrink-0 rounded-md px-1.5 py-0.5
-                                text-[9px] font-black uppercase ${
-                                  g.status === "paid"
-                                    ? `bg-emerald-100 text-emerald-800
-                                      dark:bg-emerald-900/40
-                                      dark:text-emerald-200`
-                                    : g.status === "overdue"
-                                      ? `bg-rose-100 text-rose-800
-                                        dark:bg-rose-900/40 dark:text-rose-200`
-                                      : `bg-amber-100 text-amber-800
-                                        dark:bg-amber-900/40
-                                        dark:text-amber-200`
-                                }`}
-                            >
-                              {g.status}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Card footer */}
-                    <div
-                      className="flex items-center rounded-b-lg justify-between
-                        border-t-2 border-slate-100 bg-slate-50 p-3
-                        dark:border-border/50 dark:bg-muted/40"
-                    >
-                      <span
-                        className="dark:text-muted-foreground text-[10px]
-                          font-bold tracking-wide text-slate-500 uppercase"
-                      >
-                        total remaining
-                      </span>
-                      <span
-                        className="dark:text-foreground text-sm font-black
-                          text-slate-600"
-                      >
-                        PHP {totalRemaining.toLocaleString()}
-                      </span>
-                    </div>
-                  </article>
-                );
-              })
+            <h2
+              className="text-sm font-bold uppercase tracking-wider
+                text-slate-500 dark:text-foreground"
+            >
+              {cat.label}
+            </h2>
+            <span
+              className="text-xs font-semibold text-slate-400
+                dark:text-muted-foreground"
+            >
+              {cat.pending.length + cat.paid.length} borrower
+              {cat.pending.length + cat.paid.length === 1 ? "" : "s"}
+            </span>
+            {cat.pendingTotal > 0 && (
+              <span className="text-xs font-semibold text-slate-400">
+                ₱{cat.pendingTotal.toLocaleString()} remaining
+              </span>
+            )}
+            {cat.paidTotal > 0 && (
+              <span className="text-xs font-semibold text-slate-400">
+                ₱{cat.paidTotal.toLocaleString()} paid
+              </span>
             )}
           </div>
-        </details>
-      </section>
 
-      {/* Paid group */}
-      <section>
-        <details className="group">
-          <summary
-            className="dark:border-border flex cursor-pointer list-none
-              items-center justify-between rounded-xl border-2 border-slate-900
-              bg-emerald-50 px-4 py-3 dark:bg-emerald-950/30"
-          >
-            <div className="flex items-center gap-2">
-              <span
-                className="dark:text-foreground text-sm font-black tracking-wide
-                  text-slate-800 uppercase"
-              >
-                paid
-              </span>
-              <span
-                className="dark:bg-card dark:text-muted-foreground rounded-md
-                  border border-slate-900/20 bg-white px-2 py-0.5 text-[10px]
-                  font-bold text-slate-600 tabular-nums"
-              >
-                {paid.length}
-              </span>
-            </div>
-            <ChevronDown
-              className="size-4 shrink-0 text-slate-600 transition-transform
-                group-open:rotate-180"
-            />
-          </summary>
-
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {paid.length === 0 ? (
-              <div
-                className="dark:border-muted-foreground/40 dark:bg-muted
-                  dark:text-muted-foreground col-span-full rounded-lg border-2
-                  border-dashed border-slate-400 bg-slate-50 p-4 text-sm
-                  text-slate-600"
-              >
-                No fully paid schedules this month.
-              </div>
-            ) : (
-              paid.map((b) => {
-                const totalPaid = b.schedules.reduce(
-                  (sum, s) => sum + s.amountDue,
-                  0,
-                );
-                return (
-                  <article
-                    key={b.borrowerId ?? b.name}
-                    className="dark:border-border dark:bg-card flex flex-col
-                      rounded-xl border-2 border-slate-900 bg-white"
-                  >
-                    {/* Card header */}
-                    <div
-                      className="flex flex-col gap-1 border-b-2 border-slate-100
-                        p-3 dark:border-border/50"
+          {/* Pending */}
+          {cat.pending.length > 0 && (
+            <div className="mb-3">
+              <details className="group">
+                <summary
+                  className="dark:border-border flex cursor-pointer list-none
+                    items-center justify-between rounded-xl border
+                    border-slate-400 bg-orange-50 px-4 py-3
+                    dark:bg-orange-950/30"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="dark:text-foreground text-sm font-bold
+                        tracking-wide text-slate-600 uppercase"
                     >
-                      <Link
-                        href={b.borrowerId ? `/borrowers/${b.borrowerId}` : "#"}
-                        className="dark:text-foreground block truncate text-sm
-                          font-black text-slate-600 lowercase transition
-                          hover:opacity-70"
+                      pending
+                    </span>
+                    <span
+                      className="dark:bg-card dark:text-muted-foreground
+                        rounded-md border border-slate-900/20 bg-white px-2
+                        py-0.5 text-[10px] font-bold text-slate-600
+                        tabular-nums"
+                    >
+                      {cat.pending.length}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className="size-4 shrink-0 text-slate-600
+                      transition-transform group-open:rotate-180"
+                  />
+                </summary>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {cat.pending.map((b) => {
+                    const totalRemaining = b.schedules.reduce(
+                      (sum, s) => sum + s.remaining,
+                      0,
+                    );
+                    return (
+                      <article
+                        key={b.borrowerId ?? b.name}
+                        className="dark:border-border dark:bg-card relative flex
+                          flex-col rounded-lg border border-slate-400 bg-white"
                       >
-                        {b.name}
-                      </Link>
-                      <span
-                        className="dark:text-muted-foreground inline-flex
-                          items-center gap-1.5 text-[10px] font-bold
-                          text-slate-500 uppercase"
-                      >
-                        <span
-                          className="size-2 shrink-0 rounded-full border
-                            border-slate-900/25"
+                        {/* Subtle category gradient */}
+                        <div
+                          className="pointer-events-none absolute inset-0
+                            rounded-lg"
                           style={{
-                            backgroundColor: b.categoryColor ?? "#cbd5e1",
+                            backgroundImage: `linear-gradient(135deg, ${b.categoryColor ?? "#cbd5e1"}08, transparent 50%)`,
                           }}
-                          aria-hidden
                         />
-                        {b.category}
-                      </span>
-                    </div>
-
-                    {/* Schedule rows */}
-                    <div className="flex-1 p-3">
-                      <div className="space-y-2">
-                        {groupSchedulesByDate(
-                          b.schedules,
-                          (s) => s.amountDue,
-                        ).map((g, i) => (
-                          <div
-                            key={g.date + i}
-                            className="flex items-center justify-between gap-2"
+                        <div
+                          className="flex flex-col gap-1 border-b
+                            border-slate-100 p-3 dark:border-border/50"
+                        >
+                          <Link
+                            href={
+                              b.borrowerId ? `/borrowers/${b.borrowerId}` : "#"
+                            }
+                            className="dark:text-foreground block truncate
+                              text-base font-bold text-slate-700 lowercase
+                              transition hover:opacity-70"
                           >
-                            <div className="min-w-0">
-                              <p
-                                className="text-[10px] font-semibold
-                                  text-slate-500 uppercase
-                                  dark:text-muted-foreground"
-                              >
-                                {formatDate(g.date)}
-                                {g.items.length > 1 && (
-                                  <span
-                                    className="ml-1 font-bold text-slate-400"
-                                  >
-                                    (×{g.items.length})
-                                  </span>
-                                )}
-                              </p>
-                              <p
-                                className="text-xs font-bold text-slate-800
-                                  dark:text-foreground"
-                              >
-                                PHP {g.total.toLocaleString()}
-                              </p>
-                            </div>
+                            {b.name}
+                          </Link>
+                          <span
+                            className="dark:text-muted-foreground inline-flex
+                              items-center gap-1.5 text-[10px] font-bold
+                              text-slate-400 uppercase"
+                          >
                             <span
-                              className="shrink-0 rounded-md bg-emerald-100
-                                px-1.5 py-0.5 text-[9px] font-black uppercase
-                                text-emerald-800 dark:bg-emerald-900/40
-                                dark:text-emerald-200"
-                            >
-                              paid
-                            </span>
+                              className="size-2 shrink-0 rounded-full border
+                                border-slate-900/25"
+                              style={{
+                                backgroundColor: b.categoryColor ?? "#cbd5e1",
+                              }}
+                              aria-hidden
+                            />
+                            {b.category}
+                          </span>
+                        </div>
+                        <div className="flex-1 p-3">
+                          <div className="space-y-2">
+                            {groupSchedulesByDate(b.schedules, (s) =>
+                              s.status === "paid" ? s.amountDue : s.remaining,
+                            ).map((g, i) => (
+                              <div
+                                key={g.date + i}
+                                className="flex items-center justify-between
+                                  gap-2"
+                              >
+                                <div className="min-w-0">
+                                  <p
+                                    className="text-[10px] font-semibold
+                                      text-slate-400 uppercase
+                                      dark:text-muted-foreground"
+                                  >
+                                    {formatDate(g.date)}
+                                    {g.items.length > 1 && (
+                                      <span
+                                        className="ml-1 font-bold
+                                          text-slate-300"
+                                      >
+                                        (×{g.items.length})
+                                      </span>
+                                    )}
+                                  </p>
+                                  <p
+                                    className="text-sm font-bold text-slate-700
+                                      dark:text-foreground"
+                                  >
+                                    PHP {g.total.toLocaleString()}
+                                  </p>
+                                  {g.status === "partial" && (
+                                    <p
+                                      className="text-[10px] font-semibold
+                                        text-slate-400 dark:text-slate-500"
+                                    >
+                                      ₱{g.totalPaid.toLocaleString()} paid · ₱
+                                      {g.total.toLocaleString()} remaining
+                                    </p>
+                                  )}
+                                </div>
+                                <span
+                                  className={`shrink-0 rounded-full px-2.5
+                                  py-0.5 text-[8px] font-black uppercase ${
+                                    g.status === "paid"
+                                      ? `bg-emerald-100 text-emerald-700
+                                        dark:bg-emerald-800
+                                        dark:text-emerald-100`
+                                      : g.status === "overdue"
+                                        ? `bg-rose-100 text-rose-700
+                                          dark:bg-rose-800 dark:text-rose-100`
+                                        : g.status === "partial"
+                                          ? `bg-purple-100 text-purple-700
+                                            dark:bg-purple-800
+                                            dark:text-purple-100`
+                                          : `bg-amber-100 text-amber-700
+                                            dark:bg-amber-800
+                                            dark:text-amber-100`
+                                  }`}
+                                >
+                                  {g.status}
+                                </span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                        </div>
+                        <div
+                          className="flex items-center rounded-b-lg
+                            justify-between border-t border-slate-100
+                            bg-slate-50/60 p-3 dark:border-border/50
+                            dark:bg-muted/30"
+                        >
+                          <span
+                            className="dark:text-muted-foreground text-[10px]
+                              font-bold tracking-wide text-slate-400 uppercase"
+                          >
+                            total remaining
+                          </span>
+                          <span
+                            className="dark:text-foreground text-sm font-bold
+                              text-slate-600"
+                          >
+                            PHP {totalRemaining.toLocaleString()}
+                          </span>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </details>
+            </div>
+          )}
 
-                    {/* Card footer */}
-                    <div
-                      className="flex items-center justify-between border-t-2
-                        border-slate-100 bg-slate-50 p-3 rounded-b-xl
-                        dark:border-border/50 dark:bg-muted/40"
+          {/* Paid */}
+          {cat.paid.length > 0 && (
+            <div>
+              <details className="group">
+                <summary
+                  className="dark:border-border flex cursor-pointer list-none
+                    items-center justify-between rounded-xl border
+                    border-slate-400 bg-emerald-50 px-4 py-3
+                    dark:bg-emerald-950/30"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="dark:text-foreground text-sm font-bold
+                        tracking-wide text-slate-600 uppercase"
                     >
-                      <span
-                        className="dark:text-muted-foreground text-[10px]
-                          font-bold tracking-wide text-slate-500 uppercase"
+                      paid
+                    </span>
+                    <span
+                      className="dark:bg-card dark:text-muted-foreground
+                        rounded-md border border-slate-900/20 bg-white px-2
+                        py-0.5 text-[10px] font-bold text-slate-600
+                        tabular-nums"
+                    >
+                      {cat.paid.length}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className="size-4 shrink-0 text-slate-600
+                      transition-transform group-open:rotate-180"
+                  />
+                </summary>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {cat.paid.map((b) => {
+                    const totalPaid = b.schedules.reduce(
+                      (sum, s) => sum + s.amountDue,
+                      0,
+                    );
+                    return (
+                      <article
+                        key={b.borrowerId ?? b.name}
+                        className="dark:border-border dark:bg-card relative flex
+                          flex-col rounded-lg border border-slate-400 bg-white"
                       >
-                        total collected
-                      </span>
-                      <span
-                        className="dark:text-foreground text-sm font-black
-                          text-slate-600"
-                      >
-                        PHP {totalPaid.toLocaleString()}
-                      </span>
-                    </div>
-                  </article>
-                );
-              })
-            )}
-          </div>
-        </details>
-      </section>
+                        {/* Subtle category gradient */}
+                        <div
+                          className="pointer-events-none absolute inset-0
+                            rounded-lg"
+                          style={{
+                            backgroundImage: `linear-gradient(135deg, ${b.categoryColor ?? "#cbd5e1"}08, transparent 50%)`,
+                          }}
+                        />
+                        <div
+                          className="flex flex-col gap-1 border-b
+                            border-slate-100 p-3 dark:border-border/50"
+                        >
+                          <Link
+                            href={
+                              b.borrowerId ? `/borrowers/${b.borrowerId}` : "#"
+                            }
+                            className="dark:text-foreground block truncate
+                              text-base font-bold text-slate-700 lowercase
+                              transition hover:opacity-70"
+                          >
+                            {b.name}
+                          </Link>
+                          <span
+                            className="dark:text-muted-foreground inline-flex
+                              items-center gap-1.5 text-[10px] font-bold
+                              text-slate-400 uppercase"
+                          >
+                            <span
+                              className="size-2 shrink-0 rounded-full border
+                                border-slate-900/25"
+                              style={{
+                                backgroundColor: b.categoryColor ?? "#cbd5e1",
+                              }}
+                              aria-hidden
+                            />
+                            {b.category}
+                          </span>
+                        </div>
+                        <div className="flex-1 p-3">
+                          <div className="space-y-2">
+                            {groupSchedulesByDate(
+                              b.schedules,
+                              (s) => s.amountDue,
+                            ).map((g, i) => (
+                              <div
+                                key={g.date + i}
+                                className="flex items-center justify-between
+                                  gap-2"
+                              >
+                                <div className="min-w-0">
+                                  <p
+                                    className="text-[10px] font-semibold
+                                      text-slate-400 uppercase
+                                      dark:text-muted-foreground"
+                                  >
+                                    {formatDate(g.date)}
+                                    {g.items.length > 1 && (
+                                      <span
+                                        className="ml-1 font-bold
+                                          text-slate-300"
+                                      >
+                                        (×{g.items.length})
+                                      </span>
+                                    )}
+                                  </p>
+                                  <p
+                                    className="text-sm font-bold text-slate-700
+                                      dark:text-foreground"
+                                  >
+                                    PHP {g.total.toLocaleString()}
+                                  </p>
+                                </div>
+                                <span
+                                  className="shrink-0 rounded-full
+                                    bg-emerald-100 px-2.5 py-0.5 text-[8px]
+                                    font-black uppercase text-emerald-700
+                                    dark:bg-emerald-800 dark:text-emerald-100"
+                                >
+                                  paid
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div
+                          className="flex items-center rounded-b-lg
+                            justify-between border-t border-slate-100
+                            bg-slate-50/60 p-3 dark:border-border/50
+                            dark:bg-muted/30"
+                        >
+                          <span
+                            className="dark:text-muted-foreground text-[10px]
+                              font-bold tracking-wide text-slate-400 uppercase"
+                          >
+                            total collected
+                          </span>
+                          <span
+                            className="dark:text-foreground text-sm font-black
+                              text-slate-700"
+                          >
+                            PHP {totalPaid.toLocaleString()}
+                          </span>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </details>
+            </div>
+          )}
+        </section>
+      ))}
     </main>
   );
 }

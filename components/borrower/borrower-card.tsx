@@ -106,7 +106,7 @@ export const BorrowerCard = memo(function BorrowerCard({
         if (Math.abs(e.touches[0].clientY - touchStartY.current) > 8)
           didScroll.current = true;
       }}
-      className={`relative w-full max-w-full min-w-0 rounded-lg border-2
+      className={`relative w-full max-w-full min-w-0 rounded-lg border-[1.5px]
         border-slate-300 bg-white text-left transition-all duration-150
         dark:border-border dark:bg-card ${
           isPending
@@ -176,32 +176,55 @@ export const BorrowerCard = memo(function BorrowerCard({
           </h2>
           {!compact && (
             <div className="mt-2 flex flex-wrap gap-2">
-              {categories.map(
-                (e: {
-                  category: { id: string; color: string | null; name: string };
-                }) => {
-                  const { id, color, name } = e.category;
-                  return (
-                    <div
-                      key={id}
-                      className="flex items-center gap-1.5 rounded-full
-                        text-[10px] font-bold uppercase dark:border-border/40"
-                    >
-                      <span
-                        className="size-2 shrink-0 rounded-full border
-                          border-slate-900/15"
-                        style={{
-                          backgroundColor: color ?? "#cbd5e1",
-                        }}
-                      />
-                      {name}
-                    </div>
-                  );
-                },
+              {categories.length > 0 ? (
+                categories.map(
+                  (e: {
+                    category: {
+                      id: string;
+                      color: string | null;
+                      name: string;
+                    };
+                  }) => {
+                    const { id, color, name } = e.category;
+                    return (
+                      <div
+                        key={id}
+                        className="flex items-center gap-1.5 rounded-full
+                          text-[10px] font-bold text-slate-600
+                          dark:text-slate-400 uppercase dark:border-border/40"
+                      >
+                        <span
+                          className="size-2 shrink-0 rounded-full border
+                            border-slate-900/15"
+                          style={{
+                            backgroundColor: color ?? "#cbd5e1",
+                          }}
+                        />
+                        {name}
+                      </div>
+                    );
+                  },
+                )
+              ) : (
+                <div
+                  key="no-category"
+                  className="flex items-center gap-1.5 rounded-full text-[10px]
+                    font-bold text-slate-600 dark:text-slate-400 uppercase
+                    dark:border-border/40"
+                >
+                  <span
+                    className="size-2 shrink-0 rounded-full border
+                      border-slate-900/15"
+                    style={{
+                      backgroundColor: "#cbd5e1",
+                    }}
+                  />
+                  Uncategorized
+                </div>
               )}
             </div>
           )}
-          {!compact && categories.length > 0 && hasNextUnpaid && (
+          {!compact && hasNextUnpaid && (
             <div className="relative mt-3 h-px">
               <div
                 className="absolute -left-4 -right-4 top-0 h-px bg-slate-200
@@ -379,22 +402,22 @@ export const BorrowerCard = memo(function BorrowerCard({
             </span>
             {nextStatus ? (
               <span
-                className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px]
+                className={`shrink-0 rounded-full px-2.5 py-0.5 text-[8px]
                   font-black uppercase ${
                     nextStatus === "overdue"
-                      ? `bg-rose-100 text-rose-800 dark:bg-rose-900/40
-                        dark:text-rose-200`
+                      ? `bg-rose-100 text-rose-700 dark:bg-rose-800
+                        dark:text-rose-100`
                       : nextStatus === "paid"
-                        ? `bg-emerald-100 text-emerald-800
-                          dark:bg-emerald-900/40 dark:text-emerald-200`
+                        ? `bg-emerald-100 text-emerald-700 dark:bg-emerald-800
+                          dark:text-emerald-100`
                         : nextStatus === "pending"
-                          ? `bg-amber-100 text-amber-800 dark:bg-amber-900/40
-                            dark:text-amber-200`
+                          ? `bg-amber-100 text-amber-700 dark:bg-amber-800
+                            dark:text-amber-100`
                           : nextStatus === "partial"
-                            ? `bg-purple-100 text-purple-800
-                              dark:bg-purple-900/40 dark:text-purple-200`
-                            : `bg-sky-100 text-sky-800 dark:bg-sky-900/40
-                              dark:text-sky-200`
+                            ? `bg-purple-100 text-purple-700 dark:bg-purple-800
+                              dark:text-purple-100`
+                            : `bg-sky-100 text-sky-700 dark:bg-sky-800
+                              dark:text-sky-100`
                   }`}
               >
                 {nextStatus}
@@ -407,8 +430,9 @@ export const BorrowerCard = memo(function BorrowerCard({
         {!compact && showScheduleSummary && hasNextUnpaid ? (
           <div
             className="mt-4 w-full min-w-0 self-stretch rounded-lg border
-              border-slate-200 bg-fuchsia-50/80 p-3 dark:border-border/50
-              dark:bg-muted/40"
+              border-slate-200 bg-linear-to-br from-sky-50 via-stone-50
+              to-indigo-50 p-3 dark:border-border/50 dark:from-sky-950/30
+              dark:via-stone-950/20 dark:to-indigo-950/30"
           >
             <div
               className="flex w-full min-w-0 flex-wrap items-center
@@ -509,7 +533,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                       ) : null}
                                       {schedule.status ? (
                                         <span
-                                          className={`ml-1 shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase ${schedule.status === "overdue" ? "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200" : schedule.status === "paid" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200" : schedule.status === "pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200" : schedule.status === "partial" ? "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200" : "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200"}`}
+                                          className={`ml-1 shrink-0 rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase ${schedule.status === "overdue" ? "bg-rose-100 text-rose-700 dark:bg-rose-800 dark:text-rose-100" : schedule.status === "paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-800 dark:text-emerald-100" : schedule.status === "pending" ? "bg-amber-100 text-amber-700 dark:bg-amber-800 dark:text-amber-100" : schedule.status === "partial" ? "bg-purple-100 text-purple-700 dark:bg-purple-800 dark:text-purple-100" : "bg-sky-100 text-sky-700 dark:bg-sky-800 dark:text-sky-100"}`}
                                         >
                                           {schedule.status}
                                         </span>

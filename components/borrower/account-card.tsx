@@ -290,7 +290,7 @@ export function AccountCard({
                 Remaining
               </p>
               <p
-                className="text-sm font-bold text-rose-600 tabular-nums
+                className="text-sm font-bold text-rose-400 tabular-nums
                   dark:text-rose-400"
               >
                 ₱{fmtCompact(amountLeftToPay)}
@@ -316,10 +316,10 @@ export function AccountCard({
                   className="text-[9px] font-bold tracking-wider text-slate-500
                     uppercase dark:text-muted-foreground"
                 >
-                  per sched
+                  ginansya
                 </p>
                 <p
-                  className="text-sm font-bold text-[#30153b] tabular-nums
+                  className="text-sm font-bold text-[#6f537b] tabular-nums
                     dark:text-violet-300"
                 >
                   ₱{fmtCompact(profitPerSchedule)}
@@ -370,9 +370,9 @@ export function AccountCard({
                 ) ?? null;
               if (!nextPending) return null;
               return (
-                <div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-border/50 dark:bg-muted/40">
-                  <span className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:text-muted-foreground">
-                    Next pending
+                <div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-border/50 dark:bg-card">
+                  <span className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase dark:text-muted-foreground">
+                    next
                   </span>
                   <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
                     {formatDate(nextPending.due_date)}
@@ -380,7 +380,7 @@ export function AccountCard({
                   <span className="text-[11px] font-bold text-slate-600 tabular-nums dark:text-slate-100">
                     ₱{nextPending.amount.toLocaleString()}
                   </span>
-                  <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-amber-800 uppercase dark:bg-amber-900/40 dark:text-amber-200">
+                  <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[8px] font-black uppercase text-amber-700 dark:bg-amber-800 dark:text-amber-100">
                     pending
                   </span>
                 </div>
@@ -405,13 +405,13 @@ export function AccountCard({
                   {visible.map((p, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 dark:border-border/50 dark:bg-muted/40"
+                      className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 dark:border-border/50 dark:bg-card"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
                           {formatDate(p.due_date)}
                         </span>
-                        <span className="text-[11px] font-bold text-slate-600 tabular-nums dark:text-slate-200">
+                        <span className="text-[11px] font-bold text-slate-700 tabular-nums dark:text-slate-200">
                           ₱{p.amount.toLocaleString()}
                         </span>
                         {p.amount_due > p.amount && (
@@ -420,7 +420,7 @@ export function AccountCard({
                           </span>
                         )}
                       </div>
-                      <span className="rounded-md bg-purple-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-purple-800 uppercase dark:bg-purple-900/40 dark:text-purple-200">
+                      <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[8px] font-black uppercase text-purple-700 dark:bg-purple-800 dark:text-purple-100">
                         partial
                       </span>
                     </div>
@@ -451,7 +451,7 @@ export function AccountCard({
         {hasOverdue && (
           <div
             className="mt-3 overflow-hidden rounded-lg border border-slate-200
-              bg-slate-50 dark:border-border/50 dark:bg-muted/40"
+              bg-white dark:border-border/50 dark:bg-card"
           >
             <button
               type="button"
@@ -461,13 +461,14 @@ export function AccountCard({
             >
               <div
                 className="flex size-5 shrink-0 items-center justify-center
-                  rounded-full bg-rose-500 text-[10px] font-bold text-white"
+                  rounded-full bg-rose-100 text-[10px] font-bold text-rose-700
+                  dark:bg-rose-800 dark:text-rose-100"
               >
                 {overdueCount}
               </div>
               <span
-                className="text-[11px] font-bold text-rose-600
-                  dark:text-rose-400"
+                className="text-[11px] font-bold text-rose-700
+                  dark:text-rose-300"
               >
                 overdue
               </span>
@@ -478,7 +479,7 @@ export function AccountCard({
                 ₱{overdueTotal.toLocaleString()}
               </span>
               <ChevronDown
-                className={`size-3.5 text-rose-500 transition-transform
+                className={`size-3.5 text-rose-400 transition-transform
                 dark:text-rose-400 ${overdueExpanded ? "rotate-180" : ""}`}
               />
             </button>

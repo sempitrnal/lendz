@@ -10,6 +10,7 @@ const RECENT_KEY = "lendz:search-recent";
 
 interface HeaderSearchProps {
   className?: string;
+  onFocusChange?: (focused: boolean) => void;
 }
 
 function loadRecent(): string[] {
@@ -32,7 +33,10 @@ function saveRecent(id: string) {
   }
 }
 
-export default function HeaderSearch({ className }: HeaderSearchProps) {
+export default function HeaderSearch({
+  className,
+  onFocusChange,
+}: HeaderSearchProps) {
   const router = useRouter();
   const { data: borrowers = [] } = useBorrowersSearch();
 
@@ -134,6 +138,10 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
           }}
           onFocus={() => {
             setShowSuggestions(true);
+            onFocusChange?.(true);
+          }}
+          onBlur={() => {
+            onFocusChange?.(false);
           }}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
@@ -171,6 +179,7 @@ export default function HeaderSearch({ className }: HeaderSearchProps) {
       {showSuggestions && visibleItems.length > 0 && (
         <div
           role="listbox"
+          onMouseDown={(e) => e.preventDefault()}
           className="dark:border-border dark:bg-card absolute top-full right-0
             left-0 z-50 mt-1 overflow-hidden rounded-xl border-2
             border-slate-900 bg-white

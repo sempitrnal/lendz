@@ -619,7 +619,7 @@ export default function BorrowerAccountsSection({
               >
                 <div className="mt-10 mb-3 flex items-center gap-2">
                   <span
-                    className={`rounded-full border-2 border-slate-900 px-2.5 py-1 text-[10px] font-black tracking-widest uppercase shadow-[2px_2px_0px_0px_#0f172a] ${accent}`}
+                    className={`rounded-full border border-slate-300 font-black px-2.5 py-1 text-[10px]  ${accent}`}
                   >
                     {label}
                   </span>
