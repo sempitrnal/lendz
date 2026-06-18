@@ -212,6 +212,7 @@ export default function BorrowerAccountsSection({
     setSelectedNote(null);
   };
   const [selectedNote, setSelectedNote] = useState<any | null>(null);
+  const noteDraftsRef = useRef<Record<string, Record<string, unknown>>>({});
 
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const handleOpenAccount = (id: string) => {
@@ -1004,7 +1005,14 @@ export default function BorrowerAccountsSection({
             <NotesCanvas
               borrowerId={borrowerId}
               note={selectedNote}
+              draft={
+                noteDraftsRef.current[selectedNote?.id ?? "__new__"] ?? null
+              }
+              onDraftChange={(json) => {
+                noteDraftsRef.current[selectedNote?.id ?? "__new__"] = json;
+              }}
               onSaved={() => {
+                delete noteDraftsRef.current[selectedNote?.id ?? "__new__"];
                 invalidateBorrowerDetails(borrowerId);
                 setIsNotesOpen(false);
               }}

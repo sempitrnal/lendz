@@ -18,6 +18,7 @@ import {
   Maximize2,
   Pencil,
   Eraser,
+  PaintBucket,
   MousePointer2,
   Type,
 } from "lucide-react";
@@ -42,19 +43,46 @@ function getTheme(dark: boolean) {
     : { bg: NOTES_LIGHT_BG, ink: NOTES_LIGHT_INK };
 }
 
+function hexToRgba(hex: string, alpha: number) {
+  const clean = hex.replace("#", "");
+  const bigint = parseInt(clean, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function opacityFromHex(hex: string) {
+  const clean = hex.replace("#", "");
+  if (clean.length === 8) {
+    return parseInt(clean.slice(6, 8), 16) / 255;
+  }
+  return 1;
+}
+
 /**
  * Walk all canvas objects and map sentinel `data` values to the
  * resolved colors for `dark`.  Background is also updated.
  */
 function applyThemeToCanvas(canvas: FabricCanvas, dark: boolean) {
   const { bg, ink } = getTheme(dark);
-  canvas.backgroundColor = bg;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!(canvas as any).customBg) {
+    canvas.backgroundColor = bg;
+  }
   for (const obj of canvas.getObjects()) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const d = ((obj as any).data as Record<string, string>) ?? {};
-    if (d.logicalStroke === INK_SENTINEL) obj.set("stroke", ink);
-    else if (d.logicalStroke === PAPER_SENTINEL) obj.set("stroke", bg);
-    if (d.logicalFill === INK_SENTINEL) obj.set("fill", ink);
+    const d = ((obj as any).data as Record<string, unknown>) ?? {};
+    if (d.logicalStroke === INK_SENTINEL) {
+      const alpha = typeof d.strokeOpacity === "number" ? d.strokeOpacity : 1;
+      obj.set("stroke", hexToRgba(ink, alpha));
+    } else if (d.logicalStroke === PAPER_SENTINEL) {
+      obj.set("stroke", bg);
+    }
+    if (d.logicalFill === INK_SENTINEL) {
+      const alpha = typeof d.fillOpacity === "number" ? d.fillOpacity : 1;
+      obj.set("fill", hexToRgba(ink, alpha));
+    }
   }
   canvas.renderAll();
 }
@@ -67,19 +95,30 @@ function applyThemeToCanvas(canvas: FabricCanvas, dark: boolean) {
 function renderWithTheme(canvas: FabricCanvas, dark: boolean): string {
   const { bg, ink } = getTheme(dark);
   const origBg = canvas.backgroundColor as string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hasCustomBg = (canvas as any).customBg;
   const objects = canvas.getObjects();
   const origColors = objects.map((obj) => ({
     stroke: obj.stroke as string | null | undefined,
     fill: obj.fill as string | null | undefined,
   }));
 
-  canvas.backgroundColor = bg;
+  if (!hasCustomBg) {
+    canvas.backgroundColor = bg;
+  }
   for (const obj of objects) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const d = ((obj as any).data as Record<string, string>) ?? {};
-    if (d.logicalStroke === INK_SENTINEL) obj.set("stroke", ink);
-    else if (d.logicalStroke === PAPER_SENTINEL) obj.set("stroke", bg);
-    if (d.logicalFill === INK_SENTINEL) obj.set("fill", ink);
+    const d = ((obj as any).data as Record<string, unknown>) ?? {};
+    if (d.logicalStroke === INK_SENTINEL) {
+      const alpha = typeof d.strokeOpacity === "number" ? d.strokeOpacity : 1;
+      obj.set("stroke", hexToRgba(ink, alpha));
+    } else if (d.logicalStroke === PAPER_SENTINEL) {
+      obj.set("stroke", bg);
+    }
+    if (d.logicalFill === INK_SENTINEL) {
+      const alpha = typeof d.fillOpacity === "number" ? d.fillOpacity : 1;
+      obj.set("fill", hexToRgba(ink, alpha));
+    }
   }
   canvas.renderAll();
 
@@ -223,10 +262,12 @@ export type BorrowerNotePayload = Record<string, unknown> & {
 type NotesCanvasProps = {
   borrowerId: string;
   note?: BorrowerNotePayload;
+  draft?: Record<string, unknown> | null;
+  onDraftChange?: (json: Record<string, unknown>) => void;
   onSaved?: (note: BorrowerNotePayload) => void;
 };
 
-type DrawTool = "pen" | "eraser" | "select" | "pan" | "text";
+type DrawTool = "pen" | "eraser" | "bucket" | "select" | "pan" | "text";
 
 class EraserPencilBrush extends PencilBrush {
   override _setBrushStyles(ctx: CanvasRenderingContext2D) {
@@ -272,11 +313,14 @@ class EraserPencilBrush extends PencilBrush {
 }
 
 const ERASER_WIDTH = 14;
-const PEN_WIDTH = 2;
+const DEFAULT_PEN_WIDTH = 2;
+const DEFAULT_PEN_OPACITY = 1;
 
 export default function NotesCanvas({
   borrowerId,
   note,
+  draft,
+  onDraftChange,
   onSaved,
 }: NotesCanvasProps) {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
@@ -288,11 +332,16 @@ export default function NotesCanvas({
   const [isDark, setIsDark] = useState(false);
   const [brushIsInk, setBrushIsInk] = useState(true);
   const [brushColor, setBrushColor] = useState(NOTES_LIGHT_INK);
+  const [brushSize, setBrushSize] = useState(DEFAULT_PEN_WIDTH);
+  const [brushOpacity, setBrushOpacity] = useState(DEFAULT_PEN_OPACITY);
   const [textSize, setTextSize] = useState(24);
   const [activeTool, setActiveTool] = useState<DrawTool>("pen");
 
   const isDarkRef = useRef(false);
   const brushIsInkRef = useRef(true);
+  const brushColorRef = useRef(brushColor);
+  const brushSizeRef = useRef(DEFAULT_PEN_WIDTH);
+  const brushOpacityRef = useRef(DEFAULT_PEN_OPACITY);
   const [textInput, setTextInput] = useState<{
     canvasX: number;
     canvasY: number;
@@ -304,12 +353,17 @@ export default function NotesCanvas({
   const historyIndexRef = useRef(-1);
   const maxHistory = 50;
   const [historyVersion, setHistoryVersion] = useState(0);
+  const onDraftChangeRef = useRef(onDraftChange);
+  onDraftChangeRef.current = onDraftChange;
 
   const pushHistory = useCallback(() => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const json = (canvas as any).toJSON(["data"]) as Record<string, unknown>;
+    json.backgroundColor = canvas.backgroundColor;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    json.customBg = (canvas as any).customBg ?? false;
     // Remove entries ahead if we're not at the top
     historyRef.current = historyRef.current.slice(
       0,
@@ -322,7 +376,23 @@ export default function NotesCanvas({
       historyIndexRef.current += 1;
     }
     setHistoryVersion((v) => v + 1);
+    onDraftChangeRef.current?.(json);
   }, []);
+
+  const restoreCanvasState = useCallback(
+    (canvas: Canvas, json: Record<string, unknown>) => {
+      if (typeof json.backgroundColor === "string") {
+        canvas.backgroundColor = json.backgroundColor;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (canvas as any).customBg = json.customBg ?? false;
+      restoreObjectData(canvas, json);
+      tagLegacyObjects(canvas);
+      applyThemeToCanvas(canvas, isDarkRef.current);
+      applyDrawingBrushRef.current();
+    },
+    [],
+  );
 
   const undo = useCallback(() => {
     const canvas = fabricRef.current;
@@ -332,13 +402,10 @@ export default function NotesCanvas({
     const json = historyRef.current[historyIndexRef.current];
     canvas.clear();
     canvas.loadFromJSON(json).then(() => {
-      restoreObjectData(canvas, json);
-      tagLegacyObjects(canvas);
-      applyThemeToCanvas(canvas, isDarkRef.current);
-      applyDrawingBrushRef.current();
+      restoreCanvasState(canvas, json);
       setHistoryVersion((v) => v + 1);
     });
-  }, []);
+  }, [restoreCanvasState]);
 
   const redo = useCallback(() => {
     const canvas = fabricRef.current;
@@ -348,13 +415,10 @@ export default function NotesCanvas({
     const json = historyRef.current[historyIndexRef.current];
     canvas.clear();
     canvas.loadFromJSON(json).then(() => {
-      restoreObjectData(canvas, json);
-      tagLegacyObjects(canvas);
-      applyThemeToCanvas(canvas, isDarkRef.current);
-      applyDrawingBrushRef.current();
+      restoreCanvasState(canvas, json);
       setHistoryVersion((v) => v + 1);
     });
-  }, []);
+  }, [restoreCanvasState]);
 
   const startTextEdit = useCallback(
     (canvasX: number, canvasY: number, target?: Text) => {
@@ -423,9 +487,18 @@ export default function NotesCanvas({
     const canvas = fabricRef.current;
     if (!canvas) return;
 
-    if (activeTool === "select" || activeTool === "text") {
+    if (
+      activeTool === "select" ||
+      activeTool === "text" ||
+      activeTool === "bucket"
+    ) {
       canvas.isDrawingMode = false;
-      canvas.defaultCursor = activeTool === "text" ? "text" : "default";
+      canvas.defaultCursor =
+        activeTool === "text"
+          ? "text"
+          : activeTool === "bucket"
+            ? "crosshair"
+            : "default";
       return;
     }
 
@@ -445,13 +518,14 @@ export default function NotesCanvas({
       canvas.freeDrawingBrush = brush;
     } else {
       const brush = new PencilBrush(canvas);
-      brush.width = PEN_WIDTH;
-      brush.color = brushIsInkRef.current
+      brush.width = brushSizeRef.current;
+      const baseColor = brushIsInkRef.current
         ? getTheme(isDarkRef.current).ink
         : brushColor;
+      brush.color = hexToRgba(baseColor, brushOpacityRef.current);
       canvas.freeDrawingBrush = brush;
     }
-  }, [activeTool, brushColor]);
+  }, [activeTool, brushColor, brushSize, brushOpacity]);
 
   const activeToolRef = useRef<DrawTool>(activeTool);
 
@@ -467,6 +541,15 @@ export default function NotesCanvas({
     isDarkRef.current = isDark;
     brushIsInkRef.current = brushIsInk;
   }, [isDark, brushIsInk]);
+
+  useEffect(() => {
+    brushColorRef.current = brushColor;
+  }, [brushColor]);
+
+  useEffect(() => {
+    brushSizeRef.current = brushSize;
+    brushOpacityRef.current = brushOpacity;
+  }, [brushSize, brushOpacity]);
 
   // Detect dark mode from the <html class="dark"> toggle (next-themes)
   useEffect(() => {
@@ -491,6 +574,11 @@ export default function NotesCanvas({
     applyThemeToCanvas(canvas, isDark);
     applyDrawingBrushRef.current();
   }, [isDark]);
+
+  // Re-apply brush when size/opacity changes
+  useEffect(() => {
+    applyDrawingBrushRef.current();
+  }, [brushSize, brushOpacity]);
 
   // Re-apply brush when ink toggle changes
   useEffect(() => {
@@ -550,6 +638,54 @@ export default function NotesCanvas({
 
     // load saved JSON (supports both compressed and legacy uncompressed)
     const loadCanvas = async () => {
+      // Restore customBg flag helper
+      const restoreCustomBg = (json: Record<string, unknown>) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((json as any).customBg) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (canvas as any).customBg = (json as any).customBg;
+        }
+      };
+
+      // 1. Prefer unsaved draft (accidental-close recovery)
+      if (draft) {
+        try {
+          if (disposed) return;
+          canvas.clear();
+          await canvas.loadFromJSON(draft);
+          if (typeof draft.backgroundColor === "string") {
+            canvas.backgroundColor = draft.backgroundColor;
+          }
+          restoreCustomBg(draft);
+          restoreObjectData(canvas, draft);
+          tagLegacyObjects(canvas);
+          applyThemeToCanvas(canvas, isDarkRef.current);
+          const vpt = draft.viewportTransform;
+          if (Array.isArray(vpt) && vpt.length === 6) {
+            canvas.viewportTransform = vpt as [
+              number,
+              number,
+              number,
+              number,
+              number,
+              number,
+            ];
+          }
+          canvas.renderAll();
+          setZoom(canvas.getZoom());
+          if (!disposed) applyDrawingBrushRef.current();
+          requestAnimationFrame(() => {
+            if (disposed) return;
+            historyRef.current = [draft];
+            historyIndexRef.current = 0;
+          });
+          return;
+        } catch (err) {
+          console.error("Failed to load draft", err);
+        }
+      }
+
+      // 2. Fall back to saved note JSON
       if (note?.canvas_json) {
         try {
           let jsonData: unknown = note.canvas_json;
@@ -562,7 +698,12 @@ export default function NotesCanvas({
           canvas.clear();
           await canvas.loadFromJSON(jsonData as Record<string, unknown>);
 
-          restoreObjectData(canvas, jsonData as Record<string, unknown>);
+          const j = jsonData as Record<string, unknown>;
+          if (typeof j.backgroundColor === "string") {
+            canvas.backgroundColor = j.backgroundColor;
+          }
+          restoreCustomBg(j);
+          restoreObjectData(canvas, j);
           tagLegacyObjects(canvas);
           applyThemeToCanvas(canvas, isDarkRef.current);
 
@@ -595,6 +736,9 @@ export default function NotesCanvas({
           string,
           unknown
         >;
+        initialJSON.backgroundColor = canvas.backgroundColor;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        initialJSON.customBg = (canvas as any).customBg ?? false;
         historyRef.current = [initialJSON];
         historyIndexRef.current = 0;
       });
@@ -606,10 +750,17 @@ export default function NotesCanvas({
     const handlePathCreated = (opt: any) => {
       if (opt.path && activeToolRef.current !== "eraser") {
         const logicalStroke = brushIsInkRef.current ? INK_SENTINEL : null;
-        opt.path.data = { logicalStroke };
+        const data: Record<string, unknown> = { logicalStroke };
+        if (logicalStroke) {
+          data.strokeOpacity = brushOpacityRef.current;
+        }
+        opt.path.data = data;
         // Ensure resolved color matches current theme
         if (logicalStroke === INK_SENTINEL) {
-          opt.path.set("stroke", getTheme(isDarkRef.current).ink);
+          opt.path.set(
+            "stroke",
+            hexToRgba(getTheme(isDarkRef.current).ink, brushOpacityRef.current),
+          );
         }
       }
       pushHistory();
@@ -624,6 +775,34 @@ export default function NotesCanvas({
       "touches" in e && e.touches.length > 0
         ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
         : { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY };
+
+    const onBucketClick = (opt: {
+      e: Event;
+      pointer?: { x: number; y: number };
+      scenePoint?: { x: number; y: number };
+      target?: unknown;
+    }) => {
+      if (activeToolRef.current !== "bucket") return;
+      const resolvedFill = brushIsInkRef.current
+        ? getTheme(isDarkRef.current).ink
+        : brushColorRef.current;
+      const fillColor = hexToRgba(resolvedFill, brushOpacityRef.current);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const target = opt.target as any;
+      if (target && target.set) {
+        target.set("fill", fillColor);
+        // Bucket fills always store resolved color (no sentinel)
+      } else {
+        canvas.backgroundColor = fillColor;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (canvas as any).customBg = true;
+      }
+
+      canvas.renderAll();
+      pushHistory();
+    };
+    canvas.on("mouse:down", onBucketClick as any);
 
     const onPanStart = (opt: { e: MouseEvent | TouchEvent }) => {
       if (activeToolRef.current !== "pan") return;
@@ -751,6 +930,7 @@ export default function NotesCanvas({
       window.removeEventListener("resize", resizeCanvas);
       window.removeEventListener("keydown", handleKeyDown);
       canvas.off("path:created", handlePathCreated);
+      canvas.off("mouse:down", onBucketClick as any);
       canvas.off("mouse:down", onPanStart as any);
       canvas.off("mouse:move", onPanMove as any);
       canvas.off("mouse:up", onPanEnd);
@@ -859,24 +1039,61 @@ export default function NotesCanvas({
           },
         );
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      rawJSON.customBg = (canvas as any).customBg ?? false;
       rawJSON.viewportTransform = canvas.viewportTransform;
 
-      // Generate light + dark previews; share a UUID so dark URL is derivable
-      const lightDataUrl = renderWithTheme(canvas, false);
-      const darkDataUrl = renderWithTheme(canvas, true);
-      // Restore current theme after renderWithTheme left originals but didn't re-render
-      applyThemeToCanvas(canvas, isDarkRef.current);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hasCustomBg = (canvas as any).customBg;
+      let preview_image_url: string;
 
-      const previewUuid = crypto.randomUUID();
-      const lightFileName = `borrower-notes/${previewUuid}.webp`;
-      const darkFileName = `borrower-notes/${previewUuid}-dark.webp`;
-      const oldDarkUrl =
-        note?.preview_img_url?.replace(/\.webp$/, "-dark.webp") ?? null;
+      if (hasCustomBg) {
+        // Custom background — single preview, no theme switching needed
+        const dataUrl = canvas.toDataURL({
+          format: "webp",
+          quality: 0.85,
+          multiplier: 2,
+          enableRetinaScaling: true,
+        });
+        const fileName = `borrower-notes/${crypto.randomUUID()}.webp`;
+        preview_image_url = await uploadPreviewImage(
+          dataUrl,
+          fileName,
+          note?.preview_img_url,
+        );
+        // Remove old dark preview if it exists
+        const oldDarkUrl =
+          note?.preview_img_url?.replace(/\.webp$/, "-dark.webp") ?? null;
+        if (oldDarkUrl) {
+          const marker = "/object/public/borrower-notes/";
+          const oldPath = oldDarkUrl.split(marker)[1];
+          if (oldPath) {
+            await supabase.storage.from("borrower-notes").remove([oldPath]);
+          }
+        }
+      } else {
+        // Theme-adaptive background — generate both light and dark previews
+        const lightDataUrl = renderWithTheme(canvas, false);
+        const darkDataUrl = renderWithTheme(canvas, true);
+        // Restore current theme after renderWithTheme left originals but didn't re-render
+        applyThemeToCanvas(canvas, isDarkRef.current);
 
-      const [preview_image_url] = await Promise.all([
-        uploadPreviewImage(lightDataUrl, lightFileName, note?.preview_img_url),
-        uploadPreviewImage(darkDataUrl, darkFileName, oldDarkUrl),
-      ]);
+        const previewUuid = crypto.randomUUID();
+        const lightFileName = `borrower-notes/${previewUuid}.webp`;
+        const darkFileName = `borrower-notes/${previewUuid}-dark.webp`;
+        const oldDarkUrl =
+          note?.preview_img_url?.replace(/\.webp$/, "-dark.webp") ?? null;
+
+        const [url] = await Promise.all([
+          uploadPreviewImage(
+            lightDataUrl,
+            lightFileName,
+            note?.preview_img_url,
+          ),
+          uploadPreviewImage(darkDataUrl, darkFileName, oldDarkUrl),
+        ]);
+        preview_image_url = url;
+      }
 
       const canvas_json = await compressJSON(rawJSON);
       // UPDATE EXISTING NOTE
@@ -938,6 +1155,8 @@ export default function NotesCanvas({
     if (!canvas) return;
     canvas.clear();
     canvas.backgroundColor = getTheme(isDarkRef.current).bg;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (canvas as any).customBg = false;
     canvas.renderAll();
     pushHistory();
     applyDrawingBrushRef.current();
@@ -971,7 +1190,7 @@ export default function NotesCanvas({
       {/* Persistent top bar — save / clear / hide always showing */}
       <div
         className="flex flex-wrap items-center justify-between gap-2 rounded-xl
-          border-2 border-slate-900 bg-white p-2
+          border-2 border-slate-900 bg-white dark:bg-slate-950 p-2
           shadow-[3px_3px_0px_0px_#0f172a]"
       >
         <div className="flex items-center gap-2">
@@ -1013,200 +1232,293 @@ export default function NotesCanvas({
         </button>
       </div>
 
-      {/* Canvas with floating tools */}
-      <div className="relative min-h-0 flex-1 sm:min-h-[480px]">
-        {/* Drawing toolbar — floats over the canvas */}
-        {showTools && (
-          <div
-            className="absolute top-[2px] left-2 z-20 flex flex-wrap
-              items-center gap-1.5 rounded-xl border-2 border-slate-900
-              bg-white/95 p-1.5 shadow-[3px_3px_0px_0px_#0f172a]
-              backdrop-blur-sm"
+      {/* Drawing toolbar */}
+      {showTools && (
+        <div
+          className="flex flex-wrap items-center absolute top-2 right-2 gap-1.5
+            rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm
+            backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95"
+        >
+          <button
+            type="button"
+            onClick={() => setActiveTool("pen")}
+            title="Pen"
+            className={`rounded-md border px-2 py-1 text-[10px] font-bold
+            uppercase transition ${
+              activeTool === "pen"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : `border-slate-200 bg-white text-slate-600 hover:bg-slate-100
+                  dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
+                  dark:hover:bg-slate-700`
+            }`}
           >
+            <Pencil className="size-3.5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTool("eraser")}
+            title="Eraser"
+            className={`rounded-md border px-2 py-1 text-[10px] font-bold
+            uppercase transition ${
+              activeTool === "eraser"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : `border-slate-200 bg-white text-slate-600 hover:bg-slate-100
+                  dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
+                  dark:hover:bg-slate-700`
+            }`}
+          >
+            <Eraser className="size-3.5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTool("bucket")}
+            title="Paint bucket"
+            className={`rounded-md border px-2 py-1 text-[10px] font-bold
+            uppercase transition ${
+              activeTool === "bucket"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : `border-slate-200 bg-white text-slate-600 hover:bg-slate-100
+                  dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
+                  dark:hover:bg-slate-700`
+            }`}
+          >
+            <PaintBucket className="size-3.5" />
+          </button>
+
+          {activeTool === "bucket" && (
             <button
               type="button"
-              onClick={() => setActiveTool("pen")}
-              className={`rounded-md border-2 border-slate-900 px-2 py-1
-              text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a]
-              transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
-                activeTool === "pen"
-                  ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-600"
-              }`}
+              onClick={() => {
+                const c = fabricRef.current;
+                if (!c) return;
+                c.backgroundColor = getTheme(isDarkRef.current).bg;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (c as any).customBg = false;
+                c.renderAll();
+                pushHistory();
+              }}
+              title="Reset background to paper color"
+              className="rounded-md border border-slate-200 bg-white px-2 py-1
+                text-[9px] font-black uppercase text-slate-600 transition
+                hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800
+                dark:text-slate-300 dark:hover:bg-slate-700"
             >
-              <Pencil className="size-3.5" />
+              Reset bg
             </button>
+          )}
 
-            <button
-              type="button"
-              onClick={() => setActiveTool("eraser")}
-              className={`rounded-md border-2 border-slate-900 px-2 py-1
-              text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a]
-              transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
-                activeTool === "eraser"
-                  ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-600"
-              }`}
-            >
-              <Eraser className="size-3.5" />
-            </button>
+          <button
+            type="button"
+            onClick={() => setActiveTool("pan")}
+            title="Pan / scroll canvas"
+            className={`rounded-md border px-2 py-1 text-[10px] font-bold
+            uppercase transition ${
+              activeTool === "pan"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : `border-slate-200 bg-white text-slate-600 hover:bg-slate-100
+                  dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
+                  dark:hover:bg-slate-700`
+            }`}
+          >
+            <Hand className="size-3.5" />
+          </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTool("pan")}
-              title="Pan / scroll canvas"
-              className={`rounded-md border-2 border-slate-900 px-2 py-1
-              text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a]
-              transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
-                activeTool === "pan"
-                  ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-600"
-              }`}
-            >
-              <Hand className="size-3.5" />
-            </button>
+          <button
+            type="button"
+            onClick={() => setActiveTool("select")}
+            title="Select"
+            className={`rounded-md border px-2 py-1 text-[10px] font-bold
+            uppercase transition ${
+              activeTool === "select"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : `border-slate-200 bg-white text-slate-600 hover:bg-slate-100
+                  dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
+                  dark:hover:bg-slate-700`
+            }`}
+          >
+            <MousePointer2 className="size-3.5" />
+          </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTool("select")}
-              className={`rounded-md border-2 border-slate-900 px-2 py-1
-              text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a]
-              transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
-                activeTool === "select"
-                  ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-600"
-              }`}
-            >
-              <MousePointer2 className="size-3.5" />
-            </button>
+          <button
+            type="button"
+            onClick={() => setActiveTool("text")}
+            title="Text"
+            className={`rounded-md border px-2 py-1 text-[10px] font-bold
+            uppercase transition ${
+              activeTool === "text"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : `border-slate-200 bg-white text-slate-600 hover:bg-slate-100
+                  dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
+                  dark:hover:bg-slate-700`
+            }`}
+          >
+            <Type className="size-3.5" />
+          </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTool("text")}
-              className={`rounded-md border-2 border-slate-900 px-2 py-1
-              text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a]
-              transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
-                activeTool === "text"
-                  ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-600"
-              }`}
-            >
-              <Type className="size-3.5" />
-            </button>
+          {activeTool === "text" && (
+            <label className="flex items-center gap-1">
+              <input
+                type="number"
+                min={10}
+                max={120}
+                value={textSize}
+                onChange={(e) => setTextSize(Number(e.target.value))}
+                title="Text size"
+                className="h-6 w-12 rounded border border-slate-300 bg-white
+                  px-1 text-[10px] font-bold text-slate-600
+                  dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+              />
+            </label>
+          )}
 
-            {activeTool === "text" && (
+          {activeTool === "pen" && (
+            <div className="flex items-center gap-1">
               <label className="flex items-center gap-1">
                 <input
-                  type="number"
-                  min={10}
-                  max={120}
-                  value={textSize}
-                  onChange={(e) => setTextSize(Number(e.target.value))}
-                  title="Text size"
-                  className="h-6 w-12 rounded border-2 border-slate-300 bg-white
-                    px-1 text-[10px] font-bold text-slate-600"
+                  type="range"
+                  min={1}
+                  max={30}
+                  step={1}
+                  value={brushSize}
+                  onChange={(e) => setBrushSize(Number(e.target.value))}
+                  title="Brush size"
+                  className="h-4 w-16 accent-slate-900"
                 />
-              </label>
-            )}
-
-            {(activeTool === "pen" || activeTool === "text") && (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setBrushIsInk(true)}
-                  title="Use adaptive ink color (follows theme)"
-                  className={`h-6 rounded border-2 border-slate-900 px-1.5
-                  text-[9px] font-black uppercase
-                  shadow-[2px_2px_0px_0px_#0f172a] transition
-                  hover:translate-x-0.5 hover:-translate-y-0.5 ${
-                    brushIsInk
-                      ? "bg-slate-900 text-white"
-                      : "bg-white text-slate-500"
-                  }`}
+                <span
+                  className="text-[9px] font-bold text-slate-500
+                    dark:text-slate-400"
                 >
-                  Ink
-                </button>
+                  {brushSize}px
+                </span>
+              </label>
+              <label className="flex items-center gap-1">
                 <input
-                  type="color"
-                  value={
-                    brushIsInk
-                      ? isDark
-                        ? NOTES_DARK_INK
-                        : NOTES_LIGHT_INK
-                      : brushColor
-                  }
-                  onChange={(e) => {
-                    setBrushIsInk(false);
-                    setBrushColor(e.target.value);
-                  }}
-                  title="Custom color (disables auto-ink)"
-                  className="h-6 w-8 cursor-pointer rounded border-2
-                    border-slate-300 bg-white p-0.5"
+                  type="range"
+                  min={0.1}
+                  max={1}
+                  step={0.1}
+                  value={brushOpacity}
+                  onChange={(e) => setBrushOpacity(Number(e.target.value))}
+                  title="Brush opacity"
+                  className="h-4 w-16 accent-slate-900"
                 />
-              </div>
-            )}
-
-            <div className="flex items-center gap-0.5">
-              <button
-                type="button"
-                onClick={() => zoomCanvas(1 / 1.2)}
-                title="Zoom out"
-                className="rounded-md border-2 border-slate-900 bg-white p-1
-                  text-slate-600 shadow-[2px_2px_0px_0px_#0f172a] transition
-                  hover:translate-x-0.5 hover:-translate-y-0.5"
-              >
-                <ZoomOut className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={resetZoom}
-                title="Reset zoom"
-                className="rounded-md border-2 border-slate-900 bg-white px-1.5
-                  py-1 text-[9px] font-black text-slate-600 tabular-nums
-                  shadow-[2px_2px_0px_0px_#0f172a] transition
-                  hover:translate-x-0.5 hover:-translate-y-0.5"
-              >
-                {Math.round(zoom * 100)}%
-              </button>
-              <button
-                type="button"
-                onClick={() => zoomCanvas(1.2)}
-                title="Zoom in"
-                className="rounded-md border-2 border-slate-900 bg-white p-1
-                  text-slate-600 shadow-[2px_2px_0px_0px_#0f172a] transition
-                  hover:translate-x-0.5 hover:-translate-y-0.5"
-              >
-                <ZoomIn className="size-3.5" />
-              </button>
+                <span
+                  className="text-[9px] font-bold text-slate-500
+                    dark:text-slate-400"
+                >
+                  {Math.round(brushOpacity * 100)}%
+                </span>
+              </label>
             </div>
+          )}
 
+          {(activeTool === "pen" ||
+            activeTool === "bucket" ||
+            activeTool === "text") && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setBrushIsInk(true)}
+                title="Use adaptive ink color (follows theme)"
+                className={`h-6 rounded border px-1.5 text-[9px] font-black
+                uppercase transition ${
+                  brushIsInk
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : `border-slate-200 bg-white text-slate-500
+                      hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800
+                      dark:text-slate-300 dark:hover:bg-slate-700`
+                }`}
+              >
+                Ink
+              </button>
+              <input
+                type="color"
+                value={
+                  brushIsInk
+                    ? isDark
+                      ? NOTES_DARK_INK
+                      : NOTES_LIGHT_INK
+                    : brushColor
+                }
+                onChange={(e) => {
+                  setBrushIsInk(false);
+                  setBrushColor(e.target.value);
+                }}
+                title="Custom color (disables auto-ink)"
+                className="h-6 w-8 cursor-pointer rounded border
+                  border-slate-300 bg-white p-0.5 dark:border-slate-600
+                  dark:bg-slate-800"
+              />
+            </div>
+          )}
+
+          <div className="flex items-center gap-0.5">
             <button
               type="button"
-              onClick={undo}
-              disabled={!canUndo}
-              title="Undo (Ctrl+Z)"
-              className="rounded-md border-2 border-slate-900 bg-white p-1
-                text-slate-600 shadow-[2px_2px_0px_0px_#0f172a] transition
-                hover:translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-40
-                disabled:shadow-none"
+              onClick={() => zoomCanvas(1 / 1.2)}
+              title="Zoom out"
+              className="rounded-md border border-slate-200 bg-white p-1
+                text-slate-600 transition hover:bg-slate-100
+                dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
+                dark:hover:bg-slate-700"
             >
-              <Undo2 className="size-3.5" />
+              <ZoomOut className="size-3.5" />
             </button>
             <button
               type="button"
-              onClick={redo}
-              disabled={!canRedo}
-              title="Redo (Ctrl+Shift+Z)"
-              className="rounded-md border-2 border-slate-900 bg-white p-1
-                text-slate-600 shadow-[2px_2px_0px_0px_#0f172a] transition
-                hover:translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-40
-                disabled:shadow-none"
+              onClick={resetZoom}
+              title="Reset zoom"
+              className="rounded-md border border-slate-200 bg-white px-1.5 py-1
+                text-[9px] font-black text-slate-600 tabular-nums transition
+                hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800
+                dark:text-slate-300 dark:hover:bg-slate-700"
             >
-              <Undo2 className="size-3.5 -scale-x-100" />
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              type="button"
+              onClick={() => zoomCanvas(1.2)}
+              title="Zoom in"
+              className="rounded-md border border-slate-200 bg-white p-1
+                text-slate-600 transition hover:bg-slate-100
+                dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
+                dark:hover:bg-slate-700"
+            >
+              <ZoomIn className="size-3.5" />
             </button>
           </div>
-        )}
 
+          <button
+            type="button"
+            onClick={undo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+            className="rounded-md border border-slate-200 bg-white p-1
+              text-slate-600 transition hover:bg-slate-100 disabled:opacity-40
+              dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
+              dark:hover:bg-slate-700"
+          >
+            <Undo2 className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={redo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Shift+Z)"
+            className="rounded-md border border-slate-200 bg-white p-1
+              text-slate-600 transition hover:bg-slate-100 disabled:opacity-40
+              dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
+              dark:hover:bg-slate-700"
+          >
+            <Undo2 className="size-3.5 -scale-x-100" />
+          </button>
+        </div>
+      )}
+
+      {/* Canvas */}
+      <div className="relative min-h-0 flex-1 sm:min-h-[480px]">
         <div
           className="absolute inset-0 flex items-center justify-center
             overflow-hidden"
