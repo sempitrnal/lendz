@@ -858,6 +858,83 @@ export default function NotesCanvas({
     let lastTapTime = 0;
     let lastTapX = 0;
     let lastTapY = 0;
+
+    // Pinch-to-zoom state
+    let pinchStartDist = 0;
+    let pinchStartZoom = 1;
+    let pinchMidX = 0;
+    let pinchMidY = 0;
+    let pinchStartVpt: number[] | null = null;
+    let isPinching = false;
+
+    const getTouchDist = (t1: Touch, t2: Touch) => {
+      const dx = t2.clientX - t1.clientX;
+      const dy = t2.clientY - t1.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        isPinching = true;
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        pinchStartDist = getTouchDist(t1, t2);
+        pinchStartZoom = canvas.getZoom();
+        pinchMidX = (t1.clientX + t2.clientX) / 2;
+        pinchMidY = (t1.clientY + t2.clientY) / 2;
+        pinchStartVpt = [...(canvas.viewportTransform as number[])];
+      }
+    };
+
+    const onTouchMovePinch = (e: TouchEvent) => {
+      if (!isPinching || e.touches.length !== 2 || !pinchStartVpt) return;
+      e.preventDefault();
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = getTouchDist(t1, t2);
+      const scale = dist / pinchStartDist;
+      const newZoom = Math.max(0.1, Math.min(5, pinchStartZoom * scale));
+
+      // Zoom centered on the midpoint between fingers
+      const vpt = canvas.viewportTransform as number[];
+      const canvasRect = (
+        canvas.upperCanvasEl ?? canvas.lowerCanvasEl
+      ).getBoundingClientRect();
+      const midX = (t1.clientX + t2.clientX) / 2 - canvasRect.left;
+      const midY = (t1.clientY + t2.clientY) / 2 - canvasRect.top;
+
+      const dx = midX - pinchMidX + canvasRect.left;
+      const dy = midY - pinchMidY + canvasRect.top;
+
+      vpt[0] = newZoom;
+      vpt[3] = newZoom;
+      vpt[4] = pinchStartVpt[4] + dx * (1 - scale);
+      vpt[5] = pinchStartVpt[5] + dy * (1 - scale);
+
+      canvas.setViewportTransform(
+        vpt as [number, number, number, number, number, number],
+      );
+      canvas.requestRenderAll();
+      setZoom(newZoom);
+    };
+
+    const onTouchEndPinch = (e: TouchEvent) => {
+      if (isPinching && e.touches.length < 2) {
+        isPinching = false;
+        pinchStartVpt = null;
+      }
+    };
+
+    upperCanvas?.addEventListener("touchstart", onTouchStart, {
+      passive: true,
+    });
+    upperCanvas?.addEventListener("touchmove", onTouchMovePinch, {
+      passive: false,
+    });
+    upperCanvas?.addEventListener("touchend", onTouchEndPinch, {
+      passive: true,
+    });
+
     const onTouchEnd = (e: TouchEvent) => {
       if (activeToolRef.current !== "text") return;
       const touch = e.changedTouches[0];
@@ -936,6 +1013,9 @@ export default function NotesCanvas({
       canvas.off("mouse:move", onPanMove as any);
       canvas.off("mouse:up", onPanEnd);
       canvas.off("mouse:dblclick", onDblClick);
+      upperCanvas?.removeEventListener("touchstart", onTouchStart);
+      upperCanvas?.removeEventListener("touchmove", onTouchMovePinch);
+      upperCanvas?.removeEventListener("touchend", onTouchEndPinch);
       upperCanvas?.removeEventListener("touchend", onTouchEnd);
       upperCanvas?.removeEventListener("pointercancel", forceEndStroke);
       upperCanvas?.removeEventListener("touchcancel", forceEndStroke);
