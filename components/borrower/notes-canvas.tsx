@@ -783,6 +783,7 @@ export default function NotesCanvas({
       scenePoint?: { x: number; y: number };
       target?: unknown;
     }) => {
+      if (isPinching) return;
       if (activeToolRef.current !== "bucket") return;
       const resolvedFill = brushIsInkRef.current
         ? getTheme(isDarkRef.current).ink
@@ -806,6 +807,7 @@ export default function NotesCanvas({
     canvas.on("mouse:down", onBucketClick as any);
 
     const onPanStart = (opt: { e: MouseEvent | TouchEvent }) => {
+      if (isPinching) return;
       if (activeToolRef.current !== "pan") return;
       isPanning = true;
       const p = getPoint(opt.e);
@@ -839,6 +841,7 @@ export default function NotesCanvas({
       pointer?: { x: number; y: number };
       scenePoint?: { x: number; y: number };
     }) => {
+      if (isPinching) return;
       if (activeToolRef.current !== "text") return;
       const pointer = opt.pointer ?? opt.scenePoint ?? { x: 0, y: 0 };
       const target = findTextAtPointer(canvas, pointer);
@@ -859,13 +862,11 @@ export default function NotesCanvas({
     let lastTapX = 0;
     let lastTapY = 0;
 
-    // Pinch-to-zoom state
+    // Pinch-to-zoom (native feel via zoomToPoint)
     let pinchStartDist = 0;
     let pinchStartZoom = 1;
-    let pinchMidX = 0;
-    let pinchMidY = 0;
-    let pinchStartVpt: number[] | null = null;
     let isPinching = false;
+    let pinchRaf: number | null = null;
 
     const getTouchDist = (t1: Touch, t2: Touch) => {
       const dx = t2.clientX - t1.clientX;
@@ -880,48 +881,46 @@ export default function NotesCanvas({
         const t2 = e.touches[1];
         pinchStartDist = getTouchDist(t1, t2);
         pinchStartZoom = canvas.getZoom();
-        pinchMidX = (t1.clientX + t2.clientX) / 2;
-        pinchMidY = (t1.clientY + t2.clientY) / 2;
-        pinchStartVpt = [...(canvas.viewportTransform as number[])];
       }
     };
 
     const onTouchMovePinch = (e: TouchEvent) => {
-      if (!isPinching || e.touches.length !== 2 || !pinchStartVpt) return;
+      if (!isPinching || e.touches.length !== 2) return;
       e.preventDefault();
       const t1 = e.touches[0];
       const t2 = e.touches[1];
       const dist = getTouchDist(t1, t2);
       const scale = dist / pinchStartDist;
+
+      // Ignore tiny movements to avoid jitter
+      if (Math.abs(scale - 1) < 0.02) return;
+
       const newZoom = Math.max(0.1, Math.min(5, pinchStartZoom * scale));
 
-      // Zoom centered on the midpoint between fingers
-      const vpt = canvas.viewportTransform as number[];
-      const canvasRect = (
+      // Convert screen midpoint to canvas scene coordinates
+      const rect = (
         canvas.upperCanvasEl ?? canvas.lowerCanvasEl
       ).getBoundingClientRect();
-      const midX = (t1.clientX + t2.clientX) / 2 - canvasRect.left;
-      const midY = (t1.clientY + t2.clientY) / 2 - canvasRect.top;
+      const screenMidX = (t1.clientX + t2.clientX) / 2 - rect.left;
+      const screenMidY = (t1.clientY + t2.clientY) / 2 - rect.top;
+      const vpt = canvas.viewportTransform as number[];
+      const sceneX = (screenMidX - vpt[4]) / vpt[0];
+      const sceneY = (screenMidY - vpt[5]) / vpt[3];
 
-      const dx = midX - pinchMidX + canvasRect.left;
-      const dy = midY - pinchMidY + canvasRect.top;
+      canvas.zoomToPoint(new Point(sceneX, sceneY), newZoom);
 
-      vpt[0] = newZoom;
-      vpt[3] = newZoom;
-      vpt[4] = pinchStartVpt[4] + dx * (1 - scale);
-      vpt[5] = pinchStartVpt[5] + dy * (1 - scale);
-
-      canvas.setViewportTransform(
-        vpt as [number, number, number, number, number, number],
-      );
-      canvas.requestRenderAll();
-      setZoom(newZoom);
+      // Throttle React state update to avoid jank
+      if (pinchRaf) cancelAnimationFrame(pinchRaf);
+      pinchRaf = requestAnimationFrame(() => setZoom(newZoom));
     };
 
     const onTouchEndPinch = (e: TouchEvent) => {
       if (isPinching && e.touches.length < 2) {
         isPinching = false;
-        pinchStartVpt = null;
+        if (pinchRaf) {
+          cancelAnimationFrame(pinchRaf);
+          pinchRaf = null;
+        }
       }
     };
 
@@ -936,6 +935,7 @@ export default function NotesCanvas({
     });
 
     const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length > 0) return; // skip if fingers still down (pinch)
       if (activeToolRef.current !== "text") return;
       const touch = e.changedTouches[0];
       if (!touch) return;
