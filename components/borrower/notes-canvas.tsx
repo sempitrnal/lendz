@@ -1236,16 +1236,19 @@ export default function NotesCanvas({
                   textInput.canvasY,
                 );
                 return (
-                  <input
-                    type="text"
+                  <textarea
                     autoFocus
                     value={textInput.value}
+                    rows={Math.max(1, textInput.value.split("\n").length)}
                     onChange={(e) =>
                       setTextInput({ ...textInput, value: e.target.value })
                     }
                     onBlur={() => commitText(textInput.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                      if (
+                        e.key === "Enter" &&
+                        (e.shiftKey || e.ctrlKey || e.metaKey)
+                      ) {
                         e.preventDefault();
                         commitText(textInput.value);
                       } else if (e.key === "Escape") {
@@ -1269,6 +1272,9 @@ export default function NotesCanvas({
                       outline: "none",
                       padding: 0,
                       minWidth: "4rem",
+                      resize: "none",
+                      overflow: "hidden",
+                      lineHeight: 1.2,
                       zIndex: 10,
                     }}
                   />
