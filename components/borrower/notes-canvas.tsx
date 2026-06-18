@@ -862,16 +862,33 @@ export default function NotesCanvas({
     let lastTapX = 0;
     let lastTapY = 0;
 
+    // Block browser gestures on the upper canvas element
+    if (upperCanvas) upperCanvas.style.touchAction = "none";
+
     // Pinch-to-zoom (native feel via zoomToPoint)
     let pinchStartDist = 0;
     let pinchStartZoom = 1;
     let isPinching = false;
     let pinchRaf: number | null = null;
+    let savedDrawingMode = false;
+    let savedSelection = false;
 
     const getTouchDist = (t1: Touch, t2: Touch) => {
       const dx = t2.clientX - t1.clientX;
       const dy = t2.clientY - t1.clientY;
       return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const abortActiveStroke = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cAny = canvas as any;
+      if (cAny._isCurrentlyDrawing) {
+        try {
+          cAny.freeDrawingBrush?._finalizeAndAddPath?.();
+        } catch {}
+        cAny._isCurrentlyDrawing = false;
+        canvas.renderAll();
+      }
     };
 
     const onTouchStart = (e: TouchEvent) => {
@@ -881,6 +898,18 @@ export default function NotesCanvas({
         const t2 = e.touches[1];
         pinchStartDist = getTouchDist(t1, t2);
         pinchStartZoom = canvas.getZoom();
+
+        // Save Fabric interaction states
+        savedDrawingMode = canvas.isDrawingMode;
+        savedSelection = canvas.selection;
+
+        // Abort any stroke that started with the first finger,
+        // then suppress Fabric so pinch is a pure zoom gesture.
+        abortActiveStroke();
+        canvas.isDrawingMode = false;
+        canvas.selection = false;
+        canvas.discardActiveObject();
+        canvas.requestRenderAll();
       }
     };
 
@@ -921,11 +950,15 @@ export default function NotesCanvas({
           cancelAnimationFrame(pinchRaf);
           pinchRaf = null;
         }
+        // Restore Fabric interaction states
+        canvas.isDrawingMode = savedDrawingMode;
+        canvas.selection = savedSelection;
+        canvas.requestRenderAll();
       }
     };
 
     upperCanvas?.addEventListener("touchstart", onTouchStart, {
-      passive: true,
+      passive: false,
     });
     upperCanvas?.addEventListener("touchmove", onTouchMovePinch, {
       passive: false,
@@ -1013,10 +1046,19 @@ export default function NotesCanvas({
       canvas.off("mouse:move", onPanMove as any);
       canvas.off("mouse:up", onPanEnd);
       canvas.off("mouse:dblclick", onDblClick);
-      upperCanvas?.removeEventListener("touchstart", onTouchStart);
-      upperCanvas?.removeEventListener("touchmove", onTouchMovePinch);
-      upperCanvas?.removeEventListener("touchend", onTouchEndPinch);
-      upperCanvas?.removeEventListener("touchend", onTouchEnd);
+      upperCanvas?.removeEventListener(
+        "touchstart",
+        onTouchStart as EventListener,
+      );
+      upperCanvas?.removeEventListener(
+        "touchmove",
+        onTouchMovePinch as EventListener,
+      );
+      upperCanvas?.removeEventListener(
+        "touchend",
+        onTouchEndPinch as EventListener,
+      );
+      upperCanvas?.removeEventListener("touchend", onTouchEnd as EventListener);
       upperCanvas?.removeEventListener("pointercancel", forceEndStroke);
       upperCanvas?.removeEventListener("touchcancel", forceEndStroke);
       canvas.dispose();
@@ -1633,7 +1675,7 @@ export default function NotesCanvas({
             <canvas
               ref={canvasElRef}
               tabIndex={-1}
-              className="block h-full w-full"
+              className="block h-full w-full touch-none"
             />
 
             {textInput &&
