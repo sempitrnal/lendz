@@ -2,6 +2,7 @@ import { CalendarDays } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import CategoryScrollNav from "@/components/category-scroll-nav";
 import CategorySection from "@/components/category-section";
+import MonthPicker from "@/components/month-picker";
 import { getAllPaymentSchedules } from "@/lib/cache/schedules";
 import { remainingOnInstallment } from "@/lib/payment-schedule/schedule-balances";
 
@@ -42,18 +43,30 @@ type BorrowerRef = {
   }>;
 };
 
-export default async function DueThisMonthPage() {
-  const supabase = await createSupabaseServer();
-  const now = new Date();
+export default async function DueThisMonthPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ month?: string }>;
+}) {
+  const params = searchParams ? await searchParams : {};
   const TZ = "Asia/Manila";
+
+  const now = new Date();
   const todayIso = now.toLocaleDateString("en-CA", { timeZone: TZ });
-  const [yearStr, monthStr] = todayIso.split("-");
+  const defaultMonth = todayIso.slice(0, 7); // YYYY-MM
+
+  const selectedMonth = params.month ?? defaultMonth;
+  const isValid = /^\d{4}-\d{2}$/.test(selectedMonth);
+  const activeMonth = isValid ? selectedMonth : defaultMonth;
+
+  const [yearStr, monthStr] = activeMonth.split("-");
   const phtYear = Number(yearStr);
   const phtMonth = Number(monthStr);
   const startOfMonthDate = `${yearStr}-${monthStr}-01`;
   const lastDay = new Date(phtYear, phtMonth, 0).getDate();
   const endOfMonthDate = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
 
+  const supabase = await createSupabaseServer();
   const allSchedules = await getAllPaymentSchedules();
 
   const thisMonthSchedules = allSchedules.filter(
@@ -218,12 +231,6 @@ export default async function DueThisMonthPage() {
     (a, b) => a.label.localeCompare(b.label),
   );
 
-  const monthLabel = now.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-    timeZone: TZ,
-  });
-
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("en-US", {
       month: "short",
@@ -291,12 +298,7 @@ export default async function DueThisMonthPage() {
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p
-              className="dark:text-muted-foreground text-xs font-semibold
-                tracking-wider text-slate-600 uppercase"
-            >
-              {monthLabel}
-            </p>
+            <MonthPicker currentMonth={activeMonth} />
             <h1
               className="dark:text-foreground mt-1 text-2xl font-black
                 text-slate-600 lowercase sm:text-3xl"
