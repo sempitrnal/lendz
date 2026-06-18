@@ -674,6 +674,45 @@ export default function NotesCanvas({
     };
     canvas.on("mouse:dblclick", onDblClick);
 
+    // Text tool — double-tap on touch devices (mobile has no dblclick)
+    let lastTapTime = 0;
+    let lastTapX = 0;
+    let lastTapY = 0;
+    const onTouchEnd = (e: TouchEvent) => {
+      if (activeToolRef.current !== "text") return;
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      const now = Date.now();
+      const dx = touch.clientX - lastTapX;
+      const dy = touch.clientY - lastTapY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (now - lastTapTime < 350 && dist < 30) {
+        // Double-tap: convert screen coords → canvas scene coords
+        const rect = (
+          canvas.upperCanvasEl ?? canvas.lowerCanvasEl
+        ).getBoundingClientRect();
+        const screenX = touch.clientX - rect.left;
+        const screenY = touch.clientY - rect.top;
+        const vpt = canvas.viewportTransform as number[];
+        const canvasX = (screenX - vpt[4]) / vpt[0];
+        const canvasY = (screenY - vpt[5]) / vpt[3];
+        const pointer = { x: canvasX, y: canvasY };
+        const target = findTextAtPointer(canvas, pointer);
+        if (target) {
+          startTextEdit(target.left ?? canvasX, target.top ?? canvasY, target);
+        } else {
+          startTextEdit(canvasX, canvasY);
+        }
+        lastTapTime = 0;
+        e.preventDefault();
+      } else {
+        lastTapTime = now;
+        lastTapX = touch.clientX;
+        lastTapY = touch.clientY;
+      }
+    };
+    upperCanvas?.addEventListener("touchend", onTouchEnd, { passive: false });
+
     // Fix: on mobile/stylus, browser fires pointercancel instead of pointerup
     // which leaves Fabric's brush stuck "down", connecting the next stroke.
     const forceEndStroke = () => {
@@ -716,6 +755,7 @@ export default function NotesCanvas({
       canvas.off("mouse:move", onPanMove as any);
       canvas.off("mouse:up", onPanEnd);
       canvas.off("mouse:dblclick", onDblClick);
+      upperCanvas?.removeEventListener("touchend", onTouchEnd);
       upperCanvas?.removeEventListener("pointercancel", forceEndStroke);
       upperCanvas?.removeEventListener("touchcancel", forceEndStroke);
       canvas.dispose();
