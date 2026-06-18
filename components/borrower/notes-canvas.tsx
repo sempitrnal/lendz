@@ -21,6 +21,7 @@ import {
   PaintBucket,
   MousePointer2,
   Type,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -1235,16 +1236,17 @@ export default function NotesCanvas({
       {/* Drawing toolbar */}
       {showTools && (
         <div
-          className="flex flex-wrap items-center absolute top-2 right-2 gap-1.5
-            rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm
-            backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95"
+          className="flex flex-wrap items-center absolute top-2 right-2 gap-2
+            rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm
+            backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95
+            md:gap-1.5 md:p-2"
         >
           <button
             type="button"
             onClick={() => setActiveTool("pen")}
             title="Pen"
-            className={`rounded-md border px-2 py-1 text-[10px] font-bold
-            uppercase transition ${
+            className={`rounded-md border p-2 text-xs font-bold uppercase
+            transition md:px-2 md:py-1 md:text-[10px] ${
               activeTool === "pen"
                 ? "border-slate-900 bg-slate-900 text-white"
                 : `border-slate-200 bg-white text-slate-600 hover:bg-slate-100
@@ -1252,15 +1254,15 @@ export default function NotesCanvas({
                   dark:hover:bg-slate-700`
             }`}
           >
-            <Pencil className="size-3.5" />
+            <Pencil className="size-5 md:size-3.5" />
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTool("eraser")}
             title="Eraser"
-            className={`rounded-md border px-2 py-1 text-[10px] font-bold
-            uppercase transition ${
+            className={`rounded-md border p-2 text-xs font-bold uppercase
+            transition md:px-2 md:py-1 md:text-[10px] ${
               activeTool === "eraser"
                 ? "border-slate-900 bg-slate-900 text-white"
                 : `border-slate-200 bg-white text-slate-600 hover:bg-slate-100
@@ -1268,15 +1270,15 @@ export default function NotesCanvas({
                   dark:hover:bg-slate-700`
             }`}
           >
-            <Eraser className="size-3.5" />
+            <Eraser className="size-5 md:size-3.5" />
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTool("bucket")}
             title="Paint bucket"
-            className={`rounded-md border px-2 py-1 text-[10px] font-bold
-            uppercase transition ${
+            className={`rounded-md border p-2 text-xs font-bold uppercase
+            transition md:px-2 md:py-1 md:text-[10px] ${
               activeTool === "bucket"
                 ? "border-slate-900 bg-slate-900 text-white"
                 : `border-slate-200 bg-white text-slate-600 hover:bg-slate-100
@@ -1284,7 +1286,7 @@ export default function NotesCanvas({
                   dark:hover:bg-slate-700`
             }`}
           >
-            <PaintBucket className="size-3.5" />
+            <PaintBucket className="size-5 md:size-3.5" />
           </button>
 
           {activeTool === "bucket" && (
@@ -1300,10 +1302,11 @@ export default function NotesCanvas({
                 pushHistory();
               }}
               title="Reset background to paper color"
-              className="rounded-md border border-slate-200 bg-white px-2 py-1
-                text-[9px] font-black uppercase text-slate-600 transition
+              className="rounded-md border border-slate-200 bg-white px-3 py-2
+                text-xs font-black uppercase text-slate-600 transition
                 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800
-                dark:text-slate-300 dark:hover:bg-slate-700"
+                dark:text-slate-300 dark:hover:bg-slate-700 md:px-2 md:py-1
+                md:text-[9px]"
             >
               Reset bg
             </button>
@@ -1313,8 +1316,8 @@ export default function NotesCanvas({
             type="button"
             onClick={() => setActiveTool("pan")}
             title="Pan / scroll canvas"
-            className={`rounded-md border px-2 py-1 text-[10px] font-bold
-            uppercase transition ${
+            className={`rounded-md border p-2 text-xs font-bold uppercase
+            transition md:px-2 md:py-1 md:text-[10px] ${
               activeTool === "pan"
                 ? "border-slate-900 bg-slate-900 text-white"
                 : `border-slate-200 bg-white text-slate-600 hover:bg-slate-100
@@ -1322,15 +1325,15 @@ export default function NotesCanvas({
                   dark:hover:bg-slate-700`
             }`}
           >
-            <Hand className="size-3.5" />
+            <Hand className="size-5 md:size-3.5" />
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTool("select")}
             title="Select"
-            className={`rounded-md border px-2 py-1 text-[10px] font-bold
-            uppercase transition ${
+            className={`rounded-md border p-2 text-xs font-bold uppercase
+            transition md:px-2 md:py-1 md:text-[10px] ${
               activeTool === "select"
                 ? "border-slate-900 bg-slate-900 text-white"
                 : `border-slate-200 bg-white text-slate-600 hover:bg-slate-100
@@ -1338,15 +1341,15 @@ export default function NotesCanvas({
                   dark:hover:bg-slate-700`
             }`}
           >
-            <MousePointer2 className="size-3.5" />
+            <MousePointer2 className="size-5 md:size-3.5" />
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTool("text")}
             title="Text"
-            className={`rounded-md border px-2 py-1 text-[10px] font-bold
-            uppercase transition ${
+            className={`rounded-md border p-2 text-xs font-bold uppercase
+            transition md:px-2 md:py-1 md:text-[10px] ${
               activeTool === "text"
                 ? "border-slate-900 bg-slate-900 text-white"
                 : `border-slate-200 bg-white text-slate-600 hover:bg-slate-100
@@ -1354,7 +1357,7 @@ export default function NotesCanvas({
                   dark:hover:bg-slate-700`
             }`}
           >
-            <Type className="size-3.5" />
+            <Type className="size-5 md:size-3.5" />
           </button>
 
           {activeTool === "text" && (
@@ -1366,9 +1369,10 @@ export default function NotesCanvas({
                 value={textSize}
                 onChange={(e) => setTextSize(Number(e.target.value))}
                 title="Text size"
-                className="h-6 w-12 rounded border border-slate-300 bg-white
-                  px-1 text-[10px] font-bold text-slate-600
-                  dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                className="h-8 w-14 rounded border border-slate-300 bg-white
+                  px-1 text-xs font-bold text-slate-600 dark:border-slate-600
+                  dark:bg-slate-800 dark:text-slate-200 md:h-6 md:w-12
+                  md:text-[10px]"
               />
             </label>
           )}
@@ -1384,11 +1388,11 @@ export default function NotesCanvas({
                   value={brushSize}
                   onChange={(e) => setBrushSize(Number(e.target.value))}
                   title="Brush size"
-                  className="h-4 w-16 accent-slate-900"
+                  className="h-6 w-24 accent-slate-900 md:h-4 md:w-16"
                 />
                 <span
-                  className="text-[9px] font-bold text-slate-500
-                    dark:text-slate-400"
+                  className="text-xs font-bold text-slate-500
+                    dark:text-slate-400 md:text-[9px]"
                 >
                   {brushSize}px
                 </span>
@@ -1402,11 +1406,11 @@ export default function NotesCanvas({
                   value={brushOpacity}
                   onChange={(e) => setBrushOpacity(Number(e.target.value))}
                   title="Brush opacity"
-                  className="h-4 w-16 accent-slate-900"
+                  className="h-6 w-24 accent-slate-900 md:h-4 md:w-16"
                 />
                 <span
-                  className="text-[9px] font-bold text-slate-500
-                    dark:text-slate-400"
+                  className="text-xs font-bold text-slate-500
+                    dark:text-slate-400 md:text-[9px]"
                 >
                   {Math.round(brushOpacity * 100)}%
                 </span>
@@ -1447,9 +1451,9 @@ export default function NotesCanvas({
                   setBrushColor(e.target.value);
                 }}
                 title="Custom color (disables auto-ink)"
-                className="h-6 w-8 cursor-pointer rounded border
+                className="h-8 w-10 cursor-pointer rounded border
                   border-slate-300 bg-white p-0.5 dark:border-slate-600
-                  dark:bg-slate-800"
+                  dark:bg-slate-800 md:h-6 md:w-8"
               />
             </div>
           )}
@@ -1459,21 +1463,22 @@ export default function NotesCanvas({
               type="button"
               onClick={() => zoomCanvas(1 / 1.2)}
               title="Zoom out"
-              className="rounded-md border border-slate-200 bg-white p-1
+              className="rounded-md border border-slate-200 bg-white p-2
                 text-slate-600 transition hover:bg-slate-100
                 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
-                dark:hover:bg-slate-700"
+                dark:hover:bg-slate-700 md:p-1"
             >
-              <ZoomOut className="size-3.5" />
+              <ZoomOut className="size-5 md:size-3.5" />
             </button>
             <button
               type="button"
               onClick={resetZoom}
               title="Reset zoom"
-              className="rounded-md border border-slate-200 bg-white px-1.5 py-1
-                text-[9px] font-black text-slate-600 tabular-nums transition
+              className="rounded-md border border-slate-200 bg-white px-2.5 py-2
+                text-xs font-black text-slate-600 tabular-nums transition
                 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800
-                dark:text-slate-300 dark:hover:bg-slate-700"
+                dark:text-slate-300 dark:hover:bg-slate-700 md:px-1.5 md:py-1
+                md:text-[9px]"
             >
               {Math.round(zoom * 100)}%
             </button>
@@ -1481,12 +1486,12 @@ export default function NotesCanvas({
               type="button"
               onClick={() => zoomCanvas(1.2)}
               title="Zoom in"
-              className="rounded-md border border-slate-200 bg-white p-1
+              className="rounded-md border border-slate-200 bg-white p-2
                 text-slate-600 transition hover:bg-slate-100
                 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
-                dark:hover:bg-slate-700"
+                dark:hover:bg-slate-700 md:p-1"
             >
-              <ZoomIn className="size-3.5" />
+              <ZoomIn className="size-5 md:size-3.5" />
             </button>
           </div>
 
@@ -1495,24 +1500,36 @@ export default function NotesCanvas({
             onClick={undo}
             disabled={!canUndo}
             title="Undo (Ctrl+Z)"
-            className="rounded-md border border-slate-200 bg-white p-1
+            className="rounded-md border border-slate-200 bg-white p-2
               text-slate-600 transition hover:bg-slate-100 disabled:opacity-40
               dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
-              dark:hover:bg-slate-700"
+              dark:hover:bg-slate-700 md:p-1"
           >
-            <Undo2 className="size-3.5" />
+            <Undo2 className="size-5 md:size-3.5" />
           </button>
           <button
             type="button"
             onClick={redo}
             disabled={!canRedo}
             title="Redo (Ctrl+Shift+Z)"
-            className="rounded-md border border-slate-200 bg-white p-1
+            className="rounded-md border border-slate-200 bg-white p-2
               text-slate-600 transition hover:bg-slate-100 disabled:opacity-40
               dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300
-              dark:hover:bg-slate-700"
+              dark:hover:bg-slate-700 md:p-1"
           >
-            <Undo2 className="size-3.5 -scale-x-100" />
+            <Undo2 className="size-5 md:size-3.5 -scale-x-100" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowTools(false)}
+            title="Close toolbar"
+            className="ml-auto rounded-md border border-slate-200 bg-white p-2
+              text-slate-600 transition hover:bg-slate-100 dark:border-slate-700
+              dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700
+              md:p-1"
+          >
+            <X className="size-5 md:size-3.5" />
           </button>
         </div>
       )}
