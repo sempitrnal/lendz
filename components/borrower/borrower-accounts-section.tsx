@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import Modal from "@/components/modal";
 import AccountForm, {
@@ -180,6 +181,7 @@ export default function BorrowerAccountsSection({
         }
       : undefined,
   );
+  const { resolvedTheme } = useTheme();
   const notes = (queryData?.notes ?? []) as any[];
   const accountMetricsById = (queryData?.metrics ??
     initialMetrics ??
@@ -947,7 +949,18 @@ export default function BorrowerAccountsSection({
             >
               {note.preview_img_url ? (
                 <img
-                  src={note.preview_img_url}
+                  src={
+                    resolvedTheme === "dark"
+                      ? (note.preview_img_url as string).replace(
+                          /\.webp$/,
+                          "-dark.webp",
+                        )
+                      : (note.preview_img_url as string)
+                  }
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src =
+                      note.preview_img_url as string;
+                  }}
                   className="pointer-events-none h-full w-full object-cover"
                 />
               ) : (

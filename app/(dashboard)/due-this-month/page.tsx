@@ -33,11 +33,13 @@ type BorrowerRef = {
           id: string;
           name: string;
           color: string | null;
+          sort_order: number | null;
         }
       | Array<{
           id: string;
           name: string;
           color: string | null;
+          sort_order: number | null;
         }>
       | null;
   }>;
@@ -101,7 +103,8 @@ export default async function DueThisMonthPage({
             category:categories (
               id,
               name,
-              color
+              color,
+              sort_order
             )
           )
         `,
@@ -131,7 +134,9 @@ export default async function DueThisMonthPage({
             .join(" / ")
         : "uncategorized";
     const color = entries.find((entry) => entry.color)?.color ?? null;
-    return { label, color };
+    const sortOrder =
+      entries.find((e) => e.sort_order != null)?.sort_order ?? null;
+    return { label, color, sortOrder };
   };
 
   const grouped = new Map<
@@ -141,6 +146,7 @@ export default async function DueThisMonthPage({
       name: string;
       category: string;
       categoryColor: string | null;
+      categorySortOrder: number | null;
       schedules: Array<{
         id: string;
         dueDate: string;
@@ -167,6 +173,7 @@ export default async function DueThisMonthPage({
         name: `${borrower.first_name} ${borrower.last_name}`,
         category: meta.label,
         categoryColor: meta.color,
+        categorySortOrder: meta.sortOrder,
         schedules: [],
       });
     }
@@ -188,6 +195,7 @@ export default async function DueThisMonthPage({
   const borrowers = Array.from(grouped.values()).sort((a, b) =>
     a.name.localeCompare(b.name),
   );
+  // type-augment so TS knows about categorySortOrder below
 
   // Group borrowers by category
   const borrowersByCategory = new Map<
@@ -195,6 +203,7 @@ export default async function DueThisMonthPage({
     {
       label: string;
       color: string | null;
+      sortOrder: number | null;
       pending: typeof borrowers;
       paid: typeof borrowers;
       pendingTotal: number;
@@ -208,6 +217,7 @@ export default async function DueThisMonthPage({
       borrowersByCategory.set(key, {
         label: key,
         color: b.categoryColor,
+        sortOrder: b.categorySortOrder,
         pending: [],
         paid: [],
         pendingTotal: 0,
@@ -227,8 +237,25 @@ export default async function DueThisMonthPage({
     }
   }
 
+  const minDueDay = (entry: {
+    pending: { schedules: { dueDate: string }[] }[];
+    paid: { schedules: { dueDate: string }[] }[];
+  }) => {
+    const days = [...entry.pending, ...entry.paid]
+      .flatMap((b) => b.schedules)
+      .map((s) => parseInt(s.dueDate.slice(8, 10), 10));
+    return days.length > 0 ? Math.min(...days) : 999;
+  };
+
   const categoryEntries = Array.from(borrowersByCategory.values()).sort(
-    (a, b) => a.label.localeCompare(b.label),
+    (a, b) => {
+      const aHas = a.sortOrder != null;
+      const bHas = b.sortOrder != null;
+      if (aHas && bHas) return a.sortOrder! - b.sortOrder!;
+      if (aHas) return -1;
+      if (bHas) return 1;
+      return minDueDay(a) - minDueDay(b) || a.label.localeCompare(b.label);
+    },
   );
 
   const formatDate = (d: string) =>

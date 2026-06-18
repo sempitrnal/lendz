@@ -28,6 +28,7 @@ export type Category = {
   id: string;
   name: string;
   color: string | null;
+  sort_order: number | null;
   created_at: string;
   borrower_categories: Count[];
 };
@@ -53,6 +54,7 @@ export default function CategoryList() {
   );
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("#22c55e");
+  const [editSortOrder, setEditSortOrder] = useState<string>("");
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -106,6 +108,9 @@ export default function CategoryList() {
     setEditingCategoryId(category.id);
     setEditName(category.name);
     setEditColor(category.color ?? "#22c55e");
+    setEditSortOrder(
+      category.sort_order != null ? String(category.sort_order) : "",
+    );
     setIsEditModalOpen(true);
   };
 
@@ -114,6 +119,7 @@ export default function CategoryList() {
     setEditingCategoryId(null);
     setEditName("");
     setEditColor("#22c55e");
+    setEditSortOrder("");
   };
 
   const updateCategory = async () => {
@@ -122,9 +128,11 @@ export default function CategoryList() {
     if (!trimmed) return;
 
     setIsUpdating(true);
+    const sortOrderValue =
+      editSortOrder.trim() !== "" ? parseInt(editSortOrder, 10) : null;
     const { error } = await supabase
       .from("categories")
-      .update({ name: trimmed, color: editColor })
+      .update({ name: trimmed, color: editColor, sort_order: sortOrderValue })
       .eq("id", editingCategoryId);
     setIsUpdating(false);
 
@@ -302,6 +310,22 @@ export default function CategoryList() {
                 onChange={(e) => setEditColor(e.target.value)}
                 className="h-11 w-full cursor-pointer rounded-lg border
                   border-slate-300 bg-white p-1"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="edit_category_sort_order"
+                className={formFieldLabelClassName}
+              >
+                Sort order
+              </label>
+              <input
+                id="edit_category_sort_order"
+                type="number"
+                value={editSortOrder}
+                onChange={(e) => setEditSortOrder(e.target.value)}
+                placeholder="e.g. 1"
+                className={formFieldInputClassName}
               />
             </div>
             <div className="flex justify-end gap-2">

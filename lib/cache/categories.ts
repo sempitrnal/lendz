@@ -14,6 +14,7 @@ export type CategoryRow = {
   id: string;
   name: string;
   color: string | null;
+  sort_order: number | null;
   created_at: string;
   borrower_categories?: { count: number }[];
 };
@@ -22,7 +23,10 @@ export async function getAllCategories() {
   const supabase = createSupabaseAdmin();
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, color, created_at, borrower_categories(count)")
+    .select(
+      "id, name, color, sort_order, created_at, borrower_categories(count)",
+    )
+    .order("sort_order", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
 
   if (error) throw error;

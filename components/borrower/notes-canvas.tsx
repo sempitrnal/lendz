@@ -5,6 +5,7 @@ import {
   Canvas,
   PencilBrush,
   Point,
+  Text,
   type Path,
   type Canvas as FabricCanvas,
 } from "fabric";
@@ -18,11 +19,137 @@ import {
   Pencil,
   Eraser,
   MousePointer2,
+  Type,
 } from "lucide-react";
 import { toast } from "sonner";
 
-/** Keep in sync with Canvas `backgroundColor` and wrapper fill. */
-const NOTES_CANVAS_PAPER = "#fffdf5";
+/** Theme tokens for canvas background and ink. */
+const NOTES_LIGHT_BG = "#fffdf5";
+const NOTES_DARK_BG = "#1c1917";
+const NOTES_LIGHT_INK = "#111111";
+const NOTES_DARK_INK = "#f0ebe0";
+
+/**
+ * Sentinels stored in `obj.data` to mark "use current theme color".
+ * Custom colors have `null` / undefined instead.
+ */
+const INK_SENTINEL = "__ink__";
+const PAPER_SENTINEL = "__paper__";
+
+function getTheme(dark: boolean) {
+  return dark
+    ? { bg: NOTES_DARK_BG, ink: NOTES_DARK_INK }
+    : { bg: NOTES_LIGHT_BG, ink: NOTES_LIGHT_INK };
+}
+
+/**
+ * Walk all canvas objects and map sentinel `data` values to the
+ * resolved colors for `dark`.  Background is also updated.
+ */
+function applyThemeToCanvas(canvas: FabricCanvas, dark: boolean) {
+  const { bg, ink } = getTheme(dark);
+  canvas.backgroundColor = bg;
+  for (const obj of canvas.getObjects()) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = ((obj as any).data as Record<string, string>) ?? {};
+    if (d.logicalStroke === INK_SENTINEL) obj.set("stroke", ink);
+    else if (d.logicalStroke === PAPER_SENTINEL) obj.set("stroke", bg);
+    if (d.logicalFill === INK_SENTINEL) obj.set("fill", ink);
+  }
+  canvas.renderAll();
+}
+
+/**
+ * Temporarily apply a theme, capture a dataURL, then restore original
+ * per-object colors and background.  Does NOT call renderAll at the end
+ * — the caller must do that if they need to display the canvas again.
+ */
+function renderWithTheme(canvas: FabricCanvas, dark: boolean): string {
+  const { bg, ink } = getTheme(dark);
+  const origBg = canvas.backgroundColor as string;
+  const objects = canvas.getObjects();
+  const origColors = objects.map((obj) => ({
+    stroke: obj.stroke as string | null | undefined,
+    fill: obj.fill as string | null | undefined,
+  }));
+
+  canvas.backgroundColor = bg;
+  for (const obj of objects) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = ((obj as any).data as Record<string, string>) ?? {};
+    if (d.logicalStroke === INK_SENTINEL) obj.set("stroke", ink);
+    else if (d.logicalStroke === PAPER_SENTINEL) obj.set("stroke", bg);
+    if (d.logicalFill === INK_SENTINEL) obj.set("fill", ink);
+  }
+  canvas.renderAll();
+
+  const dataUrl = canvas.toDataURL({
+    format: "webp",
+    quality: 0.85,
+    multiplier: 2,
+    enableRetinaScaling: true,
+  });
+
+  // Restore
+  canvas.backgroundColor = origBg;
+  objects.forEach((obj, i) => {
+    obj.set("stroke", origColors[i].stroke as string);
+    obj.set("fill", origColors[i].fill as string);
+  });
+
+  return dataUrl;
+}
+
+/**
+ * Copy the `data` field from raw JSON objects back onto deserialized Fabric
+ * objects (index-matched).  Fabric's `loadFromJSON` does not guarantee that
+ * extra properties like `data` survive the round-trip.
+ */
+function restoreObjectData(
+  canvas: FabricCanvas,
+  json: Record<string, unknown>,
+) {
+  const rawObjects = (json.objects as Record<string, unknown>[]) ?? [];
+  canvas.getObjects().forEach((obj, i) => {
+    const rawData = rawObjects[i]?.data;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (rawData && !(obj as any).data) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (obj as any).data = rawData;
+    }
+  });
+}
+
+/**
+ * Auto-tag objects whose stroke/fill is a known ink or paper constant so that
+ * notes created before theme-awareness was added still adapt correctly.
+ * Also handles the case where `data` was stripped by Fabric deserialization.
+ */
+function tagLegacyObjects(canvas: FabricCanvas) {
+  for (const obj of canvas.getObjects()) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existing = ((obj as any).data ?? {}) as Record<string, string>;
+    if (existing.logicalStroke || existing.logicalFill) continue;
+
+    const stroke = obj.stroke as string | null | undefined;
+    const fill = obj.fill as string | null | undefined;
+    const data: Record<string, string | null> = { ...existing };
+
+    if (stroke === NOTES_LIGHT_INK || stroke === NOTES_DARK_INK) {
+      data.logicalStroke = INK_SENTINEL;
+    } else if (stroke === NOTES_LIGHT_BG || stroke === NOTES_DARK_BG) {
+      data.logicalStroke = PAPER_SENTINEL;
+    }
+    if (fill === NOTES_LIGHT_INK || fill === NOTES_DARK_INK) {
+      data.logicalFill = INK_SENTINEL;
+    }
+
+    if (data.logicalStroke || data.logicalFill) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (obj as any).data = data;
+    }
+  }
+}
 
 /** Compress a JSON value to a base64-encoded gzip string. */
 async function compressJSON(data: unknown): Promise<string> {
@@ -60,7 +187,30 @@ function isCompressed(value: unknown): value is string {
 
 function paperStrokeColor(canvas: FabricCanvas): string {
   const bg = canvas.backgroundColor;
-  return typeof bg === "string" && bg.length > 0 ? bg : NOTES_CANVAS_PAPER;
+  return typeof bg === "string" && bg.length > 0 ? bg : NOTES_LIGHT_BG;
+}
+
+function canvasToScreenPoint(canvas: FabricCanvas, x: number, y: number) {
+  const vpt = canvas.viewportTransform as number[];
+  return {
+    x: vpt[0] * x + vpt[2] * y + vpt[4],
+    y: vpt[1] * x + vpt[3] * y + vpt[5],
+  };
+}
+
+function findTextAtPointer(
+  canvas: FabricCanvas,
+  pointer: { x: number; y: number },
+) {
+  const objects = canvas.getObjects();
+  const pt = new Point(pointer.x, pointer.y);
+  for (let i = objects.length - 1; i >= 0; i--) {
+    const obj = objects[i];
+    if (obj.type === "text" && obj.containsPoint(pt)) {
+      return obj as Text;
+    }
+  }
+  return null;
 }
 
 /** Minimal fields used by the canvas; note rows may include more from Supabase. */
@@ -76,7 +226,7 @@ type NotesCanvasProps = {
   onSaved?: (note: BorrowerNotePayload) => void;
 };
 
-type DrawTool = "pen" | "eraser" | "select" | "pan";
+type DrawTool = "pen" | "eraser" | "select" | "pan" | "text";
 
 class EraserPencilBrush extends PencilBrush {
   override _setBrushStyles(ctx: CanvasRenderingContext2D) {
@@ -114,7 +264,9 @@ class EraserPencilBrush extends PencilBrush {
     path.set({
       stroke: paperStrokeColor(this.canvas),
       globalCompositeOperation: "source-over",
-    });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data: { logicalStroke: PAPER_SENTINEL },
+    } as any);
     return path;
   }
 }
@@ -133,8 +285,20 @@ export default function NotesCanvas({
 
   const [showTools, setShowTools] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [brushColor, setBrushColor] = useState("#111111");
+  const [isDark, setIsDark] = useState(false);
+  const [brushIsInk, setBrushIsInk] = useState(true);
+  const [brushColor, setBrushColor] = useState(NOTES_LIGHT_INK);
+  const [textSize, setTextSize] = useState(24);
   const [activeTool, setActiveTool] = useState<DrawTool>("pen");
+
+  const isDarkRef = useRef(false);
+  const brushIsInkRef = useRef(true);
+  const [textInput, setTextInput] = useState<{
+    canvasX: number;
+    canvasY: number;
+    value: string;
+    targetId?: string;
+  } | null>(null);
 
   const historyRef = useRef<Record<string, unknown>[]>([]);
   const historyIndexRef = useRef(-1);
@@ -144,7 +308,8 @@ export default function NotesCanvas({
   const pushHistory = useCallback(() => {
     const canvas = fabricRef.current;
     if (!canvas) return;
-    const json = canvas.toJSON() as Record<string, unknown>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const json = (canvas as any).toJSON(["data"]) as Record<string, unknown>;
     // Remove entries ahead if we're not at the top
     historyRef.current = historyRef.current.slice(
       0,
@@ -167,8 +332,9 @@ export default function NotesCanvas({
     const json = historyRef.current[historyIndexRef.current];
     canvas.clear();
     canvas.loadFromJSON(json).then(() => {
-      canvas.backgroundColor = NOTES_CANVAS_PAPER;
-      canvas.renderAll();
+      restoreObjectData(canvas, json);
+      tagLegacyObjects(canvas);
+      applyThemeToCanvas(canvas, isDarkRef.current);
       applyDrawingBrushRef.current();
       setHistoryVersion((v) => v + 1);
     });
@@ -182,20 +348,84 @@ export default function NotesCanvas({
     const json = historyRef.current[historyIndexRef.current];
     canvas.clear();
     canvas.loadFromJSON(json).then(() => {
-      canvas.backgroundColor = NOTES_CANVAS_PAPER;
-      canvas.renderAll();
+      restoreObjectData(canvas, json);
+      tagLegacyObjects(canvas);
+      applyThemeToCanvas(canvas, isDarkRef.current);
       applyDrawingBrushRef.current();
       setHistoryVersion((v) => v + 1);
     });
+  }, []);
+
+  const startTextEdit = useCallback(
+    (canvasX: number, canvasY: number, target?: Text) => {
+      setTextInput({
+        canvasX,
+        canvasY,
+        value: target?.text ?? "",
+        targetId: target ? (target as unknown as { id: string }).id : undefined,
+      });
+    },
+    [],
+  );
+
+  const commitText = useCallback(
+    (value: string) => {
+      const canvas = fabricRef.current;
+      if (!canvas || !textInput) return;
+
+      const { canvasX, canvasY, targetId } = textInput;
+      let nextId = crypto.randomUUID();
+
+      if (targetId) {
+        const target = canvas
+          .getObjects()
+          .find((o) => (o as unknown as { id: string }).id === targetId);
+        if (target) {
+          canvas.remove(target);
+          nextId = targetId;
+        }
+      }
+
+      if (value.trim()) {
+        const resolvedFill = brushIsInkRef.current
+          ? getTheme(isDarkRef.current).ink
+          : brushColor;
+        const text = new Text(value, {
+          left: canvasX,
+          top: canvasY,
+          fontSize: textSize,
+          fill: resolvedFill,
+          fontFamily: "sans-serif",
+          selectable: true,
+          evented: true,
+        });
+        (text as unknown as { id: string }).id = nextId;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (text as any).data = {
+          logicalFill: brushIsInkRef.current ? INK_SENTINEL : null,
+        };
+        canvas.add(text);
+        canvas.setActiveObject(text);
+      }
+
+      canvas.renderAll();
+      pushHistory();
+      setTextInput(null);
+    },
+    [textInput, textSize, brushColor, pushHistory],
+  );
+
+  const cancelText = useCallback(() => {
+    setTextInput(null);
   }, []);
 
   const applyDrawingBrush = useCallback(() => {
     const canvas = fabricRef.current;
     if (!canvas) return;
 
-    if (activeTool === "select") {
+    if (activeTool === "select" || activeTool === "text") {
       canvas.isDrawingMode = false;
-      canvas.defaultCursor = "default";
+      canvas.defaultCursor = activeTool === "text" ? "text" : "default";
       return;
     }
 
@@ -216,7 +446,9 @@ export default function NotesCanvas({
     } else {
       const brush = new PencilBrush(canvas);
       brush.width = PEN_WIDTH;
-      brush.color = brushColor;
+      brush.color = brushIsInkRef.current
+        ? getTheme(isDarkRef.current).ink
+        : brushColor;
       canvas.freeDrawingBrush = brush;
     }
   }, [activeTool, brushColor]);
@@ -230,12 +462,47 @@ export default function NotesCanvas({
     activeToolRef.current = activeTool;
   }, [applyDrawingBrush, activeTool]);
 
+  // Sync mutable refs so canvas-init closures always see latest values
+  useEffect(() => {
+    isDarkRef.current = isDark;
+    brushIsInkRef.current = brushIsInk;
+  }, [isDark, brushIsInk]);
+
+  // Detect dark mode from the <html class="dark"> toggle (next-themes)
+  useEffect(() => {
+    const check = () => {
+      const dark = document.documentElement.classList.contains("dark");
+      setIsDark(dark);
+      isDarkRef.current = dark;
+    };
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  // Re-apply theme whenever dark mode changes; also refresh the brush color
+  useEffect(() => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    applyThemeToCanvas(canvas, isDark);
+    applyDrawingBrushRef.current();
+  }, [isDark]);
+
+  // Re-apply brush when ink toggle changes
+  useEffect(() => {
+    applyDrawingBrushRef.current();
+  }, [brushIsInk]);
+
   // initialize canvas
   useEffect(() => {
     if (!canvasElRef.current) return;
 
     const canvas = new Canvas(canvasElRef.current, {
-      backgroundColor: NOTES_CANVAS_PAPER,
+      backgroundColor: NOTES_LIGHT_BG,
       isDrawingMode: true,
       preserveObjectStacking: true,
     });
@@ -295,7 +562,9 @@ export default function NotesCanvas({
           canvas.clear();
           await canvas.loadFromJSON(jsonData as Record<string, unknown>);
 
-          canvas.backgroundColor = NOTES_CANVAS_PAPER;
+          restoreObjectData(canvas, jsonData as Record<string, unknown>);
+          tagLegacyObjects(canvas);
+          applyThemeToCanvas(canvas, isDarkRef.current);
 
           const vpt = (jsonData as Record<string, unknown>).viewportTransform;
           if (Array.isArray(vpt) && vpt.length === 6) {
@@ -321,15 +590,28 @@ export default function NotesCanvas({
       // seed initial history after load
       requestAnimationFrame(() => {
         if (disposed) return;
-        const initialJSON = canvas.toJSON() as Record<string, unknown>;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const initialJSON = (canvas as any).toJSON(["data"]) as Record<
+          string,
+          unknown
+        >;
         historyRef.current = [initialJSON];
         historyIndexRef.current = 0;
       });
     };
     void loadCanvas();
 
-    // Push state on every completed stroke
-    const handlePathCreated = () => {
+    // Push state on every completed stroke; tag ink paths with INK_SENTINEL
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handlePathCreated = (opt: any) => {
+      if (opt.path && activeToolRef.current !== "eraser") {
+        const logicalStroke = brushIsInkRef.current ? INK_SENTINEL : null;
+        opt.path.data = { logicalStroke };
+        // Ensure resolved color matches current theme
+        if (logicalStroke === INK_SENTINEL) {
+          opt.path.set("stroke", getTheme(isDarkRef.current).ink);
+        }
+      }
       pushHistory();
     };
     canvas.on("path:created", handlePathCreated);
@@ -370,6 +652,27 @@ export default function NotesCanvas({
     canvas.on("mouse:down", onPanStart as any);
     canvas.on("mouse:move", onPanMove as any);
     canvas.on("mouse:up", onPanEnd);
+
+    // Text tool — double-click to create or edit text
+    const onDblClick = (opt: {
+      e: Event;
+      pointer?: { x: number; y: number };
+      scenePoint?: { x: number; y: number };
+    }) => {
+      if (activeToolRef.current !== "text") return;
+      const pointer = opt.pointer ?? opt.scenePoint ?? { x: 0, y: 0 };
+      const target = findTextAtPointer(canvas, pointer);
+      if (target) {
+        startTextEdit(
+          target.left ?? pointer.x,
+          target.top ?? pointer.y,
+          target,
+        );
+      } else {
+        startTextEdit(pointer.x, pointer.y);
+      }
+    };
+    canvas.on("mouse:dblclick", onDblClick);
 
     // Fix: on mobile/stylus, browser fires pointercancel instead of pointerup
     // which leaves Fabric's brush stuck "down", connecting the next stroke.
@@ -412,6 +715,7 @@ export default function NotesCanvas({
       canvas.off("mouse:down", onPanStart as any);
       canvas.off("mouse:move", onPanMove as any);
       canvas.off("mouse:up", onPanEnd);
+      canvas.off("mouse:dblclick", onDblClick);
       upperCanvas?.removeEventListener("pointercancel", forceEndStroke);
       upperCanvas?.removeEventListener("touchcancel", forceEndStroke);
       canvas.dispose();
@@ -422,11 +726,13 @@ export default function NotesCanvas({
   useEffect(() => {
     applyDrawingBrush();
   }, [applyDrawingBrush]);
-  async function uploadPreviewImage(dataUrl: string, oldUrl?: string | null) {
+  async function uploadPreviewImage(
+    dataUrl: string,
+    fileName: string,
+    oldUrl?: string | null,
+  ) {
     const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
     const buffer = Buffer.from(base64, "base64");
-
-    const fileName = `borrower-notes/${crypto.randomUUID()}.webp`;
 
     const { error } = await supabase.storage
       .from("borrower-notes")
@@ -455,7 +761,11 @@ export default function NotesCanvas({
 
       const canvas = fabricRef.current;
 
-      const rawJSON = canvas.toJSON() as Record<string, unknown>;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rawJSON = (canvas as any).toJSON(["data"]) as Record<
+        string,
+        unknown
+      >;
       if (Array.isArray(rawJSON.objects)) {
         rawJSON.objects = (rawJSON.objects as Record<string, unknown>[]).map(
           (obj) => {
@@ -469,6 +779,11 @@ export default function NotesCanvas({
               angle,
               type,
               path,
+              text,
+              id,
+              data,
+              fontSize,
+              fontFamily,
               stroke,
               strokeWidth,
               fill,
@@ -478,6 +793,11 @@ export default function NotesCanvas({
               opacity,
             } = obj as Record<string, unknown>;
             const slim: Record<string, unknown> = { type };
+            if (id !== undefined) slim.id = id;
+            if (data !== undefined) slim.data = data;
+            if (text !== undefined) slim.text = text;
+            if (fontSize !== undefined) slim.fontSize = fontSize;
+            if (fontFamily !== undefined) slim.fontFamily = fontFamily;
             if (path !== undefined) slim.path = path;
             if (left !== undefined) slim.left = left;
             if (top !== undefined) slim.top = top;
@@ -500,17 +820,25 @@ export default function NotesCanvas({
         );
       }
       rawJSON.viewportTransform = canvas.viewportTransform;
-      const canvas_json = await compressJSON(rawJSON);
 
-      const preview_image_url = await uploadPreviewImage(
-        canvas.toDataURL({
-          format: "webp",
-          quality: 0.85,
-          multiplier: 2,
-          enableRetinaScaling: true,
-        }),
-        note?.preview_img_url,
-      );
+      // Generate light + dark previews; share a UUID so dark URL is derivable
+      const lightDataUrl = renderWithTheme(canvas, false);
+      const darkDataUrl = renderWithTheme(canvas, true);
+      // Restore current theme after renderWithTheme left originals but didn't re-render
+      applyThemeToCanvas(canvas, isDarkRef.current);
+
+      const previewUuid = crypto.randomUUID();
+      const lightFileName = `borrower-notes/${previewUuid}.webp`;
+      const darkFileName = `borrower-notes/${previewUuid}-dark.webp`;
+      const oldDarkUrl =
+        note?.preview_img_url?.replace(/\.webp$/, "-dark.webp") ?? null;
+
+      const [preview_image_url] = await Promise.all([
+        uploadPreviewImage(lightDataUrl, lightFileName, note?.preview_img_url),
+        uploadPreviewImage(darkDataUrl, darkFileName, oldDarkUrl),
+      ]);
+
+      const canvas_json = await compressJSON(rawJSON);
       // UPDATE EXISTING NOTE
       if (note?.id) {
         const { data, error } = await supabase
@@ -569,7 +897,7 @@ export default function NotesCanvas({
     const canvas = fabricRef.current;
     if (!canvas) return;
     canvas.clear();
-    canvas.backgroundColor = NOTES_CANVAS_PAPER;
+    canvas.backgroundColor = getTheme(isDarkRef.current).bg;
     canvas.renderAll();
     pushHistory();
     applyDrawingBrushRef.current();
@@ -712,18 +1040,71 @@ export default function NotesCanvas({
               <MousePointer2 className="size-3.5" />
             </button>
 
-            <label className="flex items-center gap-1">
-              <input
-                type="color"
-                value={brushColor}
-                onChange={(e) => setBrushColor(e.target.value)}
-                disabled={activeTool !== "pen"}
-                title="Brush color (pen)"
-                className="h-6 w-8 cursor-pointer rounded border-2
-                  border-slate-300 bg-white p-0.5 disabled:cursor-not-allowed
-                  disabled:opacity-40"
-              />
-            </label>
+            <button
+              type="button"
+              onClick={() => setActiveTool("text")}
+              className={`rounded-md border-2 border-slate-900 px-2 py-1
+              text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#0f172a]
+              transition hover:translate-x-0.5 hover:-translate-y-0.5 ${
+                activeTool === "text"
+                  ? "bg-slate-900 text-white"
+                  : "bg-white text-slate-600"
+              }`}
+            >
+              <Type className="size-3.5" />
+            </button>
+
+            {activeTool === "text" && (
+              <label className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={10}
+                  max={120}
+                  value={textSize}
+                  onChange={(e) => setTextSize(Number(e.target.value))}
+                  title="Text size"
+                  className="h-6 w-12 rounded border-2 border-slate-300 bg-white
+                    px-1 text-[10px] font-bold text-slate-600"
+                />
+              </label>
+            )}
+
+            {(activeTool === "pen" || activeTool === "text") && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setBrushIsInk(true)}
+                  title="Use adaptive ink color (follows theme)"
+                  className={`h-6 rounded border-2 border-slate-900 px-1.5
+                  text-[9px] font-black uppercase
+                  shadow-[2px_2px_0px_0px_#0f172a] transition
+                  hover:translate-x-0.5 hover:-translate-y-0.5 ${
+                    brushIsInk
+                      ? "bg-slate-900 text-white"
+                      : "bg-white text-slate-500"
+                  }`}
+                >
+                  Ink
+                </button>
+                <input
+                  type="color"
+                  value={
+                    brushIsInk
+                      ? isDark
+                        ? NOTES_DARK_INK
+                        : NOTES_LIGHT_INK
+                      : brushColor
+                  }
+                  onChange={(e) => {
+                    setBrushIsInk(false);
+                    setBrushColor(e.target.value);
+                  }}
+                  title="Custom color (disables auto-ink)"
+                  className="h-6 w-8 cursor-pointer rounded border-2
+                    border-slate-300 bg-white p-0.5"
+                />
+              </div>
+            )}
 
             <div className="flex items-center gap-0.5">
               <button
@@ -792,16 +1173,63 @@ export default function NotesCanvas({
         >
           <div
             ref={containerRef}
-            className="relative aspect-[9/16] max-h-full w-full max-w-full
+            className="relative aspect-9/16 max-h-full w-full max-w-full
               overflow-hidden rounded-xl border-2 border-slate-900
               shadow-[3px_3px_0px_0px_#0f172a]"
-            style={{ backgroundColor: NOTES_CANVAS_PAPER, touchAction: "none" }}
+            style={{
+              backgroundColor: isDark ? NOTES_DARK_BG : NOTES_LIGHT_BG,
+              touchAction: "none",
+            }}
           >
             <canvas
               ref={canvasElRef}
               tabIndex={-1}
               className="block h-full w-full"
             />
+
+            {textInput &&
+              fabricRef.current &&
+              (() => {
+                const { x: screenX, y: screenY } = canvasToScreenPoint(
+                  fabricRef.current,
+                  textInput.canvasX,
+                  textInput.canvasY,
+                );
+                return (
+                  <input
+                    type="text"
+                    autoFocus
+                    value={textInput.value}
+                    onChange={(e) =>
+                      setTextInput({ ...textInput, value: e.target.value })
+                    }
+                    onBlur={() => commitText(textInput.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        commitText(textInput.value);
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        cancelText();
+                      }
+                    }}
+                    style={{
+                      position: "absolute",
+                      left: `${screenX}px`,
+                      top: `${screenY}px`,
+                      color: brushColor,
+                      fontSize: `${textSize}px`,
+                      fontFamily: "sans-serif",
+                      background: "transparent",
+                      border: "1px dashed #0ea5e9",
+                      outline: "none",
+                      padding: 0,
+                      minWidth: "4rem",
+                      zIndex: 10,
+                    }}
+                  />
+                );
+              })()}
           </div>
         </div>
       </div>
