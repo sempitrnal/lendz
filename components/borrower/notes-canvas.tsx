@@ -1257,7 +1257,11 @@ export default function NotesCanvas({
                       position: "absolute",
                       left: `${screenX}px`,
                       top: `${screenY}px`,
-                      color: brushColor,
+                      color: brushIsInk
+                        ? isDark
+                          ? NOTES_DARK_INK
+                          : NOTES_LIGHT_INK
+                        : brushColor,
                       fontSize: `${textSize}px`,
                       fontFamily: "sans-serif",
                       background: "transparent",
