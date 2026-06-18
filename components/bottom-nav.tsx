@@ -55,8 +55,7 @@ export default function BottomNav() {
       <nav
         onClick={() => setOpen(true)}
         className="bg-background dark:border-border/50 dark:bg-background fixed
-          right-0 bottom-0 left-0 z-50 border-t-2 border-slate-900
-          shadow-[0_-2px_0_0_#0f172a] sm:hidden dark:shadow-[0_-2px_0_0_#0f172a]
+          right-0 bottom-0 left-0 z-50 border-t border-slate-200 sm:hidden
           print:hidden"
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }}
       >
@@ -91,9 +90,9 @@ export default function BottomNav() {
               }`}
             >
               <div
-                className="dark:border-border rounded-t-2xl border-t-2
-                  border-slate-900 bg-white shadow-[0_-4px_0_0_#0f172a]
-                  dark:bg-card dark:shadow-[0_-4px_0_0_#020617]"
+                className="dark:border-border rounded-t-2xl border-t
+                  border-slate-300 bg-white dark:bg-card
+                  dark:shadow-[0_-4px_0_0_#020617]"
               >
                 {/* Drawer header */}
                 <div
@@ -135,7 +134,7 @@ export default function BottomNav() {
                         className={`flex flex-col items-center gap-1.5
                         rounded-xl border-2 p-3 transition ${
                           isActive
-                            ? `border-slate-900 bg-green-200 text-slate-600
+                            ? `border-slate-300 bg-green-200 text-slate-600
                               dark:border-border dark:bg-green-900/40
                               dark:text-green-200`
                             : `border-slate-200 bg-white text-slate-600
