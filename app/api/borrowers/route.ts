@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { getBorrowerSearchList } from "@/lib/cache/borrowers";
 
 export type BorrowerSearchItem = {
   id: string;
@@ -12,20 +12,11 @@ export type BorrowerSearchItem = {
 };
 
 export async function GET() {
-  const supabase = await createSupabaseServer();
-
-  const { data, error } = await supabase
-    .from("borrowers")
-    .select(
-      `id, first_name, last_name, contact,
-       borrower_categories ( category:categories ( id, name, color ) )`,
-    )
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const data = await getBorrowerSearchList();
+    return NextResponse.json(data as BorrowerSearchItem[]);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  return NextResponse.json(data as BorrowerSearchItem[]);
 }

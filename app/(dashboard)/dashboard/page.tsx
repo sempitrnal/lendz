@@ -518,10 +518,8 @@ export default async function Dashboard() {
   return (
     <main className="mx-auto w-full max-w-5xl px-1 py-2 sm:px-0">
       <section
-        className="dark:border-border dark:via-card mb-4 rounded-xl border-2
-          border-slate-900 bg-linear-to-r from-amber-50 via-stone-50
-          to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:mb-6 sm:p-6
-          dark:from-amber-950/50 dark:to-orange-950/30"
+        className="dark:border-border mb-4 rounded-xl border border-slate-300
+          bg-white p-4 sm:mb-6 sm:p-6 dark:bg-card"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -555,9 +553,8 @@ export default async function Dashboard() {
         {summaryCards.map((card) => (
           <article
             key={card.label}
-            className={`dark:border-border dark:from-card dark:via-card
-            dark:to-muted min-w-0 rounded-xl border-2 border-slate-900
-            bg-linear-to-br ${card.bg} p-4 shadow-[4px_4px_0px_0px_#0f172a]`}
+            className="dark:border-border dark:bg-card min-w-0 rounded-xl border
+              border-slate-300 bg-white p-4"
           >
             <div className="mb-3 flex items-center justify-between">
               <span
@@ -592,8 +589,7 @@ export default async function Dashboard() {
       <section className="mt-4 lg:mt-6">
         <article
           className="dark:border-border dark:bg-card bg-background min-w-0
-            rounded-xl border-2 border-slate-900 p-4
-            shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
+            rounded-xl border border-slate-300 p-4 sm:p-5"
         >
           <div className="mb-4 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -630,9 +626,9 @@ export default async function Dashboard() {
               {monthlyChartData.map((m) => (
                 <div
                   key={m.label}
-                  className="dark:border-border rounded-lg border-2
-                    border-slate-900 bg-amber-50 px-2.5 py-2
-                    shadow-[2px_2px_0px_0px_#0f172a] dark:bg-amber-900/30"
+                  className="dark:border-border rounded-lg border
+                    border-slate-300 bg-amber-50 px-2.5 py-2
+                    dark:bg-amber-900/30"
                 >
                   <p
                     className="dark:text-muted-foreground text-[10px] font-black
@@ -662,8 +658,7 @@ export default async function Dashboard() {
       <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1fr_1.6fr]">
         <article
           className="dark:border-border dark:bg-card bg-background min-w-0
-            rounded-xl border-2 border-slate-900 p-4
-            shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
+            rounded-xl border border-slate-300 p-4 sm:p-5"
         >
           <CollectionRateRing
             data={{
@@ -680,8 +675,7 @@ export default async function Dashboard() {
         </article>
         <article
           className="dark:border-border dark:bg-card bg-background min-w-0
-            rounded-xl border-2 border-slate-900 p-4
-            shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
+            rounded-xl border border-slate-300 p-4 sm:p-5"
         >
           <OverdueByCategoryChart data={overdueByCategory} />
         </article>
@@ -690,8 +684,7 @@ export default async function Dashboard() {
       <section className="mt-4 lg:mt-6">
         <article
           className="dark:border-border dark:bg-card bg-background min-w-0
-            rounded-xl border-2 border-slate-900 p-4
-            shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
+            rounded-xl border border-slate-300 p-4 sm:p-5"
         >
           <CashFlowForecastChart data={cashFlowForecastData} />
         </article>
@@ -700,13 +693,9 @@ export default async function Dashboard() {
       <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1fr_1fr]">
         <Link
           href="/due-this-month"
-          className="dark:border-border dark:via-card flex flex-col
-            justify-between rounded-xl border-2 border-slate-900 bg-linear-to-br
-            from-sky-50 via-stone-50 to-indigo-100 p-4
-            shadow-[4px_4px_0px_0px_#0f172a] transition hover:-translate-y-0.5
-            hover:shadow-[6px_6px_0px_0px_#0f172a] active:translate-y-px
-            active:shadow-[2px_2px_0px_0px_#0f172a] sm:p-5 dark:from-sky-950/30
-            dark:to-indigo-950/30"
+          className="dark:border-border dark:bg-card flex flex-col
+            justify-between rounded-xl border border-slate-300 bg-white p-4
+            transition hover:bg-slate-50 sm:p-5 dark:hover:bg-muted/50"
         >
           <div className="flex items-center justify-between">
             <h2
@@ -731,10 +720,8 @@ export default async function Dashboard() {
         </Link>
 
         <article
-          className="dark:border-border dark:via-card rounded-xl border-2
-            border-slate-900 bg-linear-to-br from-amber-50 via-stone-100
-            to-orange-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5
-            dark:from-amber-950/30 dark:to-orange-950/30"
+          className="dark:border-border dark:bg-card rounded-xl border
+            border-slate-300 bg-white p-4 sm:p-5"
         >
           <h2
             className="dark:text-foreground mb-3 text-base font-black

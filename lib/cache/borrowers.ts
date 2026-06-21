@@ -496,6 +496,28 @@ export const getDeletedBorrowers = unstable_cache(
   { revalidate: 60, tags: ["deleted-borrowers"] },
 );
 
+async function fetchBorrowerSearchList() {
+  const supabase = createSupabaseAdmin();
+
+  const { data, error } = await supabase
+    .from("borrowers")
+    .select(
+      `id, first_name, last_name, contact,
+       borrower_categories ( category:categories ( id, name, color ) )`,
+    )
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export const getBorrowerSearchList = unstable_cache(
+  fetchBorrowerSearchList,
+  ["borrower-search-list"],
+  { revalidate: 60, tags: ["borrowers"] },
+);
+
 async function fetchAllDeletedAccounts() {
   const supabase = createSupabaseAdmin();
 
