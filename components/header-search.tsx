@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, Search } from "lucide-react";
+import { Clock, Search, X, XCircle } from "lucide-react";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 
@@ -128,7 +128,7 @@ export default function HeaderSearch({
         />
         <input
           ref={inputRef}
-          type="search"
+          type="text"
           value={input}
           onChange={(e) => {
             const v = e.target.value;
@@ -165,26 +165,60 @@ export default function HeaderSearch({
           autoComplete="off"
           aria-label="Search borrowers"
           aria-autocomplete="list"
-          aria-expanded={showSuggestions && visibleItems.length > 0}
+          aria-expanded={showSuggestions}
           className="dark:border-border dark:bg-card dark:text-foreground
             dark:placeholder:text-muted-foreground h-9 w-full rounded-lg border
-            border-slate-900/30 bg-white py-2 pr-3 pl-9 text-sm text-slate-600
+            border-slate-300 bg-white py-2 pr-14 pl-9 text-sm text-slate-600
             outline-none placeholder:text-slate-400 transition
-            focus:border-slate-900
-            focus:shadow-[3px_3px_0px_0px_rgb(15_23_42/0.15)]
-            dark:focus:border-border"
+            focus:border-slate-400 dark:focus:border-slate-500"
         />
+
+        {/* Clear button */}
+        {input.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              setInput("");
+              setDebouncedQuery("");
+              inputRef.current?.focus();
+            }}
+            className={`dark:text-muted-foreground absolute top-1/2 z-10
+            -translate-y-1/2 rounded-md p-1 text-slate-400 transition
+            hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/10
+            dark:hover:text-foreground
+            ${showSuggestions ? "right-8" : "right-2.5"}`}
+            aria-label="Clear search"
+          >
+            <XCircle className="size-3.5" />
+          </button>
+        )}
+
+        {/* Exit / close button */}
+        {showSuggestions && (
+          <button
+            type="button"
+            onClick={() => {
+              setShowSuggestions(false);
+              inputRef.current?.blur();
+            }}
+            className="dark:text-muted-foreground absolute top-1/2 right-2.5
+              z-10 -translate-y-1/2 rounded-md p-1 text-slate-400 transition
+              hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/10
+              dark:hover:text-foreground"
+            aria-label="Close search"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
       </div>
 
-      {showSuggestions && visibleItems.length > 0 && (
+      {showSuggestions && (
         <div
           role="listbox"
           onMouseDown={(e) => e.preventDefault()}
           className="dark:border-border dark:bg-card absolute top-full right-0
-            left-0 z-50 mt-1 overflow-hidden rounded-xl border-2
-            border-slate-900 bg-white
-            shadow-[3px_3px_0px_0px_rgb(15_23_42/0.85)]
-            dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+            left-0 z-50 mt-1 overflow-hidden rounded-xl border border-slate-300
+            bg-white shadow-sm dark:shadow-none"
         >
           {!isQuery && (
             <div

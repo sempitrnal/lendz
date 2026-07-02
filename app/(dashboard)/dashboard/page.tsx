@@ -20,11 +20,7 @@ import {
 import ThemeToggle from "@/components/theme-toggle";
 import ResetCacheButton from "@/components/reset-cache-button";
 import MonthPicker from "@/components/month-picker";
-import {
-  CollectionRateRingClient as CollectionRateRing,
-  OverdueByCategoryChartClient as OverdueByCategoryChart,
-  CashFlowForecastChartClient as CashFlowForecastChart,
-} from "@/components/dashboard/charts-client";
+import { CashFlowForecastChartClient as CashFlowForecastChart } from "@/components/dashboard/charts-client";
 
 type ScheduleAggRow = {
   id: string;
@@ -409,47 +405,6 @@ export default async function Dashboard({
     return { label, color, id };
   };
 
-  const overdueByCategory = (() => {
-    const map = new Map<
-      string,
-      { color: string | null; total: number; principal: number; profit: number }
-    >();
-    for (const schedule of pastOverdueCandidates) {
-      const account = accountsById.get(schedule.account_id);
-      const borrower = account ? borrowersById.get(account.borrower_id) : null;
-      const meta = borrowerCategoryMeta(borrower ?? null);
-      const remaining = remainingOnInstallment(schedule);
-      const accPrincipal = principalByAccountId.get(schedule.account_id) ?? 0;
-      const totalInstallments =
-        totalInstallmentsByAccount.get(schedule.account_id) ?? 1;
-      const principalPerInstallment = accPrincipal / totalInstallments;
-      const principalPortion = Math.min(remaining, principalPerInstallment);
-      const profitPortion = Math.max(0, remaining - principalPerInstallment);
-      const existing = map.get(meta.label);
-      if (existing) {
-        existing.total += remaining;
-        existing.principal += principalPortion;
-        existing.profit += profitPortion;
-      } else {
-        map.set(meta.label, {
-          color: meta.color,
-          total: remaining,
-          principal: principalPortion,
-          profit: profitPortion,
-        });
-      }
-    }
-    return Array.from(map.entries())
-      .map(([name, g]) => ({
-        name,
-        color: g.color,
-        total: Math.round(g.total),
-        principal: Math.round(g.principal),
-        profit: Math.round(g.profit),
-      }))
-      .sort((a, b) => b.total - a.total);
-  })();
-
   // 30-day cash flow forecast: group unpaid schedules into 5 weekly buckets
   const cashFlowForecastData = (() => {
     const weeks: {
@@ -652,14 +607,14 @@ export default async function Dashboard({
                 dark:to-zinc-900/60"
             >
               <p
-                className="dark:text-muted-foreground text-[10px] font-semibold
+                className="dark:text-muted-foreground text-[10px] font-black
                   tracking-wide text-slate-500 uppercase"
               >
                 to collect this month
               </p>
               <p
-                className="dark:text-foreground mt-0.5 text-base font-bold
-                  text-slate-700 tabular-nums"
+                className="dark:text-foreground mt-0.5 text-base font-black
+                  text-slate-600 tabular-nums"
               >
                 ₱{(currentMonthData?.expected ?? 0).toLocaleString()}
               </p>
@@ -670,14 +625,14 @@ export default async function Dashboard({
                 dark:from-sky-900/20 dark:via-zinc-900/40 dark:to-zinc-900/60"
             >
               <p
-                className="dark:text-muted-foreground text-[10px] font-semibold
+                className="dark:text-muted-foreground text-[10px] font-black
                   tracking-wide text-slate-500 uppercase"
               >
                 to collect so far
               </p>
               <p
-                className="dark:text-foreground mt-0.5 text-base font-bold
-                  text-slate-700 tabular-nums"
+                className="dark:text-foreground mt-0.5 text-base font-black
+                  text-slate-600 tabular-nums"
               >
                 ₱{(currentMonthData?.expectedSoFar ?? 0).toLocaleString()}
               </p>
@@ -689,14 +644,14 @@ export default async function Dashboard({
                 dark:to-zinc-900/60"
             >
               <p
-                className="dark:text-muted-foreground text-[10px] font-semibold
+                className="dark:text-muted-foreground text-[10px] font-black
                   tracking-wide text-slate-500 uppercase"
               >
                 collected
               </p>
               <p
-                className="dark:text-foreground mt-0.5 text-base font-bold
-                  text-slate-700 tabular-nums"
+                className="dark:text-foreground mt-0.5 text-base font-black
+                  text-slate-600 tabular-nums"
               >
                 ₱{(currentMonthData?.collected ?? 0).toLocaleString()}
               </p>
@@ -707,14 +662,14 @@ export default async function Dashboard({
                 dark:from-amber-900/20 dark:via-zinc-900/40 dark:to-zinc-900/60"
             >
               <p
-                className="dark:text-muted-foreground text-[10px] font-semibold
+                className="dark:text-muted-foreground text-[10px] font-black
                   tracking-wide text-slate-500 uppercase"
               >
                 meme
               </p>
               <p
-                className="dark:text-foreground mt-0.5 text-base font-bold
-                  text-slate-700 tabular-nums"
+                className="dark:text-foreground mt-0.5 text-base font-black
+                  text-slate-600 tabular-nums"
               >
                 ₱{(currentMonthData?.profit ?? 0).toLocaleString()}
               </p>
@@ -726,14 +681,14 @@ export default async function Dashboard({
                 dark:to-zinc-900/60"
             >
               <p
-                className="dark:text-muted-foreground text-[10px] font-semibold
+                className="dark:text-muted-foreground text-[10px] font-black
                   tracking-wide text-slate-500 uppercase"
               >
                 expected profit
               </p>
               <p
-                className="dark:text-foreground mt-0.5 text-base font-bold
-                  text-slate-700 tabular-nums"
+                className="dark:text-foreground mt-0.5 text-base font-black
+                  text-slate-600 tabular-nums"
               >
                 ₱{(currentMonthData?.expectedProfit ?? 0).toLocaleString()}
               </p>
@@ -744,14 +699,14 @@ export default async function Dashboard({
                 dark:from-rose-900/20 dark:via-zinc-900/40 dark:to-zinc-900/60"
             >
               <p
-                className="dark:text-muted-foreground text-[10px] font-semibold
+                className="dark:text-muted-foreground text-[10px] font-black
                   tracking-wide text-slate-500 uppercase"
               >
                 remaining profit
               </p>
               <p
-                className="dark:text-foreground mt-0.5 text-base font-bold
-                  text-slate-700 tabular-nums"
+                className="dark:text-foreground mt-0.5 text-base font-black
+                  text-slate-600 tabular-nums"
               >
                 ₱{currentMonthRemainingProfit.toLocaleString()}
               </p>
@@ -838,32 +793,6 @@ export default async function Dashboard({
               })}
             </div>
           </div>
-        </article>
-      </section>
-
-      <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1fr_1.6fr]">
-        <article
-          className="dark:border-border dark:bg-card bg-background min-w-0
-            rounded-xl border border-slate-300 p-4 sm:p-5"
-        >
-          <CollectionRateRing
-            data={{
-              collected: monthlyChartData[5]?.collected ?? 0,
-              expectedSoFar: monthlyChartData[5]?.expectedSoFar ?? 0,
-              profit: monthlyChartData[5]?.profit ?? 0,
-              expectedProfit: monthlyChartData[5]?.expectedProfit ?? 0,
-              expectedProfitSoFar:
-                monthlyChartData[5]?.expectedProfitSoFar ?? 0,
-              isComplete: monthlyChartData[5]?.isComplete ?? false,
-              monthLabel: monthlyChartData[5]?.label ?? "",
-            }}
-          />
-        </article>
-        <article
-          className="dark:border-border dark:bg-card bg-background min-w-0
-            rounded-xl border border-slate-300 p-4 sm:p-5"
-        >
-          <OverdueByCategoryChart data={overdueByCategory} />
         </article>
       </section>
 

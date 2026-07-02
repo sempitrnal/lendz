@@ -89,6 +89,14 @@ export default function CategorySection({
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
 
+  const scrollToCategory = () => {
+    const el = document.getElementById(`cat-${slugify(cat.label)}`);
+    if (el) {
+      const top = el.getBoundingClientRect().top + window.scrollY - 80;
+      window.scrollTo({ top, behavior: "smooth" });
+    }
+  };
+
   const paidFromPending = cat.pending.filter((b) =>
     b.schedules.some((s) => s.status === "paid"),
   );
@@ -163,7 +171,11 @@ export default function CategorySection({
             type="search"
             placeholder={`search ${cat.label}…`}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              scrollToCategory();
+            }}
+            onFocus={scrollToCategory}
             className="w-full rounded-md border border-slate-200 bg-white py-1.5
               pl-8 pr-3 text-xs text-slate-700 placeholder:text-slate-400
               focus:border-slate-400 focus:outline-none dark:border-border
@@ -178,7 +190,7 @@ export default function CategorySection({
         <div className="mb-3">
           <details open className="group">
             <summary
-              className="dark:border-border sticky top-[184px] sm:top-[179px]
+              className="dark:border-border sticky top-[183px] sm:top-[179px]
                 z-20 -mx-4 flex cursor-pointer list-none items-center
                 justify-between border-slate-300 bg-orange-50 px-4 py-2
                 dark:bg-[#170e08]"
@@ -396,7 +408,7 @@ export default function CategorySection({
         <div>
           <details open className="group">
             <summary
-              className="dark:border-border sticky top-[184px] sm:top-[179px]
+              className="dark:border-border sticky top-[183px] sm:top-[179px]
                 z-20 -mx-4 flex cursor-pointer list-none items-center
                 justify-between border-slate-400 bg-emerald-50 px-4 py-2
                 dark:bg-[#06180b]"
