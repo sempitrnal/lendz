@@ -18,6 +18,7 @@ export type ScheduleRow = {
   amount_paid: number | null;
   remaining_amount: number | null;
   due_date: string;
+  paid_date: string | null;
   status: string;
 };
 
@@ -31,7 +32,7 @@ export async function getAllPaymentSchedules(): Promise<ScheduleRow[]> {
     const { data, error } = await supabase
       .from("payment_schedules")
       .select(
-        "id, account_id, amount_due, amount_paid, remaining_amount, status, due_date",
+        "id, account_id, amount_due, amount_paid, remaining_amount, status, due_date, paid_date",
       )
       .range(from, from + PAGE_SIZE - 1);
     if (error || !data || data.length === 0) break;

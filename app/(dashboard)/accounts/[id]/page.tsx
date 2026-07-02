@@ -109,22 +109,22 @@ type AccountDetailPageProps = {
 };
 
 const nb = {
-  card: "rounded-xl border-2 border-slate-900 bg-background shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-slate-900 dark:shadow-[2px_2px_0px_0px_#020617]",
+  card: "rounded-xl border border-slate-900 bg-background shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-slate-900 dark:shadow-[2px_2px_0px_0px_#020617]",
   cardSoft:
-    "rounded-xl border-2 border-slate-900 bg-background shadow-[1px_1px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-slate-900 dark:shadow-[1px_1px_0px_0px_#020617]",
+    "rounded-xl border border-slate-900 bg-background shadow-[1px_1px_0px_0px_#0f172a] dark:border-[#020617] dark:bg-slate-900 dark:shadow-[1px_1px_0px_0px_#020617]",
   inset:
-    "rounded-lg border-2 border-slate-900 bg-slate-50 dark:border-[#020617] dark:bg-slate-900",
+    "rounded-lg border border-slate-900 bg-slate-50 dark:border-[#020617] dark:bg-slate-900",
   label:
     "text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400",
   /** Payment schedule block */
   scheduleShell:
-    "overflow-hidden rounded-xl border-2 border-slate-900 bg-background dark:border-[#020617] dark:bg-slate-900",
+    "overflow-hidden rounded-xl border border-slate-300 bg-background dark:border-[#020617] dark:bg-slate-900",
   scheduleHead:
-    "border-b-2 border-slate-900 bg-green-300 px-4 py-3 sm:px-5 sm:py-4 dark:border-[#020617] dark:bg-green-400",
+    "border-b border-slate-900 bg-green-300 px-4 py-3 sm:px-5 sm:py-4 dark:border-[#020617] dark:bg-green-400",
   scheduleTh:
-    "border-r-2 border-b-2 border-slate-900 bg-slate-100 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide text-slate-600 last:border-r-0 dark:border-[#020617] dark:bg-slate-800 dark:text-slate-100",
+    "border-r border-b border-slate-900 bg-slate-100 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide text-slate-600 last:border-r-0 dark:border-[#020617] dark:bg-slate-800 dark:text-slate-100",
   scheduleTd:
-    "border-r-2 border-b-2 border-slate-900 px-3 py-2.5 align-middle text-slate-600 last:border-r-0 dark:border-[#020617] dark:text-slate-100",
+    "border-r border-b border-slate-900 px-3 py-2.5 align-middle text-slate-600 last:border-r-0 dark:border-[#020617] dark:text-slate-100",
 };
 
 function formatMoney(value: number) {
@@ -344,7 +344,6 @@ export default async function AccountDetailPage({
                 dark:border-[#020617] dark:shadow-[4px_4px_0px_0px_#020617]`
           }`}
       >
-        {isNext && <GlowBorder />}
         <div className="flex items-center gap-2">
           <span
             className="dark:text-muted-foreground text-[11px] font-black
@@ -1060,17 +1059,12 @@ export default async function AccountDetailPage({
                             scheduleId={schedule.id}
                             id={isNext ? "next-schedule" : undefined}
                             className={cn(
-                              "rounded-xl border-2 px-4 py-3",
+                              "rounded-xl border-[1.5px] px-4 py-3",
                               st.row,
                               isNext
-                                ? `relative my-5 border-slate-900
-                                  shadow-[3px_3px_0px_0px_#0f172a]
-                                  dark:border-[#020617]
-                                  dark:shadow-[3px_3px_0px_0px_#020617]`
-                                : `border-slate-900
-                                  shadow-[3px_3px_0px_0px_#0f172a]
-                                  dark:border-[#020617]
-                                  dark:shadow-[3px_3px_0px_0px_#020617]`,
+                                ? `relative my-5 border-slate-300
+                                  dark:border-[#020617] `
+                                : "border-slate-300 dark:border-[#020617]",
                             )}
                             defaultOpen={
                               isNext || focusScheduleId === schedule.id
@@ -1126,7 +1120,6 @@ export default async function AccountDetailPage({
                               ) : undefined
                             }
                           >
-                            {isNext && <GlowBorder />}
                             {/* always-visible card header */}
                             <div className="flex items-center gap-2">
                               <span

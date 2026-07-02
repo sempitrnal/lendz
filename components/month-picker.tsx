@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function MonthPicker({ currentMonth }: { currentMonth: string }) {
+export default function MonthPicker({
+  currentMonth,
+}: {
+  currentMonth: string;
+}) {
   const router = useRouter();
   const [value, setValue] = useState(currentMonth);
 
@@ -12,7 +16,7 @@ export default function MonthPicker({ currentMonth }: { currentMonth: string }) 
     setValue(newValue);
     const url = new URL(window.location.href);
     url.searchParams.set("month", newValue);
-    router.push(url.pathname + url.search);
+    router.push(url.pathname + url.search, { scroll: false });
   };
 
   const prevMonth = () => {

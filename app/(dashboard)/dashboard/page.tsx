@@ -19,8 +19,8 @@ import {
 } from "@/lib/payment-schedule/schedule-balances";
 import ThemeToggle from "@/components/theme-toggle";
 import ResetCacheButton from "@/components/reset-cache-button";
+import MonthPicker from "@/components/month-picker";
 import {
-  MonthlyCollectionsChartClient as MonthlyCollectionsChart,
   CollectionRateRingClient as CollectionRateRing,
   OverdueByCategoryChartClient as OverdueByCategoryChart,
   CashFlowForecastChartClient as CashFlowForecastChart,
@@ -33,6 +33,7 @@ type ScheduleAggRow = {
   amount_paid: number | null;
   remaining_amount: number | null;
   due_date: string;
+  paid_date: string | null;
   status: string;
 };
 
@@ -72,16 +73,25 @@ type BorrowerRef = {
   }>;
 };
 
-export default async function Dashboard() {
+export default async function Dashboard({
+  searchParams,
+}: {
+  searchParams?: Promise<{ month?: string }>;
+}) {
+  const params = searchParams ? await searchParams : {};
   const supabase = await createSupabaseServer();
   const now = new Date();
   const TZ = "Asia/Manila";
   const todayIso = now.toLocaleDateString("en-CA", { timeZone: TZ });
-  const [yearStr, monthStr] = todayIso.split("-");
+  const defaultMonth = todayIso.slice(0, 7);
+  const isValid = /^\d{4}-\d{2}$/.test(params.month ?? "");
+  const activeMonth = isValid ? params.month! : defaultMonth;
+
+  const [yearStr, monthStr] = activeMonth.split("-");
   const phtYear = Number(yearStr);
   const phtMonth = Number(monthStr);
   const startOfMonthDate = `${yearStr}-${monthStr}-01`;
-  const startOfMonthIso = `${startOfMonthDate}T00:00:00+08:00`;
+  const startOfMonthIso = `${todayIso.slice(0, 7)}-01T00:00:00+08:00`;
   const lastDay = new Date(phtYear, phtMonth, 0).getDate();
   const endOfMonthDate = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
   const weekAgoDate = new Date(
@@ -90,7 +100,7 @@ export default async function Dashboard() {
 
   // 6-month window for chart
   const sixMonthsAgoDate = (() => {
-    const d = new Date(now);
+    const d = new Date(`${activeMonth}-01`);
     d.setMonth(d.getMonth() - 5);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
   })();
@@ -126,11 +136,20 @@ export default async function Dashboard() {
     getAllPaymentSchedules(),
   ]);
 
-  const unpaidSchedules = allSchedules.filter((row) => row.status !== "paid");
-  const thisMonthSchedules = allSchedules.filter(
+  const validAccountIds = new Set(
+    (accountTotalsData ?? []).map((a: { id: string }) => a.id),
+  );
+  const filteredSchedules = allSchedules.filter((row) =>
+    validAccountIds.has(row.account_id),
+  );
+
+  const unpaidSchedules = filteredSchedules.filter(
+    (row) => row.status !== "paid",
+  );
+  const thisMonthSchedules = filteredSchedules.filter(
     (row) => row.due_date >= startOfMonthDate && row.due_date <= endOfMonthDate,
   );
-  const sixMonthSchedules = allSchedules.filter(
+  const sixMonthSchedules = filteredSchedules.filter(
     (row) => row.due_date >= sixMonthsAgoDate && row.due_date <= endOfMonthDate,
   );
 
@@ -240,6 +259,8 @@ export default async function Dashboard() {
     ? futureCandidates.filter((row) => row.due_date === nextCollectionDate)
     : [];
 
+  const activeDate = new Date(`${activeMonth}-01`);
+
   // Build 6-month chart data: expected = sum of amount_due, collected = sum of amount_paid
   // profit = amount_paid − principal_per_installment (interest collected)
   const monthlyChartData = (() => {
@@ -254,9 +275,10 @@ export default async function Dashboard() {
       expectedProfitSoFar: number;
       isComplete: boolean;
     }[] = [];
+    const activeYear = activeDate.getFullYear();
+    const activeMonthIndex = activeDate.getMonth();
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now);
-      d.setMonth(d.getMonth() - i);
+      const d = new Date(activeYear, activeMonthIndex - i, 1);
       const y = d.getFullYear();
       const m = d.getMonth() + 1;
       const monthKey = `${y}-${String(m).padStart(2, "0")}`;
@@ -265,6 +287,8 @@ export default async function Dashboard() {
         month: "long",
         year: "numeric",
       });
+      const isPastMonth = monthKey < todayIso.slice(0, 7);
+      const isCurrentMonth = monthKey === todayIso.slice(0, 7);
 
       let expected = 0;
       let expectedSoFar = 0;
@@ -273,20 +297,23 @@ export default async function Dashboard() {
       let expectedProfit = 0;
       let expectedProfitSoFar = 0;
       for (const row of sixMonthSchedules) {
-        if (!row.due_date.startsWith(monthKey)) continue;
         const paid = Number(row.amount_paid ?? 0);
         const due = Number(row.amount_due ?? 0);
-        expected += due;
-        if (row.due_date <= todayIso) expectedSoFar += due;
-        collected += paid;
         const principal = principalByAccountId.get(row.account_id) ?? 0;
         const totalInstallments =
           totalInstallmentsByAccount.get(row.account_id) ?? 1;
         const principalPerInstallment = principal / totalInstallments;
-        profit += Math.max(0, paid - principalPerInstallment);
-        expectedProfit += Math.max(0, due - principalPerInstallment);
-        if (row.due_date <= todayIso)
-          expectedProfitSoFar += Math.max(0, due - principalPerInstallment);
+
+        if (row.due_date.startsWith(monthKey)) {
+          expected += due;
+          if (isPastMonth || (isCurrentMonth && row.due_date <= todayIso))
+            expectedSoFar += due;
+          expectedProfit += Math.max(0, due - principalPerInstallment);
+          if (isPastMonth || (isCurrentMonth && row.due_date <= todayIso))
+            expectedProfitSoFar += Math.max(0, due - principalPerInstallment);
+          collected += paid;
+          profit += Math.max(0, paid - principalPerInstallment);
+        }
       }
       months.push({
         label,
@@ -467,6 +494,12 @@ export default async function Dashboard() {
     return weeks;
   })();
 
+  const currentMonthData = monthlyChartData[monthlyChartData.length - 1];
+  const currentMonthRemainingProfit = Math.max(
+    0,
+    (currentMonthData?.expectedProfit ?? 0) - (currentMonthData?.profit ?? 0),
+  );
+
   const completeMonths = monthlyChartData.filter((m) => m.isComplete);
   const totalProfitComplete = completeMonths.reduce((s, m) => s + m.profit, 0);
   const avgMonthlyProfit =
@@ -591,11 +624,13 @@ export default async function Dashboard() {
           className="dark:border-border dark:bg-card bg-background min-w-0
             rounded-xl border border-slate-300 p-4 sm:p-5"
         >
-          <div className="mb-4 flex items-center justify-between gap-2">
+          <div
+            className="mb-4 flex flex-wrap items-center justify-between gap-2"
+          >
             <div className="flex items-center gap-2">
               <span
                 className="dark:border-border dark:text-foreground rounded-md
-                  border border-slate-900 bg-emerald-100 p-1.5 text-slate-600
+                  border border-slate-200 bg-emerald-100 p-1.5 text-slate-600
                   dark:bg-emerald-900/50"
               >
                 <TrendingUp className="size-4" />
@@ -607,8 +642,121 @@ export default async function Dashboard() {
                 monthly collections
               </h2>
             </div>
+            <MonthPicker currentMonth={activeMonth} />
           </div>
-          <MonthlyCollectionsChart data={monthlyChartData} />
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            <div
+              className="dark:border-border rounded-lg border border-slate-300
+                bg-linear-to-br from-indigo-50 via-stone-50 to-white px-3 py-2.5
+                dark:from-indigo-900/20 dark:via-zinc-900/40
+                dark:to-zinc-900/60"
+            >
+              <p
+                className="dark:text-muted-foreground text-[10px] font-semibold
+                  tracking-wide text-slate-500 uppercase"
+              >
+                to collect this month
+              </p>
+              <p
+                className="dark:text-foreground mt-0.5 text-base font-bold
+                  text-slate-700 tabular-nums"
+              >
+                ₱{(currentMonthData?.expected ?? 0).toLocaleString()}
+              </p>
+            </div>
+            <div
+              className="dark:border-border rounded-lg border border-slate-300
+                bg-linear-to-br from-sky-50 via-stone-50 to-white px-3 py-2.5
+                dark:from-sky-900/20 dark:via-zinc-900/40 dark:to-zinc-900/60"
+            >
+              <p
+                className="dark:text-muted-foreground text-[10px] font-semibold
+                  tracking-wide text-slate-500 uppercase"
+              >
+                to collect so far
+              </p>
+              <p
+                className="dark:text-foreground mt-0.5 text-base font-bold
+                  text-slate-700 tabular-nums"
+              >
+                ₱{(currentMonthData?.expectedSoFar ?? 0).toLocaleString()}
+              </p>
+            </div>
+            <div
+              className="dark:border-border rounded-lg border border-slate-300
+                bg-linear-to-br from-emerald-50 via-stone-50 to-white px-3
+                py-2.5 dark:from-emerald-900/20 dark:via-zinc-900/40
+                dark:to-zinc-900/60"
+            >
+              <p
+                className="dark:text-muted-foreground text-[10px] font-semibold
+                  tracking-wide text-slate-500 uppercase"
+              >
+                collected
+              </p>
+              <p
+                className="dark:text-foreground mt-0.5 text-base font-bold
+                  text-slate-700 tabular-nums"
+              >
+                ₱{(currentMonthData?.collected ?? 0).toLocaleString()}
+              </p>
+            </div>
+            <div
+              className="dark:border-border rounded-lg border border-slate-300
+                bg-linear-to-br from-amber-50 via-stone-50 to-white px-3 py-2.5
+                dark:from-amber-900/20 dark:via-zinc-900/40 dark:to-zinc-900/60"
+            >
+              <p
+                className="dark:text-muted-foreground text-[10px] font-semibold
+                  tracking-wide text-slate-500 uppercase"
+              >
+                meme
+              </p>
+              <p
+                className="dark:text-foreground mt-0.5 text-base font-bold
+                  text-slate-700 tabular-nums"
+              >
+                ₱{(currentMonthData?.profit ?? 0).toLocaleString()}
+              </p>
+            </div>
+            <div
+              className="dark:border-border rounded-lg border border-slate-300
+                bg-linear-to-br from-yellow-50 via-stone-50 to-white px-3 py-2.5
+                dark:from-yellow-900/20 dark:via-zinc-900/40
+                dark:to-zinc-900/60"
+            >
+              <p
+                className="dark:text-muted-foreground text-[10px] font-semibold
+                  tracking-wide text-slate-500 uppercase"
+              >
+                expected profit
+              </p>
+              <p
+                className="dark:text-foreground mt-0.5 text-base font-bold
+                  text-slate-700 tabular-nums"
+              >
+                ₱{(currentMonthData?.expectedProfit ?? 0).toLocaleString()}
+              </p>
+            </div>
+            <div
+              className="dark:border-border rounded-lg border border-slate-300
+                bg-linear-to-br from-rose-50 via-stone-50 to-white px-3 py-2.5
+                dark:from-rose-900/20 dark:via-zinc-900/40 dark:to-zinc-900/60"
+            >
+              <p
+                className="dark:text-muted-foreground text-[10px] font-semibold
+                  tracking-wide text-slate-500 uppercase"
+              >
+                remaining profit
+              </p>
+              <p
+                className="dark:text-foreground mt-0.5 text-base font-bold
+                  text-slate-700 tabular-nums"
+              >
+                ₱{currentMonthRemainingProfit.toLocaleString()}
+              </p>
+            </div>
+          </div>
 
           {/* Profit per month list */}
           <div
@@ -623,33 +771,71 @@ export default async function Dashboard() {
             <div
               className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
             >
-              {monthlyChartData.map((m) => (
-                <div
-                  key={m.label}
-                  className="dark:border-border rounded-lg border
-                    border-slate-300 bg-amber-50 px-2.5 py-2
-                    dark:bg-amber-900/30"
-                >
-                  <p
-                    className="dark:text-muted-foreground text-[10px] font-black
-                      tracking-wide text-slate-500 uppercase"
+              {monthlyChartData.map((m) => {
+                const progress =
+                  m.expectedProfit > 0
+                    ? Math.min(
+                        100,
+                        Math.round((m.profit / m.expectedProfit) * 100),
+                      )
+                    : 0;
+                const progressBg =
+                  progress >= 75
+                    ? "bg-emerald-50 dark:bg-emerald-900/20"
+                    : progress >= 50
+                      ? "bg-amber-50 dark:bg-amber-900/20"
+                      : progress >= 25
+                        ? "bg-orange-50 dark:bg-orange-900/20"
+                        : "bg-rose-50 dark:bg-rose-900/20";
+                const progressBar =
+                  progress >= 75
+                    ? "bg-emerald-500"
+                    : progress >= 50
+                      ? "bg-amber-500"
+                      : progress >= 25
+                        ? "bg-orange-500"
+                        : "bg-rose-500";
+                return (
+                  <div
+                    key={m.label}
+                    className={`dark:border-border flex flex-col gap-1
+                    rounded-lg border border-slate-300 px-2.5 py-2
+                    ${progressBg}`}
                   >
-                    {m.fullLabel}
-                  </p>
-                  <p
-                    className="dark:text-foreground mt-0.5 text-sm font-black
-                      text-slate-600 tabular-nums"
-                  >
-                    ₱{m.profit.toLocaleString()}
-                  </p>
-                  <p
-                    className="dark:text-muted-foreground text-[10px]
-                      font-semibold text-slate-500"
-                  >
-                    expected ₱{m.expectedProfit.toLocaleString()}
-                  </p>
-                </div>
-              ))}
+                    <p
+                      className="dark:text-muted-foreground text-[10px]
+                        font-black tracking-wide text-slate-500 uppercase"
+                    >
+                      {m.fullLabel}
+                    </p>
+                    <p
+                      className="dark:text-foreground mt-0.5 text-sm font-black
+                        text-slate-600 tabular-nums"
+                    >
+                      ₱{m.profit.toLocaleString()}
+                    </p>
+                    <p
+                      className="dark:text-muted-foreground text-[10px]
+                        font-semibold text-slate-500"
+                    >
+                      expected ₱{m.expectedProfit.toLocaleString()}
+                    </p>
+                    {/* Progress bar */}
+                    <div
+                      className="mt-1 h-1.5 w-full overflow-hidden rounded-full
+                        bg-black/5 dark:bg-white/10"
+                    >
+                      <div
+                        className={`h-full rounded-full ${progressBar}`}
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <p className="text-[9px] font-semibold text-slate-400">
+                      {progress}%
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </article>

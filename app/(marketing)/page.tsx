@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
+import { createSupabaseServer } from "@/lib/supabase/server";
 import {
   LayoutDashboard,
   Users,
@@ -54,7 +56,16 @@ function NeobrutCard({
   );
 }
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="flex flex-col gap-12 overflow-x-clip">
       {/* ── HERO ── */}

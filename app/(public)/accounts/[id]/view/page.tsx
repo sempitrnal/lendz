@@ -158,15 +158,14 @@ export default async function PublicAccountViewPage({ params }: Props) {
             {borrowerName}
           </h1>
           <span
-            className={`mt-2 inline-block rounded-full border-2 px-3 py-1
-              text-[10px] font-black tracking-widest uppercase
-              shadow-[2px_2px_0px_0px_#0f172a] dark:shadow-none ${
+            className={`mt-2 inline-block rounded-full border px-3 py-1
+              text-[10px] font-black tracking-widest uppercase ${
                 account.type === "cash_advance"
-                  ? `border-amber-700 bg-amber-100 text-amber-900
-                    dark:border-amber-400/50 dark:bg-amber-400/20
+                  ? `border-amber-600 bg-amber-100 text-amber-900
+                    dark:border-amber-400/40 dark:bg-amber-400/20
                     dark:text-amber-300`
-                  : `border-violet-700 bg-violet-100 text-violet-900
-                    dark:border-violet-400/50 dark:bg-violet-400/20
+                  : `border-violet-600 bg-violet-100 text-violet-900
+                    dark:border-violet-400/40 dark:bg-violet-400/20
                     dark:text-violet-300`
               }`}
           >
@@ -176,11 +175,10 @@ export default async function PublicAccountViewPage({ params }: Props) {
 
         {/* Loan Summary */}
         <div
-          className="rounded-xl border-2 border-slate-900 bg-white p-2.5
-            shadow-[3px_3px_0px_0px_#0f172a] dark:border-zinc-700
-            dark:bg-zinc-900 dark:shadow-none"
+          className="rounded-xl border border-slate-300 bg-white p-4
+            dark:border-zinc-700 dark:bg-zinc-900"
         >
-          <div className="grid grid-cols-2 gap-2.5 text-sm">
+          <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p
                 className="text-[10px] font-bold tracking-wider text-slate-400
@@ -243,7 +241,7 @@ export default async function PublicAccountViewPage({ params }: Props) {
           </div>
           {account.release_date && (
             <div
-              className="mt-3 border-t border-dashed border-slate-200 pt-3
+              className="mt-4 border-t border-slate-200 pt-4
                 dark:border-zinc-700"
             >
               <p
@@ -264,9 +262,8 @@ export default async function PublicAccountViewPage({ params }: Props) {
 
         {/* Progress */}
         <div
-          className="rounded-xl border-2 border-slate-900 bg-white p-2.5
-            shadow-[3px_3px_0px_0px_#0f172a] dark:border-zinc-700
-            dark:bg-zinc-900 dark:shadow-none"
+          className="rounded-xl border border-slate-300 bg-white p-4
+            dark:border-zinc-700 dark:bg-zinc-900"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -299,8 +296,8 @@ export default async function PublicAccountViewPage({ params }: Props) {
             </div>
           </div>
           <div
-            className="mt-2.5 h-3 overflow-hidden rounded-full border-2
-              border-slate-900 bg-slate-100 dark:border-zinc-700
+            className="mt-4 h-3 overflow-hidden rounded-full border
+              border-slate-300 bg-slate-100 dark:border-zinc-700
               dark:bg-zinc-800"
           >
             <div
@@ -308,7 +305,7 @@ export default async function PublicAccountViewPage({ params }: Props) {
               style={{ width: `${progressPct}%` }}
             />
           </div>
-          <div className="mt-2 flex justify-between text-xs">
+          <div className="mt-3 flex justify-between text-xs">
             <span
               className="font-semibold text-emerald-700 dark:text-emerald-400"
             >
@@ -323,9 +320,8 @@ export default async function PublicAccountViewPage({ params }: Props) {
         {/* Next Due */}
         {nextDue && (
           <div
-            className="rounded-xl border-2 border-sky-600 bg-sky-50 p-2.5
-              shadow-[3px_3px_0px_0px_#0369a1] dark:border-sky-500
-              dark:bg-sky-900/20 dark:shadow-none"
+            className="rounded-xl border border-sky-500 bg-sky-50 p-4
+              dark:border-sky-500 dark:bg-sky-900/20"
           >
             <p
               className="text-[10px] font-black tracking-widest text-sky-700
@@ -353,7 +349,7 @@ export default async function PublicAccountViewPage({ params }: Props) {
         >
           Payment Schedule
         </p>
-        <div className="space-y-1">
+        <div className="space-y-2">
           {schedules.map((schedule, i) => {
             const due = Number(schedule.amount_due ?? 0);
             const paid = amountPaidOnInstallment(schedule);
@@ -366,12 +362,10 @@ export default async function PublicAccountViewPage({ params }: Props) {
               <div
                 key={schedule.id}
                 className={`flex flex-wrap items-center gap-x-3 gap-y-1
-                rounded-lg border-2 p-2 ${
+                rounded-lg border p-3 ${
                   isNext
-                    ? `border-sky-600 shadow-[2px_2px_0px_0px_#0369a1]
-                      dark:border-sky-500 dark:shadow-none`
-                    : `border-slate-900 shadow-[2px_2px_0px_0px_#0f172a]
-                      dark:border-zinc-700 dark:shadow-none`
+                    ? "border-sky-500 dark:border-sky-500"
+                    : "border-slate-300 dark:border-zinc-700"
                 } ${statusRowClasses(schedule.status)}`}
               >
                 {/* Index + Next */}
@@ -432,7 +426,7 @@ export default async function PublicAccountViewPage({ params }: Props) {
 
                 {/* Status badge — pushed right */}
                 <span
-                  className={`ml-auto rounded-full border-2 px-2 py-px
+                  className={`ml-auto rounded-full border px-2.5 py-0.5
                   text-[8px] font-black tracking-wider uppercase
                   ${statusBadgeClasses(schedule.status)}`}
                 >

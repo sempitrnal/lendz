@@ -28,6 +28,8 @@ interface CategoryData {
   paid: BorrowerWithSchedules[];
   pendingTotal: number;
   paidTotal: number;
+  pendingProfit: number;
+  paidProfit: number;
 }
 
 function groupSchedulesByDate(
@@ -149,6 +151,11 @@ export default function CategorySection({
                 ₱{totalPaidInCategory.toLocaleString()} paid
               </span>
             )}
+            {cat.pendingProfit + cat.paidProfit > 0 && (
+              <span className="text-xs font-semibold text-amber-500">
+                ₱{(cat.pendingProfit + cat.paidProfit).toLocaleString()} profit
+              </span>
+            )}
           </div>
         </div>
         <div className="relative">
@@ -175,8 +182,8 @@ export default function CategorySection({
         <div className="mb-3">
           <details open className="group">
             <summary
-              className="dark:border-border sticky top-[120px] sm:top-[100px]
-                z-20 -mx-4 flex cursor-pointer list-none items-center
+              className="dark:border-border sticky top-[190px] sm:top-40
+                md:top-34 z-20 -mx-4 flex cursor-pointer list-none items-center
                 justify-between border-slate-300 bg-orange-50 px-4 py-2
                 dark:bg-[#170e08]"
             >
@@ -214,6 +221,11 @@ export default function CategorySection({
                     (sum, s) => sum + s.remaining,
                     0,
                   );
+                  const totalPaid = b.schedules.reduce(
+                    (sum, s) => sum + s.amountPaid,
+                    0,
+                  );
+                  const totalExpected = totalPaid + totalRemaining;
                   return (
                     <article
                       key={b.borrowerId ?? b.name}
@@ -324,23 +336,55 @@ export default function CategorySection({
                         </div>
                       </div>
                       <div
-                        className="flex items-center rounded-b-lg
-                          justify-between border-t border-slate-100
-                          bg-slate-50/60 p-3 dark:border-border/50
-                          dark:bg-muted/30"
+                        className="flex flex-col gap-1 rounded-b-lg border-t
+                          border-slate-100 bg-slate-50/60 p-3
+                          dark:border-border/50 dark:bg-muted/30"
                       >
-                        <span
-                          className="dark:text-muted-foreground text-[10px]
-                            font-bold tracking-wide text-slate-400 uppercase"
+                        <div className="flex items-center justify-between">
+                          <span
+                            className="text-[10px] font-bold tracking-wide
+                              text-slate-400 uppercase"
+                          >
+                            total paid
+                          </span>
+                          <span
+                            className="text-sm font-bold text-emerald-600
+                              dark:text-emerald-400"
+                          >
+                            ₱{totalPaid.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span
+                            className="text-[10px] font-bold tracking-wide
+                              text-slate-400 uppercase"
+                          >
+                            total remaining
+                          </span>
+                          <span
+                            className="text-sm font-bold text-slate-600
+                              dark:text-slate-300"
+                          >
+                            ₱{totalRemaining.toLocaleString()}
+                          </span>
+                        </div>
+                        <div
+                          className="flex items-center justify-between border-t
+                            border-slate-200 pt-1 dark:border-slate-700/40"
                         >
-                          total remaining
-                        </span>
-                        <span
-                          className="dark:text-foreground text-sm font-bold
-                            text-slate-600"
-                        >
-                          PHP {totalRemaining.toLocaleString()}
-                        </span>
+                          <span
+                            className="text-[10px] font-bold tracking-wide
+                              text-slate-500 uppercase"
+                          >
+                            total expected
+                          </span>
+                          <span
+                            className="text-sm font-black text-slate-800
+                              dark:text-slate-100"
+                          >
+                            ₱{totalExpected.toLocaleString()}
+                          </span>
+                        </div>
                       </div>
                     </article>
                   );
@@ -356,8 +400,8 @@ export default function CategorySection({
         <div>
           <details open className="group">
             <summary
-              className="dark:border-border sticky top-[120px] sm:top-[100px]
-                z-20 -mx-4 flex cursor-pointer list-none items-center
+              className="dark:border-border sticky top-[190px] sm:top-40
+                md:top-34 z-20 -mx-4 flex cursor-pointer list-none items-center
                 justify-between border-slate-400 bg-emerald-50 px-4 py-2
                 dark:bg-[#06180b]"
             >
@@ -375,6 +419,14 @@ export default function CategorySection({
                 >
                   {cat.paid.length}
                 </span>
+                {cat.paidTotal > 0 && (
+                  <span
+                    className="text-[10px] font-bold text-slate-500
+                      tabular-nums"
+                  >
+                    ₱{cat.paidTotal.toLocaleString()}
+                  </span>
+                )}
               </div>
               <ChevronDown
                 className="size-4 shrink-0 text-slate-600 transition-transform
