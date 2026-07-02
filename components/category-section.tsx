@@ -134,7 +134,7 @@ export default function CategorySection({
               {cat.label}
             </h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
             <span
               className="text-xs font-semibold text-slate-400
                 dark:text-muted-foreground"
@@ -146,16 +146,12 @@ export default function CategorySection({
                 ₱{cat.pendingTotal.toLocaleString()} remaining
               </span>
             )}
-            {totalPaidInCategory > 0 && (
-              <span className="text-xs font-semibold text-slate-400">
-                ₱{totalPaidInCategory.toLocaleString()} paid
-              </span>
-            )}
-            {cat.pendingProfit + cat.paidProfit > 0 && (
-              <span className="text-xs font-semibold text-amber-500">
-                ₱{(cat.pendingProfit + cat.paidProfit).toLocaleString()} profit
-              </span>
-            )}
+            <span className="text-xs font-semibold text-slate-400">
+              ₱{totalPaidInCategory.toLocaleString()} paid
+            </span>
+            <span className="text-xs font-semibold text-amber-500">
+              ₱{(cat.pendingProfit + cat.paidProfit).toLocaleString()} profit
+            </span>
           </div>
         </div>
         <div className="relative">
@@ -182,7 +178,7 @@ export default function CategorySection({
         <div className="mb-3">
           <details open className="group">
             <summary
-              className="dark:border-border sticky top-[165px] sm:top-[161px]
+              className="dark:border-border sticky top-[184px] sm:top-[179px]
                 z-20 -mx-4 flex cursor-pointer list-none items-center
                 justify-between border-slate-300 bg-orange-50 px-4 py-2
                 dark:bg-[#170e08]"
@@ -400,7 +396,7 @@ export default function CategorySection({
         <div>
           <details open className="group">
             <summary
-              className="dark:border-border sticky top-[165px] sm:top-[161px]
+              className="dark:border-border sticky top-[184px] sm:top-[179px]
                 z-20 -mx-4 flex cursor-pointer list-none items-center
                 justify-between border-slate-400 bg-emerald-50 px-4 py-2
                 dark:bg-[#06180b]"
