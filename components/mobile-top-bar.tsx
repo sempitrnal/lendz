@@ -16,7 +16,7 @@ const HIDE_BACK_PATHS = [
   "/due-this-month",
 ];
 
-export default function MobileTopBar() {
+export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [searchFocused, setSearchFocused] = useState(false);
@@ -69,7 +69,9 @@ export default function MobileTopBar() {
           </button>
         </div>
       )}
-      <HeaderSearch className="flex-1" onFocusChange={setSearchFocused} />
+      {isLoggedIn && (
+        <HeaderSearch className="flex-1" onFocusChange={setSearchFocused} />
+      )}
       <div
         className={`shrink-0 overflow-hidden transition-all duration-200
           ease-in-out ${

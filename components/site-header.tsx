@@ -48,9 +48,11 @@ export default function SiteHeader({
         className="relative mx-auto flex w-full max-w-7xl items-center
           justify-between px-4 py-[14.5px] sm:px-6"
       >
-        <div className="flex flex-1 items-center gap-5">
-          <HeaderSearch onFocusChange={setSearchFocused} />
-        </div>
+        {isLoggedIn && (
+          <div className="flex flex-1 items-center gap-5">
+            <HeaderSearch onFocusChange={setSearchFocused} />
+          </div>
+        )}
         <div
           className={`flex items-center gap-3 overflow-hidden transition-all
             duration-200 ease-in-out ${
