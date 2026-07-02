@@ -119,7 +119,7 @@ export default function CategorySection({
           border-b border-slate-200 bg-background/95 px-4 py-2 backdrop-blur
           dark:border-border/50"
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-col items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <span
               className="size-2.5 rounded-full border border-slate-900/25"
@@ -134,7 +134,7 @@ export default function CategorySection({
               {cat.label}
             </h2>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
             <span
               className="text-xs font-semibold text-slate-400
                 dark:text-muted-foreground"
@@ -182,8 +182,8 @@ export default function CategorySection({
         <div className="mb-3">
           <details open className="group">
             <summary
-              className="dark:border-border sticky top-[190px] sm:top-40
-                md:top-34 z-20 -mx-4 flex cursor-pointer list-none items-center
+              className="dark:border-border sticky top-[165px] sm:top-[161px]
+                z-20 -mx-4 flex cursor-pointer list-none items-center
                 justify-between border-slate-300 bg-orange-50 px-4 py-2
                 dark:bg-[#170e08]"
             >
@@ -400,8 +400,8 @@ export default function CategorySection({
         <div>
           <details open className="group">
             <summary
-              className="dark:border-border sticky top-[190px] sm:top-40
-                md:top-34 z-20 -mx-4 flex cursor-pointer list-none items-center
+              className="dark:border-border sticky top-[165px] sm:top-[161px]
+                z-20 -mx-4 flex cursor-pointer list-none items-center
                 justify-between border-slate-400 bg-emerald-50 px-4 py-2
                 dark:bg-[#06180b]"
             >
