@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { BsThreeDotsVertical } from "react-icons/bs";
+import { MoreVertical } from "lucide-react";
 
 import NeobrutButton from "@/components/neobrut-button";
 import { supabase } from "@/lib/supabase/client";
@@ -103,7 +103,7 @@ export default function AccountCardMenu({
               focus-visible:ring-slate-900"
             onClick={(e) => e.stopPropagation()}
           >
-            <BsThreeDotsVertical className="size-5 cursor-pointer" />
+            <MoreVertical className="size-5 cursor-pointer" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-32">

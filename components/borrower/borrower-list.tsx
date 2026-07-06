@@ -17,9 +17,7 @@ import { useSeedBorrowersSearch } from "@/hooks/use-borrowers-search";
 
 import AddBorrowerModal from "./add-borrower-modal";
 import { BorrowerCard } from "./borrower-card";
-import { BsChevronDown } from "react-icons/bs";
-import { BsChevronUp } from "react-icons/bs";
-import { FaPlus } from "react-icons/fa6";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import {
   Users,
   ClipboardList,
@@ -190,6 +188,7 @@ export default function BorrowersList({
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [isAddBorrowerModalOpen, setIsAddBorrowerModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(12);
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -320,40 +319,53 @@ export default function BorrowersList({
     return result;
   }, [safeBorrowers, safeCategoryIds]);
 
-  // Sort helpers
-  function getTotalPrincipal(b: Borrower): number {
-    const autoPrincipal = (b.account_schedules ?? []).reduce(
-      (sum, s) => sum + (s.principal_amount ?? 0),
-      0,
-    );
-    return autoPrincipal + (b.manual_total_principal ?? 0);
-  }
+  useEffect(() => {
+    setVisibleCount(12);
+  }, [safeCategoryIds, sortMode]);
 
-  function getCompletionRatio(b: Borrower): number {
-    const autoSchedules = b.account_schedules ?? [];
-    const autoTotal = autoSchedules.reduce(
-      (sum, s) => sum + (s.total_schedules ?? 0),
-      0,
-    );
-    const autoPaid = autoSchedules.reduce(
-      (sum, s) => sum + (s.paid_schedules_count ?? 0),
-      0,
-    );
-    const manualPrincipal = b.manual_total_principal ?? 0;
-    const manualPaid = b.manual_total_paid ?? 0;
+  // Pre-compute sort metrics once per borrower instead of O(n log n) times inside sort comparator
+  const borrowersWithMetrics = useMemo(() => {
+    return filteredBorrowers.map((b) => {
+      const autoPrincipal = (b.account_schedules ?? []).reduce(
+        (sum, s) => sum + (s.principal_amount ?? 0),
+        0,
+      );
+      const totalPrincipal = autoPrincipal + (b.manual_total_principal ?? 0);
 
-    const autoWeight = autoTotal;
-    const manualWeight = manualPrincipal > 0 ? 1 : 0;
-    const totalWeight = autoWeight + manualWeight;
+      const autoSchedules = b.account_schedules ?? [];
+      const autoTotal = autoSchedules.reduce(
+        (sum, s) => sum + (s.total_schedules ?? 0),
+        0,
+      );
+      const autoPaid = autoSchedules.reduce(
+        (sum, s) => sum + (s.paid_schedules_count ?? 0),
+        0,
+      );
+      const manualPrincipal = b.manual_total_principal ?? 0;
+      const manualPaid = b.manual_total_paid ?? 0;
+      const autoWeight = autoTotal;
+      const manualWeight = manualPrincipal > 0 ? 1 : 0;
+      const totalWeight = autoWeight + manualWeight;
+      const completionRatio =
+        totalWeight === 0
+          ? 0
+          : ((autoTotal > 0 ? autoPaid / autoTotal : 0) * autoWeight +
+              (manualPrincipal > 0
+                ? Math.min(1, manualPaid / manualPrincipal)
+                : 0) *
+                manualWeight) /
+            totalWeight;
+      const risk =
+        totalPrincipal > 0 ? (b.overdue_total ?? 0) / totalPrincipal : -1;
 
-    if (totalWeight === 0) return 0;
-
-    const autoRatio = autoTotal > 0 ? autoPaid / autoTotal : 0;
-    const manualRatio =
-      manualPrincipal > 0 ? Math.min(1, manualPaid / manualPrincipal) : 0;
-
-    return (autoRatio * autoWeight + manualRatio * manualWeight) / totalWeight;
-  }
+      return {
+        ...b,
+        _totalPrincipal: totalPrincipal,
+        _completionRatio: completionRatio,
+        _risk: risk,
+      };
+    });
+  }, [filteredBorrowers]);
 
   const SORT_OPTIONS: {
     value: SortMode;
@@ -371,11 +383,11 @@ export default function BorrowersList({
   ];
 
   const sortedBorrowers = useMemo(() => {
-    if (sortMode === "default") return filteredBorrowers;
+    if (sortMode === "default") return borrowersWithMetrics;
 
     const hasAccounts = (b: Borrower) => (b.accounts_count ?? 0) > 0;
 
-    return [...filteredBorrowers].sort((a, b) => {
+    return [...borrowersWithMetrics].sort((a, b) => {
       switch (sortMode) {
         case "most-loyal":
           return (
@@ -384,9 +396,8 @@ export default function BorrowersList({
         case "most-accounts":
           return (b.accounts_count ?? 0) - (a.accounts_count ?? 0);
         case "biggest-borrower": {
-          const totalA = getTotalPrincipal(a);
-          const totalB = getTotalPrincipal(b);
-          if (totalB !== totalA) return totalB - totalA;
+          if (b._totalPrincipal !== a._totalPrincipal)
+            return b._totalPrincipal - a._totalPrincipal;
           return (b.accounts_count ?? 0) - (a.accounts_count ?? 0);
         }
         case "almost-there": {
@@ -395,7 +406,7 @@ export default function BorrowersList({
           if (hasA && !hasB) return -1;
           if (!hasA && hasB) return 1;
           if (!hasA && !hasB) return 0;
-          return getCompletionRatio(b) - getCompletionRatio(a);
+          return b._completionRatio - a._completionRatio;
         }
         case "most-overdue":
           return (b.overdue_count ?? 0) - (a.overdue_count ?? 0);
@@ -404,17 +415,13 @@ export default function BorrowersList({
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           );
         case "highest-risk": {
-          const totalA = getTotalPrincipal(a);
-          const totalB = getTotalPrincipal(b);
-          const riskA = totalA > 0 ? (a.overdue_total ?? 0) / totalA : -1;
-          const riskB = totalB > 0 ? (b.overdue_total ?? 0) / totalB : -1;
-          return riskB - riskA;
+          return b._risk - a._risk;
         }
         default:
           return 0;
       }
     });
-  }, [filteredBorrowers, sortMode]);
+  }, [borrowersWithMetrics, sortMode]);
 
   const openBorrower = useCallback(
     (borrower: Borrower) => {
@@ -462,7 +469,7 @@ export default function BorrowersList({
               duration-200 active:scale-95 dark:bg-green-400
               dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
           >
-            <FaPlus className="size-5" />
+            <Plus className="size-5" />
           </button>,
           document.body,
         )}
@@ -566,7 +573,7 @@ export default function BorrowersList({
                 justify-center rounded-lg border border-slate-900/20 bg-slate-50
                 text-slate-700"
             >
-              <BsChevronDown
+              <ChevronDown
                 className={`size-3.5 transition-transform
                   ${isCategoryDropdownOpen ? "rotate-180" : ""}`}
                 aria-hidden
@@ -704,9 +711,9 @@ export default function BorrowersList({
                 <Users className="size-3.5" />
                 newly created borrowers
                 {collapsedSections.has("newly-created-borrowers") ? (
-                  <BsChevronDown className="size-3" />
+                  <ChevronDown className="size-3" />
                 ) : (
-                  <BsChevronUp className="size-3" />
+                  <ChevronUp className="size-3" />
                 )}
               </button>
               <div
@@ -830,9 +837,9 @@ export default function BorrowersList({
                 <ClipboardList className="size-3.5" />
                 newly created accounts
                 {collapsedSections.has("newly-created-accounts") ? (
-                  <BsChevronDown className="size-3" />
+                  <ChevronDown className="size-3" />
                 ) : (
-                  <BsChevronUp className="size-3" />
+                  <ChevronUp className="size-3" />
                 )}
               </button>
               <div
@@ -982,9 +989,9 @@ export default function BorrowersList({
                 <Activity className="size-3.5" />
                 payment updates
                 {collapsedSections.has("payment-updates") ? (
-                  <BsChevronDown className="size-3" />
+                  <ChevronDown className="size-3" />
                 ) : (
-                  <BsChevronUp className="size-3" />
+                  <ChevronUp className="size-3" />
                 )}
               </button>
               <div
@@ -1274,7 +1281,7 @@ export default function BorrowersList({
                 justify-center rounded-lg border border-slate-900/20 bg-slate-50
                 text-slate-700"
             >
-              <BsChevronDown
+              <ChevronDown
                 className={`size-3.5 transition-transform
                   ${isSortDropdownOpen ? "rotate-180" : ""}`}
                 aria-hidden
@@ -1372,10 +1379,24 @@ export default function BorrowersList({
       ) : (
         <PullToRefresh>
           <MasonryGrid
-            borrowers={sortedBorrowers}
+            borrowers={sortedBorrowers.slice(0, visibleCount)}
             onBorrowerUpdated={refreshPage}
             onVisit={recordVisit}
           />
+          {sortedBorrowers.length > visibleCount && (
+            <button
+              type="button"
+              onClick={() => setVisibleCount((c) => c + 12)}
+              className="mx-auto mt-4 block rounded-xl border-2 border-slate-900
+                bg-white px-4 py-2.5 text-xs font-black tracking-wide
+                text-slate-700 uppercase shadow-[2px_2px_0px_0px_#0f172a]
+                transition active:translate-y-px active:shadow-none
+                dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200
+                dark:shadow-none"
+            >
+              load more ({sortedBorrowers.length - visibleCount} remaining)
+            </button>
+          )}
         </PullToRefresh>
       )}
     </div>

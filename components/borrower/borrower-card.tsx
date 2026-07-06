@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   memo,
+  useMemo,
   useRef,
   useState,
   useTransition,
@@ -56,8 +57,12 @@ export const BorrowerCard = memo(function BorrowerCard({
   const toggleOverdue = (i: number, defaultOpen: boolean) =>
     setExpandedOverdue((prev) => ({ ...prev, [i]: !(prev[i] ?? defaultOpen) }));
   const [showAllSchedules, setShowAllSchedules] = useState(false);
-  const categories = [...(borrower.borrower_categories ?? [])].sort((a, b) =>
-    a.category.name.localeCompare(b.category.name),
+  const categories = useMemo(
+    () =>
+      [...(borrower.borrower_categories ?? [])].sort((a, b) =>
+        a.category.name.localeCompare(b.category.name),
+      ),
+    [borrower.borrower_categories],
   );
   const firstCategoryColor = categories[0]?.category?.color;
 
@@ -76,6 +81,70 @@ export const BorrowerCard = memo(function BorrowerCard({
   const hasManual = manualPrincipal > 0;
   const manualAccountsCount = borrower.manual_accounts_count ?? 0;
   const hasAutoAccounts = (borrower.accounts_count ?? 0) > manualAccountsCount;
+
+  const manualScheduleGroups = useMemo(() => {
+    if (!hasManual || schedules.length === 0) return [];
+    const manualSchedules = schedules.filter(
+      (s) => s.schedule_mode === "manual",
+    );
+    const groups = [
+      {
+        key: "flat-loan",
+        label: "manual flat",
+        items: manualSchedules.filter(
+          (s) => s.type !== "cash_advance" && s.interest_type !== "rolling",
+        ),
+      },
+      {
+        key: "rolling-loan",
+        label: "manual rolling",
+        items: manualSchedules.filter(
+          (s) => s.type !== "cash_advance" && s.interest_type === "rolling",
+        ),
+      },
+      {
+        key: "flat-ca",
+        label: "manual flat ca",
+        items: manualSchedules.filter(
+          (s) => s.type === "cash_advance" && s.interest_type !== "rolling",
+        ),
+      },
+      {
+        key: "rolling-ca",
+        label: "manual rolling ca",
+        items: manualSchedules.filter(
+          (s) => s.type === "cash_advance" && s.interest_type === "rolling",
+        ),
+      },
+    ];
+    return groups
+      .map((g) => {
+        if (g.items.length === 0) return null;
+        const principal = g.items.reduce(
+          (sum, s) => sum + Number(s.principal_amount ?? 0),
+          0,
+        );
+        const paid = g.items.reduce(
+          (sum, s) => sum + Number(s.amount_paid_total ?? 0),
+          0,
+        );
+        const remaining = Math.max(0, principal - paid);
+        const pct =
+          principal > 0
+            ? Math.min(100, Math.round((paid / principal) * 100))
+            : 0;
+        return { key: g.key, label: g.label, principal, paid, remaining, pct };
+      })
+      .filter(Boolean) as {
+      key: string;
+      label: string;
+      principal: number;
+      paid: number;
+      remaining: number;
+      pct: number;
+    }[];
+  }, [schedules, hasManual]);
+
   function openBorrower(e: SyntheticEvent) {
     if (isPending) return;
     if (didScroll.current) return;
@@ -266,130 +335,87 @@ export const BorrowerCard = memo(function BorrowerCard({
           </div>
         ) : null}
 
-        {!compact && showScheduleSummary && hasManual && schedules.length > 0
-          ? (() => {
-              const manualSchedules = schedules.filter(
-                (s) => s.schedule_mode === "manual",
-              );
-              const groups: {
-                key: string;
-                label: string;
-                items: typeof manualSchedules;
-              }[] = [
-                {
-                  key: "flat-loan",
-                  label: "manual flat",
-                  items: manualSchedules.filter(
-                    (s) =>
-                      s.type !== "cash_advance" &&
-                      s.interest_type !== "rolling",
-                  ),
-                },
-                {
-                  key: "rolling-loan",
-                  label: "manual rolling",
-                  items: manualSchedules.filter(
-                    (s) =>
-                      s.type !== "cash_advance" &&
-                      s.interest_type === "rolling",
-                  ),
-                },
-                {
-                  key: "flat-ca",
-                  label: "manual flat ca",
-                  items: manualSchedules.filter(
-                    (s) =>
-                      s.type === "cash_advance" &&
-                      s.interest_type !== "rolling",
-                  ),
-                },
-                {
-                  key: "rolling-ca",
-                  label: "manual rolling ca",
-                  items: manualSchedules.filter(
-                    (s) =>
-                      s.type === "cash_advance" &&
-                      s.interest_type === "rolling",
-                  ),
-                },
-              ];
-              return (
-                <>
-                  {groups.map((g) => {
-                    if (g.items.length === 0) return null;
-                    const principal = g.items.reduce(
-                      (sum, s) => sum + Number(s.principal_amount ?? 0),
-                      0,
-                    );
-                    const paid = g.items.reduce(
-                      (sum, s) => sum + Number(s.amount_paid_total ?? 0),
-                      0,
-                    );
-                    const remaining = Math.max(0, principal - paid);
-                    const pct =
-                      principal > 0
-                        ? Math.min(100, Math.round((paid / principal) * 100))
-                        : 0;
-                    return (
+        {!compact && showScheduleSummary && manualScheduleGroups.length > 0 && (
+          <>
+            {manualScheduleGroups.map((g) => (
+              <div
+                key={g.key}
+                className="mt-2 w-full min-w-0 rounded-lg border
+                  border-slate-200 bg-slate-50 p-2.5 dark:border-border/50
+                  dark:bg-muted/40"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p
+                      className="text-[9px] font-bold tracking-wider
+                        text-slate-500 uppercase dark:text-muted-foreground"
+                    >
+                      {g.label}
+                    </p>
+                    <p
+                      className="text-xs font-bold text-slate-600 tabular-nums
+                        dark:text-foreground"
+                    >
+                      ₱{g.principal.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p
+                      className="text-[9px] font-bold tracking-wider
+                        text-emerald-600 uppercase dark:text-emerald-400"
+                    >
+                      paid
+                    </p>
+                    <p
+                      className="text-xs font-bold text-emerald-700 tabular-nums
+                        dark:text-emerald-300"
+                    >
+                      ₱{g.paid.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p
+                      className="text-[9px] font-bold tracking-wider
+                        text-rose-600 uppercase dark:text-rose-400"
+                    >
+                      left
+                    </p>
+                    <p
+                      className="text-xs font-bold text-rose-700 tabular-nums
+                        dark:text-rose-300"
+                    >
+                      ₱{g.remaining.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+                {g.principal > 0 && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <div
+                      className="h-2 flex-1 overflow-hidden rounded-full
+                        bg-slate-100 dark:bg-slate-800"
+                      role="progressbar"
+                      aria-valuenow={g.pct}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${g.label} payment progress`}
+                    >
                       <div
-                        key={g.key}
-                        className="mt-2 w-full min-w-0 rounded-lg border
-                          border-slate-200 bg-slate-50 p-2.5 dark:border-border/50
-                          dark:bg-muted/40"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <p className="text-[9px] font-bold tracking-wider text-slate-500 uppercase dark:text-muted-foreground">
-                              {g.label}
-                            </p>
-                            <p className="text-xs font-bold text-slate-600 tabular-nums dark:text-foreground">
-                              ₱{principal.toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[9px] font-bold tracking-wider text-emerald-600 uppercase dark:text-emerald-400">
-                              paid
-                            </p>
-                            <p className="text-xs font-bold text-emerald-700 tabular-nums dark:text-emerald-300">
-                              ₱{paid.toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[9px] font-bold tracking-wider text-rose-600 uppercase dark:text-rose-400">
-                              left
-                            </p>
-                            <p className="text-xs font-bold text-rose-700 tabular-nums dark:text-rose-300">
-                              ₱{remaining.toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                        {principal > 0 && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <div
-                              className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
-                              role="progressbar"
-                              aria-valuenow={pct}
-                              aria-valuemin={0}
-                              aria-valuemax={100}
-                              aria-label={`${g.label} payment progress`}
-                            >
-                              <div
-                                className="h-full bg-emerald-400 transition-all"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                            <p className="shrink-0 text-[9px] font-bold text-slate-600 dark:text-slate-300">
-                              {pct}%
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </>
-              );
-            })()
-          : null}
+                        className="h-full bg-emerald-400 transition-all"
+                        style={{ width: `${g.pct}%` }}
+                      />
+                    </div>
+                    <p
+                      className="shrink-0 text-[9px] font-bold text-slate-600
+                        dark:text-slate-300"
+                    >
+                      {g.pct}%
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
 
         {/* Compact upcoming-due display */}
         {compact && showScheduleSummary && hasNextUnpaid ? (

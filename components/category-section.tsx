@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronDown, Search } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 interface ScheduleRow {
   id: string;
@@ -97,34 +97,80 @@ export default function CategorySection({
     }
   };
 
-  const paidFromPending = cat.pending.filter((b) =>
-    b.schedules.some((s) => s.status === "paid"),
+  const paidFromPending = useMemo(
+    () =>
+      cat.pending.filter((b) => b.schedules.some((s) => s.status === "paid")),
+    [cat.pending],
   );
-  const allPaidBorrowers = [...cat.paid, ...paidFromPending];
+  const allPaidBorrowers = useMemo(
+    () => [...cat.paid, ...paidFromPending],
+    [cat.paid, paidFromPending],
+  );
 
-  const totalPaidInCategory =
-    cat.paidTotal +
-    paidFromPending.reduce(
-      (sum, b) =>
-        sum +
-        b.schedules
-          .filter((s) => s.status === "paid")
-          .reduce((s, sch) => s + sch.amountDue, 0),
-      0,
-    );
+  const totalPaidInCategory = useMemo(
+    () =>
+      cat.paidTotal +
+      paidFromPending.reduce(
+        (sum, b) =>
+          sum +
+          b.schedules
+            .filter((s) => s.status === "paid")
+            .reduce((s, sch) => s + sch.amountDue, 0),
+        0,
+      ),
+    [cat.paidTotal, paidFromPending],
+  );
 
-  const filteredPending = q
-    ? cat.pending.filter((b) => b.name.toLowerCase().includes(q))
-    : cat.pending;
-  const filteredPaid = q
-    ? cat.paid.filter((b) => b.name.toLowerCase().includes(q))
-    : cat.paid;
+  const pendingData = useMemo(
+    () =>
+      cat.pending.map((b) => {
+        const totalRemaining = b.schedules.reduce(
+          (sum, s) => sum + s.remaining,
+          0,
+        );
+        const totalPaid = b.schedules.reduce((sum, s) => sum + s.amountPaid, 0);
+        const groups = groupSchedulesByDate(b.schedules, (s) =>
+          s.status === "paid" ? s.amountDue : s.remaining,
+        );
+        return {
+          ...b,
+          totalRemaining,
+          totalPaid,
+          totalExpected: totalPaid + totalRemaining,
+          groups,
+        };
+      }),
+    [cat.pending],
+  );
+
+  const paidData = useMemo(
+    () =>
+      cat.paid.map((b) => {
+        const totalPaid = b.schedules.reduce((sum, s) => sum + s.amountDue, 0);
+        const groups = groupSchedulesByDate(b.schedules, (s) => s.amountDue);
+        return { ...b, totalPaid, groups };
+      }),
+    [cat.paid],
+  );
+
+  const filteredPending = useMemo(
+    () =>
+      q
+        ? pendingData.filter((b) => b.name.toLowerCase().includes(q))
+        : pendingData,
+    [q, pendingData],
+  );
+  const filteredPaid = useMemo(
+    () =>
+      q ? paidData.filter((b) => b.name.toLowerCase().includes(q)) : paidData,
+    [q, paidData],
+  );
 
   return (
     <section id={`cat-${slugify(cat.label)}`} className="mb-6">
       <div
         className="sticky top-16 sm:top-16 z-30 -mx-4 mb-3 flex flex-col gap-1.5
-          border-b border-slate-200 bg-background/95 px-4 py-2 backdrop-blur
+          border-b border-slate-200 bg-background px-4 py-2
           dark:border-border/50"
       >
         <div className="flex flex-col items-start justify-between gap-2">
@@ -225,15 +271,6 @@ export default function CategorySection({
                 </p>
               ) : (
                 filteredPending.map((b) => {
-                  const totalRemaining = b.schedules.reduce(
-                    (sum, s) => sum + s.remaining,
-                    0,
-                  );
-                  const totalPaid = b.schedules.reduce(
-                    (sum, s) => sum + s.amountPaid,
-                    0,
-                  );
-                  const totalExpected = totalPaid + totalRemaining;
                   return (
                     <article
                       key={b.borrowerId ?? b.name}
@@ -279,9 +316,7 @@ export default function CategorySection({
                       </div>
                       <div className="flex-1 p-3">
                         <div className="space-y-2">
-                          {groupSchedulesByDate(b.schedules, (s) =>
-                            s.status === "paid" ? s.amountDue : s.remaining,
-                          ).map((g, i) => (
+                          {b.groups.map((g, i) => (
                             <div
                               key={g.date + i}
                               className="flex items-center justify-between
@@ -359,7 +394,7 @@ export default function CategorySection({
                             className="text-sm font-bold text-emerald-600
                               dark:text-emerald-400"
                           >
-                            ₱{totalPaid.toLocaleString()}
+                            ₱{b.totalPaid.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -373,7 +408,7 @@ export default function CategorySection({
                             className="text-sm font-bold text-slate-600
                               dark:text-slate-300"
                           >
-                            ₱{totalRemaining.toLocaleString()}
+                            ₱{b.totalRemaining.toLocaleString()}
                           </span>
                         </div>
                         <div
@@ -390,7 +425,7 @@ export default function CategorySection({
                             className="text-sm font-black text-slate-800
                               dark:text-slate-100"
                           >
-                            ₱{totalExpected.toLocaleString()}
+                            ₱{b.totalExpected.toLocaleString()}
                           </span>
                         </div>
                       </div>
@@ -451,10 +486,6 @@ export default function CategorySection({
                 </p>
               ) : (
                 filteredPaid.map((b) => {
-                  const totalPaid = b.schedules.reduce(
-                    (sum, s) => sum + s.amountDue,
-                    0,
-                  );
                   return (
                     <article
                       key={b.borrowerId ?? b.name}
@@ -500,10 +531,7 @@ export default function CategorySection({
                       </div>
                       <div className="flex-1 p-3">
                         <div className="space-y-2">
-                          {groupSchedulesByDate(
-                            b.schedules,
-                            (s) => s.amountDue,
-                          ).map((g, i) => (
+                          {b.groups.map((g, i) => (
                             <div
                               key={g.date + i}
                               className="flex items-center justify-between
@@ -559,7 +587,7 @@ export default function CategorySection({
                           className="dark:text-foreground text-sm font-black
                             text-slate-700"
                         >
-                          PHP {totalPaid.toLocaleString()}
+                          PHP {b.totalPaid.toLocaleString()}
                         </span>
                       </div>
                     </article>

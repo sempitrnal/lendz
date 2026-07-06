@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { FaPlus } from "react-icons/fa6";
+import { Plus } from "lucide-react";
 
 import {
   Dialog,
@@ -203,7 +203,7 @@ export default function CategoryList() {
               dark:border-border dark:bg-green-400 dark:text-background
               dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
           >
-            <FaPlus className="size-5" />
+            <Plus className="size-5" />
           </button>,
           document.body,
         )}

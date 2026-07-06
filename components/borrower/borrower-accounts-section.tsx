@@ -1,7 +1,6 @@
 "use client";
 
-import { FaPlus } from "react-icons/fa6";
-import { ChevronDown, ArrowLeft } from "lucide-react";
+import { ChevronDown, ArrowLeft, Plus } from "lucide-react";
 import {
   useEffect,
   useMemo,
@@ -804,7 +803,7 @@ export default function BorrowerAccountsSection({
                     dark:text-slate-600
                     dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
                 >
-                  <FaPlus className="size-3" /> note
+                  <Plus className="size-3" /> note
                 </button>
                 <button
                   type="button"
@@ -821,7 +820,7 @@ export default function BorrowerAccountsSection({
                     dark:text-white
                     dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
                 >
-                  <FaPlus className="size-3" /> loan
+                  <Plus className="size-3" /> loan
                 </button>
               </>
             )}
@@ -839,7 +838,7 @@ export default function BorrowerAccountsSection({
                   : "bg-green-300 dark:bg-green-400"
               }`}
             >
-              <FaPlus className="size-5" />
+              <Plus className="size-5" />
             </button>
           </div>,
           document.body,

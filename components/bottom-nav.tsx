@@ -78,8 +78,7 @@ export default function BottomNav() {
           <>
             {open && (
               <div
-                className="fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm
-                  sm:hidden"
+                className="fixed inset-0 z-[9998] bg-black/50 sm:hidden"
                 onClick={() => setOpen(false)}
               />
             )}

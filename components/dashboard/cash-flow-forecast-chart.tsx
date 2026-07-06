@@ -11,6 +11,7 @@ import {
   LabelList,
 } from "recharts";
 import { useTheme } from "next-themes";
+import { useMemo } from "react";
 
 export type CashFlowWeek = {
   label: string;
@@ -151,10 +152,21 @@ export default function CashFlowForecastChart({
   const tickFill = isDark ? "#c9d1d9" : "#0f172a";
   const mutedFill = isDark ? "#8b949e" : "#64748b";
 
-  const totalForecast = data.reduce((s, w) => s + w.expected, 0);
-  const peakWeek = data.reduce(
-    (a, b) => (b.expected > a.expected ? b : a),
-    data[0],
+  const totalForecast = useMemo(
+    () => data.reduce((s, w) => s + w.expected, 0),
+    [data],
+  );
+  const peakWeek = useMemo(
+    () => data.reduce((a, b) => (b.expected > a.expected ? b : a), data[0]),
+    [data],
+  );
+  const totalSchedules = useMemo(
+    () => data.reduce((s, w) => s + w.count, 0),
+    [data],
+  );
+  const activeWeeks = useMemo(
+    () => data.filter((w) => w.count > 0).length,
+    [data],
   );
 
   return (
@@ -312,14 +324,14 @@ export default function CashFlowForecastChart({
             className="mt-0.5 text-sm font-black tabular-nums text-slate-600
               dark:text-white"
           >
-            {data.reduce((s, w) => s + w.count, 0)}
+            {totalSchedules}
           </p>
           <p
             className="text-[9px] font-semibold text-slate-500
               dark:text-muted-foreground"
           >
-            across {data.filter((w) => w.count > 0).length} week
-            {data.filter((w) => w.count > 0).length !== 1 ? "s" : ""}
+            across {activeWeeks} week
+            {activeWeeks !== 1 ? "s" : ""}
           </p>
         </div>
       </div>

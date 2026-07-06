@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { Category } from "./category-list";
 import Modal from "../modal";
 import NeobrutButton from "../neobrut-button";
-import { BsThreeDotsVertical } from "react-icons/bs";
+import { MoreVertical } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,7 +90,7 @@ export default function CategoryCard({
                   transition active:bg-slate-100 dark:border-border
                   dark:text-foreground dark:active:bg-muted"
               >
-                <BsThreeDotsVertical />
+                <MoreVertical />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-32">

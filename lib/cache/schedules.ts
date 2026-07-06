@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 
 function createSupabaseAdmin() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -24,7 +25,7 @@ export type ScheduleRow = {
 
 const PAGE_SIZE = 1000;
 
-export async function getAllPaymentSchedules(): Promise<ScheduleRow[]> {
+async function fetchAllPaymentSchedules(): Promise<ScheduleRow[]> {
   const supabase = createSupabaseAdmin();
   const allRows: ScheduleRow[] = [];
   let from = 0;
@@ -42,3 +43,9 @@ export async function getAllPaymentSchedules(): Promise<ScheduleRow[]> {
   }
   return allRows;
 }
+
+export const getAllPaymentSchedules = unstable_cache(
+  fetchAllPaymentSchedules,
+  ["all-payment-schedules"],
+  { revalidate: 30, tags: ["schedules"] },
+);

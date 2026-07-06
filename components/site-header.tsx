@@ -40,9 +40,9 @@ export default function SiteHeader({
 
   return (
     <header
-      className="bg-background/80 dark:border-border/50 dark:bg-background/80
-        hidden border-b border-slate-200 backdrop-blur sm:sticky sm:top-0
-        sm:z-50 sm:flex sm:flex-col print:hidden md:ml-[var(--sidebar-width)]"
+      className="bg-background dark:border-border/50 dark:bg-background hidden
+        border-b border-slate-200 sm:sticky sm:top-0 sm:z-50 sm:flex sm:flex-col
+        print:hidden md:ml-[var(--sidebar-width)]"
     >
       <nav
         className="relative mx-auto flex w-full max-w-7xl items-center

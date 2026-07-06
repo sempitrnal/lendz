@@ -38,9 +38,9 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
 
   return (
     <div
-      className="dark:border-border/50 dark:bg-background/90 fixed top-0 right-0
+      className="dark:border-border/50 dark:bg-background fixed top-0 right-0
         left-0 z-40 flex h-16 items-center gap-2 border-b border-slate-200
-        bg-background px-2 backdrop-blur sm:hidden print:hidden"
+        bg-background px-2 sm:hidden print:hidden"
     >
       {showToggleOnly ? (
         <div

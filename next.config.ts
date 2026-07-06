@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   compress: true,
   experimental: {
     viewTransition: true,
+    optimizePackageImports: ["lucide-react", "recharts", "radix-ui"],
   },
 };
 

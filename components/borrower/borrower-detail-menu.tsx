@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { BsThreeDotsVertical } from "react-icons/bs";
+import { MoreVertical } from "lucide-react";
 
 import { supabase } from "@/lib/supabase/client";
 import { revalidateBorrowersPage } from "@/lib/actions/borrowers";
@@ -103,9 +103,11 @@ export default function BorrowerDetailMenu({
           <button
             type="button"
             aria-label="Borrower actions"
-            className="rounded-md p-1 text-gray-700 transition-colors outline-none hover:bg-gray-100 hover:text-gray-500 focus-visible:ring-2 focus-visible:ring-gray-400"
+            className="rounded-md p-1 text-gray-700 transition-colors
+              outline-none hover:bg-gray-100 hover:text-gray-500
+              focus-visible:ring-2 focus-visible:ring-gray-400"
           >
-            <BsThreeDotsVertical className="size-4 cursor-pointer" />
+            <MoreVertical className="size-4 cursor-pointer" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
