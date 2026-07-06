@@ -55,7 +55,7 @@ export default function BottomNav() {
       <nav
         onClick={() => setOpen(true)}
         className="bg-background dark:border-border/50 dark:bg-background fixed
-          right-0 bottom-0 left-0 z-50 border-t border-slate-200 sm:hidden
+          right-0 bottom-0 left-0 z-50 border-t border-slate-200 md:hidden
           print:hidden"
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }}
       >
@@ -78,13 +78,13 @@ export default function BottomNav() {
           <>
             {open && (
               <div
-                className="fixed inset-0 z-[9998] bg-black/50 sm:hidden"
+                className="fixed inset-0 z-[9998] bg-black/50 md:hidden"
                 onClick={() => setOpen(false)}
               />
             )}
             <div
               className={`fixed right-0 bottom-0 left-0 z-[9999] transform
-              transition-transform duration-300 ease-out sm:hidden ${
+              transition-transform duration-300 ease-out md:hidden ${
                 open ? "translate-y-0" : "translate-y-full"
               }`}
             >
