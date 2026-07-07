@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronDown, Search } from "lucide-react";
 import { useState, useMemo } from "react";
 
@@ -86,6 +87,7 @@ export default function CategorySection({
   cat: CategoryData;
   tz: string;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
 
@@ -276,6 +278,10 @@ export default function CategorySection({
                       key={b.borrowerId ?? b.name}
                       className="dark:border-border dark:bg-card relative flex
                         flex-col rounded-lg border border-slate-400 bg-white"
+                      onPointerEnter={() => {
+                        if (b.borrowerId)
+                          router.prefetch(`/borrowers/${b.borrowerId}`);
+                      }}
                     >
                       <div
                         className="pointer-events-none absolute inset-0
@@ -292,6 +298,7 @@ export default function CategorySection({
                           href={
                             b.borrowerId ? `/borrowers/${b.borrowerId}` : "#"
                           }
+                          prefetch
                           className="dark:text-foreground block truncate
                             text-base font-bold text-slate-700 lowercase
                             transition hover:opacity-70"
@@ -437,7 +444,6 @@ export default function CategorySection({
           </details>
         </div>
       )}
-
       {/* Paid */}
       {cat.paid.length > 0 && (
         <div>
@@ -491,6 +497,10 @@ export default function CategorySection({
                       key={b.borrowerId ?? b.name}
                       className="dark:border-border dark:bg-card relative flex
                         flex-col rounded-lg border border-slate-400 bg-white"
+                      onPointerEnter={() => {
+                        if (b.borrowerId)
+                          router.prefetch(`/borrowers/${b.borrowerId}`);
+                      }}
                     >
                       <div
                         className="pointer-events-none absolute inset-0
@@ -507,6 +517,7 @@ export default function CategorySection({
                           href={
                             b.borrowerId ? `/borrowers/${b.borrowerId}` : "#"
                           }
+                          prefetch
                           className="dark:text-foreground block truncate
                             text-base font-bold text-slate-700 lowercase
                             transition hover:opacity-70"
