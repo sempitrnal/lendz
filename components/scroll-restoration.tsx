@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const key = (path: string) => `scroll:${path}`;
 
 export function ScrollRestoration() {
   const pathname = usePathname();
-  const wasBack = useRef(false);
+  const [wasBack, setWasBack] = useState(false);
 
   // Take over scroll restoration from the browser
   useEffect(() => {
@@ -19,7 +19,7 @@ export function ScrollRestoration() {
   // Detect back/forward navigation via popstate
   useEffect(() => {
     function onPopState() {
-      wasBack.current = true;
+      setWasBack(true);
     }
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -49,21 +49,18 @@ export function ScrollRestoration() {
     };
   }, [pathname]);
 
-  // On pathname change: restore if back nav, else scroll to top
+  // On pathname change: restore if back nav
   useEffect(() => {
-    if (wasBack.current) {
-      wasBack.current = false;
-      const saved = sessionStorage.getItem(key(pathname));
-      if (saved) {
-        // Delay to ensure Next.js internal scroll-to-top has finished
-        setTimeout(() => {
-          window.scrollTo({ top: parseInt(saved, 10), behavior: "instant" });
-        }, 50);
-        return;
-      }
+    if (!wasBack) return;
+    setWasBack(false);
+    const saved = sessionStorage.getItem(key(pathname));
+    if (saved) {
+      // Delay to ensure the new route has finished rendering
+      setTimeout(() => {
+        window.scrollTo({ top: parseInt(saved, 10), behavior: "instant" });
+      }, 50);
     }
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }, [pathname]);
+  }, [pathname, wasBack]);
 
   return null;
 }
