@@ -58,11 +58,12 @@ export default function BackButton({
         type="button"
         onClick={handleBack}
         aria-label={label}
-        className={`fixed top-20 left-4 z-50 inline-flex items-center gap-2 transition-all duration-300 print:hidden ${
-          visible
-            ? "translate-y-0 opacity-100"
-            : "pointer-events-none translate-y-2 opacity-0"
-        } ${neobrutButtonClassName("white", "")}`}
+        className={`fixed top-20 left-4 z-50 inline-flex items-center gap-2
+          transition-all duration-300 print:hidden ${
+            visible
+              ? "translate-y-0 opacity-100"
+              : "pointer-events-none translate-y-2 opacity-0"
+          } `}
       >
         <span aria-hidden="true">←</span>
         <span>{label}</span>
@@ -72,15 +73,7 @@ export default function BackButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleBack}
-      className={neobrutButtonClassName(
-        "white",
-        `inline-flex items-center gap-2 ${className ?? ""}`,
-      )}
-      aria-label={label}
-    >
+    <button type="button" onClick={handleBack} aria-label={label}>
       <span aria-hidden="true">←</span>
       <span>{label}</span>
     </button>

@@ -61,9 +61,8 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
             onClick={handleBack}
             aria-label="Go back"
             className="dark:border-border dark:bg-card dark:text-foreground flex
-              items-center justify-center rounded-lg border border-slate-900
-              bg-white p-2 text-slate-600 shadow-[2px_2px_0px_0px_#0f172a]
-              transition active:shadow-none"
+              items-center justify-center rounded-lg border border-slate-300
+              bg-white p-2 text-slate-600 transition active:shadow-none"
           >
             <ArrowLeft className="size-4" strokeWidth={2.5} />
           </button>
