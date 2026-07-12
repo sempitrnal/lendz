@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const key = (path: string) => `scroll:${path}`;
@@ -49,16 +49,13 @@ export function ScrollRestoration() {
     };
   }, [pathname]);
 
-  // On pathname change: restore if back nav
-  useEffect(() => {
+  // On pathname change: restore if back nav, before paint to avoid flash
+  useLayoutEffect(() => {
     if (!wasBack) return;
     setWasBack(false);
     const saved = sessionStorage.getItem(key(pathname));
     if (saved) {
-      // Delay to ensure the new route has finished rendering
-      setTimeout(() => {
-        window.scrollTo({ top: parseInt(saved, 10), behavior: "instant" });
-      }, 50);
+      window.scrollTo({ top: parseInt(saved, 10), behavior: "instant" });
     }
   }, [pathname, wasBack]);
 

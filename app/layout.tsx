@@ -10,7 +10,6 @@ import { ThemeProvider } from "./providers";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
-import Loading from "./(dashboard)/loading";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
 const geistSans = Geist({
@@ -62,9 +61,7 @@ export default async function RootLayout({
           <ServiceWorkerRegistrar />
           <OfflineSyncManager />
 
-          <Suspense fallback={<Loading />}>
-            <PageTransition>{children}</PageTransition>
-          </Suspense>
+          <PageTransition>{children}</PageTransition>
 
           <Suspense fallback={null}>
             <MobileTopBar isLoggedIn={Boolean(user)} />
