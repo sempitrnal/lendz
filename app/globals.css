@@ -163,6 +163,7 @@
 }
 
 :root {
+  --font-scale: 1;
   --background: #fffef9;
   --foreground: oklch(0.145 0 0);
   --card: oklch(100% 0.00011 271.152);
@@ -233,6 +234,10 @@
 }
 
 @layer base {
+  html {
+    zoom: var(--font-scale, 1);
+  }
+
   * {
     @apply border-border outline-ring/50;
   }

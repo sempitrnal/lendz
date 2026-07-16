@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Loader2,
+  Settings,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { href: "/categories", label: "Categories", Icon: Tag },
   { href: "/daily-checklist", label: "Checklist", Icon: ClipboardCheck },
   { href: "/deleted", label: "Trash", Icon: Trash2 },
+  { href: "/settings", label: "Settings", Icon: Settings },
 ];
 
 export default function BottomNav() {

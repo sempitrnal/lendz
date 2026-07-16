@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Loader2,
   CalendarClock,
+  Settings,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: "/categories", label: "categories", Icon: Tag },
   { href: "/daily-checklist", label: "checklist", Icon: ClipboardCheck },
   { href: "/deleted", label: "trash", Icon: Trash2 },
+  { href: "/settings", label: "settings", Icon: Settings },
 ];
 
 const STORAGE_KEY = "sidebar-collapsed";

@@ -4,6 +4,7 @@ import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { queryClient } from "@/lib/query-client";
+import { FontSizeProvider } from "@/components/font-size-provider";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
@@ -14,7 +15,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        {children}
+        <FontSizeProvider>{children}</FontSizeProvider>
       </NextThemesProvider>
     </QueryClientProvider>
   );

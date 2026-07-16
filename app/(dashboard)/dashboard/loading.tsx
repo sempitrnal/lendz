@@ -1,21 +1,26 @@
-import { Loader2 } from "lucide-react";
-
-export default function DashboardLoading() {
+export default function Loading() {
   return (
-    <div className="flex min-h-[50vh] w-full items-center justify-center p-4">
-      <div
-        className="dark:border-border dark:bg-card flex flex-col items-center
-          gap-3 rounded-xl border-2 border-slate-900 bg-white p-6
-          shadow-[4px_4px_0px_0px_#0f172a]"
-      >
-        <Loader2
-          className="h-8 w-8 animate-spin text-indigo-600 dark:text-indigo-400"
-        />
+    <div className="flex min-h-[60vh] w-full items-center justify-center p-4">
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex items-center gap-1.5">
+          <span
+            className="size-2.5 animate-bounce rounded-full bg-slate-800
+              [animation-delay:-0.3s] dark:bg-slate-200"
+          />
+          <span
+            className="size-2.5 animate-bounce rounded-full bg-slate-800
+              [animation-delay:-0.15s] dark:bg-slate-200"
+          />
+          <span
+            className="size-2.5 animate-bounce rounded-full bg-slate-800
+              dark:bg-slate-200"
+          />
+        </div>
         <p
-          className="dark:text-foreground text-sm font-black text-slate-600
-            lowercase"
+          className="text-xs font-black lowercase tracking-wide text-slate-400
+            dark:text-muted-foreground"
         >
-          loading...
+          loading
         </p>
       </div>
     </div>
