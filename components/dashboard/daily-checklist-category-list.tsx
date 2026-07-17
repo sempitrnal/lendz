@@ -3,13 +3,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
-import NeobrutButton from "@/components/neobrut-button";
 import Modal from "@/components/modal";
-import {
-  formFieldInputClassName,
-  formFieldLabelClassName,
-} from "@/lib/form-field-classes";
-import { GripVertical } from "lucide-react";
+import { ChevronUp, ChevronDown, Pencil, Trash2 } from "lucide-react";
 
 export type DailyChecklistCategory = {
   id: string;
@@ -157,17 +152,14 @@ export default function DailyChecklistCategoryList() {
   return (
     <div className="flex flex-col gap-6">
       <article
-        className="rounded-xl border-2 border-slate-900 bg-linear-to-r
-          from-violet-50 via-white to-fuchsia-100 p-4
-          shadow-[4px_4px_0px_0px_#0f172a] dark:border-border
-          dark:from-violet-950/20 dark:via-card dark:to-fuchsia-950/20
-          dark:shadow-none sm:p-5"
+        className="rounded-2xl border border-border/50 bg-background/60 p-4
+          backdrop-blur-sm sm:p-5"
       >
         <h2
-          className="mb-3 text-base font-black lowercase text-slate-600
+          className="mb-3 text-sm font-semibold text-slate-700
             dark:text-foreground"
         >
-          add category
+          Add category
         </h2>
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="flex-1">
@@ -176,59 +168,78 @@ export default function DailyChecklistCategoryList() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Category name"
-              className="w-full rounded-md border-2 border-slate-900 bg-white
-                px-3 py-2 text-sm text-slate-600 outline-none transition
-                focus:-translate-y-0.5 focus:translate-x-0.5
-                focus:shadow-[4px_4px_0px_0px_#334155] dark:border-border
-                dark:bg-card dark:text-foreground dark:focus:shadow-none"
+              className="dark:bg-card/50 dark:text-foreground w-full rounded-xl
+                border border-border/50 bg-white/60 px-3 py-2 text-sm
+                text-slate-700 transition-all duration-200
+                placeholder:text-slate-400 focus:border-border
+                focus:outline-none dark:placeholder:text-muted-foreground"
             />
           </div>
           <input
             type="color"
             value={color}
             onChange={(e) => setColor(e.target.value)}
-            className="h-10 w-16 cursor-pointer rounded-md border-2
-              border-slate-900 bg-white p-1 dark:border-border dark:bg-card"
+            className="h-10 w-16 cursor-pointer rounded-xl border
+              border-border/50 bg-white/60 p-1 dark:bg-card/50"
             aria-label="Category color"
           />
-          <NeobrutButton
+          <button
+            type="button"
             onClick={addCategory}
-            disabled={isSaving}
-            variant="green"
-            className="h-fit"
+            disabled={isSaving || !name.trim()}
+            className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm
+              font-semibold text-white transition-all duration-200
+              hover:bg-slate-700 disabled:opacity-40 dark:bg-foreground
+              dark:text-background dark:hover:bg-foreground/80"
           >
-            {isSaving ? "Adding..." : "Add category"}
-          </NeobrutButton>
+            {isSaving ? "Adding…" : "Add"}
+          </button>
         </div>
       </article>
 
       <div>
         {loading ? (
-          <p className="text-sm text-slate-500 dark:text-muted-foreground">
-            Loading categories...
-          </p>
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 rounded-xl border
+                  border-border/50 px-4 py-3"
+              >
+                <div
+                  className="size-4 animate-pulse rounded bg-slate-200
+                    dark:bg-muted/60"
+                />
+                <div
+                  className="h-4 flex-1 animate-pulse rounded bg-slate-100
+                    dark:bg-muted/40"
+                />
+              </div>
+            ))}
+          </div>
         ) : categories.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-muted-foreground">
-            No categories yet.
-          </p>
+          <div
+            className="dark:text-muted-foreground flex flex-col items-center
+              gap-2 rounded-2xl border border-border/50 py-12 text-center"
+          >
+            <p className="text-sm text-slate-400">No categories yet.</p>
+          </div>
         ) : (
           <ul className="space-y-2">
             {categories.map((category, index) => (
               <li
                 key={category.id}
-                className="flex items-center gap-2 rounded-lg border-2
-                  border-slate-900 bg-white px-3 py-2
-                  shadow-[2px_2px_0px_0px_#0f172a] dark:border-border
-                  dark:bg-card dark:shadow-none"
+                className="flex items-center gap-3 rounded-xl border
+                  border-border/50 bg-background/40 px-4 py-3 transition-all
+                  duration-200 hover:bg-background/60"
               >
                 <span
-                  className="inline-block size-4 shrink-0 rounded-sm border
-                    border-slate-900/25"
+                  className="inline-block size-4 shrink-0 rounded-full"
                   style={{ backgroundColor: category.color }}
                   aria-hidden
                 />
                 <span
-                  className="min-w-0 flex-1 text-sm font-bold text-slate-600
+                  className="min-w-0 flex-1 text-sm font-medium text-slate-700
                     dark:text-foreground"
                 >
                   {category.name}
@@ -238,41 +249,49 @@ export default function DailyChecklistCategoryList() {
                     type="button"
                     disabled={index === 0}
                     onClick={() => moveCategory(index, "up")}
-                    className="rounded border border-slate-300 px-1.5 py-0.5
-                      text-xs text-slate-600 transition hover:bg-slate-100
-                      disabled:opacity-40 dark:border-border
-                      dark:text-muted-foreground dark:hover:bg-muted"
+                    className="rounded-lg p-1.5 text-slate-400 transition-colors
+                      duration-200 hover:bg-slate-100 hover:text-slate-600
+                      disabled:opacity-30 dark:text-muted-foreground
+                      dark:hover:bg-muted/60 dark:hover:text-foreground"
                     title="Move up"
+                    aria-label="Move category up"
                   >
-                    ↑
+                    <ChevronUp className="size-4" />
                   </button>
                   <button
                     type="button"
                     disabled={index === categories.length - 1}
                     onClick={() => moveCategory(index, "down")}
-                    className="rounded border border-slate-300 px-1.5 py-0.5
-                      text-xs text-slate-600 transition hover:bg-slate-100
-                      disabled:opacity-40 dark:border-border
-                      dark:text-muted-foreground dark:hover:bg-muted"
+                    className="rounded-lg p-1.5 text-slate-400 transition-colors
+                      duration-200 hover:bg-slate-100 hover:text-slate-600
+                      disabled:opacity-30 dark:text-muted-foreground
+                      dark:hover:bg-muted/60 dark:hover:text-foreground"
                     title="Move down"
+                    aria-label="Move category down"
                   >
-                    ↓
+                    <ChevronDown className="size-4" />
                   </button>
                   <button
                     type="button"
                     onClick={() => openEditModal(category)}
-                    className="text-xs font-bold uppercase text-sky-700
-                      dark:text-sky-400"
+                    className="rounded-lg p-1.5 text-slate-400 transition-colors
+                      duration-200 hover:bg-sky-50 hover:text-sky-600
+                      dark:hover:bg-sky-900/20 dark:hover:text-sky-400"
+                    title="Edit"
+                    aria-label="Edit category"
                   >
-                    edit
+                    <Pencil className="size-4" />
                   </button>
                   <button
                     type="button"
                     onClick={() => setDeleteTarget(category)}
-                    className="text-xs font-bold uppercase text-rose-700
-                      dark:text-rose-400"
+                    className="rounded-lg p-1.5 text-slate-400 transition-colors
+                      duration-200 hover:bg-rose-50 hover:text-rose-500
+                      dark:hover:bg-rose-900/20 dark:hover:text-rose-400"
+                    title="Delete"
+                    aria-label="Delete category"
                   >
-                    delete
+                    <Trash2 className="size-4" />
                   </button>
                 </div>
               </li>
@@ -293,7 +312,8 @@ export default function DailyChecklistCategoryList() {
           <div>
             <label
               htmlFor="edit_category_name"
-              className={formFieldLabelClassName}
+              className="dark:text-muted-foreground mb-1.5 block text-xs
+                font-medium text-slate-500"
             >
               Name
             </label>
@@ -302,13 +322,17 @@ export default function DailyChecklistCategoryList() {
               type="text"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className={formFieldInputClassName}
+              className="dark:bg-card dark:text-foreground w-full rounded-xl
+                border border-border/50 bg-white px-3 py-2.5 text-sm
+                text-slate-700 transition-all duration-200 outline-none
+                focus:border-border"
             />
           </div>
           <div>
             <label
               htmlFor="edit_category_color"
-              className={formFieldLabelClassName}
+              className="dark:text-muted-foreground mb-1.5 block text-xs
+                font-medium text-slate-500"
             >
               Color
             </label>
@@ -317,21 +341,31 @@ export default function DailyChecklistCategoryList() {
               type="color"
               value={editColor}
               onChange={(e) => setEditColor(e.target.value)}
-              className="h-11 w-full cursor-pointer rounded-lg border
-                border-slate-300 bg-white p-1 dark:border-border dark:bg-card"
+              className="h-11 w-full cursor-pointer rounded-xl border
+                border-border/50 bg-white p-1 dark:bg-card"
             />
           </div>
           <div className="flex justify-end gap-2">
-            <NeobrutButton variant="white" onClick={closeEditModal}>
+            <button
+              type="button"
+              onClick={closeEditModal}
+              className="dark:text-muted-foreground rounded-lg px-4 py-2 text-sm
+                font-medium text-slate-600 transition-colors duration-200
+                hover:bg-slate-100 dark:hover:bg-muted/60"
+            >
               Cancel
-            </NeobrutButton>
-            <NeobrutButton
-              variant="green"
+            </button>
+            <button
+              type="button"
               onClick={updateCategory}
               disabled={isUpdating}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium
+                text-white transition-colors duration-200 hover:bg-slate-700
+                disabled:opacity-40 dark:bg-foreground dark:text-background
+                dark:hover:bg-foreground/80"
             >
-              {isUpdating ? "Saving..." : "Save"}
-            </NeobrutButton>
+              {isUpdating ? "Saving…" : "Save"}
+            </button>
           </div>
         </div>
       </Modal>
@@ -345,7 +379,7 @@ export default function DailyChecklistCategoryList() {
         size="xs"
       >
         <div className="space-y-4">
-          <p className="text-sm text-slate-700 dark:text-muted-foreground">
+          <p className="text-sm text-slate-600 dark:text-muted-foreground">
             Are you sure you want to delete{" "}
             <strong className="dark:text-foreground">
               {deleteTarget?.name}
@@ -353,20 +387,25 @@ export default function DailyChecklistCategoryList() {
             ? Checklist items using this category will become uncategorized.
           </p>
           <div className="flex justify-end gap-2">
-            <NeobrutButton
-              variant="white"
+            <button
+              type="button"
               onClick={() => setDeleteTarget(null)}
+              className="dark:text-muted-foreground rounded-lg px-4 py-2 text-sm
+                font-medium text-slate-600 transition-colors duration-200
+                hover:bg-slate-100 dark:hover:bg-muted/60"
             >
               Cancel
-            </NeobrutButton>
-            <NeobrutButton
-              variant="red"
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 if (deleteTarget) void deleteCategory(deleteTarget.id);
               }}
+              className="rounded-lg bg-rose-500 px-4 py-2 text-sm font-medium
+                text-white transition-colors duration-200 hover:bg-rose-600"
             >
               Delete
-            </NeobrutButton>
+            </button>
           </div>
         </div>
       </Modal>

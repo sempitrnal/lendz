@@ -229,7 +229,7 @@ export default function DeletedPageClient({
     `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto w-full max-w-7xl space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-black tracking-tight">recently deleted</h1>
         {selectedCount > 0 && (
@@ -242,8 +242,8 @@ export default function DeletedPageClient({
               onClick={clearSelection}
               className="dark:border-border dark:bg-card dark:text-foreground
                 rounded-lg border-2 border-slate-900 bg-white px-2.5 py-1
-                text-xs font-bold shadow-[1px_1px_0px_0px_#0f172a] transition
-                hover:-translate-y-0.5 active:translate-y-px active:shadow-none"
+                text-xs font-bold transition hover:-translate-y-0.5
+                active:translate-y-px active:shadow-none"
             >
               clear
             </button>
@@ -264,8 +264,7 @@ export default function DeletedPageClient({
               disabled={isPermaDeleting}
               onClick={handleBulkPermaDelete}
               className="rounded-lg border-2 border-slate-900 bg-red-400 px-2.5
-                py-1 text-xs font-bold text-white
-                shadow-[1px_1px_0px_0px_#0f172a] transition
+                py-1 text-xs font-bold text-white transition
                 hover:-translate-y-0.5 active:translate-y-px active:shadow-none
                 disabled:opacity-50 dark:border-red-500/50 dark:bg-red-500/80"
             >

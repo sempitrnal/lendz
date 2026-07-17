@@ -215,7 +215,7 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
       {/* Pull indicator — translateY only, no layout-triggering props */}
       <div
         ref={indicatorRef}
-        className="pointer-events-none absolute inset-x-0 top-0 z-40 flex
+        className="pointer-events-none absolute inset-x-0 -top-15 z-40 flex
           flex-col items-center justify-end will-change-transform"
         style={{
           transform: "translateY(0px)",
@@ -224,11 +224,10 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
         }}
       >
         <div
-          className="mb-1 flex items-center gap-2 rounded-full border-2
-            border-slate-900 bg-white px-3 py-1.5 text-xs font-black uppercase
-            tracking-wide text-slate-600 shadow-[2px_2px_0px_0px_#0f172a]
-            dark:border-border dark:bg-card dark:text-foreground
-            dark:shadow-none"
+          className="mb-1 flex items-center gap-2 rounded-full border
+            border-slate-300 bg-white px-3 py-1.5 text-xs font-black uppercase
+            tracking-wide text-slate-600 dark:border-border dark:bg-card
+            dark:text-foreground"
         >
           {refreshing ? (
             <Loader2 className="size-4 animate-spin" />

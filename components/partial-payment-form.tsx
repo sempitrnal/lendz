@@ -136,10 +136,8 @@ export default function PartialPaymentForm({
               onChange={handleAmountChange}
               className="dark:border-border dark:bg-card dark:text-foreground
                 dark:focus-visible:ring-border w-full rounded-md border-2
-                border-slate-900 bg-white px-3 py-2 text-sm font-semibold
-                text-slate-600 tabular-nums shadow-[2px_2px_0px_0px_#0f172a]
-                outline-none focus-visible:ring-2 focus-visible:ring-slate-900
-                dark:shadow-none"
+                border-slate-300 bg-white px-3 py-2 text-sm font-semibold
+                text-slate-600 tabular-nums outline-none dark:shadow-none"
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -158,10 +156,8 @@ export default function PartialPaymentForm({
               onChange={(e) => setDate(e.target.value)}
               className="dark:border-border dark:bg-card dark:text-foreground
                 dark:focus-visible:ring-border w-full min-w-0 rounded-md
-                border-2 border-slate-900 bg-white px-3 py-2 text-sm
-                font-semibold text-slate-600 shadow-[2px_2px_0px_0px_#0f172a]
-                outline-none focus-visible:ring-2 focus-visible:ring-slate-900
-                dark:shadow-none"
+                border-2 border-slate-300 bg-white px-3 py-2 text-sm
+                font-semibold text-slate-600 outline-none dark:shadow-none"
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -182,10 +178,8 @@ export default function PartialPaymentForm({
               onChange={(e) => setNote(e.target.value)}
               className="dark:border-border dark:bg-card dark:text-foreground
                 dark:focus-visible:ring-border w-full rounded-md border-2
-                border-slate-900 bg-white px-3 py-2 text-sm text-slate-600
-                shadow-[2px_2px_0px_0px_#0f172a] outline-none
-                focus-visible:ring-2 focus-visible:ring-slate-900
-                dark:shadow-none"
+                border-slate-300 bg-white px-3 py-2 text-sm text-slate-600
+                outline-none dark:shadow-none"
             />
           </div>
         </form>
@@ -196,12 +190,11 @@ export default function PartialPaymentForm({
             disabled={isPending || !amount}
             aria-busy={isPending}
             className="dark:border-border w-full cursor-pointer rounded-lg
-              border-2 border-slate-900 bg-violet-200 px-4 py-2 text-xs
-              font-black tracking-wide text-slate-600 uppercase
-              shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-violet-300
-              disabled:cursor-not-allowed disabled:opacity-60
-              dark:bg-violet-400/25 dark:text-violet-100 dark:shadow-none
-              dark:hover:bg-violet-400/40"
+              border-2 border-slate-300 bg-violet-200 px-4 py-2 text-xs
+              font-black tracking-wide text-slate-600 uppercase transition
+              hover:bg-violet-300 disabled:cursor-not-allowed
+              disabled:opacity-60 dark:bg-violet-400/25 dark:text-violet-100
+              dark:shadow-none dark:hover:bg-violet-400/40"
           >
             {isPending ? "Recording…" : "Record Payment"}
           </button>

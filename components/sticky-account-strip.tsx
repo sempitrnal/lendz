@@ -83,152 +83,170 @@ export default function StickyAccountStrip({
   return (
     <>
       <div
-        className="bg-[#fefff3] dark:bg-background sticky top-16 mx-auto right-0
-          left-0 z-40 sm:top-16 md:top-16 md:left-(--sidebar-width)"
+        className="sticky top-16 z-40 border-b border-slate-300/60
+          bg-background/80 backdrop-blur-md dark:border-slate-700/60 sm:top-16
+          md:top-16"
       >
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="dark:border-border flex w-full items-center justify-between
-            border-b border-slate-200 px-4 py-2"
+          className="flex w-full items-center justify-between px-4 py-3
+            transition-colors duration-200 hover:bg-slate-50/50
+            dark:hover:bg-slate-800/30"
         >
           <div className="min-w-0 text-left">
-            <div className="flex flex-col items-start gap-0.5 mb-2">
+            <div className="flex items-center gap-2">
               <p
-                className="dark:text-foreground truncate text-sm font-black
-                  tracking-wide text-slate-600 uppercase"
+                className="truncate text-lg font-black tracking-tight
+                  text-slate-700 dark:text-foreground"
               >
                 {borrowerName}
               </p>
-              {categoryLabel && (
-                <span
-                  className={`rounded border border-slate-900/30 px-1.5 py-0.5
-                  text-[9px] font-black
-                  ${isDarkColor(categoryColor ?? "#cbd5e1") ? "text-white" : "text-slate-600"}`}
-                  style={{ backgroundColor: categoryColor ?? "#cbd5e1" }}
-                >
-                  {categoryLabel}
-                </span>
-              )}
             </div>
-
+            {categoryLabel && (
+              <span
+                className={`rounded-sm px-2 py-0.5 text-[10px] font-semibold
+                ${isDarkColor(categoryColor ?? "#cbd5e1") ? "text-white" : "text-slate-700"}`}
+                style={{
+                  backgroundColor: categoryColor
+                    ? `${categoryColor}`
+                    : "#cbd5e120",
+                  border: `1px solid ${categoryColor ? `${categoryColor}40` : "#cbd5e140"}`,
+                }}
+              >
+                {categoryLabel}
+              </span>
+            )}
             <div
-              className="dark:text-muted-foreground mt-0.5 flex flex-wrap
-                gap-x-3 gap-y-0.5 text-[11px] text-slate-500"
+              className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[11px]
+                text-slate-400 dark:text-muted-foreground"
             >
               <span>
                 Released{" "}
-                <strong className="dark:text-foreground text-slate-700">
+                <strong
+                  className="font-semibold text-slate-600
+                    dark:text-foreground/80"
+                >
                   {releaseDate}
                 </strong>
               </span>
               <span>
                 Interest{" "}
-                <strong className="dark:text-foreground text-slate-700">
+                <strong
+                  className="font-semibold text-slate-600
+                    dark:text-foreground/80"
+                >
                   {interest}%
                 </strong>
               </span>
               <span>
                 Term{" "}
-                <strong className="dark:text-foreground text-slate-700">
+                <strong
+                  className="font-semibold text-slate-600
+                    dark:text-foreground/80"
+                >
                   {isManual ? "manual" : `${termMonths} ${paymentFrequency}`}
                 </strong>
               </span>
             </div>
           </div>
           <ChevronDown
-            className={`dark:text-muted-foreground ml-2 size-4 shrink-0
-              text-slate-500 transition-transform duration-200
+            className={`ml-2 size-4 shrink-0 text-slate-400 transition-transform
+              duration-200 dark:text-muted-foreground
               ${open ? "rotate-180" : ""}`}
           />
         </button>
 
         {/* Dropdown overlay */}
         <div
-          className={`bg-background/95 dark:bg-background/95 absolute top-full
-            right-0 left-0 z-30 overflow-hidden border-x-2 border-b-2
-            border-slate-900 shadow-[0_4px_0px_0px_#0f172a] backdrop-blur
-            transition-all duration-300 ease-out dark:border-[#020617]
-            dark:shadow-[0_4px_0px_0px_#020617]
-            ${open ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"}`}
+          className={`absolute top-full right-0 left-0 z-30 overflow-hidden
+            border-x border-b border-slate-300/60 bg-background/95
+            backdrop-blur-md transition-all duration-300 ease-out
+            dark:border-slate-700/60
+            ${open ? "max-h-[440px] opacity-100" : "max-h-0 opacity-0"}`}
         >
-          <div className="px-4 pb-3">
-            <div className="grid grid-cols-3 gap-2 pt-2 text-[11px]">
+          <div className="px-4 pb-4">
+            <div className="grid grid-cols-2 gap-2 pt-3 sm:grid-cols-3">
               {[
                 {
                   label: "Principal",
                   value: principal,
-                  bg: "bg-sky-100 dark:bg-sky-900/30",
+                  tint: "bg-sky-50 dark:bg-sky-900/20",
+                  text: "text-sky-700 dark:text-sky-300",
                 },
                 {
                   label: "Remaining",
                   value: remaining,
-                  bg: "bg-rose-100 dark:bg-rose-900/30",
+                  tint: "bg-rose-50 dark:bg-rose-900/20",
+                  text: "text-rose-700 dark:text-rose-300",
                 },
                 {
                   label: "Collected",
                   value: collected,
-                  bg: "bg-emerald-100 dark:bg-emerald-900/30",
+                  tint: "bg-emerald-50 dark:bg-emerald-900/20",
+                  text: "text-emerald-700 dark:text-emerald-300",
                 },
                 {
                   label: "Profit",
                   value: Math.max(0, profit),
-                  bg: "bg-amber-100 dark:bg-amber-900/30",
+                  tint: "bg-amber-50 dark:bg-amber-900/20",
+                  text: "text-amber-700 dark:text-amber-300",
                 },
-              ].map(({ label, value, bg }) => (
+              ].map(({ label, value, tint, text }) => (
                 <div
                   key={label}
-                  className={`border-2 border-slate-900 ${bg} px-2 py-1.5
-                  shadow-[2px_2px_0px_0px_#0f172a] dark:border-[#020617]`}
+                  className={`rounded-xl border border-slate-300/60 ${tint} px-3
+                  py-2 dark:border-slate-700/60`}
                 >
                   <p
-                    className="text-[#414d7c] font-bold text md:text-base
-                      font-mono dark:text-[#a98080] uppercase"
+                    className={`text-[10px] font-semibold uppercase
+                    tracking-wide ${text}`}
                   >
                     {label}
                   </p>
                   <p
-                    className="dark:text-[#c2c2c2] mt-0.5 text-xl md:text-3xl
-                      font-bold text-[#593b5e] tabular-nums"
+                    className="mt-0.5 text-lg font-bold tabular-nums
+                      text-slate-700 dark:text-foreground"
                   >
                     ₱{Math.round(value).toLocaleString()}
                   </p>
                 </div>
               ))}
               <div
-                className="col-span-2 border-2 border-slate-900 bg-violet-100
-                  px-2 py-1.5 shadow-[2px_2px_0px_0px_#0f172a]
-                  dark:border-[#020617] dark:bg-violet-900/30"
+                className="col-span-2 rounded-xl border border-slate-300/60
+                  bg-violet-50 px-3 py-2 dark:border-slate-700/60
+                  dark:bg-violet-900/20"
               >
                 <p
-                  className="text-[#414d7c] font-bold text md:text-base
-                    font-mono dark:text-[#a98080] uppercase"
+                  className="text-[10px] font-semibold uppercase tracking-wide
+                    text-violet-700 dark:text-violet-300"
                 >
                   Profit / payroll
                 </p>
                 <p
-                  className="dark:text-[#c2c2c2] mt-0.5 text-xl md:text-3xl
-                    font-bold text-[#593b5e] tabular-nums"
+                  className="mt-0.5 text-lg font-bold tabular-nums
+                    text-slate-700 dark:text-foreground"
                 >
                   ₱{Math.round(profitPerPayroll).toLocaleString()}
                 </p>
               </div>
             </div>
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-3 flex items-center gap-3">
               <div
-                className="h-2 flex-1 overflow-hidden rounded-sm border-2
-                  border-slate-900 bg-white shadow-[2px_2px_0px_0px_#0f172a]
-                  dark:border-[#020617] dark:bg-slate-900"
+                className="h-2 flex-1 overflow-hidden rounded-full border
+                  border-slate-300/60 bg-slate-100 dark:border-slate-700/60
+                  dark:bg-slate-800"
               >
                 <div
-                  className="h-full bg-emerald-400 transition-[width]
-                    duration-500 ease-out dark:bg-emerald-500"
+                  className="h-full rounded-full bg-emerald-400
+                    transition-[width] duration-500 ease-out
+                    dark:bg-emerald-500"
                   style={{ width: open ? `${progressPct}%` : "0%" }}
                 />
               </div>
               <span
-                className="dark:text-[#c2c2c2] mt-0.5 text-xl md:text-3xl
-                  font-bold text-[#593b5e] tabular-nums"
+                className="text-sm font-bold tabular-nums text-slate-600
+                  dark:text-foreground"
               >
                 {progressPct}%
               </span>

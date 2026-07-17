@@ -615,9 +615,8 @@ export default function AccountForm({
                 setPrincipalText(amt.toLocaleString());
               }}
               className={`dark:border-border rounded-md border-2
-              border-slate-900 px-4 py-2 text-sm font-bold
-              shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5
-              dark:shadow-none ${
+              border-slate-900 px-4 py-2 text-sm font-bold transition
+              hover:-translate-y-0.5 dark:shadow-none ${
                 Number(value) === amt
                   ? `dark:bg-foreground dark:text-background bg-slate-900
                     text-white`
@@ -683,9 +682,8 @@ export default function AccountForm({
                 setInterestRateText(String(rate));
               }}
               className={`dark:border-border rounded-md border-2
-              border-slate-900 px-4 py-2 text-sm font-bold
-              shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5
-              dark:shadow-none ${
+              border-slate-900 px-4 py-2 text-sm font-bold transition
+              hover:-translate-y-0.5 dark:shadow-none ${
                 interestRateValue === rate
                   ? `dark:bg-foreground dark:text-background bg-slate-900
                     text-white`
@@ -727,8 +725,7 @@ export default function AccountForm({
               }}
               className="dark:border-border dark:text-foreground rounded-md
                 border-2 border-slate-900 bg-gradient-to-br from-emerald-50
-                to-sky-50 px-4 py-2 text-sm font-bold text-slate-600
-                shadow-[1px_1px_0px_0px_#0f172a] transition
+                to-sky-50 px-4 py-2 text-sm font-bold text-slate-600 transition
                 hover:-translate-y-0.5 dark:bg-gradient-to-br
                 dark:from-slate-800 dark:to-slate-900 dark:shadow-none"
             >
@@ -797,7 +794,7 @@ export default function AccountForm({
                     key={value}
                     type="button"
                     onClick={() => setValue("first_payment_date", value)}
-                    className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold shadow-[1px_1px_0px_0px_#0f172a] transition hover:-translate-y-0.5 dark:shadow-none ${
+                    className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold transition hover:-translate-y-0.5 dark:shadow-none ${
                       firstPaymentDateValue === value
                         ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
                         : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-600 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
@@ -959,8 +956,7 @@ export default function AccountForm({
                     setTermMonthsText(String(m));
                   }}
                   className={`dark:border-border rounded-md border-2
-                  border-slate-900 px-4 py-2 text-sm font-bold
-                  shadow-[1px_1px_0px_0px_#0f172a] transition
+                  border-slate-900 px-4 py-2 text-sm font-bold transition
                   hover:-translate-y-0.5 dark:shadow-none ${
                     Number(termMonthsValue) === m
                       ? `dark:bg-foreground dark:text-background bg-slate-900

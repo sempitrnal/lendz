@@ -4,7 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
-import { Settings, Check, Trash2, ChevronDown, Pencil } from "lucide-react";
+import {
+  Settings,
+  Check,
+  Trash2,
+  ChevronDown,
+  Pencil,
+  Plus,
+  MoreHorizontal,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import Modal from "@/components/modal";
 
@@ -29,8 +37,9 @@ type DailyChecklistItem = {
 function todayDateValue() {
   return new Date().toLocaleDateString("en-CA");
 }
-/** Lighten a hex color to ~20% opacity equivalent on white */
-function tintColor(hex: string, opacity = 0.15): string {
+
+/** Lighten a hex color to a soft tint on white */
+function tintColor(hex: string, opacity = 0.08): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
@@ -38,8 +47,8 @@ function tintColor(hex: string, opacity = 0.15): string {
   return `rgb(${blend(r)}, ${blend(g)}, ${blend(b)})`;
 }
 
-/** Darken a hex color by mixing with dark card background (#161b22) */
-function darkTintColor(hex: string, opacity = 0.25): string {
+/** Darken a hex color by mixing with dark surface (#161b22) */
+function darkTintColor(hex: string, opacity = 0.15): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
@@ -49,6 +58,25 @@ function darkTintColor(hex: string, opacity = 0.25): string {
   const blend = (c: number, bg: number) =>
     Math.round(c * opacity + bg * (1 - opacity));
   return `rgb(${blend(r, bgR)}, ${blend(g, bgG)}, ${blend(b, bgB)})`;
+}
+
+/** Derive a readable text color from a hex color (lighten/darken for contrast) */
+function readableColor(hex: string, isDark: boolean): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  if (isDark) {
+    // In dark mode, lighten the color for readability
+    const lighten = (c: number) => Math.round(c + (255 - c) * 0.3);
+    return `rgb(${lighten(r)}, ${lighten(g)}, ${lighten(b)})`;
+  }
+  // In light mode, darken for readability
+  if (luminance > 0.6) {
+    const darken = (c: number) => Math.round(c * 0.55);
+    return `rgb(${darken(r)}, ${darken(g)}, ${darken(b)})`;
+  }
+  return hex;
 }
 
 function CategorySection({
@@ -79,6 +107,7 @@ function CategorySection({
   );
   const [editLabelValue, setEditLabelValue] = useState("");
   const [expanded, setExpanded] = useState(false);
+  const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
 
@@ -102,100 +131,128 @@ function CategorySection({
     setNewLabel("");
   };
 
-  const bgColor = category
+  const catColor = category?.color;
+  const bgColor = catColor
     ? isDark
-      ? darkTintColor(category.color, 0.25)
-      : tintColor(category.color, 0.15)
+      ? darkTintColor(catColor, 0.08)
+      : tintColor(catColor, 0.05)
     : undefined;
-  const borderColor = category ? category.color : undefined;
+  const pillBg = catColor
+    ? isDark
+      ? darkTintColor(catColor, 0.2)
+      : tintColor(catColor, 0.12)
+    : undefined;
+  const pillText = catColor ? readableColor(catColor, isDark) : undefined;
+  const pillBorder = catColor
+    ? isDark
+      ? `${catColor}30`
+      : `${catColor}25`
+    : undefined;
 
   return (
     <div
-      className="dark:border-border rounded-xl border-2 border-slate-900 p-3
-        shadow-[3px_3px_0px_0px_#0f172a] sm:p-4 dark:shadow-none"
+      className="rounded-2xl border border-border/50 p-2 transition-all
+        duration-200 sm:p-5"
       style={{
-        backgroundColor: bgColor ?? (isDark ? "#161b22" : "#f8fafc"),
-        borderColor: borderColor ?? undefined,
+        backgroundColor: bgColor ?? undefined,
       }}
     >
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className={`flex w-full items-center gap-2 ${expanded ? "mb-2" : ""}`}
+        className={`flex w-full items-center gap-2.5 ${expanded ? "mb-3" : ""}`}
       >
-        {category && (
+        {category ? (
           <span
-            className="dark:border-border/50 inline-block size-3 shrink-0
-              rounded-sm border border-slate-900/25"
-            style={{ backgroundColor: category.color }}
-            aria-hidden
-          />
+            className="inline-flex shrink-0 items-center rounded-full px-2.5
+              py-0.5 text-xs font-semibold"
+            style={{
+              backgroundColor: pillBg ?? undefined,
+              color: pillText ?? undefined,
+              borderWidth: 1,
+              borderStyle: "solid",
+              borderColor: pillBorder ?? undefined,
+            }}
+          >
+            {category.name}
+          </span>
+        ) : (
+          <span
+            className="dark:text-muted-foreground shrink-0 text-xs font-semibold
+              text-slate-400"
+          >
+            Uncategorized
+          </span>
         )}
-        <h3
-          className="dark:text-foreground text-sm font-black text-slate-600
-            lowercase"
-        >
-          {category ? category.name : "uncategorized"}
-        </h3>
         <span
-          className="dark:text-muted-foreground text-xs font-semibold
-            text-slate-500"
+          className="dark:text-muted-foreground text-xs font-medium
+            text-slate-400 tabular-nums"
         >
           {checkedCount}/{items.length}
         </span>
         <ChevronDown
-          className={`dark:text-muted-foreground ml-auto size-4 text-slate-600
+          className={`dark:text-muted-foreground ml-auto size-4 text-slate-400
             transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
         />
       </button>
 
       {expanded && (
         <>
-          <div className="mb-5 flex flex-col gap-2">
+          <div className="mb-4 flex flex-col gap-2">
             <textarea
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
-              placeholder={`Add item${category ? ` to ${category.name}` : ""}...`}
-              className="dark:border-border dark:bg-card dark:text-foreground
-                w-full rounded-md border-2 border-slate-900 bg-white px-2 py-1.5
-                text-sm text-slate-600"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void handleAdd();
+                }
+              }}
+              placeholder={`Add item${category ? ` to ${category.name}` : ""}…`}
+              rows={1}
+              className="dark:bg-card/50 dark:text-foreground w-full resize-none
+                rounded-xl border border-border/50 bg-white/60 px-3 py-2 text-sm
+                text-slate-700 transition-all duration-200
+                placeholder:text-slate-400 focus:border-border
+                focus:outline-none dark:placeholder:text-muted-foreground"
             />
             <button
               type="button"
               onClick={() => void handleAdd()}
-              disabled={saving}
-              className="dark:border-border shrink-0 rounded-md border-2
-                border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs font-bold
-                text-slate-600 uppercase shadow-[2px_2px_0px_0px_#0f172a]
-                transition hover:bg-emerald-300 dark:bg-emerald-900/30
-                dark:text-emerald-300 dark:shadow-none
-                dark:hover:bg-emerald-900/40"
+              disabled={saving || !newLabel.trim()}
+              className="dark:text-foreground dark:hover:bg-muted/60 shrink-0
+                self-start rounded-lg px-3 py-1.5 text-xs font-semibold
+                text-slate-600 bg-white dark:bg-slate-800 transition-all
+                duration-200 hover:bg-slate-100 disabled:opacity-40"
             >
-              {saving ? "..." : "add"}
+              {saving ? "Adding…" : "Add item"}
             </button>
           </div>
 
           {sorted.length === 0 ? (
-            <p
-              className="dark:border-border/50 dark:bg-card/60
-                dark:text-muted-foreground rounded-md border-2 border-dashed
-                border-slate-400 bg-white/60 px-3 py-2 text-xs text-slate-500"
+            <div
+              className="dark:text-muted-foreground flex flex-col items-center
+                gap-2 py-8 text-center"
             >
-              No items yet.
-            </p>
+              <p className="text-sm text-slate-400">
+                No items in this category yet.
+              </p>
+            </div>
           ) : (
-            <ul className="space-y-1.5">
+            <ul className="space-y-1">
               {sorted.map((item) => (
                 <li
                   key={item.id}
                   onClick={() => onToggle(item)}
-                  className={`dark:border-border flex cursor-pointer
-                    items-center gap-2 rounded-lg border-2 border-slate-900 px-3
-                    py-1.5 transition ${
+                  className={`group flex cursor-pointer items-center gap-3
+                    rounded-xl border border-slate-300 px-2 py-2 transition-all
+                    duration-200 ${
                       item.is_checked
-                        ? "bg-green-200 opacity-80 dark:bg-[#0f2417]"
-                        : `dark:bg-card dark:hover:bg-muted bg-white
-                          hover:bg-slate-100`
+                        ? `bg-slate-50 dark:border-muted-foreground/30
+                          dark:bg-muted/80`
+                        : `bg-white hover:bg-slate-100
+                          dark:border-muted-foreground/20 dark:bg-muted
+                          dark:hover:bg-muted/40`
                     }`}
                 >
                   <button
@@ -205,61 +262,96 @@ function CategorySection({
                       onToggle(item);
                     }}
                     title={item.is_checked ? "Uncheck" : "Check"}
-                    className={`dark:border-border shrink-0 rounded-md border-2
-                      border-slate-900 p-1 transition ${
+                    className={`shrink-0 rounded-full border-2 p-0
+                      transition-all duration-200 ${
                         item.is_checked
-                          ? "bg-emerald-400 text-white dark:bg-[#2ea043]"
-                          : `dark:bg-card dark:text-muted-foreground bg-white
-                            text-slate-400 hover:bg-emerald-50
-                            hover:text-emerald-600 dark:hover:bg-emerald-900/20
-                            dark:hover:text-emerald-400`
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : `border-slate-300 text-transparent
+                            hover:border-emerald-400
+                            dark:border-muted-foreground/40`
                       }`}
+                    aria-label={item.is_checked ? "Uncheck" : "Check"}
                   >
-                    <Check className="size-3.5" />
+                    <Check className="size-2" strokeWidth={2} />
                   </button>
                   <span
-                    className={`min-w-0 flex-1 -translate-y-[0.8px]
-                      overflow-hidden text-lg font-bold break-words
-                      whitespace-pre-wrap ${
+                    className={`min-w-0 flex-1 overflow-hidden text-sm
+                      font-medium break-words whitespace-pre-wrap transition-all
+                      duration-200 ${
                         item.is_checked
-                          ? `dark:text-muted-foreground text-slate-500
-                            line-through`
-                          : "dark:text-foreground text-slate-600"
+                          ? `text-slate-400 line-through
+                            dark:text-muted-foreground/60`
+                          : "text-slate-700 dark:text-foreground"
                       }`}
                   >
                     {item.label}
                   </span>
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="relative shrink-0">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setEditingItem(item);
-                        setEditLabelValue(item.label);
+                        setMenuOpenFor(
+                          menuOpenFor === item.id ? null : item.id,
+                        );
                       }}
-                      title="Edit"
-                      className="dark:border-border dark:bg-card
-                        dark:text-muted-foreground rounded-md border-2
-                        border-slate-900 bg-white p-1 text-slate-600 transition
-                        hover:bg-violet-50 hover:text-violet-700
-                        dark:hover:bg-violet-900/20 dark:hover:text-violet-400"
+                      className="rounded-lg p-1.5 text-slate-400
+                        transition-colors duration-200 hover:bg-slate-100
+                        hover:text-slate-600 dark:text-muted-foreground
+                        dark:hover:bg-muted/60 dark:hover:text-foreground"
+                      aria-label="More options"
                     >
-                      <Pencil className="size-3.5" />
+                      <MoreHorizontal className="size-4" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(item.id);
-                      }}
-                      title="Delete"
-                      className="dark:border-border dark:bg-card rounded-md
-                        border-2 border-slate-900 bg-white p-1 text-rose-600
-                        transition hover:bg-rose-50 hover:text-rose-700
-                        dark:hover:bg-rose-900/20 dark:hover:text-rose-400"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                    {menuOpenFor === item.id && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuOpenFor(null);
+                          }}
+                        />
+                        <div
+                          className="absolute right-0 top-full z-50 mt-1 flex
+                            flex-col gap-0.5 rounded-xl border border-border/50
+                            bg-background p-1 shadow-lg dark:bg-card"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingItem(item);
+                              setEditLabelValue(item.label);
+                              setMenuOpenFor(null);
+                            }}
+                            className="flex items-center gap-2 rounded-lg px-3
+                              py-1.5 text-xs font-medium text-slate-600
+                              transition-colors duration-200 hover:bg-slate-100
+                              dark:text-muted-foreground dark:hover:bg-muted/60
+                              dark:hover:text-foreground"
+                          >
+                            <Pencil className="size-3.5" />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onDelete(item.id);
+                              setMenuOpenFor(null);
+                            }}
+                            className="flex items-center gap-2 rounded-lg px-3
+                              py-1.5 text-xs font-medium text-rose-500
+                              transition-colors duration-200 hover:bg-rose-50
+                              dark:hover:bg-rose-900/20
+                              dark:hover:text-rose-400"
+                          >
+                            <Trash2 className="size-3.5" />
+                            Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </li>
               ))}
@@ -268,7 +360,6 @@ function CategorySection({
         </>
       )}
 
-      {/* Edit-label modal */}
       <Modal
         isOpen={!!editingItem}
         onClose={() => setEditingItem(null)}
@@ -281,20 +372,20 @@ function CategorySection({
           <div className="space-y-4">
             <div>
               <label
-                className="mb-1 block text-sm font-bold tracking-wide
-                  text-slate-600 lowercase dark:text-zinc-100"
+                className="dark:text-muted-foreground mb-1.5 block text-xs
+                  font-medium text-slate-500"
               >
-                label
+                Label
               </label>
               <textarea
                 value={editLabelValue}
                 onChange={(e) => setEditLabelValue(e.target.value)}
                 rows={4}
-                className="dark:border-border dark:bg-card dark:text-foreground
-                  w-full resize-none rounded-lg border-2 border-slate-900
-                  bg-white px-3 py-2 text-sm text-slate-600 transition
-                  outline-none focus:translate-x-0.5 focus:-translate-y-0.5
-                  focus:shadow-[4px_4px_0px_0px_#334155] dark:focus:shadow-none"
+                className="dark:bg-card dark:text-foreground w-full resize-none
+                  rounded-xl border border-border/50 bg-white px-3 py-2.5
+                  text-sm text-slate-700 transition-all duration-200
+                  outline-none focus:border-border
+                  dark:placeholder:text-muted-foreground"
                 autoFocus
               />
             </div>
@@ -302,13 +393,11 @@ function CategorySection({
               <button
                 type="button"
                 onClick={() => setEditingItem(null)}
-                className="dark:border-border dark:bg-card dark:text-foreground
-                  rounded-md border-2 border-slate-900 bg-white px-3 py-1.5
-                  text-xs font-bold text-slate-600 uppercase
-                  shadow-[2px_2px_0px_0px_#0f172a] transition
-                  hover:translate-x-0.5 hover:-translate-y-0.5 dark:shadow-none"
+                className="dark:text-muted-foreground rounded-lg px-4 py-2
+                  text-sm font-medium text-slate-600 transition-colors
+                  duration-200 hover:bg-slate-100 dark:hover:bg-muted/60"
               >
-                cancel
+                Cancel
               </button>
               <button
                 type="button"
@@ -319,13 +408,12 @@ function CategorySection({
                   }
                   setEditingItem(null);
                 }}
-                className="dark:border-border rounded-md border-2
-                  border-slate-900 bg-emerald-200 px-3 py-1.5 text-xs font-bold
-                  text-slate-600 uppercase shadow-[2px_2px_0px_0px_#0f172a]
-                  transition hover:translate-x-0.5 hover:-translate-y-0.5
-                  dark:bg-emerald-900/40 dark:text-emerald-300 dark:shadow-none"
+                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium
+                  text-white transition-colors duration-200 hover:bg-slate-700
+                  dark:bg-foreground dark:text-background
+                  dark:hover:bg-foreground/80"
               >
-                save
+                Save
               </button>
             </div>
           </div>
@@ -522,53 +610,100 @@ export default function DailyNotesWidget() {
   }, [items]);
 
   return (
-    <div className="flex flex-col gap-5">
-      <article
-        className="dark:border-border dark:via-card rounded-xl border-2
-          border-slate-900 bg-linear-to-br from-violet-50 via-white
-          to-fuchsia-100 p-4 shadow-[4px_4px_0px_0px_#0f172a] sm:p-5
-          dark:from-violet-950/20 dark:to-fuchsia-950/20 dark:shadow-none"
+    <div className="flex flex-col gap-4">
+      {/* Toolbar */}
+      <div
+        className="sticky top-4 z-10 flex items-center justify-between gap-3
+          rounded-2xl border border-border/50 bg-background/80 p-3
+          backdrop-blur-md"
       >
-        <div className="flex items-center justify-between">
-          <h2
-            className="dark:text-foreground text-base font-black text-slate-600
-              lowercase"
-          ></h2>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/daily-checklist/categories"
-              className="dark:border-border dark:bg-card dark:text-foreground
-                inline-flex items-center gap-1 rounded-md border-2
-                border-slate-900 bg-white px-2 py-1 text-xs font-bold
-                text-slate-600 uppercase shadow-[2px_2px_0px_0px_#0f172a]
-                transition hover:translate-x-0.5 hover:-translate-y-0.5
-                dark:shadow-none"
-            >
-              <Settings className="size-3" />
-              categories
-            </Link>
-          </div>
-        </div>
-        <div className="mt-3">
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="dark:border-border dark:bg-card dark:text-foreground
-              w-full min-w-0 rounded-md border-2 border-slate-900 px-2 py-1.5
-              text-sm font-semibold text-slate-600"
-          />
-        </div>
-      </article>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="dark:bg-card/50 dark:text-foreground min-w-0 flex-1
+            rounded-xl border border-border/50 bg-white/60 px-3 py-2 text-sm
+            font-medium text-slate-700 transition-all duration-200
+            focus:border-border focus:outline-none"
+        />
+        <Link
+          href="/daily-checklist/categories"
+          className="dark:text-muted-foreground dark:hover:bg-muted/60
+            inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2
+            text-xs font-semibold text-slate-600 transition-all duration-200
+            hover:bg-slate-100"
+          aria-label="Manage categories"
+        >
+          <Settings className="size-4" />
+          <span className="hidden sm:inline">Categories</span>
+        </Link>
+      </div>
 
       {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="rounded-2xl border border-border/50 p-4 sm:p-5"
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="h-5 w-20 animate-pulse rounded-full bg-slate-200
+                    dark:bg-muted/60"
+                />
+                <div
+                  className="h-4 w-10 animate-pulse rounded-full bg-slate-100
+                    dark:bg-muted/40"
+                />
+                <div
+                  className="ml-auto h-4 w-4 animate-pulse rounded-full
+                    bg-slate-100 dark:bg-muted/40"
+                />
+              </div>
+              <div className="mt-4 space-y-2">
+                <div
+                  className="h-8 animate-pulse rounded-xl bg-slate-100
+                    dark:bg-muted/30"
+                />
+                <div
+                  className="h-8 animate-pulse rounded-xl bg-slate-100
+                    dark:bg-muted/30"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : items.length === 0 && categories.length === 0 ? (
         <div
-          className="dark:border-border/50 dark:bg-muted
-            dark:text-muted-foreground rounded-xl border-2 border-dashed
-            border-slate-400 bg-slate-50 px-4 py-6 text-center text-sm
-            text-slate-600"
+          className="dark:text-muted-foreground flex flex-col items-center gap-3
+            rounded-2xl border border-border/50 py-16 text-center"
         >
-          Loading checklist...
+          <div
+            className="flex size-12 items-center justify-center rounded-full
+              bg-slate-100 dark:bg-muted/40"
+          >
+            <Plus className="size-6 text-slate-400" />
+          </div>
+          <div>
+            <p
+              className="text-sm font-semibold text-slate-600
+                dark:text-foreground"
+            >
+              No categories yet
+            </p>
+            <p className="mt-0.5 text-xs text-slate-400">
+              Create a category to start organizing your tasks
+            </p>
+          </div>
+          <Link
+            href="/daily-checklist/categories"
+            className="mt-1 rounded-lg bg-slate-900 px-4 py-2 text-xs
+              font-semibold text-white transition-colors duration-200
+              hover:bg-slate-700 dark:bg-foreground dark:text-background
+              dark:hover:bg-foreground/80"
+          >
+            Create category
+          </Link>
         </div>
       ) : (
         <>
@@ -584,16 +719,6 @@ export default function DailyNotesWidget() {
               onEditLabel={editItemLabel}
             />
           ))}
-
-          {/* <CategorySection
-            category={null}
-            items={grouped.get(null) ?? []}
-            date={date}
-            onAdd={addItem}
-            onToggle={toggleItem}
-            onDelete={deleteItem}
-            onEditLabel={editItemLabel}
-          /> */}
         </>
       )}
     </div>

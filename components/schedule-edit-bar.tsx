@@ -9,7 +9,7 @@ export function ScheduleEditBar({ allIds }: { allIds: string[] }) {
 
   return (
     <div
-      className="flex items-center justify-between border-b-2 border-slate-900
+      className="flex items-center justify-between border-b border-slate-300
         bg-slate-50 px-4 py-2 print:hidden dark:border-border dark:bg-muted"
     >
       <div className="flex items-center gap-2">
@@ -35,15 +35,14 @@ export function ScheduleEditBar({ allIds }: { allIds: string[] }) {
       <button
         type="button"
         onClick={() => setIsEditing(!isEditing)}
-        className={`flex items-center gap-1.5 rounded-md border-2 px-2 py-1
-          text-[10px] font-black uppercase tracking-wide
-          shadow-[2px_2px_0px_0px_#0f172a] transition active:translate-y-0
-          active:shadow-none dark:shadow-none ${
+        className={`flex items-center gap-1.5 rounded-md border px-2 py-1
+          text-[10px] font-black uppercase tracking-wide transition
+          active:translate-y-0 active:shadow-none dark:shadow-none ${
             isEditing
               ? `border-slate-300 bg-white text-slate-600 hover:border-slate-900
                 hover:text-slate-600 dark:border-border dark:bg-card
                 dark:text-muted-foreground dark:hover:text-foreground`
-              : `border-slate-900 bg-sky-200 text-slate-600 hover:bg-sky-300
+              : `border-slate-300 bg-sky-200 text-slate-600 hover:bg-sky-300
                 dark:border-border dark:bg-sky-900/30 dark:text-sky-200
                 dark:hover:bg-sky-900/40`
           }`}

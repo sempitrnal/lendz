@@ -215,7 +215,7 @@ export default async function BorrowersPage({
       });
 
     return (
-      <div className="flex flex-col">
+      <div className="mx-auto flex w-full max-w-7xl flex-col">
         <BorrowersList
           allBorrowers={allBorrowers}
           initialCategoryIds={categoryIds}

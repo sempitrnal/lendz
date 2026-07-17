@@ -265,8 +265,7 @@ export default function ActivateAccountDialog({
                     setInterestRateText(String(rate));
                   }}
                   className={`dark:border-border rounded-md border-2
-                  border-slate-900 px-4 py-2 text-sm font-bold
-                  shadow-[1px_1px_0px_0px_#0f172a] transition
+                  border-slate-900 px-4 py-2 text-sm font-bold transition
                   hover:-translate-y-0.5 dark:shadow-none ${
                     interestRate === rate
                       ? `dark:bg-foreground dark:text-background bg-slate-900
@@ -370,8 +369,7 @@ export default function ActivateAccountDialog({
                       type="button"
                       onClick={() => setFirstPaymentDate(value)}
                       className={`dark:border-border rounded-md border-2
-                      border-slate-900 px-4 py-2 text-sm font-bold
-                      shadow-[1px_1px_0px_0px_#0f172a] transition
+                      border-slate-900 px-4 py-2 text-sm font-bold transition
                       hover:-translate-y-0.5 dark:shadow-none ${
                         firstPaymentDate === value
                           ? `dark:bg-foreground dark:text-background

@@ -41,7 +41,10 @@ export default function CalendarPageClient({
   const [modalOpen, setModalOpen] = useState(false);
 
   return (
-    <div className="flex flex-col gap-4 px-2 sm:gap-6 sm:px-0">
+    <div
+      className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 sm:gap-6
+        sm:px-0"
+    >
       <div className="flex items-center justify-between">
         <h1
           className="text-xl font-black uppercase tracking-wide text-slate-600

@@ -441,9 +441,8 @@ export default function BorrowerAccountsSection({
                 onClick={clearSelection}
                 className="dark:border-border dark:bg-card dark:text-foreground
                   rounded-lg border-2 border-slate-900 bg-white px-3 py-1
-                  text-xs font-bold shadow-[1px_1px_0px_0px_#0f172a] transition
-                  hover:-translate-y-0.5 active:translate-y-px
-                  active:shadow-none"
+                  text-xs font-bold transition hover:-translate-y-0.5
+                  active:translate-y-px active:shadow-none"
               >
                 cancel
               </button>
@@ -452,8 +451,7 @@ export default function BorrowerAccountsSection({
                 disabled={isBulkDeleting}
                 onClick={handleBulkDelete}
                 className="rounded-lg border-2 border-slate-900 bg-red-400 px-3
-                  py-1 text-xs font-bold text-white
-                  shadow-[1px_1px_0px_0px_#0f172a] transition
+                  py-1 text-xs font-bold text-white transition
                   hover:-translate-y-0.5 active:translate-y-px
                   active:shadow-none disabled:opacity-50 dark:border-red-500/50
                   dark:bg-red-500/80"
@@ -765,8 +763,7 @@ export default function BorrowerAccountsSection({
                     onClick={() => handleRestoreAccount(account.id)}
                     className="dark:border-border dark:bg-card
                       dark:text-foreground rounded-lg border-2 border-slate-900
-                      bg-white px-3 py-1.5 text-xs font-bold
-                      shadow-[1px_1px_0px_0px_#0f172a] transition
+                      bg-white px-3 py-1.5 text-xs font-bold transition
                       hover:-translate-y-0.5 active:translate-y-px
                       active:shadow-none disabled:opacity-50"
                   >
@@ -798,8 +795,7 @@ export default function BorrowerAccountsSection({
                   className="dark:border-border flex items-center gap-2
                     rounded-full border-2 border-slate-900 bg-yellow-300 px-4
                     py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a]
-                    transition active:translate-y-px
-                    active:shadow-[1px_1px_0px_0px_#0f172a] dark:bg-yellow-500
+                    transition active:translate-y-px active:dark:bg-yellow-500
                     dark:text-slate-600
                     dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
                 >
@@ -815,8 +811,7 @@ export default function BorrowerAccountsSection({
                   className="dark:border-border flex items-center gap-2
                     rounded-full border-2 border-slate-900 bg-emerald-300 px-4
                     py-2.5 text-sm font-black shadow-[3px_3px_0px_0px_#0f172a]
-                    transition active:translate-y-px
-                    active:shadow-[1px_1px_0px_0px_#0f172a] dark:bg-emerald-600
+                    transition active:translate-y-px active:dark:bg-emerald-600
                     dark:text-white
                     dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
                 >

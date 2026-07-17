@@ -69,9 +69,10 @@ function PaymentRow({
     <>
       <li
         onClick={() => setOpen(true)}
-        className="dark:border-border dark:bg-card dark:hover:bg-muted flex
-          cursor-pointer items-center justify-between gap-2 rounded-lg border
-          border-slate-200 bg-green-300 px-3 py-2 transition hover:bg-green-400"
+        className="dark:border-slate-700 dark:bg-slate-900
+          dark:hover:bg-slate-800 flex cursor-pointer items-center
+          justify-between gap-2 rounded-lg border border-slate-300 bg-slate-50
+          px-3 py-2 transition hover:bg-slate-100"
       >
         <div className="min-w-0 flex-1">
           <span

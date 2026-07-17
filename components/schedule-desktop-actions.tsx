@@ -37,10 +37,10 @@ export function ScheduleDesktopActions({
           onClick={() => setShowButtons((v) => !v)}
           className="absolute -top-1.5 -right-1 inline-flex size-6 items-center
             justify-center rounded-full border-2 border-slate-900 bg-white
-            text-slate-700 shadow-[1px_1px_0px_0px_#0f172a] transition
-            hover:bg-slate-50 hover:text-slate-600 cursor-pointer
-            dark:border-border dark:bg-card dark:text-muted-foreground
-            dark:shadow-none dark:hover:bg-muted dark:hover:text-foreground"
+            text-slate-700 transition hover:bg-slate-50 hover:text-slate-600
+            cursor-pointer dark:border-border dark:bg-card
+            dark:text-muted-foreground dark:shadow-none dark:hover:bg-muted
+            dark:hover:text-foreground"
         >
           {showButtons ? (
             <History className="size-3 shrink-0" aria-hidden />
