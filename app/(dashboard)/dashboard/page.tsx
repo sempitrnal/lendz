@@ -1,7 +1,5 @@
 import Link from "next/link";
 import {
-  ArrowUpRight,
-  CalendarClock,
   Coins,
   HandCoins,
   Plus,
@@ -14,13 +12,11 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { getAllPaymentSchedules } from "@/lib/cache/schedules";
 import {
   isInstallmentFullyPaid,
-  nextDueScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
 import ThemeToggle from "@/components/theme-toggle";
 import ResetCacheButton from "@/components/reset-cache-button";
 import MonthPicker from "@/components/month-picker";
-import { CashFlowForecastChartClient as CashFlowForecastChart } from "@/components/dashboard/charts-client";
 
 type ScheduleAggRow = {
   id: string;
@@ -33,40 +29,12 @@ type ScheduleAggRow = {
   status: string;
 };
 
-type AccountRef = {
-  id: string;
-  borrower_id: string;
-  payment_frequency: string | null;
-  principal_amount: number | null;
-};
 type AccountTotalRow = {
   id: string;
   principal_amount: number | null;
   release_date: string | null;
   term_months: number | null;
   payment_frequency: string | null;
-};
-
-type BorrowerRef = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  contact?: string | null;
-  created_at?: string;
-  borrower_categories?: Array<{
-    category:
-      | {
-          id: string;
-          name: string;
-          color: string | null;
-        }
-      | Array<{
-          id: string;
-          name: string;
-          color: string | null;
-        }>
-      | null;
-  }>;
 };
 
 export default async function Dashboard({
@@ -87,7 +55,6 @@ export default async function Dashboard({
   const phtYear = Number(yearStr);
   const phtMonth = Number(monthStr);
   const startOfMonthDate = `${yearStr}-${monthStr}-01`;
-  const startOfMonthIso = `${todayIso.slice(0, 7)}-01T00:00:00+08:00`;
   const lastDay = new Date(phtYear, phtMonth, 0).getDate();
   const endOfMonthDate = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
   const weekAgoDate = new Date(
@@ -104,7 +71,6 @@ export default async function Dashboard({
   const [
     { count: borrowerCount },
     { data: newBorrowerAccountsWeekData },
-    { count: newLoansMonthCount },
     { data: accountTotalsData },
     allSchedules,
   ] = await Promise.all([
@@ -118,11 +84,6 @@ export default async function Dashboard({
       .is("deleted_at", null)
       .gte("release_date", weekAgoDate)
       .lte("release_date", todayIso),
-    supabase
-      .from("accounts")
-      .select("*", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .gte("release_date", startOfMonthIso),
     supabase
       .from("accounts")
       .select(
@@ -154,38 +115,6 @@ export default async function Dashboard({
     .sort((a, b) => a.id.localeCompare(b.id))
     .slice(0, 8);
 
-  const nextPerAccount = (rows: ScheduleAggRow[]) => {
-    const byAccount = new Map<string, ScheduleAggRow[]>();
-    for (const row of rows) {
-      const list = byAccount.get(row.account_id) ?? [];
-      list.push(row);
-      byAccount.set(row.account_id, list);
-    }
-    for (const list of byAccount.values()) {
-      list.sort(
-        (a, b) =>
-          a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id),
-      );
-    }
-    return [...byAccount.values()]
-      .map((list) => nextDueScheduleForCollection(list))
-      .filter((row): row is ScheduleAggRow => Boolean(row))
-      .sort(
-        (a, b) =>
-          a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id),
-      );
-  };
-
-  const pastOverdueCandidates = nextPerAccount(
-    unpaidSchedules.filter((row) => row.due_date < todayIso),
-  );
-  const futureCandidates = nextPerAccount(
-    unpaidSchedules.filter((row) => row.due_date >= todayIso),
-  );
-
-  /** Earliest due date among future unpaid schedules. */
-  const nextCollectionDate = futureCandidates[0]?.due_date ?? null;
-
   const newBorrowerAccountsWeek = (newBorrowerAccountsWeekData ?? []) as Array<{
     borrower_id: string | null;
   }>;
@@ -193,10 +122,6 @@ export default async function Dashboard({
 
   const dueTotalToday = dueSchedules.reduce(
     (sum, row) => sum + remainingOnInstallment(row),
-    0,
-  );
-  const principalTotal = accountTotals.reduce(
-    (sum, row) => sum + Number(row.principal_amount ?? 0),
     0,
   );
   const newBorrowersWeekCount = new Set(
@@ -217,43 +142,12 @@ export default async function Dashboard({
       return [a.id, Math.max(1, n)];
     }),
   );
-  const unpaidThisMonthCountByAccount = new Map<string, number>();
-  for (const s of thisMonthSchedules) {
-    if (!isInstallmentFullyPaid(s)) {
-      unpaidThisMonthCountByAccount.set(
-        s.account_id,
-        (unpaidThisMonthCountByAccount.get(s.account_id) ?? 0) + 1,
-      );
-    }
-  }
-  const unpaidThisMonthAccountIds = [...unpaidThisMonthCountByAccount.keys()];
-  const moneyToCollectThisMonth = unpaidThisMonthAccountIds.reduce(
-    (sum, accountId) => {
-      const principal = principalByAccountId.get(accountId) ?? 0;
-      const total = totalInstallmentsByAccount.get(accountId) ?? 1;
-      const unpaid = unpaidThisMonthCountByAccount.get(accountId) ?? 0;
-      return sum + principal * (unpaid / total);
-    },
-    0,
-  );
-  const nextCollectionTotal = nextCollectionDate
-    ? futureCandidates
-        .filter((row) => row.due_date === nextCollectionDate)
-        .reduce((sum, row) => sum + remainingOnInstallment(row), 0)
-    : 0;
-  const nextCollectionCount = nextCollectionDate
-    ? futureCandidates.filter((row) => row.due_date === nextCollectionDate)
-        .length
-    : 0;
   const formattedToday = now.toLocaleDateString("en-US", {
     weekday: "long",
     month: "short",
     day: "numeric",
     timeZone: TZ,
   });
-  const nextCollectionSchedules = nextCollectionDate
-    ? futureCandidates.filter((row) => row.due_date === nextCollectionDate)
-    : [];
 
   const activeDate = new Date(`${activeMonth}-01`);
 
@@ -325,129 +219,6 @@ export default async function Dashboard({
     }
     return months;
   })();
-  const dueAccountIds = [...new Set(dueSchedules.map((row) => row.account_id))];
-  const nextCollectionAccountIds = [
-    ...new Set(nextCollectionSchedules.map((row) => row.account_id)),
-  ];
-  const overdueAccountIds = [
-    ...new Set(pastOverdueCandidates.map((row) => row.account_id)),
-  ];
-  const thisMonthAccountIds = [
-    ...new Set(thisMonthSchedules.map((row) => row.account_id)),
-  ];
-  const accountIdsForBorrowerLookup = [
-    ...new Set([
-      ...dueAccountIds,
-      ...nextCollectionAccountIds,
-      ...overdueAccountIds,
-      ...thisMonthAccountIds,
-    ]),
-  ];
-
-  let accountsById = new Map<string, AccountRef>();
-  let borrowersById = new Map<string, BorrowerRef>();
-
-  if (accountIdsForBorrowerLookup.length > 0) {
-    const { data: accountsData } = await supabase
-      .from("accounts")
-      .select("id, borrower_id, payment_frequency, principal_amount")
-      .in("id", accountIdsForBorrowerLookup)
-      .is("deleted_at", null);
-
-    const accounts = (accountsData ?? []) as AccountRef[];
-    accountsById = new Map(accounts.map((row) => [row.id, row]));
-
-    const borrowerIds = [...new Set(accounts.map((row) => row.borrower_id))];
-    if (borrowerIds.length > 0) {
-      const { data: borrowersData } = await supabase
-        .from("borrowers")
-        .select(
-          `
-          id,
-          first_name,
-          last_name,
-          borrower_categories (
-            category:categories (
-              id,
-              name
-              ,
-              color
-            )
-          )
-        `,
-        )
-        .in("id", borrowerIds)
-        .is("deleted_at", null);
-      const borrowers = (borrowersData ?? []) as BorrowerRef[];
-      borrowersById = new Map(borrowers.map((row) => [row.id, row]));
-    }
-  }
-
-  const borrowerCategoryMeta = (borrower?: BorrowerRef | null) => {
-    const entries =
-      borrower?.borrower_categories
-        ?.flatMap((row) => {
-          const category = row.category;
-          if (!category) return [];
-          return Array.isArray(category) ? category : [category];
-        })
-        .filter(Boolean) ?? [];
-
-    const label =
-      entries.length > 0
-        ? entries
-            .map((entry) => entry.name)
-            .filter(Boolean)
-            .join(" / ")
-        : "uncategorized";
-    const color = entries.find((entry) => entry.color)?.color ?? null;
-    const id = entries.find((entry) => entry.id)?.id ?? null;
-    return { label, color, id };
-  };
-
-  // 30-day cash flow forecast: group unpaid schedules into 5 weekly buckets
-  const cashFlowForecastData = (() => {
-    const weeks: {
-      label: string;
-      weekRange: string;
-      expected: number;
-      count: number;
-      isCurrentWeek: boolean;
-    }[] = [];
-    for (let w = 0; w < 5; w++) {
-      const startD = new Date(now);
-      startD.setDate(startD.getDate() + w * 7);
-      const endD = new Date(startD);
-      endD.setDate(endD.getDate() + 6);
-      const startDate = startD.toLocaleDateString("en-CA", { timeZone: TZ });
-      const endDate = endD.toLocaleDateString("en-CA", { timeZone: TZ });
-      const weekLabel = startD.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        timeZone: TZ,
-      });
-      const endLabel = endD.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        timeZone: TZ,
-      });
-      const schedulesInWeek = unpaidSchedules.filter(
-        (s) => s.due_date >= startDate && s.due_date <= endDate,
-      );
-      const expected = schedulesInWeek.reduce(
-        (sum, s) => sum + remainingOnInstallment(s),
-        0,
-      );
-      weeks.push({
-        label: `Wk ${w + 1}`,
-        weekRange: `${weekLabel} – ${endLabel}`,
-        expected: Math.round(expected),
-        count: schedulesInWeek.length,
-        isCurrentWeek: w === 0,
-      });
-    }
-    return weeks;
-  })();
 
   const currentMonthData = monthlyChartData[monthlyChartData.length - 1];
   const currentMonthRemainingProfit = Math.max(
@@ -504,7 +275,7 @@ export default async function Dashboard({
   ] as const;
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-1 py-2 sm:px-0">
+    <main className="mx-auto max-w-7xl py-10 md:max-w-full px-4 pb-16 md:px-6">
       <section
         className="dark:border-border mb-4 rounded-xl border border-slate-300
           bg-white p-4 sm:mb-6 sm:p-6 dark:bg-card"
@@ -796,15 +567,6 @@ export default async function Dashboard({
         </article>
       </section>
 
-      <section className="mt-4 lg:mt-6">
-        <article
-          className="dark:border-border dark:bg-card bg-background min-w-0
-            rounded-xl border border-slate-300 p-4 sm:p-5"
-        >
-          <CashFlowForecastChart data={cashFlowForecastData} />
-        </article>
-      </section>
-
       <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1fr_1fr]">
         <Link
           href="/due-this-month"
@@ -821,8 +583,8 @@ export default async function Dashboard({
             </h2>
             <span
               className="dark:bg-card dark:text-muted-foreground inline-flex
-                items-center gap-1.5 rounded-md border-2 border-slate-900
-                bg-white px-2 py-1 text-xs font-bold text-slate-600 uppercase"
+                items-center gap-1.5 rounded-md border border-slate-300 bg-white
+                px-2 py-1 text-xs font-bold text-slate-600 uppercase"
             >
               {thisMonthSchedules.length} schedule
               {thisMonthSchedules.length === 1 ? "" : "s"}
@@ -848,10 +610,10 @@ export default async function Dashboard({
             <Link
               href="/borrowers"
               className="dark:border-border dark:text-foreground flex
-                items-center justify-between rounded-lg border-2
-                border-slate-900 bg-emerald-100 px-3 py-2 text-sm font-bold
-                text-slate-600 lowercase transition hover:bg-emerald-200
-                dark:bg-emerald-900/40 dark:hover:bg-emerald-900/60"
+                items-center justify-between rounded-lg border border-slate-300
+                bg-emerald-100 px-3 py-2 text-sm font-bold text-slate-600
+                lowercase transition hover:bg-emerald-200 dark:bg-emerald-900/40
+                dark:hover:bg-emerald-900/60"
             >
               add borrower
               <UserRoundPlus className="size-4" />
@@ -859,10 +621,10 @@ export default async function Dashboard({
             <Link
               href="/categories"
               className="dark:border-border dark:text-foreground flex
-                items-center justify-between rounded-lg border-2
-                border-slate-900 bg-sky-100 px-3 py-2 text-sm font-bold
-                text-slate-600 lowercase transition hover:bg-sky-200
-                dark:bg-sky-900/40 dark:hover:bg-sky-900/60"
+                items-center justify-between rounded-lg border border-slate-300
+                bg-sky-100 px-3 py-2 text-sm font-bold text-slate-600 lowercase
+                transition hover:bg-sky-200 dark:bg-sky-900/40
+                dark:hover:bg-sky-900/60"
             >
               manage categories
               <Plus className="size-4" />
@@ -870,10 +632,10 @@ export default async function Dashboard({
             <Link
               href="/upcoming"
               className="dark:border-border dark:text-foreground flex
-                items-center justify-between rounded-lg border-2
-                border-slate-900 bg-violet-100 px-3 py-2 text-sm font-bold
-                text-slate-600 lowercase transition hover:bg-violet-200
-                dark:bg-violet-900/40 dark:hover:bg-violet-900/60"
+                items-center justify-between rounded-lg border border-slate-300
+                bg-violet-100 px-3 py-2 text-sm font-bold text-slate-600
+                lowercase transition hover:bg-violet-200 dark:bg-violet-900/40
+                dark:hover:bg-violet-900/60"
             >
               upcoming due dates
               <Bell className="size-4" />
@@ -882,7 +644,7 @@ export default async function Dashboard({
               href="/audit"
               className="dark:border-border dark:bg-muted dark:text-foreground
                 dark:hover:bg-muted/80 flex items-center justify-between
-                rounded-lg border-2 border-slate-900 bg-slate-100 px-3 py-2
+                rounded-lg border border-slate-300 bg-slate-100 px-3 py-2
                 text-sm font-bold text-slate-600 lowercase transition
                 hover:bg-slate-200"
             >

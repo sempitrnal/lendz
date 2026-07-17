@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
 import {
   Dialog,
@@ -14,7 +15,6 @@ import {
 import {
   Command,
   CommandEmpty,
-  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
@@ -97,7 +97,13 @@ export default function AssignBorrower({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button className="rounded bg-black px-3 py-1 text-white">
+        <button
+          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900
+            px-3.5 py-2 text-sm font-medium text-white transition-colors
+            hover:bg-slate-700 dark:bg-foreground dark:text-background
+            dark:hover:bg-foreground/90"
+        >
+          <Plus className="size-4" />
           Assign Borrowers
         </button>
       </DialogTrigger>
@@ -114,7 +120,8 @@ export default function AssignBorrower({
             return (
               <div
                 key={id}
-                className="flex items-center gap-2 rounded bg-black px-2 py-1 text-xs text-white"
+                className="flex items-center gap-2 rounded bg-black px-2 py-1
+                  text-xs text-white"
               >
                 {b.first_name} {b.last_name}
                 <button
@@ -178,15 +185,24 @@ export default function AssignBorrower({
           </CommandList>
         </Command>
         <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-          <div className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 font-medium text-emerald-700">
+          <div
+            className="rounded-full border border-emerald-200 bg-emerald-50 px-2
+              py-1 font-medium text-emerald-700"
+          >
             Selected: {selected.length}
           </div>
 
-          <div className="rounded-full border border-slate-200 bg-slate-100 px-2 py-1 font-medium text-slate-700">
+          <div
+            className="rounded-full border border-slate-200 bg-slate-100 px-2
+              py-1 font-medium text-slate-700"
+          >
             Search Results: {borrowers.length}
           </div>
 
-          <div className="rounded-full border border-blue-200 bg-blue-50 px-2 py-1 font-medium text-blue-700">
+          <div
+            className="rounded-full border border-blue-200 bg-blue-50 px-2 py-1
+              font-medium text-blue-700"
+          >
             Available To Assign:{" "}
             {borrowers.filter((b) => !selected.includes(b.id)).length}
           </div>

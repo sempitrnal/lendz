@@ -18,7 +18,6 @@ type Props = {
 };
 
 export default function BatchScheduleToolbar({
-  allIds,
   onBatchPaid,
   borrowerId,
 }: Props) {

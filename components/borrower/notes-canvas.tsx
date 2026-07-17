@@ -15,7 +15,6 @@ import {
   Hand,
   ZoomIn,
   ZoomOut,
-  Maximize2,
   Pencil,
   Eraser,
   PaintBucket,
@@ -51,14 +50,6 @@ function hexToRgba(hex: string, alpha: number) {
   const g = (bigint >> 8) & 255;
   const b = bigint & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function opacityFromHex(hex: string) {
-  const clean = hex.replace("#", "");
-  if (clean.length === 8) {
-    return parseInt(clean.slice(6, 8), 16) / 255;
-  }
-  return 1;
 }
 
 /**
@@ -353,7 +344,7 @@ export default function NotesCanvas({
   const historyRef = useRef<Record<string, unknown>[]>([]);
   const historyIndexRef = useRef(-1);
   const maxHistory = 50;
-  const [historyVersion, setHistoryVersion] = useState(0);
+  const [, setHistoryVersion] = useState(0);
   const onDraftChangeRef = useRef(onDraftChange);
   onDraftChangeRef.current = onDraftChange;
 
@@ -1313,8 +1304,7 @@ export default function NotesCanvas({
       {/* Persistent top bar — save / clear / hide always showing */}
       <div
         className="flex flex-wrap items-center justify-between gap-2 rounded-xl
-          border-2 border-slate-900 bg-white dark:bg-slate-950 p-2
-          shadow-[3px_3px_0px_0px_#0f172a]"
+          border border-slate-400 bg-white dark:bg-slate-950 p-2"
       >
         <div className="flex items-center gap-2">
           <button
@@ -1323,10 +1313,9 @@ export default function NotesCanvas({
               void saveNotes();
             }}
             disabled={saving}
-            className="rounded-md border-2 border-slate-900 bg-emerald-200 px-3
-              py-1 text-xs font-bold text-slate-600 uppercase
-              shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5
-              hover:-translate-y-0.5 disabled:opacity-50"
+            className="rounded-md border border-slate-400 bg-emerald-200 px-3
+              py-1 text-xs font-bold text-slate-600 uppercase transition
+              hover:translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save"}
           </button>
@@ -1334,10 +1323,9 @@ export default function NotesCanvas({
           <button
             type="button"
             onClick={clearCanvas}
-            className="rounded-md border-2 border-slate-900 bg-rose-100 px-3
-              py-1 text-xs font-bold text-rose-800 uppercase
-              shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5
-              hover:-translate-y-0.5"
+            className="rounded-md border border-slate-400 bg-rose-100 px-3 py-1
+              text-xs font-bold text-rose-800 uppercase transition
+              hover:translate-x-0.5 hover:-translate-y-0.5"
           >
             Clear
           </button>
@@ -1346,10 +1334,9 @@ export default function NotesCanvas({
         <button
           type="button"
           onClick={() => setShowTools((p) => !p)}
-          className="rounded-md border-2 border-slate-900 bg-slate-900 px-2.5
-            py-1 text-xs font-bold text-white uppercase
-            shadow-[2px_2px_0px_0px_#0f172a] transition hover:translate-x-0.5
-            hover:-translate-y-0.5"
+          className="rounded-md border border-slate-400 bg-slate-900 px-2.5 py-1
+            text-xs font-bold text-white uppercase transition
+            hover:translate-x-0.5 hover:-translate-y-0.5"
         >
           {showTools ? "Hide tools" : "Show tools"}
         </button>
@@ -1361,7 +1348,7 @@ export default function NotesCanvas({
           className="flex flex-wrap items-center absolute top-2 right-2 gap-2
             rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm
             backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95
-            md:gap-1.5 md:p-2"
+            md:gap-1.5 md:p-2 z-9999"
         >
           <button
             type="button"
@@ -1665,8 +1652,7 @@ export default function NotesCanvas({
           <div
             ref={containerRef}
             className="relative aspect-9/16 max-h-full w-full max-w-full
-              overflow-hidden rounded-xl border-2 border-slate-900
-              shadow-[3px_3px_0px_0px_#0f172a]"
+              overflow-hidden rounded-xl border border-slate-300"
             style={{
               backgroundColor: isDark ? NOTES_DARK_BG : NOTES_LIGHT_BG,
               touchAction: "none",

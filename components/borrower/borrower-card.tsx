@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate, isDarkColor } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { ChevronDown, Loader2, Phone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -50,7 +50,6 @@ export const BorrowerCard = memo(function BorrowerCard({
   const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
   const touchStartY = useRef(0);
   const didScroll = useRef(false);
-  const [overdueOpen, setOverdueOpen] = useState(false);
   const [expandedOverdue, setExpandedOverdue] = useState<
     Record<number, boolean>
   >({});
@@ -66,21 +65,15 @@ export const BorrowerCard = memo(function BorrowerCard({
   );
   const firstCategoryColor = categories[0]?.category?.color;
 
-  const hasOverdue = (borrower.overdue_count ?? 0) > 0;
-  const hasAccounts = borrower.has_accounts === true;
   const accountsCount = borrower.accounts_count ?? 0;
   const nextDate = borrower.next_collection_date;
   const nextAmount = borrower.next_collection_amount ?? 0;
-  const nextAmounts = borrower.next_collection_amounts;
   const nextStatus = borrower.next_collection_status;
   const hasNextUnpaid = Boolean(nextDate);
   const schedules = borrower.account_schedules || [];
   const manualPrincipal = borrower.manual_total_principal ?? 0;
-  const manualPaid = borrower.manual_total_paid ?? 0;
-  const manualRemaining = borrower.manual_total_remaining ?? 0;
   const hasManual = manualPrincipal > 0;
   const manualAccountsCount = borrower.manual_accounts_count ?? 0;
-  const hasAutoAccounts = (borrower.accounts_count ?? 0) > manualAccountsCount;
 
   const manualScheduleGroups = useMemo(() => {
     if (!hasManual || schedules.length === 0) return [];
@@ -178,10 +171,7 @@ export const BorrowerCard = memo(function BorrowerCard({
       className={`relative w-full max-w-full min-w-0 rounded-lg border-[1.5px]
         border-slate-300 bg-white text-left transition-all duration-150
         dark:border-border dark:bg-card ${
-          isPending
-            ? ""
-            : `active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#0f172a]
-              dark:active:shadow-[2px_2px_0px_0px_#020617]`
+          isPending ? "" : "active:translate-y-0.5"
         }`}
       aria-busy={isPending}
     >
@@ -213,6 +203,15 @@ export const BorrowerCard = memo(function BorrowerCard({
         <BorrowerDetailMenu
           borrowerId={borrower.id}
           onDeleted={showScheduleSummary ? onBorrowerUpdated : undefined}
+          editBorrower={{
+            initial: {
+              first_name: borrower.first_name,
+              last_name: borrower.last_name,
+              contact: borrower.contact,
+            },
+            initialCategoryIds:
+              borrower.borrower_categories?.map((bc) => bc.category.id) ?? [],
+          }}
         />
       </div>
 
@@ -238,8 +237,8 @@ export const BorrowerCard = memo(function BorrowerCard({
       >
         <div className="flex w-full min-w-0 flex-col">
           <h2
-            className={`dark:text-foreground pr-4 font-bold text-slate-700
-              lowercase ${compact ? "text-base" : "text-xl"}`}
+            className={`dark:text-foreground pr-4 font-bold text-slate-600
+              lowercase ${compact ? "text-base" : "text-2xl"}`}
           >
             {borrower.first_name} {borrower.last_name}
           </h2>
@@ -259,8 +258,8 @@ export const BorrowerCard = memo(function BorrowerCard({
                       <div
                         key={id}
                         className="flex items-center gap-1.5 rounded-full
-                          text-[10px] font-bold text-slate-600
-                          dark:text-slate-400 uppercase dark:border-border/40"
+                          text-xs font-bold text-slate-500 dark:text-slate-400
+                          uppercase dark:border-border/40"
                       >
                         <span
                           className="size-2 shrink-0 rounded-full border
@@ -628,7 +627,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                                                 style={{ width: `${pct}%` }}
                                               />
                                             </div>
-                                            <p className="dark:text-foreground text-xs font-black text-stone-800">
+                                            <p className="dark:text-foreground text-xs font-semibold text-slate-600">
                                               {isManual
                                                 ? `₱${(schedule.amount_paid_total ?? 0).toLocaleString()} paid of ₱${principal.toLocaleString()}`
                                                 : isPartial
@@ -637,16 +636,16 @@ export const BorrowerCard = memo(function BorrowerCard({
                                             </p>
                                             {!isManual && principal > 0 && (
                                               <div className="mt-0.5 flex flex-wrap gap-3 gap-y-1">
-                                                <span className="dark:text-muted-foreground text-[10px] text-slate-500">
-                                                  <span className="dark:text-foreground font-black text-slate-700">
+                                                <span className="dark:text-muted-foreground text-sm text-slate-500">
+                                                  <span className="dark:text-foreground font-bold text-slate-600">
                                                     Principal
                                                   </span>{" "}
                                                   ₱{principal.toLocaleString()}
                                                 </span>
                                                 {schedule.interest_rate !=
                                                   null && (
-                                                  <span className="dark:text-muted-foreground text-[10px] text-slate-500">
-                                                    <span className="dark:text-foreground font-black text-slate-700">
+                                                  <span className="dark:text-muted-foreground text-sm text-slate-500">
+                                                    <span className="dark:text-foreground font-bold text-slate-600">
                                                       Interest
                                                     </span>{" "}
                                                     {schedule.interest_rate}%
@@ -654,8 +653,8 @@ export const BorrowerCard = memo(function BorrowerCard({
                                                 )}
                                                 {interestPerSched != null &&
                                                   interestPerSched > 0 && (
-                                                    <span className="dark:text-muted-foreground text-[10px] text-slate-500">
-                                                      <span className="dark:text-foreground font-black text-slate-700">
+                                                    <span className="dark:text-muted-foreground text-sm text-slate-500">
+                                                      <span className="dark:text-foreground font-bold text-slate-600">
                                                         per payroll
                                                       </span>{" "}
                                                       ₱

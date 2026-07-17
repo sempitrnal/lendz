@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { formFieldInputClassName } from "@/lib/form-field-classes";
-import { isDarkColor } from "@/lib/utils";
 
 export type PaymentProgress = {
   paid: number;

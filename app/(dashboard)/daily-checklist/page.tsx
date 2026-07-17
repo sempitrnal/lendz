@@ -1,9 +1,8 @@
 import DailyNotesWidget from "@/components/dashboard/daily-notes-widget";
-import MorningNotificationToggle from "@/components/morning-notification-toggle";
 
 export default function DailyChecklistPage() {
   return (
-    <main className="mx-auto max-w-2xl py-8 sm:px-6 sm:py-10">
+    <main className="mx-auto max-w-7xl py-10 md:max-w-full px-4 pb-16 md:px-6">
       <div className="mb-8 space-y-1">
         <h1
           className="text-3xl font-bold tracking-tight text-slate-800

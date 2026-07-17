@@ -155,30 +155,58 @@ export default function CategoryList() {
   };
 
   return (
-    <div
-      className="mx-auto flex w-full max-w-7xl flex-col gap-6 relative
-        min-h-[60vh]"
-    >
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-7xl py-10 md:max-w-full px-4 pb-16 md:px-6">
+      <div className="flex items-end justify-between">
         <div>
           <h1
-            className="text-2xl font-black lowercase tracking-tight
-              text-slate-600 dark:text-foreground"
+            className="text-2xl font-black tracking-tight text-slate-600
+              dark:text-foreground"
           >
-            Categories
+            categories
           </h1>
-          <p className="text-sm text-slate-500">
+          <p
+            className="mt-1 text-sm text-slate-400 mb-5
+              dark:text-muted-foreground"
+          >
             {categories.length} categor{categories.length === 1 ? "y" : "ies"}
           </p>
         </div>
       </div>
 
       {loading ? (
-        <p className="text-sm text-gray-500">Loading categories...</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-32 animate-pulse rounded-2xl border
+                border-slate-200/60 bg-slate-50/50 dark:border-slate-800
+                dark:bg-slate-900/30"
+            />
+          ))}
+        </div>
       ) : categories.length === 0 ? (
-        <p className="text-sm text-gray-500">No categories yet.</p>
+        <div
+          className="flex flex-col items-center justify-center gap-3 rounded-2xl
+            border border-dashed border-slate-200 bg-slate-50/30 py-20
+            dark:border-slate-800 dark:bg-slate-900/20"
+        >
+          <p
+            className="text-sm font-medium text-slate-400
+              dark:text-muted-foreground"
+          >
+            No categories yet
+          </p>
+          <button
+            type="button"
+            onClick={openAddDialog}
+            className="text-sm font-semibold text-slate-600 underline-offset-4
+              hover:underline dark:text-foreground"
+          >
+            Create your first category
+          </button>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {categories.map((category) => (
             <CategoryCard
               key={category.id}
@@ -200,11 +228,11 @@ export default function CategoryList() {
             onClick={openAddDialog}
             aria-label="Add category"
             className="fixed bottom-[76px] right-4 z-40 flex size-14
-              items-center justify-center rounded-full border-2 border-slate-900
-              bg-green-400 text-white shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)]
-              transition-transform duration-200 active:scale-95
-              dark:border-border dark:bg-green-400 dark:text-background
-              dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+              items-center justify-center rounded-full bg-slate-900 text-white
+              shadow-lg shadow-slate-900/20 transition-all duration-200
+              hover:scale-105 hover:shadow-xl hover:shadow-slate-900/25
+              active:scale-95 dark:bg-foreground dark:text-background
+              dark:shadow-black/30"
           >
             <Plus className="size-5" />
           </button>,

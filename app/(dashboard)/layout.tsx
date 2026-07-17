@@ -33,9 +33,8 @@ export default async function DashboardLayout({
       <SiteHeader isLoggedIn={Boolean(user)} logoutAction={logout} />
       <BottomNav />
       <main
-        className="mt-10 flex-1 px-4 py-10 sm:mt-0 md:px-10
-          md:pl-[calc(var(--sidebar-width)+1.5rem)]
-          lg:pl-[calc(var(--sidebar-width)+2.5rem)]"
+        className="mt-10 flex-1 py-6 sm:mt-0 md:py-0
+          md:pl-[calc(var(--sidebar-width))] lg:pl-[calc(var(--sidebar-width))]"
       >
         <PullToRefresh>
           <div className="pb-[52px] sm:pb-0">{children}</div>

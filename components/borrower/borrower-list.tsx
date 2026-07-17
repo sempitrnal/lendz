@@ -6,33 +6,19 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { fetchCategoriesAction } from "@/lib/actions/categories";
-import { formFieldInputClassName } from "@/lib/form-field-classes";
 import { useSeedBorrowersSearch } from "@/hooks/use-borrowers-search";
 
 import AddBorrowerModal from "./add-borrower-modal";
 import { BorrowerCard } from "./borrower-card";
-import { ChevronDown, ChevronUp, Plus } from "lucide-react";
-import {
-  Users,
-  ClipboardList,
-  Activity,
-  Calendar,
-  CheckCircle2,
-  Banknote,
-  Heart,
-  AlertTriangle,
-  ArrowUpDown,
-} from "lucide-react";
+import { ChevronDown, Plus, Users } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import Link from "next/link";
-import { isDarkColor } from "@/lib/utils";
 
 export type Borrower = {
   id: string;
@@ -137,44 +123,15 @@ type SortMode =
 type BorrowersListProps = {
   allBorrowers: Borrower[];
   initialCategoryIds?: string[];
-  newlyCreatedBorrowers?: Borrower[];
-  newlyCreatedAccounts?: RecentAccount[];
-  recentAccountUpdates?: AccountUpdate[];
 };
 
 export default function BorrowersList({
   allBorrowers,
   initialCategoryIds = [],
-  newlyCreatedBorrowers = [],
-  newlyCreatedAccounts = [],
-  recentAccountUpdates = [],
 }: BorrowersListProps) {
   const router = useRouter();
   const seedBorrowersSearch = useSeedBorrowersSearch();
 
-  const formatActivityDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      timeZone: "Asia/Manila",
-    });
-  };
-
-  const getCategoryMeta = (borrower: Borrower) => {
-    const entries =
-      borrower.borrower_categories
-        ?.map((row) => row.category)
-        .filter(Boolean) ?? [];
-
-    const label =
-      entries.length > 0
-        ? entries.map((entry) => entry.name).join(" / ")
-        : "uncategorized";
-    const color = entries.find((entry) => entry.color)?.color ?? null;
-    return { label, color };
-  };
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(
     initialCategoryIds ?? [],
   );
@@ -184,8 +141,7 @@ export default function BorrowersList({
     setSelectedCategoryIds((initialCategoryIds as string[] | undefined) ?? []);
   }, [initialCategoryIds]);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>("default");
-  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const [sortMode] = useState<SortMode>("default");
   const [isAddBorrowerModalOpen, setIsAddBorrowerModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [visibleCount, setVisibleCount] = useState(12);
@@ -224,10 +180,6 @@ export default function BorrowersList({
     }
   }, []);
 
-  const [updatingBorrowerId, setUpdatingBorrowerId] = useState<string | null>(
-    null,
-  );
-
   const RECENT_KEY = "borrowers-recent-visits";
   const [recentBorrowers, setRecentBorrowers] = useState<
     {
@@ -237,23 +189,6 @@ export default function BorrowersList({
       categoryColor: string | null;
     }[]
   >([]);
-
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
-    new Set([
-      "newly-created-borrowers",
-      "newly-created-accounts",
-      "payment-updates",
-    ]),
-  );
-
-  const toggleSection = (key: string) => {
-    setCollapsedSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
 
   useEffect(() => {
     try {
@@ -367,21 +302,6 @@ export default function BorrowersList({
     });
   }, [filteredBorrowers]);
 
-  const SORT_OPTIONS: {
-    value: SortMode;
-    label: string;
-    icon: React.ElementType;
-  }[] = [
-    { value: "default", label: "Default", icon: ArrowUpDown },
-    { value: "most-loyal", label: "Most Loyal", icon: Heart },
-    { value: "most-accounts", label: "Most Accounts", icon: Users },
-    { value: "biggest-borrower", label: "Biggest Borrower", icon: Banknote },
-    { value: "almost-there", label: "Almost There", icon: CheckCircle2 },
-    { value: "most-overdue", label: "Most Overdue", icon: Activity },
-    { value: "newest-member", label: "Newest Member", icon: Calendar },
-    { value: "highest-risk", label: "Highest Risk", icon: AlertTriangle },
-  ];
-
   const sortedBorrowers = useMemo(() => {
     if (sortMode === "default") return borrowersWithMetrics;
 
@@ -423,26 +343,10 @@ export default function BorrowersList({
     });
   }, [borrowersWithMetrics, sortMode]);
 
-  const openBorrower = useCallback(
-    (borrower: Borrower) => {
-      sessionStorage.setItem("borrowers-list-scroll", String(window.scrollY));
-      recordVisit({
-        id: borrower.id,
-        first_name: borrower.first_name,
-        last_name: borrower.last_name,
-        categoryColor:
-          borrower.borrower_categories?.[0]?.category?.color ?? null,
-      });
-      router.push(`/borrowers/${borrower.id}`);
-    },
-    [recordVisit, router],
-  );
-
   return (
     <div className="">
       <AddBorrowerModal
         getBorrowers={refreshPage}
-        openModal={openAddBorrowerModal}
         isOpen={isAddBorrowerModalOpen}
         onClose={closeAddBorrowerModal}
       />
@@ -551,12 +455,8 @@ export default function BorrowersList({
             aria-haspopup="listbox"
             onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
             className="dark:border-border dark:hover:bg-muted flex w-full
-              items-center justify-between gap-3 rounded-xl border-2
-              border-slate-900/90 px-4 py-3 text-left
-              shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition
-              active:translate-y-px
-              active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)]
-              dark:shadow-none"
+              items-center justify-between gap-3 rounded-xl border bg-white
+              border-slate-300 px-4 py-3 text-left transition dark:shadow-none"
           >
             <span
               className="dark:text-foreground text-sm font-bold tracking-wide
@@ -570,7 +470,7 @@ export default function BorrowersList({
             <span
               className="dark:border-border dark:bg-muted
                 dark:text-muted-foreground flex size-8 shrink-0 items-center
-                justify-center rounded-lg border border-slate-900/20 bg-slate-50
+                justify-center rounded-lg border border-slate-300 bg-slate-50
                 text-slate-700"
             >
               <ChevronDown
@@ -586,8 +486,8 @@ export default function BorrowersList({
               role="listbox"
               aria-multiselectable
               className="dark:border-border dark:bg-card absolute z-20 mt-2
-                max-h-72 w-full overflow-y-auto rounded-xl border-2
-                border-slate-900/90 bg-white p-2
+                max-h-72 w-full overflow-y-auto rounded-xl border
+                border-slate-300 bg-white p-2
                 shadow-[3px_3px_0px_0px_rgb(15_23_42/0.18)] dark:shadow-none"
             >
               <div className="flex flex-col gap-1.5">
@@ -675,549 +575,6 @@ export default function BorrowersList({
         </div>
       </div>
 
-      {/* Recent Activities Section */}
-      <section className="mb-6">
-        <article className="">
-          <div className="mb-4 flex items-center gap-2">
-            <span
-              className="rounded-md border-2 border-slate-900 bg-indigo-200
-                p-1.5 text-slate-600 dark:border-slate-700 dark:bg-indigo-400
-                dark:text-slate-600"
-            >
-              <ClipboardList className="size-4" />
-            </span>
-            <h2
-              className="text-base font-black text-slate-600 lowercase
-                dark:text-white"
-            >
-              recent activities
-            </h2>
-          </div>
-
-          <div className="flex flex-col gap-4 sm:gap-6">
-            {/* Newly Created Borrowers */}
-            <div>
-              <button
-                type="button"
-                onClick={() => toggleSection("newly-created-borrowers")}
-                className="mb-3 inline-flex cursor-pointer items-center gap-1.5
-                  rounded-lg border border-slate-900 bg-white px-3 py-1.5
-                  text-[10px] font-black tracking-wider text-slate-600 uppercase
-                  shadow-[2px_2px_0px_0px_#0f172a] transition
-                  hover:-translate-y-px sm:mb-3 dark:border-slate-600
-                  dark:bg-slate-800 dark:text-white dark:shadow-none
-                  select-none"
-              >
-                <Users className="size-3.5" />
-                newly created borrowers
-                {collapsedSections.has("newly-created-borrowers") ? (
-                  <ChevronDown className="size-3" />
-                ) : (
-                  <ChevronUp className="size-3" />
-                )}
-              </button>
-              <div
-                className={`grid transition-all duration-300 ease-out ${
-                  collapsedSections.has("newly-created-borrowers")
-                    ? "grid-rows-[0fr]"
-                    : "grid-rows-[1fr]"
-                  }`}
-              >
-                <div className="overflow-hidden">
-                  <div
-                    className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3
-                      md:grid-cols-3"
-                  >
-                    {newlyCreatedBorrowers.length === 0 ? (
-                      <div
-                        className="rounded-xl border border-dashed
-                          border-slate-300 bg-slate-50 p-3 text-sm font-medium
-                          text-slate-500 sm:rounded-lg sm:border-2
-                          sm:border-dashed sm:border-slate-400
-                          dark:border-slate-600 dark:bg-slate-800/50
-                          dark:text-slate-400"
-                      >
-                        No recent borrowers created.
-                      </div>
-                    ) : (
-                      newlyCreatedBorrowers.map((borrower) => {
-                        const categoryMeta = getCategoryMeta(borrower);
-                        return (
-                          <div
-                            key={borrower.id}
-                            className="mb-2 rounded-lg border-2 border-slate-900
-                              bg-white transition-all dark:border-border
-                              dark:bg-card"
-                          >
-                            <Link
-                              href={`/borrowers/${borrower.id}`}
-                              className="flex h-full flex-col outline-none"
-                              onClick={() =>
-                                recordVisit({
-                                  id: borrower.id,
-                                  first_name: borrower.first_name,
-                                  last_name: borrower.last_name,
-                                  categoryColor: categoryMeta.color ?? null,
-                                })
-                              }
-                            >
-                              <div className="flex flex-1 flex-col p-2 sm:p-3">
-                                <span
-                                  className="block text-xl font-bold
-                                    text-slate-700 lowercase
-                                    dark:text-foreground"
-                                >
-                                  {borrower.first_name} {borrower.last_name}
-                                </span>
-                                {borrower.contact && (
-                                  <p
-                                    className="text-[11px] font-semibold
-                                      text-slate-600 sm:text-xs
-                                      dark:text-slate-300"
-                                  >
-                                    {borrower.contact}
-                                  </p>
-                                )}
-                                <span
-                                  className="mt-1 inline-flex w-fit items-center
-                                    gap-1.5 rounded-full border
-                                    border-slate-900/15 px-2.5 py-0.5
-                                    text-[10px] font-bold uppercase
-                                    dark:border-border/40"
-                                >
-                                  <span
-                                    className="size-2 shrink-0 rounded-full
-                                      border border-slate-900/15"
-                                    style={{
-                                      backgroundColor:
-                                        categoryMeta.color ?? "#cbd5e1",
-                                    }}
-                                  />
-                                  {categoryMeta.label}
-                                </span>
-                              </div>
-                              <div
-                                className="border-t mt-2 rounded-b-lg
-                                  border-slate-100 bg-slate-50 p-2 text-[11px]
-                                  font-medium text-slate-600
-                                  dark:border-border/50 dark:bg-muted/40
-                                  dark:text-muted-foreground"
-                              >
-                                <span className="flex items-center gap-1.5">
-                                  <Calendar className="size-3 shrink-0" />
-                                  Added{" "}
-                                  {formatActivityDate(
-                                    borrower.created_at || "",
-                                  )}
-                                </span>
-                              </div>
-                            </Link>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Newly Created Accounts */}
-            <div>
-              <button
-                type="button"
-                onClick={() => toggleSection("newly-created-accounts")}
-                className="mb-3 inline-flex cursor-pointer items-center gap-1.5
-                  rounded-lg border border-slate-900 bg-white px-3 py-1.5
-                  text-[10px] font-black tracking-wider text-slate-600 uppercase
-                  shadow-[2px_2px_0px_0px_#0f172a] transition
-                  hover:-translate-y-px sm:mb-3 dark:border-slate-600
-                  dark:bg-slate-800 dark:text-white dark:shadow-none
-                  select-none"
-              >
-                <ClipboardList className="size-3.5" />
-                newly created accounts
-                {collapsedSections.has("newly-created-accounts") ? (
-                  <ChevronDown className="size-3" />
-                ) : (
-                  <ChevronUp className="size-3" />
-                )}
-              </button>
-              <div
-                className={`grid transition-all duration-300 ease-out ${
-                  collapsedSections.has("newly-created-accounts")
-                    ? "grid-rows-[0fr]"
-                    : "grid-rows-[1fr]"
-                  }`}
-              >
-                <div className="overflow-hidden">
-                  <div
-                    className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3
-                      md:grid-cols-3"
-                  >
-                    {newlyCreatedAccounts.length === 0 ? (
-                      <div
-                        className="rounded-xl border border-dashed
-                          border-slate-300 bg-slate-50 p-3 text-sm font-medium
-                          text-slate-500 sm:rounded-lg sm:border-2
-                          sm:border-dashed sm:border-slate-400
-                          dark:border-slate-600 dark:bg-slate-800/50
-                          dark:text-slate-400"
-                      >
-                        No recent accounts created.
-                      </div>
-                    ) : (
-                      newlyCreatedAccounts.map((account) => {
-                        const borrowerObj = account.borrower
-                          ? Array.isArray(account.borrower)
-                            ? account.borrower[0]
-                            : account.borrower
-                          : null;
-                        const isManual = account.schedule_mode === "manual";
-                        const isRolling =
-                          isManual && account.interest_type === "rolling";
-                        const isCashAdvance = account.type === "cash_advance";
-                        const typeLabel = isManual
-                          ? isRolling
-                            ? "rolling"
-                            : "flat"
-                          : isCashAdvance
-                            ? "ca"
-                            : "loan";
-                        const typeBadgeBg = isManual
-                          ? isRolling
-                            ? "bg-cyan-200 text-cyan-900 dark:bg-cyan-800 dark:text-cyan-100"
-                            : "bg-lime-200 text-lime-900 dark:bg-lime-800 dark:text-lime-100"
-                          : isCashAdvance
-                            ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
-                            : "bg-violet-200 text-violet-900 dark:bg-violet-800 dark:text-violet-100";
-                        return (
-                          <div
-                            key={account.id}
-                            className="mb-2 rounded-lg border-2 border-slate-900
-                              bg-white transition-all dark:border-border
-                              dark:bg-card"
-                          >
-                            <Link
-                              href={`/accounts/${account.id}`}
-                              className="flex h-full flex-col outline-none"
-                            >
-                              <div className="flex flex-1 flex-col p-2 sm:p-3">
-                                <div
-                                  className="flex items-start justify-between
-                                    gap-2"
-                                >
-                                  <span
-                                    className="block text-xl font-bold
-                                      text-slate-700 lowercase
-                                      dark:text-foreground"
-                                  >
-                                    {borrowerObj
-                                      ? `${borrowerObj.first_name} ${borrowerObj.last_name}`
-                                      : "Unknown borrower"}
-                                  </span>
-                                  <span
-                                    className={`min-w-0 truncate rounded-md px-2
-                                      py-0.5 text-[10px] font-black uppercase
-                                      ${typeBadgeBg}`}
-                                  >
-                                    {typeLabel}
-                                  </span>
-                                </div>
-                                <div
-                                  className="mt-1.5 flex items-baseline gap-1.5"
-                                >
-                                  <span
-                                    className="text-xs font-bold text-slate-600
-                                      dark:text-foreground"
-                                  >
-                                    ₱
-                                    {(
-                                      account.principal_amount ?? 0
-                                    ).toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
-                              <div
-                                className="border-t mt-2 rounded-b-lg
-                                  border-slate-100 bg-slate-50 p-2 text-[11px]
-                                  font-medium text-slate-600
-                                  dark:border-border/50 dark:bg-muted/40
-                                  dark:text-muted-foreground"
-                              >
-                                <div className="flex flex-col gap-1.5">
-                                  <span className="flex items-center gap-1.5">
-                                    <Calendar className="size-3 shrink-0" />
-                                    Created{" "}
-                                    {formatActivityDate(account.created_at)}
-                                  </span>
-                                  {account.release_date && (
-                                    <span className="flex items-center gap-1.5">
-                                      <CheckCircle2
-                                        className="size-3 shrink-0
-                                          text-emerald-600
-                                          dark:text-emerald-400"
-                                      />
-                                      Released{" "}
-                                      {formatActivityDate(account.release_date)}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </Link>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Updates */}
-            <div>
-              <button
-                type="button"
-                onClick={() => toggleSection("payment-updates")}
-                className="mb-3 inline-flex cursor-pointer items-center gap-1.5
-                  rounded-lg border border-slate-900 bg-white px-3 py-1.5
-                  text-[10px] font-black tracking-wider text-slate-600 uppercase
-                  shadow-[2px_2px_0px_0px_#0f172a] transition
-                  hover:-translate-y-px sm:mb-3 dark:border-slate-600
-                  dark:bg-slate-800 dark:text-white dark:shadow-none
-                  select-none"
-              >
-                <Activity className="size-3.5" />
-                payment updates
-                {collapsedSections.has("payment-updates") ? (
-                  <ChevronDown className="size-3" />
-                ) : (
-                  <ChevronUp className="size-3" />
-                )}
-              </button>
-              <div
-                className={`grid transition-all duration-300 ease-out ${
-                  collapsedSections.has("payment-updates")
-                    ? "grid-rows-[0fr]"
-                    : "grid-rows-[1fr]"
-                  }`}
-              >
-                <div className="overflow-hidden">
-                  <div
-                    className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3
-                      md:grid-cols-3"
-                  >
-                    {recentAccountUpdates.length === 0 ? (
-                      <div
-                        className="rounded-xl border border-dashed
-                          border-slate-300 bg-slate-50 p-3 text-sm font-medium
-                          text-slate-500 sm:rounded-lg sm:border-2
-                          sm:border-dashed sm:border-slate-400
-                          dark:border-slate-600 dark:bg-slate-800/50
-                          dark:text-slate-400"
-                      >
-                        No recent payment updates.
-                      </div>
-                    ) : (
-                      recentAccountUpdates.map((update) => {
-                        const meta = update.metadata ?? {};
-                        const accountObj = update.account
-                          ? Array.isArray(update.account)
-                            ? update.account[0]
-                            : update.account
-                          : null;
-                        const borrowerRaw = accountObj?.borrower;
-                        const borrower = borrowerRaw
-                          ? Array.isArray(borrowerRaw)
-                            ? borrowerRaw[0]
-                            : borrowerRaw
-                          : null;
-                        const borrowerName = borrower
-                          ? `${borrower.first_name} ${borrower.last_name}`
-                          : "Unknown borrower";
-
-                        // Determine paid state for badge + display
-                        const statusVal = meta.status || meta.newStatus || "";
-                        const isPaid =
-                          statusVal === "paid" ||
-                          update.action === "schedule.batch_paid";
-                        const isPartial = statusVal === "partial";
-
-                        const badgeStyle = isPaid
-                          ? {
-                              label: "Paid",
-                              bg: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200",
-                            }
-                          : isPartial
-                            ? {
-                                label: "Partial",
-                                bg: "bg-purple-100 text-amber-800 dark:bg-purple-900/60 dark:text-amber-200",
-                              }
-                            : {
-                                label: update.action.replace(/.*\./, ""),
-                                bg: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
-                              };
-
-                        // Extract display fields
-                        let amountLine: string | null = null;
-                        let dueDate: string | null = null;
-                        let paidDate: string | null = null;
-                        let remaining: number | null = null;
-
-                        if (update.action === "schedule.payment_applied") {
-                          const amt = Number(meta.amount ?? 0);
-                          if (amt > 0) amountLine = `₱${amt.toLocaleString()}`;
-                          dueDate = (meta.due_date as string) || null;
-                          paidDate = (meta.paymentDate as string) || null;
-                          const rem = Number(meta.remaining_amount ?? 0);
-                          if (rem > 0) remaining = rem;
-                        } else if (
-                          update.action === "schedule.status_changed"
-                        ) {
-                          const due = Number(meta.amount_due ?? 0);
-                          if (due > 0) amountLine = `₱${due.toLocaleString()}`;
-                          dueDate = (meta.due_date as string) || null;
-                          paidDate = (meta.paid_date as string) || null;
-                          const rem = Number(meta.remaining_amount ?? 0);
-                          if (rem > 0) remaining = rem;
-                        } else if (update.action === "schedule.batch_paid") {
-                          const ids = meta.ids as string[] | undefined;
-                          const count = ids?.length ?? 0;
-                          if (count > 0)
-                            amountLine = `${count} schedule${count === 1 ? "" : "s"}`;
-                          paidDate = (meta.customDate as string) || null;
-                        }
-
-                        if (!amountLine && !dueDate && !paidDate) {
-                          amountLine = update.description;
-                        }
-
-                        const content = (
-                          <div className="flex flex-1 flex-col p-2 sm:p-3">
-                            <div
-                              className="flex items-start justify-between gap-2"
-                            >
-                              <span
-                                className="block text-xl font-bold
-                                  text-slate-700 lowercase dark:text-foreground"
-                              >
-                                {borrowerName}
-                              </span>
-                              <span
-                                className={`shrink-0 rounded-md px-2 py-0.5
-                                  text-[10px] font-black uppercase
-                                  ${badgeStyle.bg}`}
-                              >
-                                {badgeStyle.label}
-                              </span>
-                            </div>
-                            {amountLine && (
-                              <p
-                                className="mt-1 text-sm font-bold text-slate-600
-                                  dark:text-foreground"
-                              >
-                                {amountLine}
-                              </p>
-                            )}
-                            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                              {dueDate && (
-                                <span
-                                  className="flex items-center gap-1 text-[11px]
-                                    font-medium text-slate-500
-                                    dark:text-slate-400"
-                                >
-                                  <Calendar className="size-3" />
-                                  Due {formatActivityDate(dueDate)}
-                                </span>
-                              )}
-                              {paidDate && (
-                                <span
-                                  className="flex items-center gap-1 text-[11px]
-                                    font-medium text-slate-500
-                                    dark:text-slate-400"
-                                >
-                                  <Banknote className="size-3" />
-                                  Paid {formatActivityDate(paidDate)}
-                                </span>
-                              )}
-                              {remaining !== null && remaining > 0 && (
-                                <span
-                                  className="flex items-center gap-1 text-[11px]
-                                    font-medium text-slate-500
-                                    dark:text-slate-400"
-                                >
-                                  ₱{remaining.toLocaleString()} remaining
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-
-                        return (
-                          <div
-                            key={update.id}
-                            className="mb-2 rounded-lg border-2 border-slate-900
-                              bg-white transition-all dark:border-border
-                              dark:bg-card"
-                          >
-                            {update.account_id ? (
-                              <Link
-                                href={`/accounts/${update.account_id}`}
-                                className="flex h-full flex-col outline-none"
-                                onClick={() => {
-                                  if (borrower) {
-                                    recordVisit({
-                                      id:
-                                        borrower.id || update.account_id || "",
-                                      first_name: borrower.first_name,
-                                      last_name: borrower.last_name,
-                                      categoryColor: null,
-                                    });
-                                  }
-                                }}
-                              >
-                                {content}
-                                <div
-                                  className="border-t mt-2 rounded-b-lg
-                                    border-slate-100 bg-slate-50 p-2 text-[11px]
-                                    font-medium text-slate-600
-                                    dark:border-border/50 dark:bg-muted/40
-                                    dark:text-muted-foreground"
-                                >
-                                  <span className="flex items-center gap-1.5">
-                                    <Activity className="size-3" />
-                                    {formatActivityDate(update.created_at)}
-                                  </span>
-                                </div>
-                              </Link>
-                            ) : (
-                              <div className="flex h-full flex-col">
-                                {content}
-                                <div
-                                  className="border-t mt-2 rounded-b-lg
-                                    border-slate-100 bg-slate-50 p-2 text-[11px]
-                                    font-medium text-slate-600
-                                    dark:border-border/50 dark:bg-muted/40
-                                    dark:text-muted-foreground"
-                                >
-                                  <span className="flex items-center gap-1.5">
-                                    <Activity className="size-3" />
-                                    {formatActivityDate(update.created_at)}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </article>
-      </section>
-
       {/* Borrowers list header + sort */}
       <div className="mb-5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
@@ -1240,122 +597,6 @@ export default function BorrowersList({
           >
             {sortedBorrowers.length}
           </span>
-        </div>
-
-        {/* Sort Dropdown */}
-        <div className="relative w-full max-w-[240px]">
-          <button
-            type="button"
-            aria-expanded={isSortDropdownOpen}
-            aria-haspopup="listbox"
-            onClick={() => setIsSortDropdownOpen((prev) => !prev)}
-            className="dark:border-border dark:hover:bg-muted flex w-full
-              items-center justify-between gap-3 rounded-xl border-2
-              border-slate-900/90 px-4 py-2.5 text-left
-              shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] transition
-              active:translate-y-px
-              active:shadow-[1px_1px_0px_0px_rgb(15_23_42/0.85)]
-              dark:shadow-none"
-          >
-            <span className="flex items-center gap-2">
-              {(() => {
-                const opt = SORT_OPTIONS.find((o) => o.value === sortMode);
-                const Icon = opt?.icon;
-                return (
-                  <>
-                    {Icon && <Icon className="size-4" />}
-                    <span
-                      className="dark:text-foreground text-sm font-bold
-                        tracking-wide text-slate-600 uppercase"
-                    >
-                      {opt?.label ?? "Default"}
-                    </span>
-                  </>
-                );
-              })()}
-            </span>
-
-            <span
-              className="dark:border-border dark:bg-muted
-                dark:text-muted-foreground flex size-8 shrink-0 items-center
-                justify-center rounded-lg border border-slate-900/20 bg-slate-50
-                text-slate-700"
-            >
-              <ChevronDown
-                className={`size-3.5 transition-transform
-                  ${isSortDropdownOpen ? "rotate-180" : ""}`}
-                aria-hidden
-              />
-            </span>
-          </button>
-
-          {isSortDropdownOpen ? (
-            <div
-              role="listbox"
-              className="dark:border-border dark:bg-card absolute right-0 z-20
-                mt-2 max-h-80 w-72 overflow-y-auto rounded-xl border-2
-                border-slate-900/90 bg-white p-2
-                shadow-[3px_3px_0px_0px_rgb(15_23_42/0.18)] dark:shadow-none"
-            >
-              <div className="flex flex-col gap-1.5">
-                {SORT_OPTIONS.map((option) => {
-                  const isSelected = sortMode === option.value;
-                  const Icon = option.icon;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="option"
-                      aria-selected={isSelected}
-                      onClick={() => {
-                        setSortMode(option.value);
-                        setIsSortDropdownOpen(false);
-                      }}
-                      className={`flex items-center gap-2.5 rounded-lg border
-                        px-3 py-2.5 text-left text-sm font-semibold transition
-                        ${
-                          isSelected
-                            ? `dark:border-border dark:bg-foreground
-                              dark:text-background border-2 border-slate-900
-                              bg-slate-900 text-white
-                              shadow-[1px_1px_0px_0px_rgb(15_23_42/0.5)]
-                              dark:shadow-none`
-                            : `dark:border-border dark:bg-muted
-                              dark:text-foreground dark:hover:border-border
-                              dark:hover:bg-muted/70 border border-slate-900/15
-                              bg-slate-50/60 text-slate-800
-                              shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)]
-                              hover:border-slate-900/35 hover:bg-white
-                              dark:shadow-none`
-                        }`}
-                    >
-                      {Icon && (
-                        <span
-                          className={`flex size-7 shrink-0 items-center
-                            justify-center rounded-md border-2 ${
-                              isSelected
-                                ? "border-white/30 bg-white/15"
-                                : "border-slate-900/15 bg-slate-100"
-                            }`}
-                        >
-                          <Icon className="size-3.5" />
-                        </span>
-                      )}
-                      <span className="truncate">{option.label}</span>
-                      {isSelected ? (
-                        <span
-                          className="ml-auto shrink-0 text-xs font-black"
-                          aria-hidden
-                        >
-                          ✓
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
 

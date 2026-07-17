@@ -43,10 +43,16 @@ export default function CategoryBorrowersGrid({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search borrowers..."
-        className="w-full rounded-lg border-2 border-slate-900 bg-white px-3 py-2 text-sm shadow-[2px_2px_0px_0px_#0f172a] placeholder:text-slate-400 focus:outline-none"
+        className="w-full rounded-xl border border-slate-200/80 bg-white px-4
+          py-2.5 text-sm text-slate-700 placeholder:text-slate-400
+          focus:border-slate-300 focus:outline-none dark:border-slate-800
+          dark:bg-card dark:text-foreground dark:placeholder:text-slate-500
+          dark:focus:border-slate-700"
       />
       {filtered.length === 0 ? (
-        <p className="text-sm text-slate-500">No borrowers match &ldquo;{query}&rdquo;</p>
+        <p className="text-sm text-slate-500">
+          No borrowers match &ldquo;{query}&rdquo;
+        </p>
       ) : null}
       <div className="columns-1 md:columns-2 xl:columns-3 gap-4 w-full">
         {filtered.map((borrower) => {

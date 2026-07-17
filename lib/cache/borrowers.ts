@@ -98,8 +98,6 @@ async function fetchBorrowersPageData(
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const rawBorrowers = (borrowerRows ?? []) as Borrower[];
-  const borrowerIds = rawBorrowers.map((b) => b.id);
-
   const enrichedBorrowers = await enrichBorrowerBatch(supabase, rawBorrowers);
 
   return {

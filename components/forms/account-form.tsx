@@ -34,11 +34,6 @@ export function isoDateOnlyForInput(iso: string | null | undefined): string {
   return iso.slice(0, 10);
 }
 
-const formatNumber = (value: string) => {
-  const num = value.replace(/,/g, "");
-  if (!num) return "";
-  return Number(num).toLocaleString();
-};
 type AccountFormProps = {
   borrowerId: string;
   /** When set, form updates this account instead of creating one. */

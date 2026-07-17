@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { neobrutButtonClassName } from "@/components/neobrut-button";
 
 type BackButtonProps = {
   fallbackHref?: string;
@@ -15,7 +14,6 @@ type BackButtonProps = {
 export default function BackButton({
   fallbackHref = "/",
   label = "Back",
-  className,
   floating = false,
 }: BackButtonProps) {
   const router = useRouter();

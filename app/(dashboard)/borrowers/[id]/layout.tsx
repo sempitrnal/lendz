@@ -1,4 +1,4 @@
-export default function AccountDetailLayout({
+export default function BorrowerDetailLayout({
   children,
 }: {
   children: React.ReactNode;

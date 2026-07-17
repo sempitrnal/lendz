@@ -1,4 +1,3 @@
-import BackButton from "@/components/back-button";
 import AssignBorrower from "@/components/category/assign-borrower";
 import CategoryBorrowersGrid from "@/components/category/category-borrowers-grid";
 import CategoryDetailStrip from "@/components/category/category-detail-strip";
@@ -27,9 +26,7 @@ export default async function CategoryDetailView({
   const typedBorrowers = borrowers as unknown as Borrower[];
 
   return (
-    <div className="space-y-6">
-      <BackButton fallbackHref="/categories" />
-
+    <div className="mx-auto max-w-7xl md:max-w-full px-4 pb-16 md:px-6">
       <CategoryDetailStrip
         name={category?.name ?? "Category"}
         color={category?.color ?? null}
@@ -43,10 +40,33 @@ export default async function CategoryDetailView({
       />
 
       <div>
-        <h2 className="mb-3 text-lg font-black lowercase">Borrowers</h2>
+        <div className="mb-4 mt-5 flex items-center justify-between">
+          <h2
+            className="text-lg font-bold tracking-tight text-slate-700
+              dark:text-foreground"
+          >
+            Borrowers
+          </h2>
+          <AssignBorrower
+            initialAssigned={typedBorrowers}
+            categoryId={categoryId}
+            key={categoryId}
+          />
+        </div>
 
         {typedBorrowers.length === 0 ? (
-          <p className="text-sm text-gray-500">No borrowers assigned yet</p>
+          <div
+            className="flex flex-col items-center justify-center gap-3
+              rounded-2xl border border-dashed border-slate-200 bg-slate-50/30
+              py-16 dark:border-slate-800 dark:bg-slate-900/20"
+          >
+            <p
+              className="text-sm font-medium text-slate-400
+                dark:text-muted-foreground"
+            >
+              No borrowers assigned yet
+            </p>
+          </div>
         ) : (
           <CategoryBorrowersGrid
             borrowers={typedBorrowers}
@@ -55,11 +75,6 @@ export default async function CategoryDetailView({
           />
         )}
       </div>
-      <AssignBorrower
-        initialAssigned={typedBorrowers}
-        categoryId={categoryId}
-        key={categoryId}
-      />
     </div>
   );
 }

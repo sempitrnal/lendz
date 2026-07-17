@@ -1,42 +1,32 @@
 import { connection } from "next/server";
 import { getAccountDetailPageData } from "@/lib/cache/accounts";
 import { formatDate } from "@/lib/utils";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import BackButton from "@/components/back-button";
 import StickyAccountStrip from "@/components/sticky-account-strip";
 import PartialPaymentForm from "@/components/partial-payment-form";
 import ScheduleStatusForm from "@/components/schedule-status-form";
 import PaymentHistoryPanel from "@/components/payment-history-panel";
 import type { SchedulePayment } from "@/components/payment-history-panel";
 import AddSchedulesPanel from "@/components/add-schedules-panel";
-import PrintButton from "@/components/print-button";
 import { ScheduleSelectionProvider } from "@/components/schedule-selection-provider";
 import { ScheduleCheckbox } from "@/components/schedule-checkbox";
-import { ScheduleCheckboxCell } from "@/components/schedule-checkbox-cell";
 import { ScheduleMobileCard } from "@/components/schedule-mobile-card";
 import { ScheduleDesktopActions } from "@/components/schedule-desktop-actions";
-import { ScheduleSelectAll } from "@/components/schedule-select-all";
-import { ScheduleSelectAllHeader } from "@/components/schedule-select-all-header";
 import { ScheduleEditBar } from "@/components/schedule-edit-bar";
 import { ScheduleDeleteButton } from "@/components/schedule-delete-button";
 import BatchScheduleToolbar from "@/components/batch-schedule-toolbar";
-import type { PaidDateStrategy } from "@/components/batch-schedule-toolbar";
 import ShareScheduleButton from "@/components/share-schedule-button";
 import type { ShareSchedule } from "@/components/share-schedule-button";
 import { CopyPublicLinkButton } from "@/components/copy-public-link-button";
-import AnimatedNumber from "@/components/animated-number";
 import NextScheduleScroller from "@/components/next-schedule-scroller";
 import PaidCheck from "@/components/paid-check";
 import OverdueSad from "@/components/overdue-sad";
 import PartialPie from "@/components/partial-pie";
 import PendingActivationBanner from "@/components/accounts/pending-activation-banner";
-import { GlowBorder } from "@/components/glow-border";
 import { ImpasNaBannerClient as ImpasNaBanner } from "@/components/impas-na-banner-client";
 import type { ActivateAccountData } from "@/app/actions/accounts";
 import {
   amountPaidOnInstallment,
-  isInstallmentFullyPaid,
   isInstallmentNextHighlight,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
@@ -53,34 +43,10 @@ import {
   addSchedulesAction,
 } from "@/lib/actions/schedules";
 
-type AccountRow = {
-  id: string;
-  borrower_id: string;
-  type: string;
-  status: string;
-  release_date: string | null;
-  principal_amount: number | null;
-  interest_rate: number | null;
-  term_months: number | null;
-  payment_frequency: string | null;
-  schedule_mode: string | null;
-  interest_type: string | null;
-  first_payment_date: string | null;
-  calculate_skipped_schedules: boolean | null;
-  created_at: string;
-};
-
 type BorrowerCategoryRow = {
   id: string;
   name: string;
   color: string | null;
-};
-
-type BorrowerRow = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  borrower_categories?: { category: BorrowerCategoryRow }[];
 };
 
 type PaymentScheduleRow = {
@@ -93,15 +59,6 @@ type PaymentScheduleRow = {
   note: string | null;
   paid_date: string | null;
   status: string;
-};
-
-type SchedulePaymentRow = {
-  id: string;
-  schedule_id: string;
-  amount: number;
-  payment_date: string | null;
-  note: string | null;
-  created_at: string;
 };
 
 type AccountDetailPageProps = {
@@ -531,6 +488,7 @@ export default async function AccountDetailPage({
       <NextScheduleScroller />
 
       <StickyAccountStrip
+        borrowerId={borrower?.id || ""}
         borrowerName={borrowerName}
         categoryLabel={categoryLabel}
         categoryColor={categoryColor}
@@ -553,111 +511,48 @@ export default async function AccountDetailPage({
         className="max-w-8xl relative mx-auto overflow-visible px-4 pb-16
           md:px-10"
       >
-        <div className="mt-10 space-y-6 sm:mt-10">
-          <Link
-            href={`/borrowers/${accountRow.borrower_id}`}
-            className="dark:text-muted-foreground dark:hover:text-foreground
-              inline-flex items-center gap-1 text-xs font-black tracking-wider
-              text-slate-500 uppercase transition hover:text-slate-600"
+        <div className="mt-5 space-y-6 sm:mt-10">
+          <div
+            className="flex flex-col md:flex-row justify-start
+              md:justify-between items-start gap-5 md:items-center"
           >
-            <span>←</span>
-            <span>{borrowerName}</span>
-          </Link>
-
-          <header className={"overflow-hidden"}>
-            <div
-              className="flex flex-col gap-6 lg:flex-row lg:items-start
-                lg:justify-between"
+            {/* <Link
+              href={`/borrowers/${accountRow.borrower_id}`}
+              className="dark:text-muted-foreground dark:hover:text-foreground
+                inline-flex items-center gap-1 text-xs font-black tracking-wider
+                text-slate-500 uppercase transition hover:text-slate-600"
             >
-              <div className="min-w-0 flex-1">
-                <h1
-                  className="mt-1 font-black tracking-tight text-slate-600
-                    uppercase sm:text-xl"
-                ></h1>
-              </div>
-              <div
-                className="flex shrink-0 flex-col gap-3 sm:flex-row
-                  sm:items-start sm:gap-4 lg:flex-col lg:items-end
-                  print:items-end"
-              >
-                <div className="flex gap-2 print:hidden">
-                  {/* <PrintButton /> */}
-                  {/* <ShareScheduleButton
-                  borrowerName={borrowerName}
-                  accountType={accountRow.type}
-                  releaseDate={accountRow.release_date}
-                  principal={principal}
-                  collected={amountPaid}
-                  remaining={amountLeft}
-                  profit={profit}
-                  totalPayment={totalPayment}
-                  progressPct={progressPct}
-                  schedules={schedules.map(
-                    (s, i) =>
-                      ({
-                        index: i + 1,
-                        due_date: s.due_date,
-                        amount_due: Number(s.amount_due ?? 0),
-                        amount_paid: amountPaidOnInstallment(s),
-                        remaining: remainingOnInstallment(s),
-                        status: s.status,
-                        paid_date: s.paid_date,
-                      }) as ShareSchedule,
-                  )}
-                /> */}
-                  <ShareScheduleButton
-                    noDetails
-                    borrowerName={borrowerName}
-                    accountType={accountRow.type}
-                    releaseDate={accountRow.release_date}
-                    principal={principal}
-                    collected={amountPaid}
-                    remaining={amountLeft}
-                    profit={profit}
-                    totalPayment={totalPayment}
-                    progressPct={progressPct}
-                    schedules={schedules.map(
-                      (s, i) =>
-                        ({
-                          index: i + 1,
-                          due_date: s.due_date,
-                          amount_due: Number(s.amount_due ?? 0),
-                          amount_paid: amountPaidOnInstallment(s),
-                          remaining: remainingOnInstallment(s),
-                          status: s.status,
-                          paid_date: s.paid_date,
-                        }) as ShareSchedule,
-                    )}
-                  />
-                  <CopyPublicLinkButton accountId={id} />
-                </div>
-                {/* <span
-                className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide ${accountStatusClasses.badge}`}
-              >
-                {accountRow.status}
-              </span> */}
-                {/* <dl className="grid gap-2 text-sm sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-1">
-                <div className={`${nb.cardSoft} px-3 py-2`}>
-                  <dt className={nb.label}>Interest</dt>
-                  <dd className="mt-0.5 text-lg font-black tabular-nums text-slate-600">
-                    {accountRow.interest_rate ?? 0}%
-                  </dd>
-                </div>
-                <div className={`${nb.cardSoft} px-3 py-2`}>
-                  <dt className={nb.label}>Term / frequency</dt>
-                  <dd className="mt-0.5 font-semibold leading-snug text-slate-600">
-                    {accountRow.term_months ?? 0}{" "}
-                    <span className="font-normal text-slate-500">{accountRow.payment_frequency === "custom" ? accountRow.term_months === 1 ? "give" : "gives" : accountRow.term_months === 1 ? "month" : "months"}</span>
-                    <span className="mx-1.5 text-slate-300">·</span>
-                    <span className="capitalize">
-                      {accountRow.payment_frequency ?? "—"}
-                    </span>
-                  </dd>
-                </div>
-              </dl> */}
-              </div>
+              <span>{`<-`} back to</span>
+              <span>{borrowerName} details</span>
+            </Link> */}
+            <div className="flex gap-2 print:hidden">
+              <ShareScheduleButton
+                noDetails
+                borrowerName={borrowerName}
+                accountType={accountRow.type}
+                releaseDate={accountRow.release_date}
+                principal={principal}
+                collected={amountPaid}
+                remaining={amountLeft}
+                profit={profit}
+                totalPayment={totalPayment}
+                progressPct={progressPct}
+                schedules={schedules.map(
+                  (s, i) =>
+                    ({
+                      index: i + 1,
+                      due_date: s.due_date,
+                      amount_due: Number(s.amount_due ?? 0),
+                      amount_paid: amountPaidOnInstallment(s),
+                      remaining: remainingOnInstallment(s),
+                      status: s.status,
+                      paid_date: s.paid_date,
+                    }) as ShareSchedule,
+                )}
+              />
+              <CopyPublicLinkButton accountId={id} />
             </div>
-          </header>
+          </div>
 
           {accountRow.status === "pending" ? (
             <PendingActivationBanner

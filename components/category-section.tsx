@@ -171,9 +171,9 @@ export default function CategorySection({
   return (
     <section id={`cat-${slugify(cat.label)}`} className="mb-6">
       <div
-        className="sticky top-16 sm:top-16 z-30 -mx-4 mb-3 flex flex-col gap-1.5
-          border-b border-slate-200 bg-background px-4 py-2
-          dark:border-border/50"
+        className="sticky top-16 sm:top-16 z-30 -mx-4 md:-mx-6 mb-3 flex
+          flex-col gap-1.5 border-b border-slate-200 bg-background px-4 md:px-6
+          py-2 dark:border-border/50"
       >
         <div className="flex flex-col items-start justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -239,8 +239,8 @@ export default function CategorySection({
           <details open className="group">
             <summary
               className="dark:border-border sticky top-[183px] sm:top-[179px]
-                z-20 -mx-4 flex cursor-pointer list-none items-center
-                justify-between border-slate-300 bg-orange-50 px-4 py-2
+                z-20 -mx-4 md:-mx-6 flex cursor-pointer list-none items-center
+                justify-between border-slate-300 bg-orange-50 px-4 md:px-6 py-2
                 dark:bg-[#170e08]"
             >
               <div className="flex items-center gap-2">
@@ -450,8 +450,8 @@ export default function CategorySection({
           <details open className="group">
             <summary
               className="dark:border-border sticky top-[183px] sm:top-[179px]
-                z-20 -mx-4 flex cursor-pointer list-none items-center
-                justify-between border-slate-400 bg-emerald-50 px-4 py-2
+                z-20 -mx-4 md:-mx-6 flex cursor-pointer list-none items-center
+                justify-between border-slate-400 bg-emerald-50 px-4 md:px-6 py-2
                 dark:bg-[#06180b]"
             >
               <div className="flex items-center gap-2">

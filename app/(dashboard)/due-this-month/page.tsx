@@ -6,16 +6,6 @@ import MonthPicker from "@/components/month-picker";
 import { getAllPaymentSchedules } from "@/lib/cache/schedules";
 import { remainingOnInstallment } from "@/lib/payment-schedule/schedule-balances";
 
-type ScheduleAggRow = {
-  id: string;
-  account_id: string;
-  amount_due: number | null;
-  amount_paid: number | null;
-  remaining_amount: number | null;
-  due_date: string;
-  status: string;
-};
-
 type AccountRef = {
   id: string;
   borrower_id: string;
@@ -332,55 +322,6 @@ export default async function DueThisMonthPage({
     },
   );
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      timeZone: TZ,
-    });
-
-  type ScheduleRow = {
-    id: string;
-    accountId: string;
-    dueDate: string;
-    amountDue: number;
-    amountPaid: number;
-    remaining: number;
-    status: string;
-  };
-
-  function groupSchedulesByDate(
-    schedules: ScheduleRow[],
-    getAmount: (s: ScheduleRow) => number,
-  ) {
-    const groups: {
-      date: string;
-      status: string;
-      items: number[];
-      total: number;
-      totalPaid: number;
-    }[] = [];
-
-    for (const s of schedules) {
-      const last = groups[groups.length - 1];
-      if (last && last.date === s.dueDate && last.status === s.status) {
-        last.items.push(getAmount(s));
-        last.total += getAmount(s);
-        last.totalPaid += s.amountPaid;
-      } else {
-        groups.push({
-          date: s.dueDate,
-          status: s.status,
-          items: [getAmount(s)],
-          total: getAmount(s),
-          totalPaid: s.amountPaid,
-        });
-      }
-    }
-
-    return groups;
-  }
-
   const totalPendingAmount = categoryEntries.reduce(
     (sum, cat) =>
       sum +
@@ -412,7 +353,7 @@ export default async function DueThisMonthPage({
   );
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-0 py-2">
+    <main className="mx-auto max-w-7xl py-10 md:max-w-full px-4 pb-16 md:px-6">
       <section
         className="dark:border-border dark:via-card mb-4 rounded-xl border
           border-slate-400 bg-linear-to-r from-sky-50 via-stone-50 to-indigo-100

@@ -1,6 +1,4 @@
 import DailyChecklistCategoryList from "@/components/dashboard/daily-checklist-category-list";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 export default function DailyChecklistCategoriesPage() {
   return (

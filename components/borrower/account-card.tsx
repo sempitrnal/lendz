@@ -39,9 +39,6 @@ export function AccountCard({
   const totalPaid = metrics?.totalPaid ?? 0;
   const progressPct =
     totalDue > 0 ? Math.min(100, Math.round((totalPaid / totalDue) * 100)) : 0;
-  const nextCollectionDate = metrics?.nextCollectionDate;
-  const nextCollectionAmount = metrics?.nextCollectionAmount ?? 0;
-  const nextCollectionStatus = metrics?.nextCollectionStatus ?? null;
   const overdueCount = metrics?.overdueCount ?? 0;
   const overdueTotal = metrics?.overdueTotal ?? 0;
   const [overdueExpanded, setOverdueExpanded] = useState(overdueCount <= 6);
@@ -50,14 +47,6 @@ export function AccountCard({
   const isRolling = isManual && (account as any).interest_type === "rolling";
   const freq = account.payment_frequency;
   const termMonths = Number(metrics?.term_months) || 1;
-  const perPayrollDivisor =
-    freq === "custom"
-      ? Number(metrics?.term_installments) || 1
-      : freq === "bimonthly"
-        ? termMonths * 2
-        : freq === "weekly"
-          ? termMonths * 4
-          : termMonths;
   function fmtCompact(n: number) {
     if (n < 1000) return n.toLocaleString();
     const k = n / 1000;

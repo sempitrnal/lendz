@@ -353,7 +353,6 @@ export default async function PublicAccountViewPage({ params }: Props) {
           {schedules.map((schedule, i) => {
             const due = Number(schedule.amount_due ?? 0);
             const paid = amountPaidOnInstallment(schedule);
-            const remaining = remainingOnInstallment(schedule);
             const isNext = schedule.id === nextDue?.id;
             const partialPct =
               due > 0 ? Math.min(100, Math.round((paid / due) * 100)) : 0;

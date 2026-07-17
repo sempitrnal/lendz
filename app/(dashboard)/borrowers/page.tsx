@@ -10,7 +10,6 @@ export default async function BorrowersPage({
   searchParams,
 }: BorrowersPageProps) {
   const sp = await searchParams;
-  const searchQuery = (sp.q ?? "").trim();
   const categoryIds = (sp.categories ?? "")
     .split(",")
     .map((s) => s.trim())
@@ -215,13 +214,10 @@ export default async function BorrowersPage({
       });
 
     return (
-      <div className="mx-auto flex w-full max-w-7xl flex-col">
+      <div className="mx-auto max-w-7xl md:max-w-full px-4 pb-16 md:px-6">
         <BorrowersList
           allBorrowers={allBorrowers}
           initialCategoryIds={categoryIds}
-          newlyCreatedBorrowers={(borrowersQuery.data ?? []) as any}
-          newlyCreatedAccounts={(accountsQuery.data ?? []) as any}
-          recentAccountUpdates={(enrichedAuditLogs ?? []) as any}
         />
       </div>
     );

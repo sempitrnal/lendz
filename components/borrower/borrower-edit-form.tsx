@@ -21,6 +21,7 @@ import {
 import { formatContactNumber } from "@/lib/format-contact-number";
 import { supabase } from "@/lib/supabase/client";
 import { fetchCategoriesAction } from "@/lib/actions/categories";
+import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
 import { useEffect, useState } from "react";
 import { isDarkColor } from "@/lib/utils";
 
@@ -38,12 +39,18 @@ export type BorrowerEditFormProps = {
     contact: string | null;
   };
   initialCategoryIds: string[];
+  onCancel?: () => void;
+  onSuccess?: () => void;
+  hideMenu?: boolean;
 };
 
 export default function BorrowerEditForm({
   borrowerId,
   initial,
   initialCategoryIds,
+  onCancel,
+  onSuccess,
+  hideMenu = false,
 }: BorrowerEditFormProps) {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryOption[]>([]);
@@ -120,7 +127,13 @@ export default function BorrowerEditForm({
       }
     }
 
-    router.push(`/borrowers/${borrowerId}`);
+    await revalidateBorrowerDetailPage(borrowerId);
+
+    if (onSuccess) {
+      onSuccess();
+    } else {
+      router.push(`/borrowers/${borrowerId}`);
+    }
     router.refresh();
   };
 
@@ -350,15 +363,27 @@ export default function BorrowerEditForm({
             </p>
           </div>
           <div className="flex items-center justify-end gap-4">
-            <Link
-              href={`/borrowers/${borrowerId}`}
-              className={neobrutButtonClassName(
-                "white",
-                "mt-5 inline-flex items-center justify-center",
-              )}
-            >
-              Cancel
-            </Link>
+            {onCancel ? (
+              <NeobrutButton
+                type="button"
+                variant="white"
+                disabled={isSubmitting}
+                onClick={onCancel}
+                className="mt-5"
+              >
+                Cancel
+              </NeobrutButton>
+            ) : (
+              <Link
+                href={`/borrowers/${borrowerId}`}
+                className={neobrutButtonClassName(
+                  "white",
+                  "mt-5 inline-flex items-center justify-center",
+                )}
+              >
+                Cancel
+              </Link>
+            )}
             <NeobrutButton
               type="submit"
               form="borrower-edit-form"
@@ -371,9 +396,11 @@ export default function BorrowerEditForm({
           </div>
         </form>
 
-        <div className="flex shrink-0 flex-col items-end gap-3">
-          <BorrowerDetailMenu borrowerId={borrowerId} hideEditLink />
-        </div>
+        {!hideMenu && (
+          <div className="flex shrink-0 flex-col items-end gap-3">
+            <BorrowerDetailMenu borrowerId={borrowerId} hideEditLink />
+          </div>
+        )}
       </div>
     </div>
   );

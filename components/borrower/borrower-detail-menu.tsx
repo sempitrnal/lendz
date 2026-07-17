@@ -10,6 +10,7 @@ import { revalidateBorrowersPage } from "@/lib/actions/borrowers";
 import { triggerHaptic } from "@/lib/haptics";
 import { toast } from "sonner";
 import NeobrutButton from "../neobrut-button";
+import BorrowerEditForm from "@/components/borrower/borrower-edit-form";
 import {
   Dialog,
   DialogContent,
@@ -25,21 +26,34 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 
+type BorrowerEditData = {
+  initial: {
+    first_name: string;
+    last_name: string;
+    contact: string | null;
+  };
+  initialCategoryIds: string[];
+};
+
 type BorrowerDetailMenuProps = {
   borrowerId: string;
   /** Hide Edit when already on the edit screen */
   hideEditLink?: boolean;
   /** After delete: refresh list without navigating (e.g. borrowers list) */
   onDeleted?: () => void | Promise<void>;
+  /** Borrower data for inline edit dialog */
+  editBorrower?: BorrowerEditData;
 };
 
 export default function BorrowerDetailMenu({
   borrowerId,
   hideEditLink = false,
   onDeleted,
+  editBorrower,
 }: BorrowerDetailMenuProps) {
   const router = useRouter();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   function openDeleteModal() {
@@ -112,9 +126,15 @@ export default function BorrowerDetailMenu({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {!hideEditLink ? (
-            <DropdownMenuItem asChild>
-              <Link href={`/borrowers/${borrowerId}/edit`}>edit</Link>
-            </DropdownMenuItem>
+            editBorrower ? (
+              <DropdownMenuItem onClick={() => setEditModalOpen(true)}>
+                edit
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem asChild>
+                <Link href={`/borrowers/${borrowerId}/edit`}>edit</Link>
+              </DropdownMenuItem>
+            )
           ) : null}
           <DropdownMenuItem variant="destructive" onClick={openDeleteModal}>
             delete
@@ -153,6 +173,24 @@ export default function BorrowerDetailMenu({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {editBorrower && (
+        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit borrower</DialogTitle>
+            </DialogHeader>
+            <BorrowerEditForm
+              borrowerId={borrowerId}
+              initial={editBorrower.initial}
+              initialCategoryIds={editBorrower.initialCategoryIds}
+              onCancel={() => setEditModalOpen(false)}
+              onSuccess={() => setEditModalOpen(false)}
+              hideMenu
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

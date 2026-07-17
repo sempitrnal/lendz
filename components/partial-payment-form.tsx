@@ -30,7 +30,6 @@ const FORM_ID = (scheduleId: string) => `partial-form-${scheduleId}`;
 export default function PartialPaymentForm({
   scheduleId,
   applyPartialPayment,
-  autoFocus: _autoFocus,
   dueDate,
   borrowerId,
 }: {

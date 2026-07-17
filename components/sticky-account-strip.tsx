@@ -3,45 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { isDarkColor } from "@/lib/utils";
-
-function useCountUp(target: number, active: boolean, duration = 500) {
-  const [display, setDisplay] = useState(0);
-  const raf = useRef<number>(0);
-  useEffect(() => {
-    if (!active) return;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - start) / duration);
-      const ease = 1 - Math.pow(1 - p, 3);
-      setDisplay(Math.round(target * ease));
-      if (p < 1) raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
-  }, [active, target, duration]);
-  return display;
-}
-
-function AnimatedMoney({
-  value,
-  active,
-  delay = 0,
-}: {
-  value: number;
-  active: boolean;
-  delay?: number;
-}) {
-  const [fired, setFired] = useState(false);
-  useEffect(() => {
-    if (!active || fired) return;
-    const t = setTimeout(() => setFired(true), delay);
-    return () => clearTimeout(t);
-  }, [active, delay, fired]);
-  const n = useCountUp(value, fired);
-  return <span>₱{n.toLocaleString()}</span>;
-}
+import Link from "next/link";
 
 type Props = {
+  borrowerId: string;
   borrowerName: string;
   categoryLabel?: string;
   categoryColor?: string | null;
@@ -58,11 +23,8 @@ type Props = {
   progressPct: number;
 };
 
-function fmt(v: number) {
-  return `₱${Math.round(v).toLocaleString()}`;
-}
-
 export default function StickyAccountStrip({
+  borrowerId,
   borrowerName,
   categoryLabel,
   categoryColor,
@@ -96,12 +58,16 @@ export default function StickyAccountStrip({
         >
           <div className="min-w-0 text-left">
             <div className="flex items-center gap-2">
-              <p
+              <Link
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                href={`/borrowers/${borrowerId}`}
                 className="truncate text-lg font-black tracking-tight
                   text-slate-700 dark:text-foreground"
               >
                 {borrowerName}
-              </p>
+              </Link>
             </div>
             {categoryLabel && (
               <span

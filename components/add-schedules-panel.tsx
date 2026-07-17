@@ -90,7 +90,7 @@ type Props = {
   ) => Promise<{ error?: string }>;
 };
 
-export default function AddSchedulesPanel({ accountId, addSchedules }: Props) {
+export default function AddSchedulesPanel({ addSchedules }: Props) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Row[]>([EMPTY_ROW()]);
   const [isPending, startTransition] = useTransition();

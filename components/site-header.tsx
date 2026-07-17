@@ -1,14 +1,13 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
 import NeobrutButton from "./neobrut-button";
 import ThemeToggle from "./theme-toggle";
 import HeaderSearch from "./header-search";
@@ -23,17 +22,11 @@ export default function SiteHeader({
   logoutAction,
 }: SiteHeaderProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
 
   if (pathname === "/login") return null;
 
-  function closeModal() {
-    setIsLogoutModalOpen(false);
-  }
   function openModal() {
     setIsLogoutModalOpen(true);
   }
@@ -42,11 +35,11 @@ export default function SiteHeader({
     <header
       className="bg-background dark:border-border/50 dark:bg-background hidden
         border-b border-slate-200 sm:sticky sm:top-0 sm:z-50 sm:flex sm:flex-col
-        print:hidden md:ml-[var(--sidebar-width)]"
+        print:hidden md:ml-(--sidebar-width)"
     >
       <nav
-        className="relative mx-auto flex w-full max-w-7xl items-center
-          justify-between px-4 py-[14.5px] sm:px-6"
+        className="relative mx-auto flex w-full max-w-7xl md:max-w-full
+          items-center justify-between px-4 py-[14.5px] sm:px-6"
       >
         {isLoggedIn && (
           <div className="flex flex-1 items-center gap-5">

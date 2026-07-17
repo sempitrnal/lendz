@@ -128,7 +128,6 @@ export default function ActivateAccountDialog({
   }, [open, initialValues]);
 
   const isManual = scheduleMode === "manual";
-  const isRolling = isManual && interestType === "rolling";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

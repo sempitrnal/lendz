@@ -4,7 +4,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import MobileTopBar from "@/components/mobile-top-bar";
 import { ScrollRestoration } from "@/components/scroll-restoration";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
-import { OfflineBanner } from "@/components/offline-banner";
 import { OfflineSyncManager } from "@/components/offline-sync-manager";
 import { ThemeProvider } from "./providers";
 import "./globals.css";

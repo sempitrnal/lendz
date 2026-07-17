@@ -116,7 +116,6 @@ export default async function AuditPage({
 
   const { data, count } = await query;
   const logs = (data ?? []) as AuditLog[];
-  const totalPages = Math.max(1, Math.ceil((count ?? 0) / pageSize));
 
   const actionOptions = Object.entries(ACTION_STYLES).map(([k, v]) => ({
     value: k,

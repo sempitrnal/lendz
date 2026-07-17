@@ -9,7 +9,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 
 export type MonthlyData = {
@@ -381,7 +380,11 @@ export default function MonthlyCollectionsChart({
 
   if (data.length === 0) {
     return (
-      <div className="flex h-48 items-center justify-center rounded-lg border-2 border-dashed border-slate-900 bg-slate-50 text-sm font-bold text-slate-500 uppercase">
+      <div
+        className="flex h-48 items-center justify-center rounded-lg border-2
+          border-dashed border-slate-900 bg-slate-50 text-sm font-bold
+          text-slate-500 uppercase"
+      >
         No data available
       </div>
     );
@@ -398,14 +401,17 @@ export default function MonthlyCollectionsChart({
                 key={key}
                 type="button"
                 onClick={() => toggle(key)}
-                className={`inline-flex cursor-pointer items-center gap-1.5 rounded border-2 border-slate-900 px-2 py-0.5 text-[10px] font-black tracking-wide uppercase transition-opacity ${
+                className={`inline-flex cursor-pointer items-center gap-1.5
+                rounded border-2 border-slate-900 px-2 py-0.5 text-[10px]
+                font-black tracking-wide uppercase transition-opacity ${
                   visible[key]
                     ? "bg-white text-slate-800 shadow-[2px_2px_0px_0px_#0f172a]"
                     : "bg-slate-100 text-slate-400 opacity-50 shadow-none"
                 }`}
               >
                 <span
-                  className="inline-block size-2.5 shrink-0 border border-slate-900"
+                  className="inline-block size-2.5 shrink-0 border
+                    border-slate-900"
                   style={{
                     backgroundColor: visible[key] ? COLORS[key] : "#e2e8f0",
                   }}
@@ -414,23 +420,31 @@ export default function MonthlyCollectionsChart({
               </button>
             ),
           )}
-          <span className="ml-auto self-center text-[10px] font-semibold text-slate-400">
+          <span
+            className="ml-auto self-center text-[10px] font-semibold
+              text-slate-400"
+          >
             tap to toggle
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[9px] font-black tracking-widest text-slate-400 uppercase">
+          <span
+            className="text-[9px] font-black tracking-widest text-slate-400
+              uppercase"
+          >
             profit
           </span>
           <div className="h-px flex-1 bg-slate-200" />
           <button
             type="button"
             onClick={() => toggle("profit")}
-            className={`inline-flex cursor-pointer items-center gap-1.5 rounded border-2 border-slate-900 px-2 py-0.5 text-[10px] font-black tracking-wide uppercase transition-opacity ${
-              visible.profit
-                ? "bg-white text-slate-800 shadow-[2px_2px_0px_0px_#0f172a]"
-                : "bg-slate-100 text-slate-400 opacity-50 shadow-none"
-            }`}
+            className={`inline-flex cursor-pointer items-center gap-1.5 rounded
+              border-2 border-slate-900 px-2 py-0.5 text-[10px] font-black
+              tracking-wide uppercase transition-opacity ${
+                visible.profit
+                  ? "bg-white text-slate-800 shadow-[2px_2px_0px_0px_#0f172a]"
+                  : "bg-slate-100 text-slate-400 opacity-50 shadow-none"
+              }`}
           >
             <span
               className="inline-block size-2.5 shrink-0 border border-slate-900"
