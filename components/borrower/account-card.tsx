@@ -134,10 +134,10 @@ export function AccountCard({
 
   return (
     <motion.div
-      className={`relative overflow-hidden rounded-lg border border-slate-300
-        bg-white transition-all duration-200 dark:border-border dark:bg-card
+      className={`relative overflow-hidden rounded-lg shadow-sm border-slate-300
+        bg-white transition-all duration-200 dark:border- dark:bg-card
         ${isOpening ? "scale-[0.98] opacity-60" : ""}
-        ${selectionMode && selected ? "ring-2 ring-slate-900 dark:ring-amber-400" : ""}`}
+        ${selectionMode && selected ? "ring ring-blue-600 dark:ring-amber-400" : ""}`}
       whileHover={
         isOpening
           ? undefined
@@ -182,7 +182,7 @@ export function AccountCard({
         aria-label="Open account"
         className="dark:focus-visible:ring-border w-full min-w-0 cursor-pointer
           px-4 py-3 text-left outline-none focus-visible:ring-2
-          focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+          focus-visible:ring-slate-300 focus-visible:ring-offset-2"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-2">

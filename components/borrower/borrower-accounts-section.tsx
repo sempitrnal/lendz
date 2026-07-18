@@ -401,8 +401,8 @@ export default function BorrowerAccountsSection({
         {selectionMode && (
           <div
             className="dark:border-border dark:bg-card sticky top-[52px] z-40
-              -mx-4 mb-4 border-y-2 border-slate-900 bg-white px-4 py-2
-              shadow-sm md:top-[68px]"
+              -mx-4 mb-4 border-y border-slate-300 bg-white px-4 py-2 shadow-sm
+              md:top-[68px]"
           >
             <div className="flex items-center justify-between">
               <span
@@ -416,7 +416,7 @@ export default function BorrowerAccountsSection({
                   type="button"
                   onClick={clearSelection}
                   className="dark:border-border dark:bg-card
-                    dark:text-foreground rounded-lg border-2 border-slate-900
+                    dark:text-foreground rounded-lg border border-slate-300
                     bg-white px-3 py-1 text-xs font-bold transition
                     hover:-translate-y-0.5 active:translate-y-px
                     active:shadow-none"
@@ -427,8 +427,8 @@ export default function BorrowerAccountsSection({
                   type="button"
                   disabled={isBulkDeleting}
                   onClick={handleBulkDelete}
-                  className="rounded-lg border-2 border-slate-900 bg-red-400
-                    px-3 py-1 text-xs font-bold text-white transition
+                  className="rounded-lg border border-slate-300 bg-red-400 px-3
+                    py-1 text-xs font-bold text-white transition
                     hover:-translate-y-0.5 active:translate-y-px
                     active:shadow-none disabled:opacity-50
                     dark:border-red-500/50 dark:bg-red-500/80"

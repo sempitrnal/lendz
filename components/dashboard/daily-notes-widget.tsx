@@ -14,7 +14,15 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import Modal from "@/components/modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 type ChecklistCategory = {
   id: string;
@@ -359,65 +367,71 @@ function CategorySection({
         </>
       )}
 
-      <Modal
-        isOpen={!!editingItem}
-        onClose={() => setEditingItem(null)}
-        closeOnEscape
-        closeOnOverlayClick
-        title="Edit item"
-        size="md"
+      <Dialog
+        open={!!editingItem}
+        onOpenChange={(v) => {
+          if (!v) setEditingItem(null);
+        }}
       >
-        {editingItem && (
-          <div className="space-y-4">
-            <div>
-              <label
-                className="dark:text-muted-foreground mb-1.5 block text-xs
-                  font-medium text-slate-500"
-              >
-                Label
-              </label>
-              <textarea
-                value={editLabelValue}
-                onChange={(e) => setEditLabelValue(e.target.value)}
-                rows={4}
-                className="dark:bg-card dark:text-foreground w-full resize-none
-                  rounded-xl border border-border/50 bg-white px-3 py-2.5
-                  text-sm text-slate-700 transition-all duration-200
-                  outline-none focus:border-border
-                  dark:placeholder:text-muted-foreground"
-                autoFocus
-              />
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="gap-3 pb-2">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-full
+                bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40
+                dark:text-indigo-300"
+            >
+              <Pencil className="h-5 w-5" />
             </div>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setEditingItem(null)}
-                className="dark:text-muted-foreground rounded-lg px-4 py-2
-                  text-sm font-medium text-slate-600 transition-colors
-                  duration-200 hover:bg-slate-100 dark:hover:bg-muted/60"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const trimmed = editLabelValue.trim();
-                  if (trimmed) {
-                    onEditLabel(editingItem.id, trimmed);
-                  }
-                  setEditingItem(null);
-                }}
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium
-                  text-white transition-colors duration-200 hover:bg-slate-700
-                  dark:bg-foreground dark:text-background
-                  dark:hover:bg-foreground/80"
-              >
-                Save
-              </button>
+            <div className="space-y-1">
+              <DialogTitle className="text-xl font-semibold tracking-tight">
+                Edit Item
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Update the label for this checklist item.
+              </DialogDescription>
             </div>
-          </div>
-        )}
-      </Modal>
+          </DialogHeader>
+          {editingItem && (
+            <div className="space-y-4 pt-2">
+              <div>
+                <label
+                  className="dark:text-muted-foreground mb-1.5 block text-xs
+                    font-medium text-slate-500"
+                >
+                  Label
+                </label>
+                <textarea
+                  value={editLabelValue}
+                  onChange={(e) => setEditLabelValue(e.target.value)}
+                  rows={4}
+                  className="dark:bg-card dark:text-foreground w-full
+                    resize-none rounded-xl border border-border/50 bg-white px-3
+                    py-2.5 text-sm text-slate-700 transition-all duration-200
+                    outline-none focus:border-border
+                    dark:placeholder:text-muted-foreground"
+                  autoFocus
+                />
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setEditingItem(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    const trimmed = editLabelValue.trim();
+                    if (trimmed) {
+                      onEditLabel(editingItem.id, trimmed);
+                    }
+                    setEditingItem(null);
+                  }}
+                >
+                  Save
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
