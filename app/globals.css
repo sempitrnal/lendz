@@ -270,4 +270,10 @@
     appearance: none;
     min-width: 0;
   }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
