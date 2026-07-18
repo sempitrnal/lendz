@@ -245,12 +245,11 @@ function CategorySection({
                   key={item.id}
                   onClick={() => onToggle(item)}
                   className={`group flex cursor-pointer items-center gap-3
-                    rounded-xl border border-slate-300 px-2 py-2 transition-all
-                    duration-200 ${
+                    rounded-xl border px-2 py-2 transition-all duration-200 ${
                       item.is_checked
                         ? `bg-slate-50 dark:border-muted-foreground/30
                           dark:bg-muted/80`
-                        : `bg-white hover:bg-slate-100
+                        : `bg-white shadow-sm hover:bg-slate-100
                           dark:border-muted-foreground/20 dark:bg-muted
                           dark:hover:bg-muted/40`
                     }`}

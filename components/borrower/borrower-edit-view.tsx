@@ -12,11 +12,16 @@ export default function BorrowerEditView({
 }: BorrowerEditViewProps) {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <BorrowerEditForm
-        borrowerId={borrowerId}
-        initial={initial}
-        initialCategoryIds={initialCategoryIds}
-      />
+      <div
+        className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm
+          dark:border-slate-700 dark:bg-card"
+      >
+        <BorrowerEditForm
+          borrowerId={borrowerId}
+          initial={initial}
+          initialCategoryIds={initialCategoryIds}
+        />
+      </div>
 
       <BorrowerAccountsAsync borrowerId={borrowerId} />
     </div>

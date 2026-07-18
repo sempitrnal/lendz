@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus } from "lucide-react";
+import { Plus, FolderPlus, Pencil } from "lucide-react";
 
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import NeobrutButton from "@/components/neobrut-button";
 import {
   formFieldInputClassName,
   formFieldLabelClassName,
@@ -246,11 +246,25 @@ export default function CategoryList() {
           if (!v) closeAddDialog();
         }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add category</DialogTitle>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader className="gap-3 pb-2">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-full
+                bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40
+                dark:text-indigo-300"
+            >
+              <FolderPlus className="h-5 w-5" />
+            </div>
+            <div className="space-y-1">
+              <DialogTitle className="text-xl font-semibold tracking-tight">
+                Add Category
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Create a new category to organize your borrowers.
+              </DialogDescription>
+            </div>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 pt-2">
             <div>
               <label
                 htmlFor="add_category_name"
@@ -280,21 +294,18 @@ export default function CategoryList() {
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="h-11 w-full cursor-pointer rounded-lg border
-                  border-slate-300 bg-white p-1"
+                className="h-11 w-full cursor-pointer rounded-xl border
+                  border-slate-200 bg-white p-1 dark:border-slate-700
+                  dark:bg-card"
               />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-3 pt-2">
               <Button variant="outline" onClick={closeAddDialog}>
                 Cancel
               </Button>
-              <NeobrutButton
-                variant="green"
-                onClick={addCategory}
-                disabled={isSaving || !name.trim()}
-              >
+              <Button onClick={addCategory} disabled={isSaving || !name.trim()}>
                 {isSaving ? "Adding..." : "Add"}
-              </NeobrutButton>
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -307,11 +318,25 @@ export default function CategoryList() {
           if (!v) closeEditModal();
         }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit category</DialogTitle>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader className="gap-3 pb-2">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-full
+                bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40
+                dark:text-indigo-300"
+            >
+              <Pencil className="h-5 w-5" />
+            </div>
+            <div className="space-y-1">
+              <DialogTitle className="text-xl font-semibold tracking-tight">
+                Edit Category
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Update the category name, color, and sort order.
+              </DialogDescription>
+            </div>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 pt-2">
             <div>
               <label
                 htmlFor="edit_category_name"
@@ -339,8 +364,9 @@ export default function CategoryList() {
                 type="color"
                 value={editColor}
                 onChange={(e) => setEditColor(e.target.value)}
-                className="h-11 w-full cursor-pointer rounded-lg border
-                  border-slate-300 bg-white p-1"
+                className="h-11 w-full cursor-pointer rounded-xl border
+                  border-slate-200 bg-white p-1 dark:border-slate-700
+                  dark:bg-card"
               />
             </div>
             <div>
@@ -359,17 +385,16 @@ export default function CategoryList() {
                 className={formFieldInputClassName}
               />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-3 pt-2">
               <Button variant="outline" onClick={closeEditModal}>
                 Cancel
               </Button>
-              <NeobrutButton
-                variant="green"
+              <Button
                 onClick={updateCategory}
                 disabled={isUpdating || !editName.trim()}
               >
                 {isUpdating ? "Saving..." : "Save"}
-              </NeobrutButton>
+              </Button>
             </div>
           </div>
         </DialogContent>

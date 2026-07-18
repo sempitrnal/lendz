@@ -75,9 +75,9 @@ const nb = {
     "text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400",
   /** Payment schedule block */
   scheduleShell:
-    "overflow-hidden rounded-xl border border-slate-300 bg-background dark:border-slate-700 dark:bg-slate-900",
+    "overflow-hidden   border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900",
   scheduleHead:
-    "border-b border-slate-300 bg-green-300 px-4 py-3 sm:px-5 sm:py-4 dark:border-slate-700 dark:bg-green-300",
+    " bg-green-300 px-4 py-3 sm:px-5 sm:py-4 dark:border-slate-700 dark:bg-green-300",
   scheduleTh:
     "border-r border-b border-slate-300 bg-slate-50 px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-500 last:border-r-0 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
   scheduleTd:
@@ -138,7 +138,7 @@ function getScheduleStatusClasses(status: string) {
   return {
     badge:
       "border-amber-600/80 bg-amber-50 text-amber-950 dark:border-amber-400/40 dark:bg-amber-400/[0.18] dark:text-amber-300",
-    row: "bg-amber-50/50 dark:bg-[#141103]",
+    row: "bg-amber-50 dark:bg-[#141103]",
     dot: "bg-amber-500 dark:bg-amber-400",
     text: "text-amber-800 dark:text-amber-300",
   };
@@ -292,7 +292,7 @@ export default async function AccountDetailPage({
       <li
         key={schedule.id}
         id={isNext ? "next-schedule" : undefined}
-        className={`flex break-inside-avoid flex-col rounded-xl border p-4
+        className={`flex break-inside-avoid flex-col rounded-xl shadow-md p-4
           transition-colors duration-700 ${st.row} ${
             isNext
               ? "relative mb-5 border-slate-400 dark:border-slate-600"
@@ -507,10 +507,7 @@ export default async function AccountDetailPage({
         progressPct={progressPct}
       />
 
-      <div
-        className="max-w-8xl relative mx-auto overflow-visible px-4 pb-16
-          md:px-10"
-      >
+      <div className="max-w-8xl relative mx-auto overflow-visible pb-16">
         <div className="mt-5 space-y-6 sm:mt-10">
           <div
             className="flex flex-col md:flex-row justify-start
@@ -525,7 +522,7 @@ export default async function AccountDetailPage({
               <span>{`<-`} back to</span>
               <span>{borrowerName} details</span>
             </Link> */}
-            <div className="flex gap-2 print:hidden">
+            <div className="flex gap-2 print:hidden px-4">
               <ShareScheduleButton
                 noDetails
                 borrowerName={borrowerName}
@@ -963,11 +960,10 @@ export default async function AccountDetailPage({
                               scheduleId={schedule.id}
                               id={isNext ? "next-schedule" : undefined}
                               className={cn(
-                                "rounded-xl border-[1.5px] px-4 py-3",
+                                "rounded-xl shadow-sm px-4 py-3",
                                 st.row,
                                 isNext
-                                  ? `relative my-5 border-slate-300
-                                    dark:border-[#020617] `
+                                  ? "relative my-5 dark:border-[#020617] "
                                   : "border-slate-300 dark:border-[#020617]",
                               )}
                               defaultOpen={

@@ -19,7 +19,8 @@ import {
   formFieldLabelClassName,
 } from "@/lib/form-field-classes";
 import { supabase } from "@/lib/supabase/client";
-import NeobrutButton from "@/components/neobrut-button";
+import { Button } from "@/components/ui/button";
+import { Wallet, CheckCircle2 } from "lucide-react";
 import { buildSchedulesPayload } from "@/lib/payment-schedule/build-payload";
 import { deriveBimonthlyAnchors } from "@/lib/payment-schedule/bimonthly-legacy";
 
@@ -370,16 +371,17 @@ export default function AccountForm({
 
       <div>
         <label className={formFieldLabelClassName}>Account type</label>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <label
-            className={`flex cursor-pointer items-center gap-2 rounded-lg
-              border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
-              dark:text-slate-800 ${
+            className={`flex cursor-pointer items-center gap-2 rounded-xl border
+              px-3 py-2 text-sm font-semibold transition ${
                 typeValue === "loan"
-                  ? `bg-emerald-300 shadow-[2px_2px_0px_0px_#0f172a]
-                    dark:bg-emerald-400`
-                  : `bg-white hover:bg-slate-50 dark:bg-slate-800
-                    dark:text-white`
+                  ? `border-emerald-500 bg-emerald-50 text-emerald-700
+                    dark:border-emerald-500 dark:bg-emerald-900/30
+                    dark:text-emerald-300`
+                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
+                    dark:border-slate-700 dark:bg-card
+                    dark:text-muted-foreground dark:hover:bg-muted`
               }`}
           >
             <input
@@ -391,13 +393,15 @@ export default function AccountForm({
             <span>loan</span>
           </label>
           <label
-            className={`flex cursor-pointer items-center gap-2 rounded-lg
-              border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
-              dark:text-slate-800 ${
+            className={`flex cursor-pointer items-center gap-2 rounded-xl border
+              px-3 py-2 text-sm font-semibold transition ${
                 typeValue === "cash_advance"
-                  ? "bg-amber-300 shadow-[2px_2px_0px_0px_#0f172a]"
-                  : `bg-white hover:bg-slate-50 dark:bg-slate-800
-                    dark:text-white`
+                  ? `border-amber-500 bg-amber-50 text-amber-700
+                    dark:border-amber-500 dark:bg-amber-900/30
+                    dark:text-amber-300`
+                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
+                    dark:border-slate-700 dark:bg-card
+                    dark:text-muted-foreground dark:hover:bg-muted`
               }`}
           >
             <input
@@ -416,16 +420,16 @@ export default function AccountForm({
 
       <div>
         <label className={formFieldLabelClassName}>Schedule mode</label>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <label
-            className={`flex cursor-pointer items-center gap-2 rounded-lg
-              border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
-              dark:text-slate-800 ${
+            className={`flex cursor-pointer items-center gap-2 rounded-xl border
+              px-3 py-2 text-sm font-semibold transition ${
                 scheduleMode === "auto"
-                  ? `bg-sky-300 shadow-[2px_2px_0px_0px_#0f172a]
-                    dark:bg-sky-400`
-                  : `bg-white hover:bg-slate-50 dark:bg-slate-800
-                    dark:text-white`
+                  ? `border-sky-500 bg-sky-50 text-sky-700 dark:border-sky-500
+                    dark:bg-sky-900/30 dark:text-sky-300`
+                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
+                    dark:border-slate-700 dark:bg-card
+                    dark:text-muted-foreground dark:hover:bg-muted`
               }`}
           >
             <input
@@ -435,19 +439,20 @@ export default function AccountForm({
               className="sr-only"
             />
             <span>auto</span>
-            <span className="text-[10px] font-normal text-slate-600">
+            <span className="text-[10px] font-normal opacity-70">
               generate schedules
             </span>
           </label>
           <label
-            className={`flex cursor-pointer items-center gap-2 rounded-lg
-              border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
-              dark:text-slate-800 ${
+            className={`flex cursor-pointer items-center gap-2 rounded-xl border
+              px-3 py-2 text-sm font-semibold transition ${
                 scheduleMode === "manual"
-                  ? `bg-violet-300 shadow-[2px_2px_0px_0px_#0f172a]
-                    dark:bg-violet-400`
-                  : `bg-white hover:bg-slate-50 dark:bg-slate-800
-                    dark:text-white`
+                  ? `border-violet-500 bg-violet-50 text-violet-700
+                    dark:border-violet-500 dark:bg-violet-900/30
+                    dark:text-violet-300`
+                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
+                    dark:border-slate-700 dark:bg-card
+                    dark:text-muted-foreground dark:hover:bg-muted`
               }`}
           >
             <input
@@ -457,7 +462,7 @@ export default function AccountForm({
               className="sr-only"
             />
             <span>manual</span>
-            <span className="text-[10px] font-normal text-slate-600">
+            <span className="text-[10px] font-normal opacity-70">
               add schedules yourself
             </span>
           </label>
@@ -467,16 +472,17 @@ export default function AccountForm({
       {!isEdit && (
         <div>
           <label className={formFieldLabelClassName}>Account status</label>
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <label
-              className={`dark flex cursor-pointer items-center gap-2 rounded-lg
-              border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
-              dark:text-slate-800 ${
+              className={`flex cursor-pointer items-center gap-2 rounded-xl
+              border px-3 py-2 text-sm font-semibold transition ${
                 !isPending
-                  ? `bg-emerald-300 shadow-[2px_2px_0px_0px_#0f172a]
-                    dark:bg-emerald-400`
-                  : `bg-white hover:bg-slate-50 dark:bg-slate-800
-                    dark:text-white`
+                  ? `border-emerald-500 bg-emerald-50 text-emerald-700
+                    dark:border-emerald-500 dark:bg-emerald-900/30
+                    dark:text-emerald-300`
+                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
+                    dark:border-slate-700 dark:bg-card
+                    dark:text-muted-foreground dark:hover:bg-muted`
               }`}
             >
               <input
@@ -488,13 +494,15 @@ export default function AccountForm({
               <span>active</span>
             </label>
             <label
-              className={`flex cursor-pointer items-center gap-2 rounded-lg
-              border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
-              dark:text-slate-800 ${
+              className={`flex cursor-pointer items-center gap-2 rounded-xl
+              border px-3 py-2 text-sm font-semibold transition ${
                 isPending
-                  ? "bg-amber-300 shadow-[2px_2px_0px_0px_#0f172a]"
-                  : `bg-white hover:bg-slate-50 dark:bg-slate-800
-                    dark:text-white`
+                  ? `border-amber-500 bg-amber-50 text-amber-700
+                    dark:border-amber-500 dark:bg-amber-900/30
+                    dark:text-amber-300`
+                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
+                    dark:border-slate-700 dark:bg-card
+                    dark:text-muted-foreground dark:hover:bg-muted`
               }`}
             >
               <input
@@ -507,7 +515,10 @@ export default function AccountForm({
             </label>
           </div>
           {isPending && (
-            <p className="mt-1 text-[10px] text-slate-500">
+            <p
+              className="mt-1.5 text-xs text-slate-500
+                dark:text-muted-foreground"
+            >
               Payment schedules will be created when this account is activated.
               A calendar event will be added using the release date.
             </p>
@@ -518,17 +529,19 @@ export default function AccountForm({
       {isManual && (
         <div>
           <label className={formFieldLabelClassName}>Interest type</label>
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             {(["flat", "rolling"] as const).map((type) => (
               <label
                 key={type}
-                className={`flex cursor-pointer items-center gap-2 rounded-lg
-                border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
-                dark:text-slate-800 ${
+                className={`flex cursor-pointer items-center gap-2 rounded-xl
+                border px-3 py-2 text-sm font-semibold transition ${
                   interestType === type
-                    ? "bg-violet-300 shadow-[2px_2px_0px_0px_#0f172a]"
-                    : `bg-white hover:bg-slate-50 dark:bg-slate-800
-                      dark:text-white`
+                    ? `border-violet-500 bg-violet-50 text-violet-700
+                      dark:border-violet-500 dark:bg-violet-900/30
+                      dark:text-violet-300`
+                    : `border-slate-200 bg-white text-slate-600
+                      hover:bg-slate-50 dark:border-slate-700 dark:bg-card
+                      dark:text-muted-foreground dark:hover:bg-muted`
                 }`}
               >
                 <input
@@ -538,14 +551,17 @@ export default function AccountForm({
                   className="sr-only"
                 />
                 <span className="capitalize">{type}</span>
-                <span className="text-[10px] font-normal text-slate-500">
+                <span className="text-[10px] font-normal opacity-70">
                   {type === "flat" ? "fixed total" : "applies each cycle"}
                 </span>
               </label>
             ))}
           </div>
           {isRolling && (
-            <p className="mt-1 text-[10px] text-slate-500">
+            <p
+              className="mt-1.5 text-xs text-slate-500
+                dark:text-muted-foreground"
+            >
               First schedule auto-created on save. Each partial payment
               generates the next cycle with interest on remaining balance.
             </p>
@@ -609,15 +625,15 @@ export default function AccountForm({
                 setValue("principal_amount", amt);
                 setPrincipalText(amt.toLocaleString());
               }}
-              className={`dark:border-border rounded-md border-2
-              border-slate-900 px-4 py-2 text-sm font-bold transition
-              hover:-translate-y-0.5 dark:shadow-none ${
+              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold
+              transition ${
                 Number(value) === amt
-                  ? `dark:bg-foreground dark:text-background bg-slate-900
-                    text-white`
-                  : `dark:text-foreground bg-gradient-to-br from-emerald-50
-                    to-sky-50 text-slate-600 dark:bg-gradient-to-br
-                    dark:from-slate-800 dark:to-slate-900`
+                  ? `border-slate-700 bg-slate-700 text-white
+                    dark:border-foreground dark:bg-foreground
+                    dark:text-background`
+                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
+                    dark:border-slate-700 dark:bg-card
+                    dark:text-muted-foreground dark:hover:bg-muted`
               }`}
             >
               {amt.toLocaleString()}
@@ -676,15 +692,15 @@ export default function AccountForm({
                 setValue("interest_rate", rate);
                 setInterestRateText(String(rate));
               }}
-              className={`dark:border-border rounded-md border-2
-              border-slate-900 px-4 py-2 text-sm font-bold transition
-              hover:-translate-y-0.5 dark:shadow-none ${
+              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold
+              transition ${
                 interestRateValue === rate
-                  ? `dark:bg-foreground dark:text-background bg-slate-900
-                    text-white`
-                  : `dark:text-foreground bg-gradient-to-br from-emerald-50
-                    to-sky-50 text-slate-600 dark:bg-gradient-to-br
-                    dark:from-slate-800 dark:to-slate-900`
+                  ? `border-slate-700 bg-slate-700 text-white
+                    dark:border-foreground dark:bg-foreground
+                    dark:text-background`
+                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
+                    dark:border-slate-700 dark:bg-card
+                    dark:text-muted-foreground dark:hover:bg-muted`
               }`}
             >
               {rate}%
@@ -718,11 +734,10 @@ export default function AccountForm({
                 const today = new Date().toISOString().split("T")[0];
                 setValue("release_date", today);
               }}
-              className="dark:border-border dark:text-foreground rounded-md
-                border-2 border-slate-900 bg-gradient-to-br from-emerald-50
-                to-sky-50 px-4 py-2 text-sm font-bold text-slate-600 transition
-                hover:-translate-y-0.5 dark:bg-gradient-to-br
-                dark:from-slate-800 dark:to-slate-900 dark:shadow-none"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5
+                text-xs font-semibold text-slate-600 transition
+                hover:bg-slate-50 dark:border-slate-700 dark:bg-card
+                dark:text-muted-foreground dark:hover:bg-muted"
             >
               today
             </button>
@@ -789,10 +804,10 @@ export default function AccountForm({
                     key={value}
                     type="button"
                     onClick={() => setValue("first_payment_date", value)}
-                    className={`dark:border-border rounded-md border-2 border-slate-900 px-4 py-2 text-sm font-bold transition hover:-translate-y-0.5 dark:shadow-none ${
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
                       firstPaymentDateValue === value
-                        ? "dark:bg-foreground dark:text-background bg-slate-900 text-white"
-                        : "dark:text-foreground bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-600 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900"
+                        ? "border-slate-700 bg-slate-700 text-white dark:border-foreground dark:bg-foreground dark:text-background"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-card dark:text-muted-foreground dark:hover:bg-muted"
                     }`}
                   >
                     {label}
@@ -816,16 +831,17 @@ export default function AccountForm({
             <label className={formFieldLabelClassName}>
               Calculate skipped schedules
             </label>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <label
-                className={`flex cursor-pointer items-center gap-2 rounded-lg
-                border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
-                dark:text-slate-800 ${
+                className={`flex cursor-pointer items-center gap-2 rounded-xl
+                border px-3 py-2 text-sm font-semibold transition ${
                   calculateSkipped
-                    ? `bg-emerald-300 shadow-[2px_2px_0px_0px_#0f172a]
-                      dark:bg-emerald-400`
-                    : `bg-white hover:bg-slate-50 dark:bg-slate-800
-                      dark:text-white`
+                    ? `border-emerald-500 bg-emerald-50 text-emerald-700
+                      dark:border-emerald-500 dark:bg-emerald-900/30
+                      dark:text-emerald-300`
+                    : `border-slate-200 bg-white text-slate-600
+                      hover:bg-slate-50 dark:border-slate-700 dark:bg-card
+                      dark:text-muted-foreground dark:hover:bg-muted`
                 }`}
               >
                 <input
@@ -838,14 +854,14 @@ export default function AccountForm({
                 <span>yes</span>
               </label>
               <label
-                className={`flex cursor-pointer items-center gap-2 rounded-lg
-                border-2 border-slate-900 px-3 py-2 text-sm font-bold transition
-                dark:text-slate-800 ${
+                className={`flex cursor-pointer items-center gap-2 rounded-xl
+                border px-3 py-2 text-sm font-semibold transition ${
                   !calculateSkipped
-                    ? `bg-red-300 shadow-[2px_2px_0px_0px_#0f172a]
-                      dark:bg-red-400`
-                    : `bg-white hover:bg-slate-50 dark:bg-slate-800
-                      dark:text-white`
+                    ? `border-red-500 bg-red-50 text-red-700 dark:border-red-500
+                      dark:bg-red-900/30 dark:text-red-300`
+                    : `border-slate-200 bg-white text-slate-600
+                      hover:bg-slate-50 dark:border-slate-700 dark:bg-card
+                      dark:text-muted-foreground dark:hover:bg-muted`
                 }`}
               >
                 <input
@@ -950,15 +966,15 @@ export default function AccountForm({
                     setValue("term_months", m);
                     setTermMonthsText(String(m));
                   }}
-                  className={`dark:border-border rounded-md border-2
-                  border-slate-900 px-4 py-2 text-sm font-bold transition
-                  hover:-translate-y-0.5 dark:shadow-none ${
+                  className={`rounded-lg border px-3 py-1.5 text-xs
+                  font-semibold transition ${
                     Number(termMonthsValue) === m
-                      ? `dark:bg-foreground dark:text-background bg-slate-900
-                        text-white`
-                      : `dark:text-foreground bg-gradient-to-br from-emerald-50
-                        to-sky-50 text-slate-600 dark:bg-gradient-to-br
-                        dark:from-slate-800 dark:to-slate-900`
+                      ? `border-slate-700 bg-slate-700 text-white
+                        dark:border-foreground dark:bg-foreground
+                        dark:text-background`
+                      : `border-slate-200 bg-white text-slate-600
+                        hover:bg-slate-50 dark:border-slate-700 dark:bg-card
+                        dark:text-muted-foreground dark:hover:bg-muted`
                   }`}
                 >
                   {m}
@@ -974,11 +990,11 @@ export default function AccountForm({
         </>
       )}
 
-      <NeobrutButton
+      <Button
         type="submit"
-        variant="green"
         disabled={isSubmitting}
         className="mt-2 w-full"
+        size="lg"
       >
         {isSubmitting
           ? isEdit
@@ -987,7 +1003,7 @@ export default function AccountForm({
           : isEdit
             ? "Save changes"
             : "Create account"}
-      </NeobrutButton>
+      </Button>
     </form>
   );
 }

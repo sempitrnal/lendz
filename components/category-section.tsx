@@ -277,7 +277,7 @@ export default function CategorySection({
                     <article
                       key={b.borrowerId ?? b.name}
                       className="dark:border-border dark:bg-card relative flex
-                        flex-col rounded-lg border border-slate-400 bg-white"
+                        flex-col rounded-lg shadow-sm bg-white"
                       onPointerEnter={() => {
                         if (b.borrowerId)
                           router.prefetch(`/borrowers/${b.borrowerId}`);
@@ -496,7 +496,7 @@ export default function CategorySection({
                     <article
                       key={b.borrowerId ?? b.name}
                       className="dark:border-border dark:bg-card relative flex
-                        flex-col rounded-lg border border-slate-400 bg-white"
+                        flex-col rounded-lg shadow-sm bg-white"
                       onPointerEnter={() => {
                         if (b.borrowerId)
                           router.prefetch(`/borrowers/${b.borrowerId}`);

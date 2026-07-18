@@ -15,9 +15,10 @@ import { fetchCategoriesAction } from "@/lib/actions/categories";
 import { revalidateBorrowersPage } from "@/lib/actions/borrowers";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import NeobrutButton from "../neobrut-button";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { triggerHaptic } from "@/lib/haptics";
+import { Plus } from "lucide-react";
 
 type CategoryOption = {
   id: string;
@@ -113,11 +114,8 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="border-slate-900 p-6 pb-20"
-    >
-      <div className="">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2">
+      <div>
         <label htmlFor="first_name" className={formFieldLabelClassName}>
           First Name
         </label>
@@ -127,10 +125,14 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
           {...register("first_name")}
           className={formFieldInputClassName}
         />
-        <p className={formFieldErrorClassName}>{errors.first_name?.message}</p>
+        {errors.first_name?.message && (
+          <p className={formFieldErrorClassName}>
+            {errors.first_name?.message}
+          </p>
+        )}
       </div>
 
-      <div className="">
+      <div>
         <label htmlFor="last_name" className={formFieldLabelClassName}>
           Last Name
         </label>
@@ -140,10 +142,12 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
           {...register("last_name")}
           className={formFieldInputClassName}
         />
-        <p className={formFieldErrorClassName}>{errors.last_name?.message}</p>
+        {errors.last_name?.message && (
+          <p className={formFieldErrorClassName}>{errors.last_name?.message}</p>
+        )}
       </div>
 
-      <div className="mb-2">
+      <div>
         <label htmlFor="contact" className={formFieldLabelClassName}>
           Contact Number
         </label>
@@ -164,7 +168,7 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
         />
       </div>
 
-      <div className="mb-2">
+      <div>
         <label
           htmlFor="borrower_categories_search"
           className={formFieldLabelClassName}
@@ -175,20 +179,25 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
           <button
             type="button"
             onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
-            className={`${formFieldInputClassName} flex w-full items-center justify-between`}
+            className={`${formFieldInputClassName} flex w-full items-center
+              justify-between`}
           >
             <span className="truncate text-left">
               {selectedCategoryNames.length > 0
                 ? selectedCategoryNames.join(", ")
                 : "Select categories"}
             </span>
-            <span className="ml-2 text-xs text-slate-500">
+            <span className="ml-2 text-xs text-slate-400">
               {isCategoryDropdownOpen ? "▲" : "▼"}
             </span>
           </button>
 
           {isCategoryDropdownOpen ? (
-            <div className="absolute z-20 mt-2 w-full rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+            <div
+              className="absolute z-20 mt-2 w-full rounded-xl border
+                border-slate-200 bg-white p-3 shadow-xl dark:border-slate-700
+                dark:bg-card"
+            >
               <input
                 id="borrower_categories_search"
                 type="text"
@@ -209,16 +218,20 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
                     return (
                       <label
                         key={category.id}
-                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-slate-50"
+                        className="flex cursor-pointer items-center gap-3
+                          rounded-lg px-2 py-2 hover:bg-slate-50
+                          dark:hover:bg-muted"
                       >
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleCategory(category.id)}
-                          className="h-4 w-4"
+                          className="h-4 w-4 rounded border-slate-300
+                            text-emerald-600 focus:ring-emerald-500"
                         />
                         <span
-                          className="h-3 w-3 rounded-full border"
+                          className="h-3 w-3 rounded-full border
+                            border-slate-200"
                           style={{
                             backgroundColor: category.color ?? "#cbd5e1",
                           }}
@@ -231,28 +244,31 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
               </div>
 
               <div className="mt-2 flex justify-end">
-                <NeobrutButton
-                  variant="white"
+                <Button
+                  type="button"
+                  size="sm"
                   onClick={() => setIsCategoryDropdownOpen(false)}
                 >
                   done
-                </NeobrutButton>
+                </Button>
               </div>
             </div>
           ) : null}
         </div>
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1.5 text-xs text-slate-500">
           Search and tick one or more categories.
         </p>
       </div>
-      <NeobrutButton
+
+      <Button
         disabled={isSubmitting}
         type="submit"
-        variant="green"
-        className="mt-5 w-full"
+        className="mt-2 w-full"
+        size="lg"
       >
+        <Plus className="h-4 w-4" />
         {isSubmitting ? "Creating..." : "Create Borrower"}
-      </NeobrutButton>
+      </Button>
     </form>
   );
 }

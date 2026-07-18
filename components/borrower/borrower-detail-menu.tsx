@@ -9,8 +9,9 @@ import { supabase } from "@/lib/supabase/client";
 import { revalidateBorrowersPage } from "@/lib/actions/borrowers";
 import { triggerHaptic } from "@/lib/haptics";
 import { toast } from "sonner";
-import NeobrutButton from "../neobrut-button";
+import { Pencil, UserRound } from "lucide-react";
 import BorrowerEditForm from "@/components/borrower/borrower-edit-form";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -143,33 +144,41 @@ export default function BorrowerDetailMenu({
       </DropdownMenu>
 
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete borrower</DialogTitle>
-          </DialogHeader>
-          <DialogDescription>
-            This borrower (and all their accounts) will be moved to deleted. You
-            can restore them later if needed.
-          </DialogDescription>
-          <DialogFooter>
-            <div className="flex justify-end gap-4">
-              <NeobrutButton
-                variant="white"
-                disabled={isDeleting}
-                onClick={closeDeleteModal}
-                className=""
-              >
-                cancel
-              </NeobrutButton>
-              <NeobrutButton
-                variant="red"
-                disabled={isDeleting}
-                onClick={confirmDelete}
-                className=""
-              >
-                {isDeleting ? "deleting..." : "delete"}
-              </NeobrutButton>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader className="gap-3 pb-2">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-full
+                bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+            >
+              <UserRound className="h-5 w-5" />
             </div>
+            <div className="space-y-1">
+              <DialogTitle className="text-xl font-semibold tracking-tight">
+                Delete borrower
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                This borrower (and all their accounts) will be moved to deleted.
+                You can restore them later if needed.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isDeleting}
+              onClick={closeDeleteModal}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={confirmDelete}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -177,8 +186,22 @@ export default function BorrowerDetailMenu({
       {editBorrower && (
         <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
           <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Edit borrower</DialogTitle>
+            <DialogHeader className="gap-3 pb-2">
+              <div
+                className="flex h-10 w-10 items-center justify-center
+                  rounded-full bg-indigo-100 text-indigo-700
+                  dark:bg-indigo-900/40 dark:text-indigo-300"
+              >
+                <Pencil className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <DialogTitle className="text-xl font-semibold tracking-tight">
+                  Edit Borrower
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Update borrower details and category assignments.
+                </DialogDescription>
+              </div>
             </DialogHeader>
             <BorrowerEditForm
               borrowerId={borrowerId}

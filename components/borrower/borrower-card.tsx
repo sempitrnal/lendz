@@ -168,11 +168,9 @@ export const BorrowerCard = memo(function BorrowerCard({
         if (Math.abs(e.touches[0].clientY - touchStartY.current) > 8)
           didScroll.current = true;
       }}
-      className={`relative w-full max-w-full min-w-0 rounded-lg border-[1.5px]
-        border-slate-300 bg-white text-left transition-all duration-150
-        dark:border-border dark:bg-card ${
-          isPending ? "" : "active:translate-y-0.5"
-        }`}
+      className={`relative w-full max-w-full min-w-0 rounded-lg shadow-sm
+        bg-white text-left transition-all duration-150 dark:border-border
+        dark:bg-card ${isPending ? "" : "active:translate-y-0.5"}`}
       aria-busy={isPending}
     >
       {/* Prefetch borrower detail page for instant navigation */}

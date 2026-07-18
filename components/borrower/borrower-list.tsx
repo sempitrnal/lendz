@@ -368,10 +368,9 @@ export default function BorrowersList({
             aria-label="Add borrower"
             className="dark:border-border dark:text-background fixed right-4
               bottom-[76px] z-40 flex size-14 items-center justify-center
-              rounded-full border-2 border-slate-900 bg-green-400 text-slate-600
-              shadow-[3px_3px_0px_0px_rgb(15_23_42/0.4)] transition-transform
-              duration-200 active:scale-95 dark:bg-green-400
-              dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
+              rounded-full border-2 border-green-500 bg-green-400 text-slate-600
+              transition-transform duration-200 active:scale-95
+              dark:bg-green-400 dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
           >
             <Plus className="size-5" />
           </button>,
@@ -456,7 +455,8 @@ export default function BorrowersList({
             onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
             className="dark:border-border dark:hover:bg-muted flex w-full
               items-center justify-between gap-3 rounded-xl border bg-white
-              border-slate-300 px-4 py-3 text-left transition dark:shadow-none"
+              dark:bg-background border-slate-300 px-4 py-3 text-left transition
+              dark:shadow-none"
           >
             <span
               className="dark:text-foreground text-sm font-bold tracking-wide
@@ -578,15 +578,8 @@ export default function BorrowersList({
       {/* Borrowers list header + sort */}
       <div className="mb-5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span
-            className="rounded-md border-2 border-slate-900 bg-slate-900 p-1.5
-              text-white dark:border-slate-600 dark:bg-slate-100
-              dark:text-slate-600"
-          >
-            <Users className="size-4" />
-          </span>
           <h2
-            className="text-base font-black lowercase tracking-wide
+            className="text-base font-bold lowercase tracking-wide
               text-slate-600 dark:text-white"
           >
             borrowers
