@@ -33,4 +33,5 @@ export async function revalidateBorrowerDetailPage(borrowerId: string) {
   updateTag("accounts-page");
   updateTag("dashboard");
   updateTag("next-collection");
+  revalidateTag("account-detail", "default");
 }

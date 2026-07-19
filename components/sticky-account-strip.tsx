@@ -45,8 +45,8 @@ export default function StickyAccountStrip({
   return (
     <>
       <div
-        className="sticky top-16 z-40 border-b border-slate-300/60
-          bg-background/80 backdrop-blur-md dark:border-slate-700/60 sm:top-16
+        className="sticky top-16 z-40 border-b border-slate-300/60 bg-white
+          dark:bg-background backdrop-blur-md dark:border-slate-700/60 sm:top-16
           md:top-16"
       >
         <button
@@ -126,7 +126,7 @@ export default function StickyAccountStrip({
         {/* Dropdown overlay */}
         <div
           className={`absolute top-full right-0 left-0 z-30 overflow-hidden
-            border-x border-b border-slate-300/60 bg-background/95
+            border-x border-b border-slate-300/60 bg-white dark:bg-background
             backdrop-blur-md transition-all duration-300 ease-out
             dark:border-slate-700/60
             ${open ? "max-h-[440px] opacity-100" : "max-h-0 opacity-0"}`}
