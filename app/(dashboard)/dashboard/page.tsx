@@ -277,8 +277,8 @@ export default async function Dashboard({
   return (
     <main className="mx-auto max-w-7xl py-10 md:max-w-full px-4 pb-16 md:px-6">
       <section
-        className="dark:border-border mb-4 rounded-xl border border-slate-300
-          bg-white p-4 sm:mb-6 sm:p-6 dark:bg-card"
+        className="dark:border-border mb-4 rounded-xl shadow-sm bg-white p-4
+          sm:mb-6 sm:p-6 dark:bg-card"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -304,51 +304,51 @@ export default async function Dashboard({
           Quick glance on active collections, upcoming dues, and account
           movement.
         </p>
-      </section>
-
-      <section
-        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
-      >
-        {summaryCards.map((card) => (
-          <article
-            key={card.label}
-            className="dark:border-border dark:bg-card min-w-0 rounded-xl border
-              border-slate-300 bg-white p-4"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <span
-                className="dark:text-muted-foreground text-xs font-bold
-                  tracking-wide text-slate-600 uppercase"
-              >
-                {card.label}
-              </span>
-              <span
-                className={`dark:border-border dark:text-foreground rounded-md
-                border border-slate-900 p-1.5 text-slate-600 ${card.tone}`}
-              >
-                <card.icon className="size-4" />
-              </span>
-            </div>
-            <p
-              className="dark:text-foreground text-2xl font-black
-                text-slate-600"
+        <section
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3
+            mt-4"
+        >
+          {summaryCards.map((card) => (
+            <article
+              key={card.label}
+              className="dark:bg-card min-w-0 rounded-xl shadow-md dark:border-2
+                border-slate-900 bg-white p-4"
             >
-              {card.value}
-            </p>
-            <p
-              className="dark:text-muted-foreground mt-1 text-xs font-semibold
-                wrap-break-word text-slate-600"
-            >
-              {card.delta}
-            </p>
-          </article>
-        ))}
+              <div className="mb-3 flex items-center justify-between">
+                <span
+                  className="dark:text-muted-foreground text-xs font-bold
+                    tracking-wide text-slate-600 uppercase"
+                >
+                  {card.label}
+                </span>
+                <span
+                  className={`dark:border-border dark:text-foreground rounded-md
+                  p-1.5 text-slate-600 ${card.tone}`}
+                >
+                  <card.icon className="size-4" />
+                </span>
+              </div>
+              <p
+                className="dark:text-foreground text-2xl font-black
+                  text-slate-600"
+              >
+                {card.value}
+              </p>
+              <p
+                className="dark:text-muted-foreground mt-1 text-xs font-semibold
+                  wrap-break-word text-slate-600"
+              >
+                {card.delta}
+              </p>
+            </article>
+          ))}
+        </section>
       </section>
 
       <section className="mt-4 lg:mt-6">
         <article
           className="dark:border-border dark:bg-card bg-background min-w-0
-            rounded-xl border border-slate-300 p-4 sm:p-5"
+            rounded-xl dark:border shadow-sm border-slate-300 p-4 sm:p-5"
         >
           <div
             className="mb-4 flex flex-wrap items-center justify-between gap-2"
@@ -372,7 +372,7 @@ export default async function Dashboard({
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             <div
-              className="dark:border-border rounded-lg border border-slate-300
+              className="dark:border-border rounded-lg dark:border shadow-sm
                 bg-linear-to-br from-indigo-50 via-stone-50 to-white px-3 py-2.5
                 dark:from-indigo-900/20 dark:via-zinc-900/40
                 dark:to-zinc-900/60"
@@ -391,7 +391,7 @@ export default async function Dashboard({
               </p>
             </div>
             <div
-              className="dark:border-border rounded-lg border border-slate-300
+              className="dark:border-border rounded-lg dark:border shadow-sm
                 bg-linear-to-br from-sky-50 via-stone-50 to-white px-3 py-2.5
                 dark:from-sky-900/20 dark:via-zinc-900/40 dark:to-zinc-900/60"
             >
@@ -409,7 +409,7 @@ export default async function Dashboard({
               </p>
             </div>
             <div
-              className="dark:border-border rounded-lg border border-slate-300
+              className="dark:border-border rounded-lg dark:border shadow-sm
                 bg-linear-to-br from-emerald-50 via-stone-50 to-white px-3
                 py-2.5 dark:from-emerald-900/20 dark:via-zinc-900/40
                 dark:to-zinc-900/60"
@@ -428,7 +428,7 @@ export default async function Dashboard({
               </p>
             </div>
             <div
-              className="dark:border-border rounded-lg border border-slate-300
+              className="dark:border-border rounded-lg dark:border shadow-sm
                 bg-linear-to-br from-amber-50 via-stone-50 to-white px-3 py-2.5
                 dark:from-amber-900/20 dark:via-zinc-900/40 dark:to-zinc-900/60"
             >
@@ -446,7 +446,7 @@ export default async function Dashboard({
               </p>
             </div>
             <div
-              className="dark:border-border rounded-lg border border-slate-300
+              className="dark:border-border rounded-lg dark:border shadow-sm
                 bg-linear-to-br from-yellow-50 via-stone-50 to-white px-3 py-2.5
                 dark:from-yellow-900/20 dark:via-zinc-900/40
                 dark:to-zinc-900/60"
@@ -465,7 +465,7 @@ export default async function Dashboard({
               </p>
             </div>
             <div
-              className="dark:border-border rounded-lg border border-slate-300
+              className="dark:border-border rounded-lg dark:border shadow-sm
                 bg-linear-to-br from-rose-50 via-stone-50 to-white px-3 py-2.5
                 dark:from-rose-900/20 dark:via-zinc-900/40 dark:to-zinc-900/60"
             >
@@ -525,8 +525,7 @@ export default async function Dashboard({
                   <div
                     key={m.label}
                     className={`dark:border-border flex flex-col gap-1
-                    rounded-lg border border-slate-300 px-2.5 py-2
-                    ${progressBg}`}
+                    rounded-lg dark:border shadow-sm px-2.5 py-2 ${progressBg}`}
                   >
                     <p
                       className="dark:text-muted-foreground text-[10px]

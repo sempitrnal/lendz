@@ -63,6 +63,7 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        onOpenAutoFocus={(e) => e.preventDefault()}
         className={cn(
           `fixed top-1/2 left-1/2 z-50 flex flex-col w-full
           max-w-[calc(100%-2rem)] max-h-[75svh] overflow-y-auto -translate-x-1/2

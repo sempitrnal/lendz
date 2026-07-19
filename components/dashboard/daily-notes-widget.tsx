@@ -409,7 +409,6 @@ function CategorySection({
                     py-2.5 text-sm text-slate-700 transition-all duration-200
                     outline-none focus:border-border
                     dark:placeholder:text-muted-foreground"
-                  autoFocus
                 />
               </div>
               <DialogFooter className="gap-2">

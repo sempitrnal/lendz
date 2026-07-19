@@ -279,7 +279,6 @@ export default function CategoryList() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Weekly clients"
                 className={formFieldInputClassName}
-                autoFocus
               />
             </div>
             <div>
