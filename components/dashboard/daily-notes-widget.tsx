@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -116,8 +116,23 @@ function CategorySection({
   const [editLabelValue, setEditLabelValue] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const newLabelRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setIsIOS(
+      /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream,
+    );
+  }, []);
+
+  useEffect(() => {
+    const el = newLabelRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [newLabel]);
 
   const checkedCount = items.filter((i) => i.is_checked).length;
 
@@ -208,9 +223,15 @@ function CategorySection({
         <>
           <div className="mb-4 flex flex-col gap-2">
             <textarea
+              ref={newLabelRef}
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               onKeyDown={(e) => {
+                if (isIOS) {
+                  // On iOS, let Return insert newlines and use the add button
+                  // to submit.
+                  return;
+                }
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   void handleAdd();
