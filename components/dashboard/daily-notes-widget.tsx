@@ -69,6 +69,17 @@ function darkTintColor(hex: string, opacity = 0.15): string {
 }
 
 /** Derive a readable text color from a hex color (lighten/darken for contrast) */
+function formatChecklistDate(iso: string): string {
+  const date = new Date(iso);
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 function readableColor(hex: string, isDark: boolean): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -114,7 +125,8 @@ function CategorySection({
     null,
   );
   const [editLabelValue, setEditLabelValue] = useState("");
-  const [expanded, setExpanded] = useState(false);
+  const editLabelRef = useRef<HTMLTextAreaElement>(null);
+  const [expanded, setExpanded] = useState(true);
   const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const { resolvedTheme } = useTheme();
@@ -133,6 +145,13 @@ function CategorySection({
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   }, [newLabel]);
+
+  useEffect(() => {
+    const el = editLabelRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [editLabelValue]);
 
   const checkedCount = items.filter((i) => i.is_checked).length;
 
@@ -174,8 +193,7 @@ function CategorySection({
 
   return (
     <div
-      className="rounded-2xl border border-border/50 p-2 transition-all
-        duration-200 sm:p-5"
+      className="border-border/50 p-2 transition-all duration-200 sm:p-5"
       style={{
         backgroundColor: bgColor ?? undefined,
       }}
@@ -268,13 +286,14 @@ function CategorySection({
               </p>
             </div>
           ) : (
-            <ul className="space-y-1">
+            <ul className="space-y-[8px]">
               {sorted.map((item) => (
                 <li
                   key={item.id}
                   onClick={() => onToggle(item)}
                   className={`group flex cursor-pointer items-center gap-3
-                    rounded-xl border px-2 py-2 transition-all duration-200 ${
+                    rounded-xl pl-4 border px-2 py-2 transition-all duration-200
+                    ${
                       item.is_checked
                         ? `bg-slate-50 dark:border-muted-foreground/30
                           dark:bg-muted/80`
@@ -302,18 +321,25 @@ function CategorySection({
                   >
                     <Check className="size-2" strokeWidth={2} />
                   </button>
-                  <span
-                    className={`min-w-0 flex-1 overflow-hidden text-sm
-                      font-medium break-words whitespace-pre-wrap transition-all
-                      duration-200 ${
-                        item.is_checked
-                          ? `text-slate-400 line-through
-                            dark:text-muted-foreground/60`
-                          : "text-slate-700 dark:text-foreground"
-                      }`}
-                  >
-                    {item.label}
-                  </span>
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <span
+                      className={`block text-sm font-medium break-words
+                        whitespace-pre-wrap transition-all duration-200 ${
+                          item.is_checked
+                            ? `text-slate-400 line-through
+                              dark:text-muted-foreground/60`
+                            : "text-slate-700 dark:text-foreground"
+                        }`}
+                    >
+                      {item.label}
+                    </span>
+                    <span
+                      className="block text-[10px] text-slate-400
+                        dark:text-muted-foreground/60"
+                    >
+                      {formatChecklistDate(item.created_at)}
+                    </span>
+                  </div>
                   <div className="relative shrink-0">
                     <button
                       type="button"
@@ -422,9 +448,10 @@ function CategorySection({
                   Label
                 </label>
                 <textarea
+                  ref={editLabelRef}
                   value={editLabelValue}
                   onChange={(e) => setEditLabelValue(e.target.value)}
-                  rows={4}
+                  rows={3}
                   className="dark:bg-card dark:text-foreground w-full
                     resize-none rounded-xl border border-border/50 bg-white px-3
                     py-2.5 text-sm text-slate-700 transition-all duration-200

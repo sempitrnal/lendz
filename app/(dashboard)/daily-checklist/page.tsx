@@ -2,8 +2,8 @@ import DailyNotesWidget from "@/components/dashboard/daily-notes-widget";
 
 export default function DailyChecklistPage() {
   return (
-    <main className="mx-auto max-w-7xl py-10 md:max-w-full px-4 pb-16 md:px-6">
-      <div className="mb-8 space-y-1">
+    <main className="mx-auto max-w-7xl py-10 md:max-w-full pb-16">
+      <div className="mb-8 space-y-1 px-6">
         <h1
           className="text-3xl font-bold tracking-tight text-slate-800
             dark:text-foreground"
