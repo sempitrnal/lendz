@@ -163,6 +163,131 @@ function MentionPill({
   );
 }
 
+const MENTION_PILL_CLASS =
+  "inline-block rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-xs font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300";
+
+function escapeRegex(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractBorrowerId(href: string): string | null {
+  const match = href.match(/\/borrowers\/([^/]+)$/);
+  return match?.[1] ?? null;
+}
+
+type MentionSegment = {
+  start: number;
+  end: number;
+  name: string;
+  id: string | null;
+  href: string | null;
+};
+
+function parseMentions(
+  label: string,
+  borrowers: BorrowerSearchItem[],
+): MentionSegment[] {
+  const names = new Map(
+    borrowers.map((b) => [`${b.first_name} ${b.last_name}`, b]),
+  );
+  const matches: MentionSegment[] = [];
+
+  const mdRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let mdMatch: RegExpExecArray | null;
+  while ((mdMatch = mdRegex.exec(label)) !== null) {
+    const name = mdMatch[1];
+    const href = mdMatch[2];
+    matches.push({
+      start: mdMatch.index,
+      end: mdRegex.lastIndex,
+      name,
+      id: extractBorrowerId(href),
+      href,
+    });
+  }
+
+  const nameMatches: MentionSegment[] = [];
+  names.forEach((borrower, name) => {
+    const re = new RegExp(`\\b${escapeRegex(name)}\\b`, "g");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(label)) !== null) {
+      if (
+        matches.some(
+          (mm) => m!.index >= mm.start && m!.index + name.length <= mm.end,
+        )
+      ) {
+        continue;
+      }
+      nameMatches.push({
+        start: m.index,
+        end: m.index + name.length,
+        name,
+        id: borrower.id,
+        href: `/borrowers/${borrower.id}`,
+      });
+    }
+  });
+
+  const all = [...matches, ...nameMatches].sort((a, b) => {
+    if (a.start !== b.start) return a.start - b.start;
+    return b.end - a.end;
+  });
+
+  const result: MentionSegment[] = [];
+  let lastEnd = -1;
+  for (const m of all) {
+    if (m.start >= lastEnd) {
+      result.push(m);
+      lastEnd = m.end;
+    }
+  }
+  return result;
+}
+
+function labelToFragment(label: string, borrowers: BorrowerSearchItem[]) {
+  const fragment = document.createDocumentFragment();
+  const matches = parseMentions(label, borrowers);
+  let idx = 0;
+  for (const m of matches) {
+    if (m.start > idx) {
+      fragment.appendChild(document.createTextNode(label.slice(idx, m.start)));
+    }
+    const span = document.createElement("span");
+    span.contentEditable = "false";
+    span.className = MENTION_PILL_CLASS;
+    span.textContent = m.name;
+    if (m.id) span.dataset.mention = m.id;
+    else if (m.href) span.dataset.href = m.href;
+    fragment.appendChild(span);
+    idx = m.end;
+  }
+  if (idx < label.length) {
+    fragment.appendChild(document.createTextNode(label.slice(idx)));
+  }
+  return fragment;
+}
+
+function serializeContent(el: HTMLElement): string {
+  let result = "";
+  for (const node of el.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      result += node.textContent ?? "";
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const element = node as HTMLElement;
+      if (element.tagName === "BR") {
+        result += "\n";
+      } else if (element.dataset.mention && element.textContent) {
+        result += `[${element.textContent}](/borrowers/${element.dataset.mention})`;
+      } else if (element.dataset.href && element.textContent) {
+        result += `[${element.textContent}](${element.dataset.href})`;
+      } else {
+        result += element.textContent ?? "";
+      }
+    }
+  }
+  return result;
+}
+
 function formatChecklistDate(iso: string): string {
   const date = new Date(iso);
   return date.toLocaleString("en-US", {
@@ -195,13 +320,30 @@ function setCaretOffset(container: HTMLElement, offset: number) {
     if (node.nodeType === Node.TEXT_NODE) {
       const len = node.textContent?.length ?? 0;
       if (currentOffset + len >= offset) {
-        range.setStart(node, offset - currentOffset);
+        range.setStart(node, Math.max(0, offset - currentOffset));
         range.collapse(true);
         found = true;
       } else {
         currentOffset += len;
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement;
+      if (el.contentEditable === "false") {
+        const len = el.textContent?.length ?? 0;
+        if (currentOffset + len >= offset) {
+          const pos = offset - currentOffset;
+          if (pos <= 0) {
+            range.setStartBefore(el);
+          } else {
+            range.setStartAfter(el);
+          }
+          range.collapse(true);
+          found = true;
+        } else {
+          currentOffset += len;
+        }
+        return;
+      }
       for (const child of Array.from(node.childNodes)) {
         traverse(child);
         if (found) return;
@@ -295,11 +437,12 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     );
 
     useImperativeHandle(ref, () => ({
-      getValue: () => innerRef.current?.innerText ?? "",
+      getValue: () =>
+        innerRef.current ? serializeContent(innerRef.current) : "",
       submit: () => {
         const el = innerRef.current;
         if (!el || !onSubmit) return;
-        const value = el.innerText.trim();
+        const value = serializeContent(el).trim();
         if (!value) return;
         onSubmit(value);
         el.innerHTML = "";
@@ -319,9 +462,14 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       if (!el) return;
       el.innerHTML = "";
       if (defaultValue) {
-        el.appendChild(document.createTextNode(defaultValue));
+        el.appendChild(labelToFragment(defaultValue, borrowers));
       }
-    }, [defaultValue]);
+      const text = el.innerText;
+      onChange?.(text);
+      setMentionOpen(false);
+      setMentionQuery("");
+      setMentionStart(null);
+    }, [defaultValue, borrowers]);
 
     useEffect(() => {
       if (autoFocus) innerRef.current?.focus();
@@ -392,8 +540,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       const label = `${borrower.first_name} ${borrower.last_name}`;
       const span = document.createElement("span");
       span.contentEditable = "false";
-      span.className =
-        "inline-block rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-xs font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300";
+      span.className = MENTION_PILL_CLASS;
       span.textContent = label;
       span.dataset.mention = borrower.id;
 
@@ -519,9 +666,9 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
             }
             setFocused(false);
           }}
-          className={`dark:bg-card/50 dark:text-foreground min-h-[40px] w-full
-            rounded-xl border border-border/50 bg-white/60 px-3 py-2 text-sm
-            text-slate-700 transition-all duration-200
+          className={`dark:bg-card/50 text-[16px] dark:text-foreground
+            min-h-[40px] w-full rounded-xl border border-border/50 bg-white/60
+            px-3 py-2 text-sm text-slate-700 transition-all duration-200
             empty:before:text-slate-400
             empty:before:content-[attr(data-placeholder)] focus:border-border
             focus:outline-none dark:empty:before:text-muted-foreground
@@ -713,6 +860,7 @@ function CategorySection({
             />
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => addInputRef.current?.submit()}
               disabled={saving || !newLabel.trim()}
               className="dark:text-foreground dark:hover:bg-muted/60 shrink-0
@@ -907,7 +1055,6 @@ function CategorySection({
                   onSubmit={handleEditSave}
                   placeholder="Edit item label…"
                   borrowers={borrowers}
-                  autoFocus
                 />
               </div>
               <DialogFooter className="gap-2">
