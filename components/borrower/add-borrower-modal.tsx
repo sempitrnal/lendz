@@ -29,7 +29,7 @@ export default function AddBorrowerModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md overflow-visible!">
         <DialogHeader className="gap-3 pb-2">
           <div
             className="flex h-10 w-10 items-center justify-center rounded-full

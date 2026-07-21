@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -23,6 +30,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
+import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 
 type ChecklistCategory = {
   id: string;
@@ -68,7 +77,92 @@ function darkTintColor(hex: string, opacity = 0.15): string {
   return `rgb(${blend(r, bgR)}, ${blend(g, bgG)}, ${blend(b, bgB)})`;
 }
 
-/** Derive a readable text color from a hex color (lighten/darken for contrast) */
+function LinkedLabel({
+  label,
+  checked,
+  borrowers,
+}: {
+  label: string;
+  checked: boolean;
+  borrowers: BorrowerSearchItem[];
+}) {
+  const names = useMemo(() => {
+    return new Map(borrowers.map((b) => [`${b.first_name} ${b.last_name}`, b]));
+  }, [borrowers]);
+
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(label)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(label.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <MentionPill
+        key={match.index}
+        name={match[1]}
+        href={match[2]}
+        checked={checked}
+      />,
+    );
+    lastIndex = regex.lastIndex;
+  }
+  const tail = label.slice(lastIndex);
+  if (tail) {
+    let offset = 0;
+    names.forEach((borrower, name) => {
+      const idx = tail.indexOf(name, offset);
+      if (idx !== -1) {
+        if (idx > offset) {
+          parts.push(tail.slice(offset, idx));
+        }
+        parts.push(
+          <MentionPill
+            key={`${borrower.id}-${idx}`}
+            name={name}
+            href={`/borrowers/${borrower.id}`}
+            checked={checked}
+          />,
+        );
+        offset = idx + name.length;
+      }
+    });
+    if (offset < tail.length) {
+      parts.push(tail.slice(offset));
+    }
+  }
+  return <>{parts}</>;
+}
+
+function MentionPill({
+  name,
+  href,
+  checked,
+}: {
+  name: string;
+  href: string;
+  checked: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      prefetch
+      onClick={(e) => e.stopPropagation()}
+      className={`inline-block rounded-md border px-1.5 py-0.5 text-xs
+        font-medium leading-none transition-opacity hover:opacity-70 ${
+          checked
+            ? `border-slate-200 text-slate-400 dark:border-muted-foreground/30
+              dark:text-muted-foreground/60`
+            : `border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800
+              dark:bg-sky-900/20 dark:text-sky-300`
+        }`}
+    >
+      {name}
+    </Link>
+  );
+}
+
 function formatChecklistDate(iso: string): string {
   const date = new Date(iso);
   return date.toLocaleString("en-US", {
@@ -78,6 +172,62 @@ function formatChecklistDate(iso: string): string {
     minute: "2-digit",
     hour12: true,
   });
+}
+
+function getCaretOffset(container: HTMLElement): number {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return 0;
+  const range = selection.getRangeAt(0);
+  const preCaretRange = range.cloneRange();
+  preCaretRange.selectNodeContents(container);
+  preCaretRange.setEnd(range.endContainer, range.endOffset);
+  return preCaretRange.toString().length;
+}
+
+function setCaretOffset(container: HTMLElement, offset: number) {
+  const selection = window.getSelection();
+  const range = document.createRange();
+  let currentOffset = 0;
+  let found = false;
+
+  function traverse(node: Node) {
+    if (found) return;
+    if (node.nodeType === Node.TEXT_NODE) {
+      const len = node.textContent?.length ?? 0;
+      if (currentOffset + len >= offset) {
+        range.setStart(node, offset - currentOffset);
+        range.collapse(true);
+        found = true;
+      } else {
+        currentOffset += len;
+      }
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      for (const child of Array.from(node.childNodes)) {
+        traverse(child);
+        if (found) return;
+      }
+    }
+  }
+
+  traverse(container);
+  if (!found) {
+    range.selectNodeContents(container);
+    range.collapse(false);
+  }
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+}
+
+function insertNodeAtCaret(node: Node): Range | null {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+  range.insertNode(node);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  return range;
 }
 
 function readableColor(hex: string, isDark: boolean): string {
@@ -97,6 +247,325 @@ function readableColor(hex: string, isDark: boolean): string {
   }
   return hex;
 }
+
+type ChecklistInputHandle = {
+  getValue: () => string;
+  submit: () => void;
+  clear: () => void;
+  focus: () => void;
+};
+
+type ChecklistInputProps = {
+  defaultValue?: string;
+  onChange?: (value: string) => void;
+  onSubmit?: (value: string) => void;
+  placeholder?: string;
+  borrowers: BorrowerSearchItem[];
+  showPesoButton?: boolean;
+  autoFocus?: boolean;
+  className?: string;
+};
+
+const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
+  (
+    {
+      defaultValue = "",
+      onChange,
+      onSubmit,
+      placeholder,
+      borrowers,
+      showPesoButton = false,
+      autoFocus = false,
+      className,
+    },
+    ref,
+  ) => {
+    const innerRef = useRef<HTMLDivElement>(null);
+    const [focused, setFocused] = useState(false);
+    const [mentionOpen, setMentionOpen] = useState(false);
+    const [mentionQuery, setMentionQuery] = useState("");
+    const [mentionIndex, setMentionIndex] = useState(0);
+    const [mentionStart, setMentionStart] = useState<number | null>(null);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const isIOS = useMemo(
+      () =>
+        /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+        !(window as any).MSStream,
+      [],
+    );
+
+    useImperativeHandle(ref, () => ({
+      getValue: () => innerRef.current?.innerText ?? "",
+      submit: () => {
+        const el = innerRef.current;
+        if (!el || !onSubmit) return;
+        const value = el.innerText.trim();
+        if (!value) return;
+        onSubmit(value);
+        el.innerHTML = "";
+        onChange?.("");
+      },
+      clear: () => {
+        const el = innerRef.current;
+        if (!el) return;
+        el.innerHTML = "";
+        onChange?.("");
+      },
+      focus: () => innerRef.current?.focus(),
+    }));
+
+    useEffect(() => {
+      const el = innerRef.current;
+      if (!el) return;
+      el.innerHTML = "";
+      if (defaultValue) {
+        el.appendChild(document.createTextNode(defaultValue));
+      }
+    }, [defaultValue]);
+
+    useEffect(() => {
+      if (autoFocus) innerRef.current?.focus();
+    }, [autoFocus]);
+
+    useEffect(() => {
+      const handler = (e: MouseEvent) => {
+        if (
+          wrapperRef.current &&
+          !wrapperRef.current.contains(e.target as Node)
+        ) {
+          setMentionOpen(false);
+        }
+      };
+      document.addEventListener("mousedown", handler);
+      return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
+    const mentionSuggestions = useMemo(() => {
+      const q = mentionQuery.toLowerCase();
+      if (!q) return borrowers.slice(0, 6);
+      return borrowers
+        .filter(
+          (b) =>
+            b.first_name.toLowerCase().includes(q) ||
+            b.last_name.toLowerCase().includes(q) ||
+            `${b.first_name} ${b.last_name}`.toLowerCase().includes(q),
+        )
+        .slice(0, 6);
+    }, [borrowers, mentionQuery]);
+
+    const insertPeso = () => {
+      const el = innerRef.current;
+      if (!el) return;
+      el.focus();
+      insertNodeAtCaret(document.createTextNode("₱"));
+      const text = el.innerText;
+      onChange?.(text);
+      detectMention(text, getCaretOffset(el));
+    };
+
+    const detectMention = (text: string, cursor: number) => {
+      const textBeforeCursor = text.slice(0, cursor);
+      const atIndex = textBeforeCursor.lastIndexOf("@");
+      if (atIndex === -1) {
+        setMentionOpen(false);
+        setMentionQuery("");
+        setMentionStart(null);
+        return;
+      }
+      const query = textBeforeCursor.slice(atIndex + 1);
+      if (/\s/.test(query)) {
+        setMentionOpen(false);
+        setMentionQuery("");
+        setMentionStart(null);
+        return;
+      }
+      setMentionOpen(true);
+      setMentionQuery(query);
+      setMentionStart(atIndex);
+      setMentionIndex(0);
+    };
+
+    const insertMention = (borrower: BorrowerSearchItem) => {
+      if (mentionStart === null) return;
+      const el = innerRef.current;
+      if (!el) return;
+      const label = `${borrower.first_name} ${borrower.last_name}`;
+      const span = document.createElement("span");
+      span.contentEditable = "false";
+      span.className =
+        "inline-block rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-xs font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300";
+      span.textContent = label;
+      span.dataset.mention = borrower.id;
+
+      el.focus();
+      setCaretOffset(el, mentionStart);
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const startRange = selection.getRangeAt(0);
+        setCaretOffset(el, mentionStart + 1 + mentionQuery.length);
+        const endRange = selection.getRangeAt(0);
+        const fullRange = document.createRange();
+        fullRange.setStart(startRange.startContainer, startRange.startOffset);
+        fullRange.setEnd(endRange.endContainer, endRange.endOffset);
+        fullRange.deleteContents();
+        fullRange.insertNode(span);
+        const afterSpan = document.createRange();
+        afterSpan.setStartAfter(span);
+        afterSpan.setEndAfter(span);
+        afterSpan.insertNode(document.createTextNode(" "));
+        afterSpan.collapse(false);
+        el.focus();
+        selection.removeAllRanges();
+        selection.addRange(afterSpan);
+      } else {
+        const fallback = insertNodeAtCaret(span);
+        if (fallback) {
+          const afterSpan = document.createRange();
+          afterSpan.setStartAfter(span);
+          afterSpan.setEndAfter(span);
+          afterSpan.insertNode(document.createTextNode(" "));
+          afterSpan.collapse(false);
+          el.focus();
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(afterSpan);
+        }
+      }
+
+      const text = el.innerText;
+      onChange?.(text);
+      setMentionOpen(false);
+      setMentionQuery("");
+      setMentionStart(null);
+    };
+
+    const handleInput = () => {
+      const el = innerRef.current;
+      if (!el) return;
+      const text = el.innerText;
+      onChange?.(text);
+      detectMention(text, getCaretOffset(el));
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (mentionOpen) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setMentionIndex((i) =>
+            Math.min(i + 1, mentionSuggestions.length - 1),
+          );
+          return;
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setMentionIndex((i) => Math.max(i - 1, 0));
+          return;
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          const selected = mentionSuggestions[mentionIndex];
+          if (selected) insertMention(selected);
+          return;
+        } else if (e.key === "Escape") {
+          setMentionOpen(false);
+          return;
+        }
+      }
+
+      if (isIOS) {
+        // On iOS, let Return insert newlines and use the add button
+        // to submit.
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        const value = innerRef.current?.innerText.trim() ?? "";
+        if (value && onSubmit) {
+          onSubmit(value);
+          innerRef.current!.innerHTML = "";
+          onChange?.("");
+        }
+      }
+    };
+
+    return (
+      <div ref={wrapperRef} className="relative flex flex-col gap-1">
+        {showPesoButton && focused && (
+          <div className="flex items-center justify-start">
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => insertPeso()}
+              className="rounded-md border border-border/50 bg-white px-2 py-1
+                text-xs font-semibold text-slate-600 shadow-sm transition-colors
+                hover:bg-slate-50 dark:bg-card dark:text-slate-300"
+            >
+              ₱
+            </button>
+          </div>
+        )}
+        <div
+          ref={innerRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={(e) => {
+            if (
+              e.relatedTarget &&
+              wrapperRef.current?.contains(e.relatedTarget as Node)
+            ) {
+              innerRef.current?.focus();
+              return;
+            }
+            setFocused(false);
+          }}
+          className={`dark:bg-card/50 dark:text-foreground min-h-[40px] w-full
+            rounded-xl border border-border/50 bg-white/60 px-3 py-2 text-sm
+            text-slate-700 transition-all duration-200
+            empty:before:text-slate-400
+            empty:before:content-[attr(data-placeholder)] focus:border-border
+            focus:outline-none dark:empty:before:text-muted-foreground
+            ${className ?? ""}`}
+          data-placeholder={placeholder ?? ""}
+          role="textbox"
+          aria-multiline="true"
+        />
+        {mentionOpen && mentionSuggestions.length > 0 && (
+          <div
+            className="absolute left-0 right-0 top-full z-9999 mt-1 max-h-48
+              overflow-auto rounded-xl border border-border/50 bg-white p-1
+              shadow-md dark:bg-card"
+          >
+            {mentionSuggestions.map((b, i) => (
+              <button
+                key={b.id}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  innerRef.current?.focus();
+                  insertMention(b);
+                }}
+                className={`w-full rounded-lg px-3 py-2 text-left text-sm
+                transition-colors ${
+                  i === mentionIndex
+                    ? "bg-slate-100 dark:bg-muted"
+                    : "hover:bg-slate-50 dark:hover:bg-muted/50"
+                }`}
+              >
+                <span
+                  className="font-medium text-slate-700 dark:text-foreground"
+                >
+                  {b.first_name} {b.last_name}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+ChecklistInput.displayName = "ChecklistInput";
 
 function CategorySection({
   category,
@@ -125,33 +594,13 @@ function CategorySection({
     null,
   );
   const [editLabelValue, setEditLabelValue] = useState("");
-  const editLabelRef = useRef<HTMLTextAreaElement>(null);
+  const addInputRef = useRef<ChecklistInputHandle>(null);
+  const editInputRef = useRef<ChecklistInputHandle>(null);
   const [expanded, setExpanded] = useState(true);
   const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null);
-  const [isIOS, setIsIOS] = useState(false);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  const newLabelRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    setIsIOS(
-      /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream,
-    );
-  }, []);
-
-  useEffect(() => {
-    const el = newLabelRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [newLabel]);
-
-  useEffect(() => {
-    const el = editLabelRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [editLabelValue]);
+  const { data: borrowers = [] } = useBorrowersSearch();
 
   const checkedCount = items.filter((i) => i.is_checked).length;
 
@@ -164,14 +613,27 @@ function CategorySection({
     [items],
   );
 
-  const handleAdd = async () => {
-    const trimmed = newLabel.trim();
+  const handleAdd = async (value: string) => {
+    const trimmed = value.trim();
     if (!trimmed) return;
     setSaving(true);
     await onAdd(trimmed, category?.id ?? null, date);
     setSaving(false);
     setNewLabel("");
+    addInputRef.current?.clear();
   };
+
+  const handleEditSave = (value: string) => {
+    if (!editingItem) return;
+    const trimmed = value.trim();
+    if (trimmed) onEditLabel(editingItem.id, trimmed);
+    setEditingItem(null);
+    setEditLabelValue("");
+  };
+
+  useEffect(() => {
+    if (editingItem) setEditLabelValue(editingItem.label);
+  }, [editingItem]);
 
   const catColor = category?.color;
   const bgColor = catColor
@@ -240,32 +702,18 @@ function CategorySection({
       {expanded && (
         <>
           <div className="mb-4 flex flex-col gap-2">
-            <textarea
-              ref={newLabelRef}
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-              onKeyDown={(e) => {
-                if (isIOS) {
-                  // On iOS, let Return insert newlines and use the add button
-                  // to submit.
-                  return;
-                }
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleAdd();
-                }
-              }}
+            <ChecklistInput
+              ref={addInputRef}
+              defaultValue=""
+              onChange={setNewLabel}
+              onSubmit={handleAdd}
               placeholder={`Add item${category ? ` to ${category.name}` : ""}…`}
-              rows={1}
-              className="dark:bg-card/50 dark:text-foreground w-full resize-none
-                rounded-xl border border-border/50 bg-white/60 px-3 py-2 text-sm
-                text-slate-700 transition-all duration-200
-                placeholder:text-slate-400 focus:border-border
-                focus:outline-none dark:placeholder:text-muted-foreground"
+              borrowers={borrowers}
+              showPesoButton
             />
             <button
               type="button"
-              onClick={() => void handleAdd()}
+              onClick={() => addInputRef.current?.submit()}
               disabled={saving || !newLabel.trim()}
               className="dark:text-foreground dark:hover:bg-muted/60 shrink-0
                 self-start rounded-lg px-3 py-1.5 text-xs font-semibold
@@ -331,7 +779,11 @@ function CategorySection({
                             : "text-slate-700 dark:text-foreground"
                         }`}
                     >
-                      {item.label}
+                      <LinkedLabel
+                        label={item.label}
+                        checked={item.is_checked}
+                        borrowers={borrowers}
+                      />
                     </span>
                     <span
                       className="block text-[10px] text-slate-400
@@ -420,7 +872,7 @@ function CategorySection({
           if (!v) setEditingItem(null);
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="overflow-visible! sm:max-w-md">
           <DialogHeader className="gap-3 pb-2">
             <div
               className="flex h-10 w-10 items-center justify-center rounded-full
@@ -447,16 +899,15 @@ function CategorySection({
                 >
                   Label
                 </label>
-                <textarea
-                  ref={editLabelRef}
-                  value={editLabelValue}
-                  onChange={(e) => setEditLabelValue(e.target.value)}
-                  rows={3}
-                  className="dark:bg-card dark:text-foreground w-full
-                    resize-none rounded-xl border border-border/50 bg-white px-3
-                    py-2.5 text-sm text-slate-700 transition-all duration-200
-                    outline-none focus:border-border
-                    dark:placeholder:text-muted-foreground"
+                <ChecklistInput
+                  key={editingItem.id}
+                  ref={editInputRef}
+                  defaultValue={editingItem.label}
+                  onChange={setEditLabelValue}
+                  onSubmit={handleEditSave}
+                  placeholder="Edit item label…"
+                  borrowers={borrowers}
+                  autoFocus
                 />
               </div>
               <DialogFooter className="gap-2">
@@ -464,13 +915,8 @@ function CategorySection({
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => {
-                    const trimmed = editLabelValue.trim();
-                    if (trimmed) {
-                      onEditLabel(editingItem.id, trimmed);
-                    }
-                    setEditingItem(null);
-                  }}
+                  onClick={() => editInputRef.current?.submit()}
+                  disabled={!editLabelValue.trim()}
                 >
                   Save
                 </Button>

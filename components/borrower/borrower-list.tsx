@@ -14,7 +14,9 @@ import { fetchCategoriesAction } from "@/lib/actions/categories";
 import { useSeedBorrowersSearch } from "@/hooks/use-borrowers-search";
 
 import AddBorrowerModal from "./add-borrower-modal";
-import { BorrowerCard } from "./borrower-card";
+import BorrowerScheduleCard, {
+  buildBorrowerScheduleCardProps,
+} from "./borrower-schedule-card";
 import { ChevronDown, Plus, Users } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PullToRefresh } from "@/components/pull-to-refresh";
@@ -64,6 +66,16 @@ export type Borrower = {
   manual_total_paid?: number;
   manual_total_remaining?: number;
   manual_accounts_count?: number;
+  total_paid?: number;
+  total_remaining?: number;
+  total_expected?: number;
+  all_schedules?: {
+    due_date: string;
+    amount: number;
+    amount_paid: number;
+    remaining: number;
+    status: string;
+  }[];
 };
 
 export type RecentAccount = {
@@ -144,7 +156,6 @@ export default function BorrowersList({
   const [sortMode] = useState<SortMode>("default");
   const [isAddBorrowerModalOpen, setIsAddBorrowerModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(12);
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -253,10 +264,6 @@ export default function BorrowersList({
     }
     return result;
   }, [safeBorrowers, safeCategoryIds]);
-
-  useEffect(() => {
-    setVisibleCount(12);
-  }, [safeCategoryIds, sortMode]);
 
   // Pre-compute sort metrics once per borrower instead of O(n log n) times inside sort comparator
   const borrowersWithMetrics = useMemo(() => {
@@ -613,24 +620,10 @@ export default function BorrowersList({
       ) : (
         <PullToRefresh>
           <MasonryGrid
-            borrowers={sortedBorrowers.slice(0, visibleCount)}
+            borrowers={sortedBorrowers}
             onBorrowerUpdated={refreshPage}
             onVisit={recordVisit}
           />
-          {sortedBorrowers.length > visibleCount && (
-            <button
-              type="button"
-              onClick={() => setVisibleCount((c) => c + 12)}
-              className="mx-auto mt-4 block rounded-xl border-2 border-slate-900
-                bg-white px-4 py-2.5 text-xs font-black tracking-wide
-                text-slate-700 uppercase shadow-[2px_2px_0px_0px_#0f172a]
-                transition active:translate-y-px active:shadow-none
-                dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200
-                dark:shadow-none"
-            >
-              load more ({sortedBorrowers.length - visibleCount} remaining)
-            </button>
-          )}
         </PullToRefresh>
       )}
     </div>
@@ -674,12 +667,9 @@ const MasonryGrid = memo(function MasonryGrid({
     return (
       <div className="flex w-full flex-col gap-4">
         {borrowers.map((borrower) => (
-          <BorrowerCard
+          <BorrowerScheduleCard
             key={borrower.id}
-            borrower={borrower}
-            showScheduleSummary
-            onBorrowerUpdated={onBorrowerUpdated}
-            onVisit={onVisit}
+            {...buildBorrowerScheduleCardProps(borrower)}
           />
         ))}
       </div>
@@ -694,12 +684,9 @@ const MasonryGrid = memo(function MasonryGrid({
       {columns.map((col, ci) => (
         <div key={ci} className="flex min-w-0 flex-1 flex-col gap-6">
           {col.map((borrower) => (
-            <BorrowerCard
+            <BorrowerScheduleCard
               key={borrower.id}
-              borrower={borrower}
-              showScheduleSummary
-              onBorrowerUpdated={onBorrowerUpdated}
-              onVisit={onVisit}
+              {...buildBorrowerScheduleCardProps(borrower)}
             />
           ))}
         </div>

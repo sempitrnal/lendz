@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ChevronDown, Search } from "lucide-react";
 import { useState, useMemo } from "react";
+import BorrowerScheduleCard from "@/components/borrower/borrower-schedule-card";
 
 interface ScheduleRow {
   id: string;
@@ -33,46 +32,6 @@ interface CategoryData {
   paidProfit: number;
 }
 
-function groupSchedulesByDate(
-  schedules: ScheduleRow[],
-  getAmount: (s: ScheduleRow) => number,
-) {
-  const groups: {
-    date: string;
-    status: string;
-    items: number[];
-    total: number;
-    totalPaid: number;
-  }[] = [];
-
-  for (const s of schedules) {
-    const last = groups[groups.length - 1];
-    if (last && last.date === s.dueDate && last.status === s.status) {
-      last.items.push(getAmount(s));
-      last.total += getAmount(s);
-      last.totalPaid += s.amountPaid;
-    } else {
-      groups.push({
-        date: s.dueDate,
-        status: s.status,
-        items: [getAmount(s)],
-        total: getAmount(s),
-        totalPaid: s.amountPaid,
-      });
-    }
-  }
-
-  return groups;
-}
-
-function formatDate(d: string, tz: string) {
-  return new Date(d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: tz,
-  });
-}
-
 function slugify(label: string) {
   return label
     .toLowerCase()
@@ -87,7 +46,6 @@ export default function CategorySection({
   cat: CategoryData;
   tz: string;
 }) {
-  const router = useRouter();
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
 
@@ -131,15 +89,11 @@ export default function CategorySection({
           0,
         );
         const totalPaid = b.schedules.reduce((sum, s) => sum + s.amountPaid, 0);
-        const groups = groupSchedulesByDate(b.schedules, (s) =>
-          s.status === "paid" ? s.amountDue : s.remaining,
-        );
         return {
           ...b,
           totalRemaining,
           totalPaid,
           totalExpected: totalPaid + totalRemaining,
-          groups,
         };
       }),
     [cat.pending],
@@ -149,8 +103,7 @@ export default function CategorySection({
     () =>
       cat.paid.map((b) => {
         const totalPaid = b.schedules.reduce((sum, s) => sum + s.amountDue, 0);
-        const groups = groupSchedulesByDate(b.schedules, (s) => s.amountDue);
-        return { ...b, totalPaid, groups };
+        return { ...b, totalPaid };
       }),
     [cat.paid],
   );
@@ -273,170 +226,28 @@ export default function CategorySection({
                 </p>
               ) : (
                 filteredPending.map((b) => {
+                  const schedules = b.schedules.map((s) => ({
+                    dueDate: s.dueDate,
+                    amount: s.status === "paid" ? s.amountDue : s.remaining,
+                    amountPaid:
+                      s.status === "paid" ? s.amountDue : s.amountPaid,
+                    remaining: s.remaining,
+                    status: s.status,
+                  }));
                   return (
-                    <article
+                    <BorrowerScheduleCard
+                      displayCategory={false}
                       key={b.borrowerId ?? b.name}
-                      className="dark:border-border dark:bg-card relative flex
-                        flex-col rounded-lg shadow-sm bg-white"
-                      onPointerEnter={() => {
-                        if (b.borrowerId)
-                          router.prefetch(`/borrowers/${b.borrowerId}`);
-                      }}
-                    >
-                      <div
-                        className="pointer-events-none absolute inset-0
-                          rounded-lg"
-                        style={{
-                          backgroundImage: `linear-gradient(135deg, ${b.categoryColor ?? "#cbd5e1"}15, transparent 50%)`,
-                        }}
-                      />
-                      <div
-                        className="flex flex-col gap-1 border-b border-slate-100
-                          p-3 dark:border-border/50"
-                      >
-                        <Link
-                          href={
-                            b.borrowerId ? `/borrowers/${b.borrowerId}` : "#"
-                          }
-                          prefetch
-                          className="dark:text-foreground block truncate
-                            text-base font-bold text-slate-700 lowercase
-                            transition hover:opacity-70"
-                        >
-                          {b.name}
-                        </Link>
-                        <span
-                          className="dark:text-muted-foreground inline-flex
-                            items-center gap-1.5 text-[10px] font-bold
-                            text-slate-400 uppercase"
-                        >
-                          <span
-                            className="size-2 shrink-0 rounded-full border
-                              border-slate-900/25"
-                            style={{
-                              backgroundColor: b.categoryColor ?? "#cbd5e1",
-                            }}
-                            aria-hidden
-                          />
-                          {b.category}
-                        </span>
-                      </div>
-                      <div className="flex-1 p-3">
-                        <div className="space-y-2">
-                          {b.groups.map((g, i) => (
-                            <div
-                              key={g.date + i}
-                              className="flex items-center justify-between
-                                gap-2"
-                            >
-                              <div className="min-w-0">
-                                <p
-                                  className="text-[10px] font-semibold
-                                    text-slate-400 uppercase
-                                    dark:text-muted-foreground"
-                                >
-                                  {formatDate(g.date, tz)}
-                                  {g.items.length > 1 && (
-                                    <span
-                                      className="ml-1 font-bold text-slate-300"
-                                    >
-                                      (×{g.items.length})
-                                    </span>
-                                  )}
-                                </p>
-                                <p
-                                  className="text-sm font-bold text-slate-700
-                                    dark:text-foreground"
-                                >
-                                  PHP {g.total.toLocaleString()}
-                                </p>
-                                {g.status === "partial" && (
-                                  <p
-                                    className="text-[10px] font-semibold
-                                      text-slate-400 dark:text-slate-500"
-                                  >
-                                    ₱{g.totalPaid.toLocaleString()} paid · ₱
-                                    {g.total.toLocaleString()} remaining
-                                  </p>
-                                )}
-                              </div>
-                              <span
-                                className={`shrink-0 rounded-full px-2.5 py-0.5
-                                  text-[8px] font-black uppercase ${
-                                    g.status === "paid"
-                                      ? `bg-emerald-100 text-emerald-700
-                                        dark:bg-emerald-800
-                                        dark:text-emerald-100`
-                                      : g.status === "overdue"
-                                        ? `bg-rose-100 text-rose-700
-                                          dark:bg-rose-800 dark:text-rose-100`
-                                        : g.status === "partial"
-                                          ? `bg-purple-100 text-purple-700
-                                            dark:bg-purple-800
-                                            dark:text-purple-100`
-                                          : `bg-amber-100 text-amber-700
-                                            dark:bg-amber-800
-                                            dark:text-amber-100`
-                                  }`}
-                              >
-                                {g.status}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div
-                        className="flex flex-col gap-1 rounded-b-lg border-t
-                          border-slate-100 bg-slate-50/60 p-3
-                          dark:border-border/50 dark:bg-muted/30"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span
-                            className="text-[10px] font-bold tracking-wide
-                              text-slate-400 uppercase"
-                          >
-                            total paid
-                          </span>
-                          <span
-                            className="text-sm font-bold text-emerald-600
-                              dark:text-emerald-400"
-                          >
-                            ₱{b.totalPaid.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span
-                            className="text-[10px] font-bold tracking-wide
-                              text-slate-400 uppercase"
-                          >
-                            total remaining
-                          </span>
-                          <span
-                            className="text-sm font-bold text-slate-600
-                              dark:text-slate-300"
-                          >
-                            ₱{b.totalRemaining.toLocaleString()}
-                          </span>
-                        </div>
-                        <div
-                          className="flex items-center justify-between border-t
-                            border-slate-200 pt-1 dark:border-slate-700/40"
-                        >
-                          <span
-                            className="text-[10px] font-bold tracking-wide
-                              text-slate-500 uppercase"
-                          >
-                            total expected
-                          </span>
-                          <span
-                            className="text-sm font-black text-slate-800
-                              dark:text-slate-100"
-                          >
-                            ₱{b.totalExpected.toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                    </article>
+                      borrowerId={b.borrowerId}
+                      name={b.name}
+                      category={b.category}
+                      categoryColor={b.categoryColor}
+                      schedules={schedules}
+                      totalPaid={b.totalPaid}
+                      totalRemaining={b.totalRemaining}
+                      totalExpected={b.totalExpected}
+                      tz={tz}
+                    />
                   );
                 })
               )}
@@ -492,116 +303,28 @@ export default function CategorySection({
                 </p>
               ) : (
                 filteredPaid.map((b) => {
+                  const schedules = b.schedules.map((s) => ({
+                    dueDate: s.dueDate,
+                    amount: s.amountDue,
+                    amountPaid: s.amountDue,
+                    remaining: 0,
+                    status: "paid" as const,
+                  }));
                   return (
-                    <article
+                    <BorrowerScheduleCard
+                      displayCategory={false}
                       key={b.borrowerId ?? b.name}
-                      className="dark:border-border dark:bg-card relative flex
-                        flex-col rounded-lg shadow-sm bg-white"
-                      onPointerEnter={() => {
-                        if (b.borrowerId)
-                          router.prefetch(`/borrowers/${b.borrowerId}`);
-                      }}
-                    >
-                      <div
-                        className="pointer-events-none absolute inset-0
-                          rounded-lg"
-                        style={{
-                          backgroundImage: `linear-gradient(135deg, ${b.categoryColor ?? "#cbd5e1"}08, transparent 50%)`,
-                        }}
-                      />
-                      <div
-                        className="flex flex-col gap-1 border-b border-slate-100
-                          p-3 dark:border-border/50"
-                      >
-                        <Link
-                          href={
-                            b.borrowerId ? `/borrowers/${b.borrowerId}` : "#"
-                          }
-                          prefetch
-                          className="dark:text-foreground block truncate
-                            text-base font-bold text-slate-700 lowercase
-                            transition hover:opacity-70"
-                        >
-                          {b.name}
-                        </Link>
-                        <span
-                          className="dark:text-muted-foreground inline-flex
-                            items-center gap-1.5 text-[10px] font-bold
-                            text-slate-400 uppercase"
-                        >
-                          <span
-                            className="size-2 shrink-0 rounded-full border
-                              border-slate-900/25"
-                            style={{
-                              backgroundColor: b.categoryColor ?? "#cbd5e1",
-                            }}
-                            aria-hidden
-                          />
-                          {b.category}
-                        </span>
-                      </div>
-                      <div className="flex-1 p-3">
-                        <div className="space-y-2">
-                          {b.groups.map((g, i) => (
-                            <div
-                              key={g.date + i}
-                              className="flex items-center justify-between
-                                gap-2"
-                            >
-                              <div className="min-w-0">
-                                <p
-                                  className="text-[10px] font-semibold
-                                    text-slate-400 uppercase
-                                    dark:text-muted-foreground"
-                                >
-                                  {formatDate(g.date, tz)}
-                                  {g.items.length > 1 && (
-                                    <span
-                                      className="ml-1 font-bold text-slate-300"
-                                    >
-                                      (×{g.items.length})
-                                    </span>
-                                  )}
-                                </p>
-                                <p
-                                  className="text-sm font-bold text-slate-700
-                                    dark:text-foreground"
-                                >
-                                  PHP {g.total.toLocaleString()}
-                                </p>
-                              </div>
-                              <span
-                                className="shrink-0 rounded-full bg-emerald-100
-                                  px-2.5 py-0.5 text-[8px] font-black uppercase
-                                  text-emerald-700 dark:bg-emerald-800
-                                  dark:text-emerald-100"
-                              >
-                                paid
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div
-                        className="flex items-center rounded-b-lg
-                          justify-between border-t border-slate-100
-                          bg-slate-50/60 p-3 dark:border-border/50
-                          dark:bg-muted/30"
-                      >
-                        <span
-                          className="dark:text-muted-foreground text-[10px]
-                            font-bold tracking-wide text-slate-400 uppercase"
-                        >
-                          total collected
-                        </span>
-                        <span
-                          className="dark:text-foreground text-sm font-black
-                            text-slate-700"
-                        >
-                          PHP {b.totalPaid.toLocaleString()}
-                        </span>
-                      </div>
-                    </article>
+                      borrowerId={b.borrowerId}
+                      name={b.name}
+                      category={b.category}
+                      categoryColor={b.categoryColor}
+                      schedules={schedules}
+                      totalPaid={b.totalPaid}
+                      totalRemaining={0}
+                      totalExpected={b.totalPaid}
+                      variant="paid"
+                      tz={tz}
+                    />
                   );
                 })
               )}

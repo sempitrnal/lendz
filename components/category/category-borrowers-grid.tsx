@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { BorrowerCard } from "@/components/borrower/borrower-card";
+import BorrowerScheduleCard, {
+  buildBorrowerScheduleCardProps,
+} from "@/components/borrower/borrower-schedule-card";
 import type { Borrower } from "@/components/borrower/borrower-list";
 import type { BorrowerNextCollection } from "@/lib/compute-borrower-next-collection";
 
@@ -60,30 +62,16 @@ export default function CategoryBorrowersGrid({
             next_collection_date: null,
             next_collection_amount: 0,
           };
-          const hasAccounts = (borrowerAccountCountById[borrower.id] ?? 0) > 0;
+          const borrowerWithSchedules = {
+            ...borrower,
+            all_schedules: nextMeta.all_schedules,
+            account_schedules: nextMeta.account_schedules,
+          } as Borrower;
           return (
             <div key={borrower.id} className="break-inside-avoid mb-4">
-              <BorrowerCard
-                borrower={
-                  {
-                    ...borrower,
-                    borrower_categories: borrower.borrower_categories ?? [],
-                    has_accounts: hasAccounts,
-                    next_collection_date: nextMeta.next_collection_date,
-                    next_collection_amount: nextMeta.next_collection_amount,
-                    next_collection_status: nextMeta.next_collection_status,
-                    overdue_count: nextMeta.overdue_count,
-                    overdue_total: nextMeta.overdue_total,
-                    accounts_count: nextMeta.accounts_count,
-                    account_schedules: nextMeta.account_schedules,
-                    overdue_schedules: nextMeta.overdue_schedules,
-                    manual_total_principal: nextMeta.manual_total_principal,
-                    manual_total_paid: nextMeta.manual_total_paid,
-                    manual_total_remaining: nextMeta.manual_total_remaining,
-                    manual_accounts_count: nextMeta.manual_accounts_count,
-                  } as Borrower
-                }
-                showScheduleSummary
+              <BorrowerScheduleCard
+                displayCategory={false}
+                {...buildBorrowerScheduleCardProps(borrowerWithSchedules)}
               />
             </div>
           );

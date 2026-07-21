@@ -311,7 +311,7 @@ export default async function Dashboard({
           {summaryCards.map((card) => (
             <article
               key={card.label}
-              className="dark:bg-card min-w-0 rounded-xl shadow-md dark:border-2
+              className="dark:bg-card min-w-0 rounded-xl shadow-sm dark:border-2
                 border-slate-900 bg-white p-4"
             >
               <div className="mb-3 flex items-center justify-between">

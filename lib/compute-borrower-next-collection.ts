@@ -1,4 +1,5 @@
 import {
+  amountPaidOnInstallment,
   isInstallmentFullyPaid,
   nextDueScheduleForCollection,
   remainingOnInstallment,
@@ -40,6 +41,16 @@ export type BorrowerNextCollection = {
   manual_total_paid: number;
   manual_total_remaining: number;
   manual_accounts_count: number;
+  total_paid: number;
+  total_remaining: number;
+  total_expected: number;
+  all_schedules: {
+    due_date: string;
+    amount: number;
+    amount_paid: number;
+    remaining: number;
+    status: string;
+  }[];
 };
 
 type AccountRow = {
@@ -76,6 +87,10 @@ export function computeBorrowerNextCollectionById(
       manual_total_paid: 0,
       manual_total_remaining: 0,
       manual_accounts_count: 0,
+      total_paid: 0,
+      total_remaining: 0,
+      total_expected: 0,
+      all_schedules: [],
     };
   }
   if (borrowerIds.length === 0 || accountRows.length === 0) {
@@ -250,6 +265,27 @@ export function computeBorrowerNextCollectionById(
       }
     }
 
+    const allSchedules: BorrowerNextCollection["all_schedules"] = [];
+    let totalPaid = 0;
+    let totalRemaining = 0;
+    for (const accId of accIds) {
+      const rows = byAccount.get(accId) ?? [];
+      for (const row of rows) {
+        const paid = amountPaidOnInstallment(row);
+        const remaining = remainingOnInstallment(row);
+        totalPaid += paid;
+        totalRemaining += remaining;
+        allSchedules.push({
+          due_date: row.due_date,
+          amount: remaining,
+          amount_paid: paid,
+          remaining,
+          status: row.status,
+        });
+      }
+    }
+    allSchedules.sort((a, b) => a.due_date.localeCompare(b.due_date));
+
     out[bid] = {
       next_collection_date: bestDate,
       next_collection_amount: amounts.reduce((sum, value) => sum + value, 0),
@@ -271,6 +307,10 @@ export function computeBorrowerNextCollectionById(
         manualTotalPrincipal - manualTotalPaid,
       ),
       manual_accounts_count: manualAccountsCount,
+      total_paid: totalPaid,
+      total_remaining: totalRemaining,
+      total_expected: totalPaid + totalRemaining,
+      all_schedules: allSchedules,
     };
   }
   return out;

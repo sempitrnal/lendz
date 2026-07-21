@@ -197,6 +197,17 @@ async function enrichBorrowerBatch(
   >();
   const accountToBorrower = new Map<string, string>();
 
+  type BorrowerScheduleItem = {
+    due_date: string;
+    amount: number;
+    amount_paid: number;
+    remaining: number;
+    status: string;
+  };
+  const allSchedulesByBorrower = new Map<string, BorrowerScheduleItem[]>();
+  const totalPaidByBorrower = new Map<string, number>();
+  const totalRemainingByBorrower = new Map<string, number>();
+
   for (const a of accounts) {
     accountToBorrower.set(a.id, a.borrower_id);
   }
@@ -212,6 +223,27 @@ async function enrichBorrowerBatch(
       paid_schedules_count:
         stats.paid_schedules_count + (s.status === "paid" ? 1 : 0),
     });
+
+    const paid = amountPaidOnInstallment(s);
+    const remaining = remainingOnInstallment(s);
+    totalPaidByBorrower.set(
+      borrowerId,
+      (totalPaidByBorrower.get(borrowerId) ?? 0) + paid,
+    );
+    totalRemainingByBorrower.set(
+      borrowerId,
+      (totalRemainingByBorrower.get(borrowerId) ?? 0) + remaining,
+    );
+    const list = allSchedulesByBorrower.get(borrowerId) ?? [];
+    list.push({
+      due_date: s.due_date,
+      amount: remaining,
+      amount_paid: paid,
+      remaining,
+      status: s.status,
+    });
+    allSchedulesByBorrower.set(borrowerId, list);
+
     if (s.status !== "overdue") continue;
 
     const prev = overdueByBorrower.get(borrowerId) ?? {
@@ -250,6 +282,8 @@ async function enrichBorrowerBatch(
       next_collection_date: null,
       next_collection_amount: 0,
     };
+    const totalPaid = totalPaidByBorrower.get(b.id) ?? 0;
+    const totalRemaining = totalRemainingByBorrower.get(b.id) ?? 0;
     return {
       ...b,
       has_accounts: accIds.length > 0,
@@ -268,6 +302,10 @@ async function enrichBorrowerBatch(
       manual_total_paid: n.manual_total_paid,
       manual_total_remaining: n.manual_total_remaining,
       manual_accounts_count: n.manual_accounts_count,
+      total_paid: totalPaid,
+      total_remaining: totalRemaining,
+      total_expected: totalPaid + totalRemaining,
+      all_schedules: allSchedulesByBorrower.get(b.id) ?? [],
     };
   });
 }
