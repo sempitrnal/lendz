@@ -674,10 +674,13 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
+              onPointerDown={(e) => e.preventDefault()}
+              onTouchStart={(e) => e.preventDefault()}
               onClick={() => insertPeso()}
-              className="rounded-md border border-border/50 bg-white px-2 py-1
-                text-xs font-semibold text-slate-600 shadow-sm transition-colors
-                hover:bg-slate-50 dark:bg-card dark:text-slate-300"
+              className="rounded-md border border-border/50 bg-white px-3 py-1.5
+                text-sm font-semibold text-slate-600 shadow-sm transition-colors
+                hover:bg-slate-50 dark:bg-card dark:text-slate-300 min-h-[36px]
+                min-w-[40px] touch-manipulation select-none"
             >
               ₱
             </button>
@@ -1089,6 +1092,7 @@ function CategorySection({
                   onSubmit={handleEditSave}
                   placeholder="Edit item label…"
                   borrowers={borrowers}
+                  showPesoButton
                 />
               </div>
               <DialogFooter className="gap-2">
