@@ -272,7 +272,7 @@ function appendTextWithBreaks(parent: Node, text: string) {
   parts.forEach((part, i) => {
     parent.appendChild(document.createTextNode(part));
     if (i < parts.length - 1) {
-      parent.appendChild(document.createElement("br"));
+      parent.appendChild(document.createTextNode("\n"));
     }
   });
 }
@@ -456,6 +456,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     const [mentionIndex, setMentionIndex] = useState(0);
     const [mentionStart, setMentionStart] = useState<number | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const enterHandledRef = useRef(false);
     const isMobile = useMemo(
       () =>
         /iPad|iPhone|iPod|Android/.test(navigator.userAgent) &&
@@ -646,9 +647,10 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
 
       if (isMobile && (e.key === "Enter" || e.keyCode === 13)) {
         e.preventDefault();
+        enterHandledRef.current = true;
         const el = innerRef.current;
         if (el) {
-          insertNodeAtCaret(document.createElement("br"));
+          insertNodeAtCaret(document.createTextNode("\n"));
           handleInput();
         }
         return;
@@ -663,6 +665,25 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
           onSubmit(value);
           el.innerHTML = "";
           onChange?.("");
+        }
+      }
+    };
+
+    const handleBeforeInput = (e: React.FormEvent<HTMLPreElement>) => {
+      const inputType = (e.nativeEvent as InputEvent).inputType;
+      if (
+        isMobile &&
+        (inputType === "insertParagraph" || inputType === "insertLineBreak")
+      ) {
+        e.preventDefault();
+        if (enterHandledRef.current) {
+          enterHandledRef.current = false;
+          return;
+        }
+        const el = innerRef.current;
+        if (el) {
+          insertNodeAtCaret(document.createTextNode("\n"));
+          handleInput();
         }
       }
     };
@@ -692,6 +713,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
           suppressContentEditableWarning
           onInput={handleInput}
           onKeyDown={handleKeyDown}
+          onBeforeInput={handleBeforeInput}
           onFocus={() => setFocused(true)}
           onBlur={(e) => {
             if (
