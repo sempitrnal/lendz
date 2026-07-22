@@ -453,9 +453,9 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     const [mentionIndex, setMentionIndex] = useState(0);
     const [mentionStart, setMentionStart] = useState<number | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
-    const isIOS = useMemo(
+    const isMobile = useMemo(
       () =>
-        /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+        /iPad|iPhone|iPod|Android/.test(navigator.userAgent) &&
         !(window as any).MSStream,
       [],
     );
@@ -641,17 +641,19 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
         }
       }
 
-      if (isIOS) {
-        // On iOS, let Return insert newlines and use the add button
+      if (isMobile) {
+        // On mobile, let Return insert newlines and use the add button
         // to submit.
         return;
       }
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        const value = innerRef.current?.innerText.trim() ?? "";
-        if (value && onSubmit) {
+        const el = innerRef.current;
+        if (!el || !onSubmit) return;
+        const value = serializeContent(el).trim();
+        if (value) {
           onSubmit(value);
-          innerRef.current!.innerHTML = "";
+          el.innerHTML = "";
           onChange?.("");
         }
       }
@@ -690,10 +692,10 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
             }
             setFocused(false);
           }}
-          className={`dark:bg-card/50 dark:text-foreground min-h-[40px]
-            w-full whitespace-pre-wrap rounded-xl border border-border/50
-            bg-white/60 px-3 py-2 text-base text-slate-700 transition-all
-            duration-200 empty:before:text-slate-400
+          className={`dark:bg-card/50 dark:text-foreground min-h-[40px] w-full
+            whitespace-pre-wrap rounded-xl border border-border/50 bg-white/60
+            px-3 py-2 text-base text-slate-700 transition-all duration-200
+            empty:before:text-slate-400
             empty:before:content-[attr(data-placeholder)] focus:border-border
             focus:outline-none dark:empty:before:text-muted-foreground
             ${className ?? ""}`}
