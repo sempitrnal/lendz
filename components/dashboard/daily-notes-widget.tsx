@@ -491,7 +491,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       if (defaultValue) {
         el.appendChild(labelToFragment(defaultValue, borrowers));
       }
-      const text = el.innerText;
+      const text = el.textContent ?? "";
       onChange?.(text);
       setMentionOpen(false);
       setMentionQuery("");
@@ -533,7 +533,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       if (!el) return;
       el.focus();
       insertNodeAtCaret(document.createTextNode("₱"));
-      const text = el.innerText;
+      const text = el.textContent ?? "";
       onChange?.(text);
       detectMention(text, getCaretOffset(el));
     };
@@ -606,7 +606,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
         }
       }
 
-      const text = el.innerText;
+      const text = el.textContent ?? "";
       onChange?.(text);
       setMentionOpen(false);
       setMentionQuery("");
@@ -616,7 +616,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     const handleInput = () => {
       const el = innerRef.current;
       if (!el) return;
-      const text = el.innerText;
+      const text = el.textContent ?? "";
       onChange?.(text);
       detectMention(text, getCaretOffset(el));
     };
@@ -644,11 +644,16 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
         }
       }
 
-      if (isMobile) {
-        // On mobile, let Return insert newlines and use the add button
-        // to submit.
+      if (isMobile && (e.key === "Enter" || e.keyCode === 13)) {
+        e.preventDefault();
+        const el = innerRef.current;
+        if (el) {
+          insertNodeAtCaret(document.createElement("br"));
+          handleInput();
+        }
         return;
       }
+
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         const el = innerRef.current;
