@@ -1130,8 +1130,8 @@ export default function DailyNotesWidget() {
     setCategories((data ?? []) as ChecklistCategory[]);
   };
 
-  const loadItems = async (targetDate: string) => {
-    setLoading(true);
+  const loadItems = async (targetDate: string, withLoading = true) => {
+    if (withLoading) setLoading(true);
     const { data, error } = await supabase
       .from("daily_checklist_items")
       .select(
@@ -1143,7 +1143,7 @@ export default function DailyNotesWidget() {
 
     if (error) {
       toast.error(error.message);
-      setLoading(false);
+      if (withLoading) setLoading(false);
       return;
     }
 
@@ -1164,12 +1164,52 @@ export default function DailyNotesWidget() {
     }) as DailyChecklistItem[];
 
     setItems(normalized);
-    setLoading(false);
+    if (withLoading) setLoading(false);
   };
 
   useEffect(() => {
     void loadCategories();
     void loadItems(date);
+  }, [date]);
+
+  const refreshTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`daily-checklist-items-${date}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "daily_checklist_items",
+          filter: `checklist_date=eq.${date}`,
+        },
+        () => {
+          if (refreshTimerRef.current) {
+            window.clearTimeout(refreshTimerRef.current);
+          }
+          refreshTimerRef.current = window.setTimeout(() => {
+            void loadItems(date, false);
+          }, 300);
+        },
+      )
+      .subscribe();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void loadItems(date, false);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      void supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVisible);
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+      }
+    };
   }, [date]);
 
   const editItemLabel = (itemId: string, newLabel: string) => {
