@@ -41,11 +41,20 @@ export default function RealtimeProvider({
       channel.on(
         "postgres_changes",
         { event: "*", schema: "public", table },
-        refresh,
+        (payload: unknown) => {
+          console.log(`[realtime] ${table} change:`, payload);
+          refresh();
+        },
       );
     });
 
-    channel.subscribe();
+    channel.subscribe((status: string, err?: Error) => {
+      if (err) {
+        console.error("[realtime] subscription error:", err);
+      } else {
+        console.log("[realtime] subscription status:", status);
+      }
+    });
 
     const onVisible = () => {
       if (document.visibilityState === "visible") {
