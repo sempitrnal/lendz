@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Plus, Wallet, Pencil } from "lucide-react";
+import { ArrowLeft, Plus, Wallet, Pencil, Copy } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -328,6 +328,34 @@ export default function BorrowerAccountsSection({
     };
   }, [accounts, accountMetricsById]);
 
+  const nextAmountsText = useMemo(() => {
+    if (!accounts) return "";
+    const lines = accounts
+      .map((a) => accountMetricsById[a.id]?.nextCollectionAmount)
+      .filter((amount): amount is number => Boolean(amount) && amount > 0)
+      .map((amount) => `₱${amount.toLocaleString()}`);
+    return lines.join("\n");
+  }, [accounts, accountMetricsById]);
+
+  const handleCopyNextCollections = async () => {
+    if (!nextAmountsText) {
+      toast.info("No next collection amounts to copy");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(nextAmountsText);
+      toast.success("Copied next collection amounts");
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = nextAmountsText;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      toast.success("Copied next collection amounts");
+    }
+  };
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -382,7 +410,7 @@ export default function BorrowerAccountsSection({
           </div>
         )}
 
-        <div className="mt-8">
+        <div className="mt-8 flex items-center justify-between">
           <button
             type="button"
             onClick={() => {
@@ -395,6 +423,20 @@ export default function BorrowerAccountsSection({
           >
             <ArrowLeft className="size-3.5" />
             back to borrowers
+          </button>
+          <button
+            type="button"
+            onClick={handleCopyNextCollections}
+            disabled={!nextAmountsText}
+            className="inline-flex items-center gap-1.5 rounded-lg border
+              border-slate-300 bg-white px-3 py-1.5 text-xs font-bold
+              text-slate-600 shadow-sm transition hover:bg-slate-50
+              active:translate-y-px active:shadow-none disabled:opacity-50
+              dark:border-slate-700 dark:bg-card dark:text-slate-300
+              dark:hover:bg-slate-800/50"
+          >
+            <Copy className="size-3.5" />
+            copy amounts
           </button>
         </div>
 
