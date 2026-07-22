@@ -9,6 +9,7 @@ import {
   Bell,
 } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { logPageView } from "@/lib/audit";
 import { getAllPaymentSchedules } from "@/lib/cache/schedules";
 import {
   isInstallmentFullyPaid,
@@ -44,6 +45,7 @@ export default async function Dashboard({
 }) {
   const params = searchParams ? await searchParams : {};
   const supabase = await createSupabaseServer();
+  await logPageView("/dashboard");
   const now = new Date();
   const TZ = "Asia/Manila";
   const todayIso = now.toLocaleDateString("en-CA", { timeZone: TZ });

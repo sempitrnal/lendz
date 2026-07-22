@@ -1,6 +1,7 @@
 import { getAllBorrowersData } from "@/lib/cache/borrowers";
 import BorrowersList from "@/components/borrower/borrower-list";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { logPageView } from "@/lib/audit";
 
 type BorrowersPageProps = {
   searchParams: Promise<{ q?: string; categories?: string }>;
@@ -17,6 +18,7 @@ export default async function BorrowersPage({
 
   try {
     const supabase = await createSupabaseServer();
+    await logPageView("/borrowers");
     const allBorrowers = await getAllBorrowersData();
 
     const borrowersQuery = await supabase

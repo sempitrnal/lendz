@@ -295,12 +295,15 @@ function serializeContent(el: HTMLElement): string {
       } else if (
         element.tagName === "DIV" ||
         element.tagName === "P" ||
+        element.tagName === "PRE" ||
         element.tagName === "SPAN"
       ) {
         result += serializeContent(element);
         if (
           i < children.length - 1 &&
-          (element.tagName === "DIV" || element.tagName === "P")
+          (element.tagName === "DIV" ||
+            element.tagName === "P" ||
+            element.tagName === "PRE")
         ) {
           result += "\n";
         }
@@ -446,7 +449,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     },
     ref,
   ) => {
-    const innerRef = useRef<HTMLDivElement>(null);
+    const innerRef = useRef<HTMLPreElement>(null);
     const [focused, setFocused] = useState(false);
     const [mentionOpen, setMentionOpen] = useState(false);
     const [mentionQuery, setMentionQuery] = useState("");
@@ -618,7 +621,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       detectMention(text, getCaretOffset(el));
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLPreElement>) => {
       if (mentionOpen) {
         if (e.key === "ArrowDown") {
           e.preventDefault();
@@ -675,7 +678,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
             </button>
           </div>
         )}
-        <div
+        <pre
           ref={innerRef}
           contentEditable
           suppressContentEditableWarning
@@ -694,8 +697,8 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
           }}
           className={`dark:bg-card/50 dark:text-foreground min-h-[40px] w-full
             whitespace-pre-wrap rounded-xl border border-border/50 bg-white/60
-            px-3 py-2 text-base text-slate-700 transition-all duration-200
-            empty:before:text-slate-400
+            px-3 py-2 text-base font-sans text-slate-700 transition-all
+            duration-200 empty:before:text-slate-400
             empty:before:content-[attr(data-placeholder)] focus:border-border
             focus:outline-none dark:empty:before:text-muted-foreground
             ${className ?? ""}`}

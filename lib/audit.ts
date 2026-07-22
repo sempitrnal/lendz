@@ -13,7 +13,8 @@ export type AuditAction =
   | "account.deleted"
   | "borrower.created"
   | "borrower.updated"
-  | "borrower.deleted";
+  | "borrower.deleted"
+  | "page.viewed";
 
 export type AuditEntry = {
   action: AuditAction;
@@ -38,4 +39,14 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
   } catch {
     // Audit logging must never break the main flow
   }
+}
+
+export async function logPageView(path: string): Promise<void> {
+  await logAudit({
+    action: "page.viewed",
+    entity_type: "page",
+    entity_id: null,
+    description: `Page viewed: ${path}`,
+    metadata: { path },
+  });
 }

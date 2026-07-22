@@ -1,5 +1,6 @@
 import { CalendarDays, ChevronDown } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { logPageView } from "@/lib/audit";
 import CategoryScrollNav from "@/components/category-scroll-nav";
 import CategorySection from "@/components/category-section";
 import MonthPicker from "@/components/month-picker";
@@ -60,6 +61,7 @@ export default async function DueThisMonthPage({
   const endOfMonthDate = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
 
   const supabase = await createSupabaseServer();
+  await logPageView("/due-this-month");
   const allSchedules = await getAllPaymentSchedules();
 
   let thisMonthSchedules = allSchedules.filter(

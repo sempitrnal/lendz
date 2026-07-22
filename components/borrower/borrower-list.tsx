@@ -192,19 +192,31 @@ export default function BorrowersList({
   }, []);
 
   const RECENT_KEY = "borrowers-recent-visits";
-  const [recentBorrowers, setRecentBorrowers] = useState<
-    {
-      id: string;
-      first_name: string;
-      last_name: string;
-      categoryColor: string | null;
-    }[]
-  >([]);
+  type RecentBorrower = {
+    id: string;
+    first_name: string;
+    last_name: string;
+    categoryColor: string | null;
+    visitCount: number;
+  };
+  const [recentBorrowers, setRecentBorrowers] = useState<RecentBorrower[]>([]);
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem(RECENT_KEY);
-      if (stored) setRecentBorrowers(JSON.parse(stored));
+      if (stored) {
+        const parsed: (Partial<RecentBorrower> & Pick<RecentBorrower, "id">)[] =
+          JSON.parse(stored);
+        setRecentBorrowers(
+          parsed.map((b) => ({
+            id: b.id,
+            first_name: b.first_name ?? "",
+            last_name: b.last_name ?? "",
+            categoryColor: b.categoryColor ?? null,
+            visitCount: b.visitCount ?? 1,
+          })),
+        );
+      }
     } catch {}
   }, []);
 
@@ -216,8 +228,13 @@ export default function BorrowersList({
       categoryColor: string | null;
     }) => {
       setRecentBorrowers((prev) => {
+        const existing = prev.find((b) => b.id === borrower.id);
+        const count = (existing?.visitCount ?? 0) + 1;
         const filtered = prev.filter((b) => b.id !== borrower.id);
-        const next = [borrower, ...filtered].slice(0, 10);
+        const next: RecentBorrower[] = [
+          { ...borrower, visitCount: count },
+          ...filtered,
+        ].slice(0, 10);
         try {
           localStorage.setItem(RECENT_KEY, JSON.stringify(next));
         } catch {}
@@ -441,6 +458,16 @@ export default function BorrowersList({
                       {initials}
                     </span>
                     {b.first_name} {b.last_name}
+                    {b.visitCount > 1 ? (
+                      <span
+                        className="ml-1 flex h-4 min-w-4 items-center
+                          justify-center rounded-full bg-slate-900 px-1
+                          text-[9px] font-black text-white dark:bg-slate-700"
+                        aria-label={`${b.visitCount} visits`}
+                      >
+                        {b.visitCount}
+                      </span>
+                    ) : null}
                   </Link>
                 );
               })}

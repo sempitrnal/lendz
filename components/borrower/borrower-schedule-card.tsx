@@ -36,6 +36,9 @@ type BorrowerLike = {
   total_expected?: number;
   has_accounts?: boolean;
   accounts_count?: number;
+  manual_total_paid?: number;
+  manual_total_remaining?: number;
+  manual_accounts_count?: number;
 };
 
 type BorrowerScheduleCardProps = {
@@ -52,6 +55,11 @@ type BorrowerScheduleCardProps = {
   children?: React.ReactNode;
   displayCategory?: boolean;
   hasAccounts?: boolean;
+  manualTotalPaid?: number;
+  manualTotalRemaining?: number;
+  manualAccountsCount?: number;
+  accountsCount?: number;
+  nextSchedule?: BorrowerScheduleCardSchedule | null;
 };
 
 function formatDate(d: string, tz?: string) {
@@ -126,8 +134,41 @@ export function buildBorrowerScheduleCardProps(
     0,
   );
 
-  const totalPaid = computedPaid;
-  const totalRemaining = computedRemaining;
+  const manualTotalPaid = borrower.manual_total_paid ?? 0;
+  const manualTotalRemaining = borrower.manual_total_remaining ?? 0;
+  const manualAccountsCount = borrower.manual_accounts_count ?? 0;
+  const accountsCount = borrower.accounts_count ?? raw.length;
+  const isManualAccount =
+    manualAccountsCount > 0 && accountsCount === manualAccountsCount;
+
+  let totalPaid = computedPaid;
+  let totalRemaining = computedRemaining;
+  if (isManualAccount) {
+    totalPaid = manualTotalPaid;
+    totalRemaining = manualTotalRemaining;
+  }
+
+  let nextSchedule: BorrowerScheduleCardSchedule | null = null;
+  if (monthSchedules.length === 0) {
+    const sorted = [...raw]
+      .filter((s) => s.due_date !== "9999-12-31")
+      .sort((a, b) => a.due_date.localeCompare(b.due_date));
+    const next = sorted[0];
+    if (next) {
+      const remaining = (next as any).remaining ?? next.amount;
+      const amountPaid =
+        (next as any).amount_paid ?? (next as any).amount_paid_total ?? 0;
+      const amount = next.status === "paid" ? amountPaid : remaining;
+      nextSchedule = {
+        dueDate: next.due_date,
+        amount,
+        amountPaid,
+        remaining,
+        status: next.status,
+      };
+    }
+  }
+
   const hasAccounts =
     borrower.has_accounts ?? (borrower.accounts_count ?? raw.length) > 0;
 
@@ -142,6 +183,11 @@ export function buildBorrowerScheduleCardProps(
     totalExpected: totalPaid + totalRemaining,
     hasAccounts,
     tz,
+    manualTotalPaid,
+    manualTotalRemaining,
+    manualAccountsCount,
+    accountsCount,
+    nextSchedule,
   };
 }
 
@@ -174,6 +220,57 @@ function groupSchedulesByDate(schedules: BorrowerScheduleCardSchedule[]) {
   return groups;
 }
 
+type ScheduleGroup = ReturnType<typeof groupSchedulesByDate>[number];
+
+function ScheduleGroupItem({
+  g,
+  tz,
+  label,
+}: {
+  g: ScheduleGroup;
+  tz?: string;
+  label?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="min-w-0">
+        <p
+          className="text-[10px] font-semibold text-slate-400 uppercase
+            dark:text-muted-foreground"
+        >
+          {label && (
+            <span className="font-bold text-slate-500">{label} · </span>
+          )}
+          {formatDate(g.date, tz)}
+          {g.items.length > 1 && (
+            <span className="ml-1 font-bold text-slate-300">
+              (&times;{g.items.length})
+            </span>
+          )}
+        </p>
+        <p className="text-sm font-bold text-slate-700 dark:text-foreground">
+          PHP {g.total.toLocaleString()}
+        </p>
+        {g.status === "partial" && (
+          <p
+            className="text-[10px] font-semibold text-slate-400
+              dark:text-slate-500"
+          >
+            &#8369;{g.totalPaid.toLocaleString()} paid &#183; &#8369;
+            {g.total.toLocaleString()} remaining
+          </p>
+        )}
+      </div>
+      <span
+        className={`shrink-0 rounded-full px-2.5 py-0.5 text-[8px] font-black
+          uppercase ${statusBadgeClasses(g.status)}`}
+      >
+        {g.status}
+      </span>
+    </div>
+  );
+}
+
 export default function BorrowerScheduleCard({
   borrowerId,
   name,
@@ -188,9 +285,19 @@ export default function BorrowerScheduleCard({
   children,
   displayCategory = true,
   hasAccounts = true,
+  manualTotalPaid = 0,
+  manualTotalRemaining = 0,
+  manualAccountsCount = 0,
+  accountsCount,
+  nextSchedule,
 }: BorrowerScheduleCardProps) {
   const router = useRouter();
   const groups = groupSchedulesByDate(schedules);
+  const nextGroups = nextSchedule ? groupSchedulesByDate([nextSchedule]) : [];
+
+  const isManualAccount =
+    manualAccountsCount > 0 &&
+    (accountsCount ?? manualAccountsCount) === manualAccountsCount;
 
   const showRemaining =
     variant !== "paid" &&
@@ -248,49 +355,64 @@ export default function BorrowerScheduleCard({
           >
             no active account
           </p>
+        ) : isManualAccount ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p
+                  className="text-[10px] font-semibold text-slate-400 uppercase
+                    dark:text-muted-foreground"
+                >
+                  manual account
+                </p>
+                <p
+                  className="text-sm font-bold text-slate-700
+                    dark:text-foreground"
+                >
+                  PHP {manualTotalRemaining.toLocaleString()} remaining
+                </p>
+              </div>
+              <span
+                className={`shrink-0 rounded-full px-2.5 py-0.5 text-[8px]
+                  font-black uppercase bg-sky-100 text-sky-700 dark:bg-sky-800
+                  dark:text-sky-100`}
+              >
+                manual
+              </span>
+            </div>
+            {manualTotalPaid > 0 && (
+              <p
+                className="text-[10px] font-semibold text-slate-400
+                  dark:text-slate-500"
+              >
+                &#8369;{manualTotalPaid.toLocaleString()} paid
+              </p>
+            )}
+          </div>
         ) : (
           <div className="space-y-2">
-            {groups.map((g, i) => (
-              <div
-                key={g.date + i}
-                className="flex items-center justify-between gap-2"
-              >
-                <div className="min-w-0">
-                  <p
-                    className="text-[10px] font-semibold text-slate-400
-                      uppercase dark:text-muted-foreground"
-                  >
-                    {formatDate(g.date, tz)}
-                    {g.items.length > 1 && (
-                      <span className="ml-1 font-bold text-slate-300">
-                        (×{g.items.length})
-                      </span>
-                    )}
-                  </p>
-                  <p
-                    className="text-sm font-bold text-slate-700
-                      dark:text-foreground"
-                  >
-                    PHP {g.total.toLocaleString()}
-                  </p>
-                  {g.status === "partial" && (
-                    <p
-                      className="text-[10px] font-semibold text-slate-400
-                        dark:text-slate-500"
-                    >
-                      ₱{g.totalPaid.toLocaleString()} paid · ₱
-                      {g.total.toLocaleString()} remaining
-                    </p>
-                  )}
-                </div>
-                <span
-                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-[8px]
-                    font-black uppercase ${statusBadgeClasses(g.status)}`}
+            {groups.length === 0 ? (
+              <>
+                <p
+                  className="text-xs font-medium text-slate-400
+                    dark:text-muted-foreground"
                 >
-                  {g.status}
-                </span>
-              </div>
-            ))}
+                  there is no sched for this month
+                </p>
+                {nextGroups.map((g, i) => (
+                  <ScheduleGroupItem
+                    key={g.date + i}
+                    g={g}
+                    tz={tz}
+                    label="next schedule"
+                  />
+                ))}
+              </>
+            ) : (
+              groups.map((g, i) => (
+                <ScheduleGroupItem key={g.date + i} g={g} tz={tz} />
+              ))
+            )}
           </div>
         )}
         {children}
