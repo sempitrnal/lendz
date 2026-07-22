@@ -2,6 +2,7 @@
 
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -387,6 +388,64 @@ function setCaretOffset(container: HTMLElement, offset: number) {
   selection?.addRange(range);
 }
 
+function selectRange(container: HTMLElement, start: number, end: number) {
+  const selection = window.getSelection();
+  const range = document.createRange();
+  let currentOffset = 0;
+
+  function traverse(node: Node) {
+    if (range.endContainer) return;
+    if (node.nodeType === Node.TEXT_NODE) {
+      const len = node.textContent?.length ?? 0;
+      const nodeStart = currentOffset;
+      const nodeEnd = currentOffset + len;
+      if (!range.startContainer && nodeEnd >= start) {
+        range.setStart(node, Math.max(0, start - nodeStart));
+      }
+      if (range.startContainer && nodeEnd >= end) {
+        range.setEnd(node, Math.max(0, end - nodeStart));
+        return;
+      }
+      currentOffset += len;
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement;
+      if (el.contentEditable === "false") {
+        const len = el.textContent?.length ?? 0;
+        const nodeStart = currentOffset;
+        const nodeEnd = currentOffset + len;
+        if (!range.startContainer && nodeEnd >= start) {
+          const pos = start - nodeStart;
+          if (pos <= 0) range.setStartBefore(el);
+          else range.setStartAfter(el);
+        }
+        if (range.startContainer && nodeEnd >= end) {
+          const pos = end - nodeStart;
+          if (pos <= 0) range.setEndBefore(el);
+          else range.setEndAfter(el);
+          return;
+        }
+        currentOffset += len;
+        return;
+      }
+      for (const child of Array.from(node.childNodes)) {
+        traverse(child);
+        if (range.endContainer) return;
+      }
+    }
+  }
+
+  traverse(container);
+  if (!range.startContainer) {
+    range.selectNodeContents(container);
+    range.collapse(false);
+  }
+  if (!range.endContainer) {
+    range.collapse(false);
+  }
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+}
+
 function insertNodeAtCaret(node: Node): Range | null {
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) return null;
@@ -433,6 +492,7 @@ type ChecklistInputProps = {
   showPesoButton?: boolean;
   autoFocus?: boolean;
   className?: string;
+  getBorrowerNextAmounts?: (borrowerId: string) => Promise<string>;
 };
 
 const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
@@ -446,6 +506,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       showPesoButton = false,
       autoFocus = false,
       className,
+      getBorrowerNextAmounts,
     },
     ref,
   ) => {
@@ -457,6 +518,8 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     const [mentionStart, setMentionStart] = useState<number | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const enterHandledRef = useRef(false);
+    const lastMentionedBorrowerRef = useRef<string | null>(null);
+    const isProcessingNextRef = useRef(false);
     const isMobile = useMemo(
       () =>
         /iPad|iPhone|iPod|Android/.test(navigator.userAgent) &&
@@ -565,6 +628,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       if (mentionStart === null) return;
       const el = innerRef.current;
       if (!el) return;
+      lastMentionedBorrowerRef.current = borrower.id;
       const label = `${borrower.first_name} ${borrower.last_name}`;
       const span = document.createElement("span");
       span.contentEditable = "false";
@@ -614,12 +678,67 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       setMentionStart(null);
     };
 
+    const handleSlashNext = async (start: number, end: number) => {
+      if (!getBorrowerNextAmounts || !lastMentionedBorrowerRef.current) return;
+      const borrowerId = lastMentionedBorrowerRef.current;
+      const el = innerRef.current;
+      if (!el) return;
+      isProcessingNextRef.current = true;
+      selectRange(el, start, end);
+      const selection = window.getSelection();
+      const range =
+        selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+      try {
+        const amountsText = await getBorrowerNextAmounts(borrowerId);
+        if (!amountsText) {
+          range?.deleteContents();
+          range?.collapse(false);
+          toast.info("No pending next collection amounts");
+        } else {
+          const textNode = document.createTextNode(amountsText);
+          range?.deleteContents();
+          if (range) range.insertNode(textNode);
+          const after = document.createRange();
+          after.setStartAfter(textNode);
+          after.setEndAfter(textNode);
+          after.collapse(false);
+          selection?.removeAllRanges();
+          selection?.addRange(after);
+        }
+      } catch {
+        toast.error("Failed to load next collection amounts");
+      } finally {
+        isProcessingNextRef.current = false;
+        const text = el.textContent ?? "";
+        onChange?.(text);
+        detectMention(text, getCaretOffset(el));
+      }
+    };
+
+    const detectSlashCommand = (text: string, cursor: number) => {
+      if (
+        isProcessingNextRef.current ||
+        !getBorrowerNextAmounts ||
+        !lastMentionedBorrowerRef.current
+      )
+        return;
+      const matches = [...text.matchAll(/\/next\b/g)];
+      let target: RegExpMatchArray | null = null;
+      for (const m of matches) {
+        const mEnd = (m.index ?? 0) + m[0].length;
+        if (mEnd <= cursor) target = m;
+      }
+      if (!target || target.index === undefined) return;
+      void handleSlashNext(target.index, target.index + target[0].length);
+    };
+
     const handleInput = () => {
       const el = innerRef.current;
       if (!el) return;
       const text = el.textContent ?? "";
       onChange?.(text);
       detectMention(text, getCaretOffset(el));
+      detectSlashCommand(text, getCaretOffset(el));
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLPreElement>) => {
@@ -808,6 +927,35 @@ function CategorySection({
   const isDark = resolvedTheme === "dark";
   const { data: borrowers = [] } = useBorrowersSearch();
 
+  const getBorrowerNextAmounts = useCallback(async (borrowerId: string) => {
+    try {
+      const res = await fetch(`/api/borrowers/${borrowerId}/details`);
+      if (!res.ok) return "";
+      const data = (await res.json()) as {
+        accounts: Array<Record<string, unknown>>;
+        metrics: Record<string, Record<string, unknown>>;
+      };
+      const lines = data.accounts
+        .filter((a) => {
+          const m = data.metrics[a.id as string];
+          return (
+            a.schedule_mode !== "manual" &&
+            (a.type === "loan" || a.type === "cash_advance") &&
+            m?.nextCollectionStatus === "pending" &&
+            Number(m?.nextCollectionAmount ?? 0) > 0
+          );
+        })
+        .map((a) => {
+          const m = data.metrics[a.id as string];
+          const amount = Number(m?.nextCollectionAmount ?? 0);
+          return `₱${amount.toLocaleString()}`;
+        });
+      return lines.join("\n");
+    } catch {
+      return "";
+    }
+  }, []);
+
   const checkedCount = items.filter((i) => i.is_checked).length;
 
   const sorted = useMemo(
@@ -915,6 +1063,7 @@ function CategorySection({
               onSubmit={handleAdd}
               placeholder={`Add item${category ? ` to ${category.name}` : ""}…`}
               borrowers={borrowers}
+              getBorrowerNextAmounts={getBorrowerNextAmounts}
               showPesoButton
             />
             <button
@@ -1114,6 +1263,7 @@ function CategorySection({
                   onSubmit={handleEditSave}
                   placeholder="Edit item label…"
                   borrowers={borrowers}
+                  getBorrowerNextAmounts={getBorrowerNextAmounts}
                   showPesoButton
                 />
               </div>

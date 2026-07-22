@@ -331,9 +331,19 @@ export default function BorrowerAccountsSection({
   const nextAmountsText = useMemo(() => {
     if (!accounts) return "";
     const lines = accounts
-      .map((a) => accountMetricsById[a.id]?.nextCollectionAmount)
-      .filter((amount): amount is number => Boolean(amount) && amount > 0)
-      .map((amount) => `₱${amount.toLocaleString()}`);
+      .filter((a) => {
+        const m = accountMetricsById[a.id];
+        return (
+          a.schedule_mode !== "manual" &&
+          (a.type === "loan" || a.type === "cash_advance") &&
+          m?.nextCollectionStatus === "pending" &&
+          (m?.nextCollectionAmount ?? 0) > 0
+        );
+      })
+      .map((a) => {
+        const amount = accountMetricsById[a.id]?.nextCollectionAmount ?? 0;
+        return `₱${amount.toLocaleString()}`;
+      });
     return lines.join("\n");
   }, [accounts, accountMetricsById]);
 
