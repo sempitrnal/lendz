@@ -38,6 +38,17 @@ export function nextDueScheduleForCollection<
   );
 }
 
+/** Returns the earliest schedule with a due_date on/after today and an amount still owed. */
+export function nextFutureScheduleForCollection<
+  T extends ScheduleBalanceInput & { due_date: string },
+>(schedulesSortedByDueDate: T[]): T | undefined {
+  const today = new Date().toISOString().slice(0, 10);
+  return schedulesSortedByDueDate.find((r) => {
+    const due = r.due_date.slice(0, 10);
+    return due >= today && remainingOnInstallment(r) > 0;
+  });
+}
+
 /** Returns all partial schedules plus the next pending schedule. */
 export function nextCollectionsForDisplay<
   T extends ScheduleBalanceInput & { due_date: string },

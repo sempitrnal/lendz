@@ -5,6 +5,7 @@ import {
   isInstallmentFullyPaid,
   nextCollectionsForDisplay,
   nextDueScheduleForCollection,
+  nextFutureScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
 
@@ -99,7 +100,7 @@ export async function GET(
       : isRolling
         ? Math.max(0, rollingContract - principal)
         : Math.max(0, totalPayment - principal);
-    const nextUnpaid = nextDueScheduleForCollection(rows as any);
+    const nextUnpaid = nextFutureScheduleForCollection(rows as any);
     const nextCollections = nextCollectionsForDisplay(rows as any).map((r) => ({
       due_date: r.due_date,
       amount: remainingOnInstallment(r),

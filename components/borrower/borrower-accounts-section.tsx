@@ -330,20 +330,21 @@ export default function BorrowerAccountsSection({
 
   const nextAmountsText = useMemo(() => {
     if (!accounts) return "";
-    const lines = accounts
+    const amounts = accounts
       .filter((a) => {
         const m = accountMetricsById[a.id];
         return (
           a.schedule_mode !== "manual" &&
           (a.type === "loan" || a.type === "cash_advance") &&
-          m?.nextCollectionStatus === "pending" &&
           (m?.nextCollectionAmount ?? 0) > 0
         );
       })
-      .map((a) => {
-        const amount = accountMetricsById[a.id]?.nextCollectionAmount ?? 0;
-        return `₱${amount.toLocaleString()}`;
-      });
+      .map((a) => accountMetricsById[a.id]?.nextCollectionAmount ?? 0);
+    const lines = amounts.map((amount) => `₱${amount.toLocaleString()}`);
+    if (lines.length > 1) {
+      const total = amounts.reduce((sum, amount) => sum + amount, 0);
+      lines.push(`Total: ₱${total.toLocaleString()}`);
+    }
     return lines.join("\n");
   }, [accounts, accountMetricsById]);
 

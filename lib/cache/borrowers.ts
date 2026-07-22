@@ -7,6 +7,7 @@ import {
   isInstallmentFullyPaid,
   nextCollectionsForDisplay,
   nextDueScheduleForCollection,
+  nextFutureScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
 import type {
@@ -438,7 +439,7 @@ async function fetchBorrowerAccountsWithSchedules(borrowerId: string) {
         : isRolling
           ? Math.max(0, rollingContract - principal)
           : Math.max(0, totalPayment - principal);
-      const nextUnpaid = nextDueScheduleForCollection(rows);
+      const nextUnpaid = nextFutureScheduleForCollection(rows);
       const nextCollections = nextCollectionsForDisplay(rows).map((r) => ({
         due_date: r.due_date,
         amount: remainingOnInstallment(r),

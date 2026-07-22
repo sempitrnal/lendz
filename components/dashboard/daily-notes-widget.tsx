@@ -388,22 +388,27 @@ function setCaretOffset(container: HTMLElement, offset: number) {
   selection?.addRange(range);
 }
 
-function selectRange(container: HTMLElement, start: number, end: number) {
-  const selection = window.getSelection();
+function getRangeForOffsets(
+  container: HTMLElement,
+  start: number,
+  end: number,
+): Range | null {
   const range = document.createRange();
   let currentOffset = 0;
+  let startSet = false;
+  let endSet = false;
 
   function traverse(node: Node) {
-    if (range.endContainer) return;
+    if (endSet) return;
     if (node.nodeType === Node.TEXT_NODE) {
       const len = node.textContent?.length ?? 0;
-      const nodeStart = currentOffset;
-      const nodeEnd = currentOffset + len;
-      if (!range.startContainer && nodeEnd >= start) {
-        range.setStart(node, Math.max(0, start - nodeStart));
+      if (!startSet && currentOffset + len >= start) {
+        range.setStart(node, Math.max(0, start - currentOffset));
+        startSet = true;
       }
-      if (range.startContainer && nodeEnd >= end) {
-        range.setEnd(node, Math.max(0, end - nodeStart));
+      if (startSet && currentOffset + len >= end) {
+        range.setEnd(node, Math.max(0, end - currentOffset));
+        endSet = true;
         return;
       }
       currentOffset += len;
@@ -411,17 +416,17 @@ function selectRange(container: HTMLElement, start: number, end: number) {
       const el = node as HTMLElement;
       if (el.contentEditable === "false") {
         const len = el.textContent?.length ?? 0;
-        const nodeStart = currentOffset;
-        const nodeEnd = currentOffset + len;
-        if (!range.startContainer && nodeEnd >= start) {
-          const pos = start - nodeStart;
+        if (!startSet && currentOffset + len >= start) {
+          const pos = start - currentOffset;
           if (pos <= 0) range.setStartBefore(el);
           else range.setStartAfter(el);
+          startSet = true;
         }
-        if (range.startContainer && nodeEnd >= end) {
-          const pos = end - nodeStart;
+        if (startSet && currentOffset + len >= end) {
+          const pos = end - currentOffset;
           if (pos <= 0) range.setEndBefore(el);
           else range.setEndAfter(el);
+          endSet = true;
           return;
         }
         currentOffset += len;
@@ -429,21 +434,17 @@ function selectRange(container: HTMLElement, start: number, end: number) {
       }
       for (const child of Array.from(node.childNodes)) {
         traverse(child);
-        if (range.endContainer) return;
+        if (endSet) return;
       }
     }
   }
 
   traverse(container);
-  if (!range.startContainer) {
-    range.selectNodeContents(container);
-    range.collapse(false);
+  if (!startSet) return null;
+  if (!endSet) {
+    range.setEnd(range.startContainer, range.startOffset);
   }
-  if (!range.endContainer) {
-    range.collapse(false);
-  }
-  selection?.removeAllRanges();
-  selection?.addRange(range);
+  return range;
 }
 
 function insertNodeAtCaret(node: Node): Range | null {
@@ -684,28 +685,24 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       const el = innerRef.current;
       if (!el) return;
       isProcessingNextRef.current = true;
-      selectRange(el, start, end);
-      const selection = window.getSelection();
-      const range =
-        selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+      const range = getRangeForOffsets(el, start, end);
+      if (!range) {
+        isProcessingNextRef.current = false;
+        return;
+      }
       try {
         const amountsText = await getBorrowerNextAmounts(borrowerId);
+        range.deleteContents();
         if (!amountsText) {
-          range?.deleteContents();
-          range?.collapse(false);
           toast.info("No pending next collection amounts");
         } else {
-          const textNode = document.createTextNode(amountsText);
-          range?.deleteContents();
-          if (range) range.insertNode(textNode);
-          const after = document.createRange();
-          after.setStartAfter(textNode);
-          after.setEndAfter(textNode);
-          after.collapse(false);
-          selection?.removeAllRanges();
-          selection?.addRange(after);
+          const textWithBreak = "\n" + amountsText;
+          const textNode = document.createTextNode(textWithBreak);
+          range.insertNode(textNode);
+          setCaretOffset(el, start + textWithBreak.length);
         }
-      } catch {
+      } catch (err) {
+        console.error("handleSlashNext error:", err);
         toast.error("Failed to load next collection amounts");
       } finally {
         isProcessingNextRef.current = false;
@@ -935,21 +932,24 @@ function CategorySection({
         accounts: Array<Record<string, unknown>>;
         metrics: Record<string, Record<string, unknown>>;
       };
-      const lines = data.accounts
+      const amounts = data.accounts
         .filter((a) => {
           const m = data.metrics[a.id as string];
           return (
             a.schedule_mode !== "manual" &&
             (a.type === "loan" || a.type === "cash_advance") &&
-            m?.nextCollectionStatus === "pending" &&
             Number(m?.nextCollectionAmount ?? 0) > 0
           );
         })
         .map((a) => {
           const m = data.metrics[a.id as string];
-          const amount = Number(m?.nextCollectionAmount ?? 0);
-          return `₱${amount.toLocaleString()}`;
+          return Number(m?.nextCollectionAmount ?? 0);
         });
+      const lines = amounts.map((amount) => `₱${amount.toLocaleString()}`);
+      if (lines.length > 1) {
+        const total = amounts.reduce((sum, amount) => sum + amount, 0);
+        lines.push(`Total: ₱${total.toLocaleString()}`);
+      }
       return lines.join("\n");
     } catch {
       return "";
