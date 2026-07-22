@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useScheduleSelection } from "./schedule-selection-provider";
 import { X, Check } from "lucide-react";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
@@ -21,6 +22,7 @@ export default function BatchScheduleToolbar({
   onBatchPaid,
   borrowerId,
 }: Props) {
+  const router = useRouter();
   const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
   const { selectedIds, clearAll } = useScheduleSelection();
   const [showModal, setShowModal] = useState(false);
@@ -38,6 +40,7 @@ export default function BatchScheduleToolbar({
         strategy,
         strategy === "custom" ? customDate : undefined,
       );
+      router.refresh();
       if (borrowerId) invalidateBorrowerDetails(borrowerId);
       clearAll();
       setShowModal(false);

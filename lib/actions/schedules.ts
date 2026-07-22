@@ -83,8 +83,10 @@ export async function updateScheduleStatusAction(
   }
 
   revalidateTag("account-detail", "default");
+  revalidateTag("borrower-accounts", "default");
   updateTag("account");
   updateTag(`account-${accountId}`);
+  updateTag("borrower-accounts");
   updateTag("accounts-page");
   updateTag("borrowers");
   updateTag("calendar");
@@ -150,8 +152,10 @@ export async function batchUpdateScheduleStatusAction(
   });
 
   revalidateTag("account-detail", "default");
+  revalidateTag("borrower-accounts", "default");
   updateTag("account");
   updateTag(`account-${accountId}`);
+  updateTag("borrower-accounts");
   updateTag("accounts-page");
   updateTag("borrowers");
   updateTag("calendar");

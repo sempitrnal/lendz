@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Clock,
   Check,
@@ -41,6 +42,7 @@ export default function ScheduleStatusForm({
   applyPartialPayment,
   borrowerId,
 }: Props) {
+  const router = useRouter();
   const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
@@ -101,6 +103,7 @@ export default function ScheduleStatusForm({
         .then(() => {
           triggerHaptic("success");
           toast.success(`Schedule marked as ${status}`);
+          router.refresh();
           if (borrowerId) invalidateBorrowerDetails(borrowerId);
         })
         .catch(() => {
@@ -126,6 +129,7 @@ export default function ScheduleStatusForm({
           .then(() => {
             triggerHaptic("success");
             toast.success("Payment recorded");
+            router.refresh();
             if (borrowerId) invalidateBorrowerDetails(borrowerId);
           })
           .catch(() => {
@@ -151,6 +155,7 @@ export default function ScheduleStatusForm({
         .then(() => {
           triggerHaptic("success");
           toast.success(`Schedule marked as ${pendingStatus}`);
+          router.refresh();
           if (borrowerId) invalidateBorrowerDetails(borrowerId);
         })
         .catch(() => {
