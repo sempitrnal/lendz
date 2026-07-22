@@ -250,7 +250,7 @@ function labelToFragment(label: string, borrowers: BorrowerSearchItem[]) {
   let idx = 0;
   for (const m of matches) {
     if (m.start > idx) {
-      fragment.appendChild(document.createTextNode(label.slice(idx, m.start)));
+      appendTextWithBreaks(fragment, label.slice(idx, m.start));
     }
     const span = document.createElement("span");
     span.contentEditable = "false";
@@ -262,14 +262,26 @@ function labelToFragment(label: string, borrowers: BorrowerSearchItem[]) {
     idx = m.end;
   }
   if (idx < label.length) {
-    fragment.appendChild(document.createTextNode(label.slice(idx)));
+    appendTextWithBreaks(fragment, label.slice(idx));
   }
   return fragment;
 }
 
+function appendTextWithBreaks(parent: Node, text: string) {
+  const parts = text.split("\n");
+  parts.forEach((part, i) => {
+    parent.appendChild(document.createTextNode(part));
+    if (i < parts.length - 1) {
+      parent.appendChild(document.createElement("br"));
+    }
+  });
+}
+
 function serializeContent(el: HTMLElement): string {
   let result = "";
-  for (const node of el.childNodes) {
+  const children = Array.from(el.childNodes);
+  for (let i = 0; i < children.length; i++) {
+    const node = children[i];
     if (node.nodeType === Node.TEXT_NODE) {
       result += node.textContent ?? "";
     } else if (node.nodeType === Node.ELEMENT_NODE) {
@@ -280,6 +292,18 @@ function serializeContent(el: HTMLElement): string {
         result += `[${element.textContent}](/borrowers/${element.dataset.mention})`;
       } else if (element.dataset.href && element.textContent) {
         result += `[${element.textContent}](${element.dataset.href})`;
+      } else if (
+        element.tagName === "DIV" ||
+        element.tagName === "P" ||
+        element.tagName === "SPAN"
+      ) {
+        result += serializeContent(element);
+        if (
+          i < children.length - 1 &&
+          (element.tagName === "DIV" || element.tagName === "P")
+        ) {
+          result += "\n";
+        }
       } else {
         result += element.textContent ?? "";
       }
@@ -666,10 +690,10 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
             }
             setFocused(false);
           }}
-          className={`dark:bg-card/50 text-[16px] dark:text-foreground
-            min-h-[40px] w-full rounded-xl border border-border/50 bg-white/60
-            px-3 py-2 text-sm text-slate-700 transition-all duration-200
-            empty:before:text-slate-400
+          className={`dark:bg-card/50 dark:text-foreground min-h-[40px]
+            w-full whitespace-pre-wrap rounded-xl border border-border/50
+            bg-white/60 px-3 py-2 text-base text-slate-700 transition-all
+            duration-200 empty:before:text-slate-400
             empty:before:content-[attr(data-placeholder)] focus:border-border
             focus:outline-none dark:empty:before:text-muted-foreground
             ${className ?? ""}`}

@@ -138,7 +138,7 @@ function getScheduleStatusClasses(status: string) {
   return {
     badge:
       "border-amber-600/80 bg-amber-50 text-amber-950 dark:border-amber-400/40 dark:bg-amber-400/[0.18] dark:text-amber-300",
-    row: "bg-amber-50 dark:bg-[#141103]",
+    row: "bg-white dark:bg-[#141103]",
     dot: "bg-amber-500 dark:bg-amber-400",
     text: "text-amber-800 dark:text-amber-300",
   };
