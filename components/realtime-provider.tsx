@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
 const REALTIME_TABLES = [
@@ -23,7 +23,9 @@ export default function RealtimeProvider({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const refreshTimerRef = useRef<number | null>(null);
+  const pollRef = useRef<number | null>(null);
 
   useEffect(() => {
     const refresh = () => {
@@ -63,14 +65,33 @@ export default function RealtimeProvider({
     };
     document.addEventListener("visibilitychange", onVisible);
 
+    const onOnline = () => refresh();
+    window.addEventListener("online", onOnline);
+
+    // Fallback polling for pages where schedule status must stay current
+    if (
+      pathname?.startsWith("/accounts/") ||
+      pathname?.startsWith("/borrowers/")
+    ) {
+      pollRef.current = window.setInterval(() => {
+        if (document.visibilityState === "visible") {
+          refresh();
+        }
+      }, 10000) as unknown as number;
+    }
+
     return () => {
       void supabase.removeChannel(channel);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onOnline);
       if (refreshTimerRef.current) {
         window.clearTimeout(refreshTimerRef.current);
       }
+      if (pollRef.current) {
+        window.clearInterval(pollRef.current);
+      }
     };
-  }, [router]);
+  }, [router, pathname]);
 
   return <>{children}</>;
 }

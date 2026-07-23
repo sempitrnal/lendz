@@ -2,11 +2,26 @@
 
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
-import { revalidateTag, updateTag } from "next/cache";
+import { revalidatePath, revalidateTag, updateTag } from "next/cache";
 import type { PaidDateStrategy } from "@/components/batch-schedule-toolbar";
 
 const scheduleStatuses = ["pending", "paid", "overdue", "partial"] as const;
 type ScheduleStatus = (typeof scheduleStatuses)[number];
+
+function revalidateScheduleCaches(accountId: string) {
+  revalidatePath(`/accounts/${accountId}`);
+  revalidateTag("account-detail", "default");
+  revalidateTag("borrower-accounts", "default");
+  updateTag("account-detail");
+  updateTag("account");
+  updateTag(`account-${accountId}`);
+  updateTag("borrower-accounts");
+  updateTag("accounts-page");
+  updateTag("borrowers");
+  updateTag("calendar");
+  updateTag("dashboard");
+  updateTag("next-collection");
+}
 
 export async function updateScheduleStatusAction(
   accountId: string,
@@ -82,16 +97,7 @@ export async function updateScheduleStatusAction(
       .eq("schedule_id", scheduleId);
   }
 
-  revalidateTag("account-detail", "default");
-  revalidateTag("borrower-accounts", "default");
-  updateTag("account");
-  updateTag(`account-${accountId}`);
-  updateTag("borrower-accounts");
-  updateTag("accounts-page");
-  updateTag("borrowers");
-  updateTag("calendar");
-  updateTag("dashboard");
-  updateTag("next-collection");
+  revalidateScheduleCaches(accountId);
 }
 
 export async function batchUpdateScheduleStatusAction(
@@ -151,16 +157,7 @@ export async function batchUpdateScheduleStatusAction(
     },
   });
 
-  revalidateTag("account-detail", "default");
-  revalidateTag("borrower-accounts", "default");
-  updateTag("account");
-  updateTag(`account-${accountId}`);
-  updateTag("borrower-accounts");
-  updateTag("accounts-page");
-  updateTag("borrowers");
-  updateTag("calendar");
-  updateTag("dashboard");
-  updateTag("next-collection");
+  revalidateScheduleCaches(accountId);
 }
 
 export async function applyPartialPaymentAction(formData: FormData) {
@@ -258,14 +255,7 @@ export async function applyPartialPaymentAction(formData: FormData) {
     },
   });
 
-  revalidateTag("account-detail", "default");
-  updateTag("account");
-  updateTag(`account-${row.account_id}`);
-  updateTag("accounts-page");
-  updateTag("borrowers");
-  updateTag("calendar");
-  updateTag("dashboard");
-  updateTag("next-collection");
+  revalidateScheduleCaches(row.account_id as string);
 }
 
 export async function updatePaymentEntryAction(
@@ -321,14 +311,7 @@ export async function updatePaymentEntryAction(
     }
   }
 
-  revalidateTag("account-detail", "default");
-  updateTag("account");
-  updateTag(`account-${accountId}`);
-  updateTag("accounts-page");
-  updateTag("borrowers");
-  updateTag("calendar");
-  updateTag("dashboard");
-  updateTag("next-collection");
+  revalidateScheduleCaches(accountId);
 }
 
 export async function deletePaymentEntryAction(
@@ -401,14 +384,7 @@ export async function deletePaymentEntryAction(
     });
   }
 
-  revalidateTag("account-detail", "default");
-  updateTag("account");
-  updateTag(`account-${accountId}`);
-  updateTag("accounts-page");
-  updateTag("borrowers");
-  updateTag("calendar");
-  updateTag("dashboard");
-  updateTag("next-collection");
+  revalidateScheduleCaches(accountId);
 }
 
 export async function deleteScheduleAction(
@@ -438,14 +414,7 @@ export async function deleteScheduleAction(
     },
   });
 
-  revalidateTag("account-detail", "default");
-  updateTag("account");
-  updateTag(`account-${accountId}`);
-  updateTag("accounts-page");
-  updateTag("borrowers");
-  updateTag("calendar");
-  updateTag("dashboard");
-  updateTag("next-collection");
+  revalidateScheduleCaches(accountId);
 }
 
 export async function addSchedulesAction(
@@ -471,13 +440,6 @@ export async function addSchedulesAction(
   );
   if (error) return { error: error.message };
 
-  revalidateTag("account-detail", "default");
-  updateTag("account");
-  updateTag(`account-${accountId}`);
-  updateTag("accounts-page");
-  updateTag("borrowers");
-  updateTag("calendar");
-  updateTag("dashboard");
-  updateTag("next-collection");
+  revalidateScheduleCaches(accountId);
   return {};
 }
