@@ -68,9 +68,11 @@ export default function RealtimeProvider({
     const onOnline = () => refresh();
     window.addEventListener("online", onOnline);
 
-    // Fallback polling for pages where schedule status must stay current
+    // Fallback polling for pages where schedule/borrower data must stay current
     if (
+      pathname === "/accounts" ||
       pathname?.startsWith("/accounts/") ||
+      pathname === "/borrowers" ||
       pathname?.startsWith("/borrowers/")
     ) {
       pollRef.current = window.setInterval(() => {
