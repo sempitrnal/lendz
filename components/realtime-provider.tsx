@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
 
 const REALTIME_TABLES = [
@@ -24,6 +25,7 @@ export default function RealtimeProvider({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const refreshTimerRef = useRef<number | null>(null);
   const pollRef = useRef<number | null>(null);
 
@@ -46,6 +48,21 @@ export default function RealtimeProvider({
         (payload: unknown) => {
           console.log(`[realtime] ${table} change:`, payload);
           refresh();
+
+          const row = (payload as any)?.new ?? (payload as any)?.old ?? {};
+          const borrowerId =
+            row.borrower_id ??
+            (table === "borrowers" ? row.id : undefined) ??
+            (table === "accounts" ? row.borrower_id : undefined);
+          if (borrowerId) {
+            queryClient.invalidateQueries({
+              queryKey: ["borrower", borrowerId],
+            });
+          } else if (
+            ["borrower_notes", "accounts", "borrowers"].includes(table)
+          ) {
+            queryClient.invalidateQueries({ queryKey: ["borrower"] });
+          }
         },
       );
     });
