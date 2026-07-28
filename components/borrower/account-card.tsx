@@ -214,7 +214,7 @@ export function AccountCard({
         {/* Principal */}
         <div className="mt-1.5">
           <span
-            className="text-2xl font-bold tracking-tight text-slate-600
+            className="text-2xl font-black tracking-tight text-slate-600
               tabular-nums dark:text-foreground"
           >
             ₱{Number(account.principal_amount ?? 0).toLocaleString()}
@@ -278,14 +278,14 @@ export function AccountCard({
                 dark:to-rose-900/20"
             >
               <p
-                className="text-[14px] font-bold tracking-wider text-rose-700/60
+                className="text-[14px] font-bold tracking-wide text-rose-700/60
                   lowercase dark:text-rose-200/70"
               >
                 Remaining
               </p>
               <p
-                className="text-sm font-bold text-rose-400 tabular-nums
-                  dark:text-rose-300/80"
+                className="text-sm font-black tracking-tight text-rose-400
+                  tabular-nums dark:text-rose-300/80"
               >
                 ₱{Number(amountLeftToPay).toLocaleString()}
               </p>
@@ -297,12 +297,15 @@ export function AccountCard({
                 dark:from-emerald-950/30 dark:to-emerald-900/30"
             >
               <p
-                className="text-[14px] font-bold tracking-wider
-                  text-emerald-700/80 lowercase dark:text-emerald-200/80"
+                className="text-[14px] font-bold tracking-wide
+                  text-emerald-700/80 lowercase dark:text-emerald-200/70"
               >
                 {isManual ? "Paid" : "Collected"}
               </p>
-              <p className="text-sm font-bold text-[#599c82] tabular-nums">
+              <p
+                className="text-sm font-black tracking-tight text-[#599c82]
+                  dark:text-emerald-200/80 tabular-nums"
+              >
                 ₱
                 {totalPaid >= 100000
                   ? fmtCompact(totalPaid)
@@ -316,12 +319,15 @@ export function AccountCard({
                 dark:to-[#211d2a]"
             >
               <p
-                className="text-[14px] font-bold tracking-wider text-[#6f537b]
-                  lowercase"
+                className="text-[14px] font-bold tracking-wide text-[#6f537b]
+                  dark:text-[#996bac] lowercase"
               >
                 ginansya
               </p>
-              <p className="text-sm font-bold text-[#6f537b] tabular-nums">
+              <p
+                className="text-sm font-black tracking-tight text-[#6f537b]
+                  dark:text-[#996bac] tabular-nums"
+              >
                 ₱{Number(profitPerSchedule).toLocaleString()}
               </p>
             </div>

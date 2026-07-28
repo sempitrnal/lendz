@@ -324,15 +324,15 @@ export default function BorrowerScheduleCard({
         <Link
           href={borrowerId ? `/borrowers/${borrowerId}` : "#"}
           prefetch
-          className="dark:text-foreground block truncate text-xl tracking-tight
-            font-bold text-slate-700 lowercase transition hover:opacity-70"
+          className="dark:text-foreground block truncate text-lg tracking-tight
+            font-black text-slate-600 lowercase transition hover:opacity-70"
         >
           {name}
         </Link>
         {displayCategory && (
           <span
             className="dark:text-muted-foreground inline-flex items-center
-              gap-1.5 text-[12px] font-bold text-slate-400 uppercase"
+              gap-1.5 text-[10px] font-bold text-slate-400 uppercase"
           >
             <span
               className="size-2 shrink-0 rounded-full border

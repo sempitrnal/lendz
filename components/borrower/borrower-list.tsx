@@ -441,11 +441,10 @@ export default function BorrowersList({
                     }}
                     className="dark:border-border dark:bg-muted
                       dark:text-foreground dark:hover:bg-muted/70 flex
-                      items-center gap-2 rounded-full border border-slate-900/15
-                      bg-[#fffdf6] px-3 py-1.5 text-xs font-semibold
-                      text-slate-800 uppercase
-                      shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] transition
-                      hover:bg-white"
+                      items-center gap-2 rounded-md border border-border
+                      bg-[#ffffff] px-3 py-1.5 text-xs font-bold text-slate-600
+                      uppercase shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)]
+                      transition hover:bg-white"
                   >
                     <span
                       className="flex size-5 shrink-0 items-center

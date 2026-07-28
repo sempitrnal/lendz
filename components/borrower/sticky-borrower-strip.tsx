@@ -173,14 +173,14 @@ export function StickyBorrowerStrip({
                   py-2 dark:border-slate-700/60`}
                 >
                   <p
-                    className={`text-[14px] font-semibold lowercase
-                    tracking-wide ${text}`}
+                    className={`text-[14px] font-bold lowercase tracking-tight
+                    ${text}`}
                   >
                     {label}
                   </p>
                   <p
-                    className="mt-0.5 text-lg font-bold tabular-nums
-                      text-slate-600 dark:text-foreground"
+                    className="mt-0.5 text-lg font-black tracking-tight
+                      tabular-nums text-slate-600 dark:text-foreground"
                   >
                     ₱{Math.round(value).toLocaleString()}
                   </p>
