@@ -1,15 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Manrope } from "next/font/google";
 import { ThemeProvider } from "../providers";
 import "../globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
 });
 
@@ -27,11 +22,14 @@ export default function PublicLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${manrope.variable} h-full antialiased`}
     >
       <body className="bg-background text-foreground flex min-h-full flex-col">
         <ThemeProvider>
-          <main className="mx-auto w-full max-w-lg flex-1 py-4 sm:py-6 lg:max-w-5xl xl:max-w-6xl">
+          <main
+            className="mx-auto w-full max-w-lg flex-1 py-4 sm:py-6 lg:max-w-5xl
+              xl:max-w-6xl"
+          >
             {children}
           </main>
         </ThemeProvider>
