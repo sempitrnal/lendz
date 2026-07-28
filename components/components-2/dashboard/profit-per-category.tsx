@@ -31,10 +31,7 @@ export function ProfitPerCategory({
                     className="inline-block size-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: cat.color ?? "#cbd5e1" }}
                   />
-                  <p
-                    className="truncate text-sm font-medium
-                      text-card-foreground"
-                  >
+                  <p className="truncate text-sm font-bold text-slate-700">
                     {cat.name}
                   </p>
                 </div>
@@ -54,19 +51,16 @@ export function ProfitPerCategory({
                 />
               </div>
 
-              <div
-                className="mt-2 flex items-center justify-between text-xs
-                  text-muted-foreground"
-              >
+              <div className="mt-2 flex gap-2 text-xs text-muted-foreground">
                 <span>
-                  collected profit{" "}
-                  <span className="font-medium text-foreground">
+                  collected{" "}
+                  <span className="font-medium text-slate-600">
                     {formatPeso(cat.collectedProfit)}
                   </span>
                 </span>
                 <span>
-                  remaining profit{" "}
-                  <span className="font-medium text-accent-foreground">
+                  remaining{" "}
+                  <span className="font-medium text-slate-600">
                     {formatPeso(cat.remainingProfit)}
                   </span>{" "}
                   · {collectedPct}%

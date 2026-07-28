@@ -100,10 +100,8 @@ export default function BottomNav() {
                   strokeWidth={isActive ? 2.5 : 2}
                   aria-hidden="true"
                 />
-                <span
-                  className="text-[10px] font-semibold leading-none
-                    tracking-tight"
-                >
+                <span className="text-[10px] font-bold leading-none
+                  tracking-tight">
                   {label}
                 </span>
               </Link>
