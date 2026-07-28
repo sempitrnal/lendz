@@ -342,7 +342,7 @@ export default async function PublicAccountViewPage({ params }: Props) {
           progress={progressPct}
           nextNumber={nextNumber}
           schedules={scheduleItems}
-          renderCardActions={() => null}
+          readOnly
         />
       </div>
 

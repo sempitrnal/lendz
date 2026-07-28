@@ -42,6 +42,7 @@ interface PaymentSchedulesProps {
   renderCardHeaderRight?: (schedule: PaymentScheduleItem) => ReactNode;
   renderCardActions?: (schedule: PaymentScheduleItem) => ReactNode;
   renderCardExtras?: (schedule: PaymentScheduleItem) => ReactNode;
+  readOnly?: boolean;
   children?: ReactNode;
   className?: string;
 }
@@ -122,6 +123,7 @@ export function PaymentSchedules({
   renderCardHeaderRight,
   renderCardActions,
   renderCardExtras,
+  readOnly,
   children,
   className,
 }: PaymentSchedulesProps) {
@@ -176,7 +178,7 @@ export function PaymentSchedules({
             </p>
           </div>
         </div>
-        {onEdit && (
+        {onEdit && !readOnly && (
           <button
             type="button"
             onClick={onEdit}
@@ -319,6 +321,7 @@ export function PaymentSchedules({
               {renderCardExtras?.(schedule)}
 
               {(() => {
+                if (readOnly) return null;
                 const actions = renderCardActions?.(schedule);
                 return renderCardActions ? (
                   actions ? (
