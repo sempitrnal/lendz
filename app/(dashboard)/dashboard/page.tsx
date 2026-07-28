@@ -268,14 +268,10 @@ export default async function Dashboard({
     if (!borrowerId) continue;
     const categoryIds = borrowerCategoriesByBorrower.get(borrowerId) ?? [];
     if (categoryIds.length === 0) continue;
-    const principal = principalByAccountId.get(row.account_id) ?? 0;
-    const totalInstallments =
-      totalInstallmentsByAccount.get(row.account_id) ?? 1;
-    const principalPerInstallment = principal / totalInstallments;
     const paid = Number(row.amount_paid ?? 0);
     const due = Number(row.amount_due ?? 0);
-    const profit = Math.max(0, paid - principalPerInstallment);
     const remaining = Math.max(0, due - paid);
+    const profit = paid + remaining;
     for (const categoryId of categoryIds) {
       const current = statsByCategory.get(categoryId) ?? {
         profit: 0,
@@ -350,7 +346,7 @@ export default async function Dashboard({
   const profitPerCategoryData: ProfitCategoryItem[] = profitPerCategory;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-6 pb-20 lg:px-8">
+    <main className="mx-auto px-4 py-6 pb-20 lg:px-8">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p
@@ -395,10 +391,6 @@ export default async function Dashboard({
           <SidePanel dueThisMonthSchedules={thisMonthSchedules.length} />
         </div>
       </div>
-
-      <section className="mt-6 flex justify-end">
-        <ResetCacheButton />
-      </section>
     </main>
   );
 }

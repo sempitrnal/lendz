@@ -24,9 +24,18 @@ export function ProfitPerCategory({
           return (
             <li key={cat.name} className="py-4">
               <div className="flex items-center justify-between gap-3">
-                <p className="truncate text-sm font-medium text-card-foreground">
-                  {cat.name}
-                </p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className="inline-block size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: cat.color ?? "#cbd5e1" }}
+                  />
+                  <p
+                    className="truncate text-sm font-medium
+                      text-card-foreground"
+                  >
+                    {cat.name}
+                  </p>
+                </div>
                 <p className="shrink-0 text-sm font-semibold text-primary">
                   {formatPeso(cat.profit)}
                 </p>
@@ -38,7 +47,10 @@ export function ProfitPerCategory({
               >
                 <div
                   className="h-full rounded-full bg-primary"
-                  style={{ width: `${(cat.profit / maxProfit) * 100}%` }}
+                  style={{
+                    backgroundColor: cat.color ?? undefined,
+                    width: `${(cat.profit / maxProfit) * 100}%`,
+                  }}
                   aria-hidden="true"
                 />
               </div>
