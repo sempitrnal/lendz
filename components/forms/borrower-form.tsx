@@ -263,7 +263,7 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
       <Button
         disabled={isSubmitting}
         type="submit"
-        className="mt-2 w-full"
+        className="mt-2 w-full py-5 rounded-xl shadow-sm"
         size="lg"
       >
         <Plus className="h-4 w-4" />

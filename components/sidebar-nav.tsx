@@ -1,173 +1,215 @@
-"use client";
+"use client"
 
-import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect, useCallback, useTransition } from "react";
+import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Users,
   Wallet,
+  CalendarClock,
   CalendarDays,
   Tag,
   ClipboardCheck,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  CalendarClock,
   Settings,
-} from "lucide-react";
+  PanelLeftClose,
+  PanelLeftOpen,
+  TrendingUp,
+  type LucideIcon,
+} from "lucide-react"
 
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "dashboard", Icon: LayoutDashboard },
-  { href: "/borrowers", label: "borrowers", Icon: Users },
-  { href: "/accounts", label: "accounts", Icon: Wallet },
-  { href: "/due-this-month", label: "due this month", Icon: CalendarClock },
-  { href: "/calendar", label: "calendar", Icon: CalendarDays },
-  { href: "/categories", label: "categories", Icon: Tag },
-  { href: "/daily-checklist", label: "checklist", Icon: ClipboardCheck },
-  { href: "/deleted", label: "trash", Icon: Trash2 },
-  { href: "/settings", label: "settings", Icon: Settings },
-];
+type NavItem = {
+  href: string
+  label: string
+  Icon: LucideIcon
+  badge?: string
+}
 
-const STORAGE_KEY = "sidebar-collapsed";
+type NavGroup = {
+  heading: string
+  items: NavItem[]
+}
+
+function isActivePath(pathname: string | null, href: string): boolean {
+  if (!pathname) return false
+  if (pathname === href) return true
+  if (href === "/dashboard") return false
+  return pathname.startsWith(`${href}/`)
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    heading: "Overview",
+    items: [
+      { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
+      { href: "/borrowers", label: "Borrowers", Icon: Users },
+      { href: "/accounts", label: "Accounts", Icon: Wallet },
+      { href: "/due-this-month", label: "Due this month", Icon: CalendarClock, badge: "456" },
+    ],
+  },
+  {
+    heading: "Manage",
+    items: [
+      { href: "/calendar", label: "Calendar", Icon: CalendarDays },
+      { href: "/categories", label: "Categories", Icon: Tag },
+      { href: "/daily-checklist", label: "Checklist", Icon: ClipboardCheck },
+    ],
+  },
+  {
+    heading: "System",
+    items: [
+      { href: "/deleted", label: "Trash", Icon: Trash2 },
+      { href: "/settings", label: "Settings", Icon: Settings },
+    ],
+  },
+]
+
+const STORAGE_KEY = "sidebar-collapsed"
 
 export default function SidebarNav() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const pathname = usePathname()
+  const [collapsed, setCollapsed] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem(STORAGE_KEY);
+    setMounted(true)
+    const saved = localStorage.getItem(STORAGE_KEY)
     if (saved !== null) {
-      setCollapsed(saved === "true");
-    } else {
-      // Default: collapsed on tablet (md), expanded on desktop (lg+)
-      const mql = window.matchMedia("(min-width: 1024px)");
-      setCollapsed(!mql.matches);
+      setCollapsed(saved === "true")
+    } else if (typeof window !== "undefined") {
+      setCollapsed(!window.matchMedia("(min-width: 1024px)").matches)
     }
-    NAV_ITEMS.forEach(({ href }) => router.prefetch(href));
-  }, [router]);
+  }, [])
 
   const toggle = useCallback(() => {
     setCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem(STORAGE_KEY, String(next));
-      return next;
-    });
-  }, []);
+      const next = !prev
+      localStorage.setItem(STORAGE_KEY, String(next))
+      return next
+    })
+  }, [])
 
-  const widthVar = collapsed ? "3.5rem" : "14rem";
+  useEffect(() => {
+    document.documentElement.style.setProperty("--sidebar-width", collapsed ? "4.5rem" : "16rem")
+  }, [collapsed])
 
   return (
-    <>
-      {/* CSS variable injector so layout can read sidebar width */}
-      <style>{`:root { --sidebar-width: ${widthVar}; }`}</style>
+    <aside
+      data-collapsed={collapsed}
+      className="group/sidebar fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-in-out md:flex print:hidden"
+      style={{ width: collapsed ? "4.5rem" : "16rem" }}
+    >
+      {/* Brand */}
+      <div className="flex h-16 items-center gap-3 px-4">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+          <TrendingUp className="size-5" strokeWidth={2.5} aria-hidden="true" />
+        </span>
+        {!collapsed && (
+          <div className="min-w-0">
+            <p className="truncate text-base font-black leading-none tracking-tight text-sidebar-foreground">
+              utangz
+            </p>
+            <p className="mt-1 truncate text-[11px] font-medium text-muted-foreground">
+              Collections suite
+            </p>
+          </div>
+        )}
+      </div>
 
-      <aside
-        className="bg-background dark:bg-background border-r border-slate-200
-          dark:border-border/50 fixed top-0 left-0 z-40 hidden h-screen flex-col
-          transition-all duration-300 ease-in-out md:flex"
-        style={{ width: widthVar }}
-      >
-        {/* Logo area */}
-        <div
-          className="flex h-16 items-center border-b border-slate-200
-            dark:border-border/50 px-3"
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setPendingHref("/");
-              startTransition(() => router.push("/"));
-            }}
-            className="dark:text-foreground text-lg font-black tracking-tight
-              transition-colors hover:text-stone-600 truncate"
-            title="*utangz"
-          >
-            {collapsed ? "*U" : "*utangz"}
-          </button>
-        </div>
-
-        {/* Nav items */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2">
-          <ul className="flex flex-col gap-1">
-            {NAV_ITEMS.map(({ href, label, Icon }) => {
-              const isActive =
-                mounted &&
-                (pathname === href ||
-                  (href !== "/dashboard" && pathname.startsWith(href)));
-              const isLoading = isPending && pendingHref === href;
-
-              return (
-                <li key={href}>
-                  <button
-                    type="button"
-                    onPointerEnter={() => router.prefetch(href)}
-                    onClick={() => {
-                      setPendingHref(href);
-                      startTransition(() => router.push(href));
-                    }}
-                    className={`relative flex w-full items-center gap-3
-                    rounded-lg px-2.5 py-2.5 text-sm font-bold tracking-tight
-                    uppercase transition-colors ${
-                      isActive
-                        ? "bg-green-300 text-slate-600 dark:bg-green-400"
-                        : `text-slate-500 hover:bg-slate-100
-                          dark:text-muted-foreground dark:hover:bg-muted`
-                    } ${isLoading ? "opacity-60" : ""}
-                    ${collapsed ? "justify-center" : ""}`}
-                    title={collapsed ? label : undefined}
-                  >
-                    {isActive && !collapsed && (
-                      <span
-                        className="absolute inset-y-1.5 left-0 w-[3px] rounded-r
-                          bg-slate-900 dark:bg-slate-100"
-                      />
-                    )}
-                    {isLoading ? (
-                      <Loader2 className="size-5 animate-spin shrink-0" />
-                    ) : (
+      {/* Nav groups */}
+      <nav className="flex-1 overflow-y-auto px-3 py-2" aria-label="Primary">
+        {NAV_GROUPS.map((group, gi) => (
+          <div key={group.heading} className={gi === 0 ? "" : "mt-6"}>
+            {!collapsed ? (
+              <p className="px-2.5 pb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+                {group.heading}
+              </p>
+            ) : (
+              gi !== 0 && <div className="mx-2 mb-3 border-t border-sidebar-border" aria-hidden="true" />
+            )}
+            <ul className="flex flex-col gap-1">
+              {group.items.map(({ href, label, Icon, badge }) => {
+                const isActive = mounted && isActivePath(pathname, href)
+                return (
+                  <li key={href}>
+                    <Link
+                      href={href}
+                      aria-current={isActive ? "page" : undefined}
+                      title={collapsed ? label : undefined}
+                      className={`group/item relative flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-sm font-semibold tracking-tight transition-colors ${
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      } ${collapsed ? "justify-center" : ""}`}
+                    >
                       <Icon
                         className="size-5 shrink-0"
-                        strokeWidth={isActive ? 2.5 : 1.75}
+                        strokeWidth={isActive ? 2.5 : 2}
+                        aria-hidden="true"
                       />
-                    )}
-                    {!collapsed && <span className="truncate">{label}</span>}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+                      {!collapsed && <span className="truncate">{label}</span>}
+                      {!collapsed && badge && (
+                        <span
+                          className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums ${
+                            isActive
+                              ? "bg-primary-foreground/20 text-primary-foreground"
+                              : "bg-accent/20 text-accent-foreground"
+                          }`}
+                        >
+                          {badge}
+                        </span>
+                      )}
+                      {collapsed && badge && (
+                        <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-accent" aria-hidden="true" />
+                      )}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        ))}
+      </nav>
 
-        {/* Toggle */}
+      {/* Footer: user + collapse */}
+      <div className="border-t border-sidebar-border p-3">
         <div
-          className="border-t border-slate-200 dark:border-border/50 px-2 py-2"
+          className={`flex items-center gap-3 rounded-xl px-1.5 py-1.5 ${
+            collapsed ? "justify-center" : ""
+          }`}
         >
-          <button
-            type="button"
-            onClick={toggle}
-            className="dark:text-muted-foreground flex w-full items-center
-              justify-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold
-              text-slate-500 transition-colors hover:bg-slate-100
-              dark:hover:bg-muted"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? (
-              <ChevronRight className="size-4" />
-            ) : (
-              <>
-                <ChevronLeft className="size-4" />
-                <span className="truncate">collapse</span>
-              </>
-            )}
-          </button>
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+            JD
+          </span>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold leading-none text-sidebar-foreground">
+                Juan Dela Cruz
+              </p>
+              <p className="mt-1 truncate text-[11px] text-muted-foreground">Collector</p>
+            </div>
+          )}
         </div>
-      </aside>
-    </>
-  );
+
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className={`mt-2 flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground ${
+            collapsed ? "justify-center" : ""
+          }`}
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="size-4" aria-hidden="true" />
+          ) : (
+            <>
+              <PanelLeftClose className="size-4" aria-hidden="true" />
+              <span>Collapse</span>
+            </>
+          )}
+        </button>
+      </div>
+    </aside>
+  )
 }

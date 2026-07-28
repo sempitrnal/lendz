@@ -134,7 +134,7 @@ export function AccountCard({
 
   return (
     <motion.div
-      className={`relative overflow-hidden rounded-lg shadow-sm border-slate-300
+      className={`relative overflow-hidden rounded-lg shadow-sm border border-border
         bg-white transition-all duration-200 dark:border- dark:bg-card
         ${isOpening ? "scale-[0.98] opacity-60" : ""}
         ${selectionMode && selected ? "ring ring-blue-600 dark:ring-amber-400" : ""}`}

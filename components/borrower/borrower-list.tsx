@@ -8,16 +8,15 @@ import {
   useMemo,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { fetchCategoriesAction } from "@/lib/actions/categories";
 import { useSeedBorrowersSearch } from "@/hooks/use-borrowers-search";
 
-import AddBorrowerModal from "./add-borrower-modal";
+import AddBorrowerFab from "./add-borrower-fab";
 import BorrowerScheduleCard, {
   buildBorrowerScheduleCardProps,
 } from "./borrower-schedule-card";
-import { ChevronDown, Plus, Users } from "lucide-react";
+import { ChevronDown, Users } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import Link from "next/link";
@@ -154,11 +153,6 @@ export default function BorrowersList({
   }, [initialCategoryIds]);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [sortMode] = useState<SortMode>("default");
-  const [isAddBorrowerModalOpen, setIsAddBorrowerModalOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   useEffect(() => {
     if (allBorrowers.length > 0) {
@@ -243,13 +237,6 @@ export default function BorrowersList({
     },
     [],
   );
-
-  const openAddBorrowerModal = useCallback(() => {
-    setIsAddBorrowerModalOpen(true);
-  }, []);
-  const closeAddBorrowerModal = useCallback(() => {
-    setIsAddBorrowerModalOpen(false);
-  }, []);
 
   const refreshPage = useCallback(() => {
     router.refresh();
@@ -369,11 +356,7 @@ export default function BorrowersList({
 
   return (
     <div className="">
-      <AddBorrowerModal
-        getBorrowers={refreshPage}
-        isOpen={isAddBorrowerModalOpen}
-        onClose={closeAddBorrowerModal}
-      />
+      <AddBorrowerFab onSuccess={refreshPage} />
 
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -383,24 +366,6 @@ export default function BorrowersList({
           </p> */}
         </div>
       </div>
-
-      {isMounted &&
-        createPortal(
-          <button
-            type="button"
-            onClick={openAddBorrowerModal}
-            aria-label="Add borrower"
-            className="dark:border-border dark:text-background fixed right-4
-              bottom-[76px] z-40 flex size-14 items-center justify-center
-              rounded-full border-2 border-green-500 bg-green-400 text-slate-600
-              transition-transform duration-200 active:scale-95
-              dark:bg-green-400 dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
-          >
-            <Plus className="size-5" />
-          </button>,
-          document.body,
-        )}
-
       <div className="mb-6 flex flex-col gap-3">
         {recentBorrowers.length > 0 ? (
           <div>

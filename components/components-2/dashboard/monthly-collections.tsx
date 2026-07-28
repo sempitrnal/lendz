@@ -21,36 +21,31 @@ export function MonthlyCollections({
       label: "to collect so far",
       value: currentMonth.toCollectSoFar,
       tone: "accent",
-      gradient:
-        "bg-linear-to-br from-sky-50/70 to-sky-100/80 dark:from-sky-950/40 dark:to-sky-900/30",
+  
     },
     {
       label: "collected",
       value: currentMonth.collected,
       tone: "primary",
-      gradient:
-        "bg-linear-to-br from-emerald-50/70 to-emerald-100/80 dark:from-emerald-950/40 dark:to-emerald-900/30",
+ 
     },
     {
       label: "meme",
       value: currentMonth.meme,
       tone: "default",
-      gradient:
-        "bg-linear-to-br from-amber-50/70 to-amber-100/80 dark:from-amber-950/40 dark:to-amber-900/30",
+ 
     },
     {
       label: "expected profit",
       value: currentMonth.expectedProfit,
       tone: "default",
-      gradient:
-        "bg-linear-to-br from-violet-50/70 to-violet-100/80 dark:from-violet-950/40 dark:to-violet-900/30",
+
     },
     {
       label: "remaining profit",
       value: currentMonth.remainingProfit,
       tone: "accent",
-      gradient:
-        "bg-linear-to-br from-rose-50/70 to-rose-100/80 dark:from-rose-950/40 dark:to-rose-900/30",
+
     },
   ];
 
@@ -109,7 +104,7 @@ export function MonthlyCollections({
 
       <dl className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((stat) => (
-          <div key={stat.label} className={`rounded-lg ${stat.gradient} p-3`}>
+          <div key={stat.label} className={`rounded-lg bg-slate-200/30 dark:bg-slate-800/30 p-3`}>
             <dt className="text-xs font-medium lowercase text-muted-foreground">
               {stat.label}
             </dt>
