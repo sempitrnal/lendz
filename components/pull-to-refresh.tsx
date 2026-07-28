@@ -206,7 +206,7 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
   return (
     <div
       ref={containerRef}
-      className="relative select-none"
+      className="relative"
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}

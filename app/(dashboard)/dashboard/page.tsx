@@ -52,8 +52,8 @@ type BorrowerCategoryRow = {
 
 function metricCardClass(fromColor: string, darkFromColor: string) {
   return `dark:border-border rounded-lg dark:border 
-    bg-linear-to-br ${fromColor} via-stone-50 to-white px-3 py-2.5
-    ${darkFromColor} dark:via-zinc-900/40 dark:to-zinc-900/60`;
+    bg-linear-to-br from-emerald-50 via-stone-50 to-slate-50 p-5
+    dark:via-zinc-900/40 dark:to-zinc-900/60`;
 }
 
 const metricCardLabelClass = `dark:text-muted-foreground text-[10px] font-semibold
@@ -258,7 +258,8 @@ export default async function Dashboard({
 
   // Profit per category for the active month
   const categories = (categoriesData ?? []) as CategoryRow[];
-  const borrowerCategories = (borrowerCategoriesData ?? []) as BorrowerCategoryRow[];
+  const borrowerCategories = (borrowerCategoriesData ??
+    []) as BorrowerCategoryRow[];
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   const borrowerCategoriesByBorrower = new Map<string, string[]>();
   for (const row of borrowerCategories) {
@@ -279,7 +280,8 @@ export default async function Dashboard({
     const categoryIds = borrowerCategoriesByBorrower.get(borrowerId) ?? [];
     if (categoryIds.length === 0) continue;
     const principal = principalByAccountId.get(row.account_id) ?? 0;
-    const totalInstallments = totalInstallmentsByAccount.get(row.account_id) ?? 1;
+    const totalInstallments =
+      totalInstallmentsByAccount.get(row.account_id) ?? 1;
     const principalPerInstallment = principal / totalInstallments;
     const paid = Number(row.amount_paid ?? 0);
     const due = Number(row.amount_due ?? 0);
@@ -439,8 +441,8 @@ export default async function Dashboard({
 
       <section className="mt-4 lg:mt-6">
         <article
-          className="dark:border-border dark:bg-card bg-white min-w-0
-            rounded-xl dark:border shadow-sm border-slate-300 p-4 sm:p-5"
+          className="dark:border-border dark:bg-card bg-white min-w-0 rounded-xl
+            dark:border shadow-sm border-slate-300 p-4 sm:p-5"
         >
           <div
             className="mb-4 flex flex-wrap items-center justify-between gap-2"
@@ -463,75 +465,66 @@ export default async function Dashboard({
             <MonthPicker currentMonth={activeMonth} />
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-            <div className={metricCardClass("from-indigo-50", "dark:from-indigo-900/20")}>
-              <p
-                className={metricCardLabelClass}
-              >
-                to collect this month
-              </p>
-              <p
-                className={metricCardValueClass}
-              >
+            <div
+              className={metricCardClass(
+                "from-indigo-50",
+                "dark:from-indigo-900/20",
+              )}
+            >
+              <p className={metricCardLabelClass}>to collect this month</p>
+              <p className={metricCardValueClass}>
                 ₱{(currentMonthData?.expected ?? 0).toLocaleString()}
               </p>
             </div>
-            <div className={metricCardClass("from-sky-50", "dark:from-sky-900/20")}>
-              <p
-                className={metricCardLabelClass}
-              >
-                to collect so far
-              </p>
-              <p
-                className={metricCardValueClass}
-              >
+            <div
+              className={metricCardClass("from-sky-50", "dark:from-sky-900/20")}
+            >
+              <p className={metricCardLabelClass}>to collect so far</p>
+              <p className={metricCardValueClass}>
                 ₱{(currentMonthData?.expectedSoFar ?? 0).toLocaleString()}
               </p>
             </div>
-            <div className={metricCardClass("from-emerald-50", "dark:from-emerald-900/20")}>
-              <p
-                className={metricCardLabelClass}
-              >
-                collected
-              </p>
-              <p
-                className={metricCardValueClass}
-              >
+            <div
+              className={metricCardClass(
+                "from-emerald-50",
+                "dark:from-emerald-900/20",
+              )}
+            >
+              <p className={metricCardLabelClass}>collected</p>
+              <p className={metricCardValueClass}>
                 ₱{(currentMonthData?.collected ?? 0).toLocaleString()}
               </p>
             </div>
-            <div className={metricCardClass("from-amber-50", "dark:from-amber-900/20")}>
-              <p
-                className={metricCardLabelClass}
-              >
-                meme
-              </p>
-              <p
-                className={metricCardValueClass}
-              >
+            <div
+              className={metricCardClass(
+                "from-amber-50",
+                "dark:from-amber-900/20",
+              )}
+            >
+              <p className={metricCardLabelClass}>meme</p>
+              <p className={metricCardValueClass}>
                 ₱{(currentMonthData?.profit ?? 0).toLocaleString()}
               </p>
             </div>
-            <div className={metricCardClass("from-yellow-50", "dark:from-yellow-900/20")}>
-              <p
-                className={metricCardLabelClass}
-              >
-                expected profit
-              </p>
-              <p
-                className={metricCardValueClass}
-              >
+            <div
+              className={metricCardClass(
+                "from-yellow-50",
+                "dark:from-yellow-900/20",
+              )}
+            >
+              <p className={metricCardLabelClass}>expected profit</p>
+              <p className={metricCardValueClass}>
                 ₱{(currentMonthData?.expectedProfit ?? 0).toLocaleString()}
               </p>
             </div>
-            <div className={metricCardClass("from-rose-50", "dark:from-rose-900/20")}>
-              <p
-                className={metricCardLabelClass}
-              >
-                remaining profit
-              </p>
-              <p
-                className={metricCardValueClass}
-              >
+            <div
+              className={metricCardClass(
+                "from-rose-50",
+                "dark:from-rose-900/20",
+              )}
+            >
+              <p className={metricCardLabelClass}>remaining profit</p>
+              <p className={metricCardValueClass}>
                 ₱{currentMonthRemainingProfit.toLocaleString()}
               </p>
             </div>
@@ -640,13 +633,15 @@ export default async function Dashboard({
                 profit per category
               </h2>
             </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+            <div
+              className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4"
+            >
               {profitPerCategory.map((c) => (
                 <div
                   key={c.id}
-                  className="dark:border-border rounded-lg dark:border 
-                    bg-linear-to-br from-violet-50 via-stone-50 to-white px-3 py-2.5
-                    dark:from-violet-900/20 dark:via-zinc-900/40
+                  className="dark:border-border rounded-lg dark:border
+                    bg-linear-to-br from-violet-50 via-stone-50 to-white px-3
+                    py-2.5 dark:from-violet-900/20 dark:via-zinc-900/40
                     dark:to-zinc-900/60"
                 >
                   <div className="mb-1 flex items-center gap-1.5">
@@ -675,13 +670,19 @@ export default async function Dashboard({
                       className="text-[10px] font-semibold tabular-nums
                         text-slate-500 dark:text-slate-400"
                     >
-                      collected <span className="text-[#76a188]">₱{c.collected.toLocaleString()}</span>
+                      collected{" "}
+                      <span className="text-[#76a188]">
+                        ₱{c.collected.toLocaleString()}
+                      </span>
                     </p>
                     <p
                       className="text-[10px] font-semibold tabular-nums
                         text-slate-500 dark:text-slate-400"
                     >
-                      remaining <span className="text-[#945d5d]">₱{c.remaining.toLocaleString()}</span>
+                      remaining{" "}
+                      <span className="text-[#945d5d]">
+                        ₱{c.remaining.toLocaleString()}
+                      </span>
                     </p>
                   </div>
                 </div>
