@@ -31,7 +31,10 @@ export function ProfitPerCategory({
                     className="inline-block size-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: cat.color ?? "#cbd5e1" }}
                   />
-                  <p className="truncate text-sm font-bold text-slate-700">
+                  <p
+                    className="truncate text-sm font-bold text-slate-700
+                      dark:text-foreground"
+                  >
                     {cat.name}
                   </p>
                 </div>

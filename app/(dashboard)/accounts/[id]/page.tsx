@@ -32,7 +32,7 @@ import {
 } from "@/lib/payment-schedule/schedule-balances";
 import { countSkippedSchedules } from "@/lib/payment-schedule/build-payload";
 import { cn } from "@/lib/utils";
-import { Check, Info } from "lucide-react";
+import { CalendarClock, Check, Info } from "lucide-react";
 import {
   updateScheduleStatusAction,
   batchUpdateScheduleStatusAction,
@@ -77,7 +77,7 @@ const nb = {
   scheduleShell:
     "overflow-hidden   border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900",
   scheduleHead:
-    " bg-green-300 px-4 py-3 sm:px-5 sm:py-4 dark:border-slate-700 dark:bg-green-300",
+    " bg-green-300 px-4 rounded-t-md py-3 sm:px-5 sm:py-4 dark:border-slate-700 dark:bg-green-300",
   scheduleTh:
     "border-r border-b border-slate-300 bg-slate-50 px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-500 last:border-r-0 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
   scheduleTd:
@@ -507,7 +507,7 @@ export default async function AccountDetailPage({
         progressPct={progressPct}
       />
 
-      <div className="max-w-8xl relative mx-auto overflow-visible pb-16">
+      <div className="max-w-8xl px-2 relative mx-auto overflow-visible pb-16">
         <div className="mt-5 space-y-6 sm:mt-10">
           <div
             className="flex flex-col md:flex-row justify-start
@@ -522,7 +522,7 @@ export default async function AccountDetailPage({
               <span>{`<-`} back to</span>
               <span>{borrowerName} details</span>
             </Link> */}
-            <div className="flex gap-2 print:hidden px-4">
+            <div className="flex gap-2 print:hidden">
               <ShareScheduleButton
                 noDetails
                 borrowerName={borrowerName}
@@ -824,59 +824,68 @@ export default async function AccountDetailPage({
                     className="flex flex-col gap-3 sm:flex-row sm:items-end
                       sm:justify-between"
                   >
-                    <div>
-                      <h2
-                        id="schedule-heading"
-                        className="text-sm font-black tracking-wide
-                          text-slate-600 uppercase"
+                    <div className="flex gap-3 items-center">
+                      <span
+                        className="flex size-11 items-center justify-center
+                          rounded-xl bg-primary/10 dark:bg-primary-40
+                          text-primary dark:text-slate-600"
                       >
-                        Payment schedules
-                      </h2>
-                      {nextDue ? (
-                        <p
-                          className="mt-1.5 text-sm font-semibold
-                            text-slate-800"
+                        <CalendarClock className="size-5" aria-hidden="true" />
+                      </span>
+                      <div>
+                        <h2
+                          id="schedule-heading"
+                          className="text-xl gap-2 items-center font-semibold
+                            tracking-tight text-slate-600 flex"
                         >
-                          Next due{" "}
-                          <span className="font-black text-slate-600">
-                            {formatDate(nextDue.due_date)}
-                          </span>
-                          <span className="text-slate-600"> · </span>
-                          <span
-                            className="font-black text-slate-600 tabular-nums"
+                          Payment schedules
+                        </h2>
+                        {nextDue ? (
+                          <p
+                            className="text-sm mt-0.5 font-semibold
+                              text-slate-800"
                           >
-                            {formatMoney(remainingOnInstallment(nextDue))}
-                          </span>
-                          {remainingOnInstallment(nextDue) <
-                          Number(nextDue.amount_due ?? 0) ? (
-                            <span className="text-slate-600">
-                              {" "}
-                              left of{" "}
-                              <span
-                                className="dark:text-foreground font-bold
-                                  tabular-nums"
-                              >
-                                {formatMoney(Number(nextDue.amount_due ?? 0))}
-                              </span>
+                            Next due{" "}
+                            <span className="font-bold text-slate-600">
+                              {formatDate(nextDue.due_date)}
                             </span>
-                          ) : null}
-                        </p>
-                      ) : totalInstallments > 0 && isManual ? (
-                        <p
-                          className="mt-1.5 text-sm font-bold text-emerald-900
-                            dark:text-emerald-400"
-                        ></p>
-                      ) : (
-                        <p
-                          className="mt-1.5 text-sm font-bold text-emerald-900
-                            dark:text-emerald-400"
-                        >
-                          All installments settled.
-                        </p>
-                      )}
+                            <span className="text-slate-600"> · </span>
+                            <span
+                              className="font-black text-slate-600 tabular-nums"
+                            >
+                              {formatMoney(remainingOnInstallment(nextDue))}
+                            </span>
+                            {remainingOnInstallment(nextDue) <
+                            Number(nextDue.amount_due ?? 0) ? (
+                              <span className="text-slate-600">
+                                {" "}
+                                left of{" "}
+                                <span
+                                  className="dark:text-foreground font-bold
+                                    tabular-nums"
+                                >
+                                  {formatMoney(Number(nextDue.amount_due ?? 0))}
+                                </span>
+                              </span>
+                            ) : null}
+                          </p>
+                        ) : totalInstallments > 0 && isManual ? (
+                          <p
+                            className="mt-1.5 text-sm font-bold text-emerald-900
+                              dark:text-emerald-400"
+                          ></p>
+                        ) : (
+                          <p
+                            className="mt-1.5 text-sm font-bold text-emerald-900
+                              dark:text-emerald-400"
+                          >
+                            All installments settled.
+                          </p>
+                        )}
+                      </div>
                     </div>
                     {(isManual ? principal > 0 : totalInstallments > 0) ? (
-                      <div className="w-full max-w-xs sm:w-48">
+                      <div className="w-full sm:w-48">
                         <div
                           className="mb-1 flex justify-between text-[10px]
                             font-black tracking-wide text-slate-800 uppercase"
