@@ -8,6 +8,10 @@ import {
   isInstallmentFullyPaid,
 } from "@/lib/payment-schedule/schedule-balances";
 import ThemeToggle from "@/components/theme-toggle";
+import {
+  PaymentSchedules,
+  type PaymentScheduleItem,
+} from "@/components/components-2/dashboard/payment-schedules";
 import { formatDate } from "@/lib/utils";
 
 type Props = {
@@ -16,32 +20,6 @@ type Props = {
 
 function formatMoney(value: number) {
   return `₱${value.toLocaleString("en-US")}`;
-}
-
-function statusBadgeClasses(status: string) {
-  switch (status) {
-    case "paid":
-      return "border-emerald-600 bg-emerald-50 text-emerald-900 dark:border-emerald-400/40 dark:bg-emerald-400/[0.15] dark:text-emerald-300";
-    case "partial":
-      return "border-violet-600 bg-violet-50 text-violet-900 dark:border-violet-400/40 dark:bg-violet-400/[0.15] dark:text-violet-300";
-    case "overdue":
-      return "border-rose-600 bg-rose-50 text-rose-900 dark:border-rose-400/40 dark:bg-rose-400/[0.15] dark:text-rose-300";
-    default:
-      return "border-amber-600 bg-amber-50 text-amber-900 dark:border-amber-400/40 dark:bg-amber-400/[0.15] dark:text-amber-300";
-  }
-}
-
-function statusRowClasses(status: string) {
-  switch (status) {
-    case "paid":
-      return "bg-emerald-50/60 dark:bg-emerald-400/[0.08]";
-    case "partial":
-      return "bg-violet-50/60 dark:bg-violet-400/[0.08]";
-    case "overdue":
-      return "bg-rose-50/60 dark:bg-rose-400/[0.08]";
-    default:
-      return "bg-white dark:bg-zinc-900/40";
-  }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -128,6 +106,20 @@ export default async function PublicAccountViewPage({ params }: Props) {
 
   const paidCount = schedules.filter((s) => isInstallmentFullyPaid(s)).length;
   const nextDue = schedules.find((s) => s.status === "pending");
+  const nextDueIndex = schedules.findIndex((s) => s.status === "pending");
+  const nextNumber = nextDueIndex >= 0 ? nextDueIndex + 1 : null;
+
+  const scheduleItems: PaymentScheduleItem[] = schedules.map((s, i) => ({
+    id: s.id,
+    number: i + 1,
+    amount: Math.max(0, Number(s.amount_due ?? 0)),
+    dueDate: formatDate(s.due_date),
+    status: s.status as PaymentScheduleItem["status"],
+    paid: amountPaidOnInstallment(s),
+    remaining: remainingOnInstallment(s),
+    paidDate: s.paid_date,
+    note: s.note,
+  }));
 
   const borrowerName = borrower
     ? `${borrower.first_name} ${borrower.last_name}`
@@ -343,98 +335,15 @@ export default async function PublicAccountViewPage({ params }: Props) {
 
       {/* Right column — schedule */}
       <div className="lg:col-span-8">
-        <p
-          className="mb-3 text-[10px] font-black tracking-[0.2em] text-slate-400
-            uppercase dark:text-zinc-500"
-        >
-          Payment Schedule
-        </p>
-        <div className="space-y-2">
-          {schedules.map((schedule, i) => {
-            const due = Number(schedule.amount_due ?? 0);
-            const paid = amountPaidOnInstallment(schedule);
-            const isNext = schedule.id === nextDue?.id;
-            const partialPct =
-              due > 0 ? Math.min(100, Math.round((paid / due) * 100)) : 0;
-
-            return (
-              <div
-                key={schedule.id}
-                className={`flex flex-wrap items-center gap-x-3 gap-y-1
-                rounded-lg border p-3 ${
-                  isNext
-                    ? "border-sky-500 dark:border-sky-500"
-                    : "border-slate-300 dark:border-zinc-700"
-                } ${statusRowClasses(schedule.status)}`}
-              >
-                {/* Index + Next */}
-                <div className="flex items-center gap-1">
-                  <span
-                    className="text-[10px] font-black text-slate-400
-                      dark:text-zinc-500"
-                  >
-                    #{i + 1}
-                  </span>
-                  {isNext && (
-                    <span
-                      className="rounded border border-sky-600 bg-sky-100 px-1
-                        py-px text-[7px] font-black tracking-wide text-sky-800
-                        uppercase dark:border-sky-500 dark:bg-sky-900/40
-                        dark:text-sky-300"
-                    >
-                      Next
-                    </span>
-                  )}
-                </div>
-
-                {/* Amount */}
-                <span
-                  className="text-base font-black text-slate-600
-                    dark:text-zinc-100"
-                >
-                  {formatMoney(due)}
-                </span>
-
-                {/* Date */}
-                <span
-                  className="text-[10px] font-semibold text-slate-500
-                    dark:text-zinc-400"
-                >
-                  {formatDate(schedule.due_date)}
-                </span>
-
-                {/* Partial mini indicator */}
-                {schedule.status === "partial" && (
-                  <span
-                    className="text-[9px] font-bold text-amber-600
-                      dark:text-amber-400"
-                  >
-                    {partialPct}%
-                  </span>
-                )}
-
-                {/* Paid date inline */}
-                {schedule.status === "paid" && schedule.paid_date && (
-                  <span
-                    className="text-[9px] font-semibold text-emerald-600
-                      dark:text-emerald-400"
-                  >
-                    {formatDate(schedule.paid_date)}
-                  </span>
-                )}
-
-                {/* Status badge — pushed right */}
-                <span
-                  className={`ml-auto rounded-full border px-2.5 py-0.5
-                  text-[8px] font-black tracking-wider uppercase
-                  ${statusBadgeClasses(schedule.status)}`}
-                >
-                  {schedule.status}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        <PaymentSchedules
+          title="Payment Schedule"
+          nextDueDate={nextDue ? formatDate(nextDue.due_date) : null}
+          nextDueAmount={nextDue ? remainingOnInstallment(nextDue) : undefined}
+          progress={progressPct}
+          nextNumber={nextNumber}
+          schedules={scheduleItems}
+          renderCardActions={() => null}
+        />
       </div>
 
       {/* Footer */}

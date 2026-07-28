@@ -405,7 +405,7 @@ export default function MonthlyCollectionsChart({
                 rounded border-2 border-slate-900 px-2 py-0.5 text-[10px]
                 font-black tracking-wide uppercase transition-opacity ${
                   visible[key]
-                    ? "bg-white text-slate-800 shadow-[2px_2px_0px_0px_#0f172a]"
+                    ? "bg-white text-slate-600 shadow-[2px_2px_0px_0px_#0f172a]"
                     : "bg-slate-100 text-slate-400 opacity-50 shadow-none"
                 }`}
               >

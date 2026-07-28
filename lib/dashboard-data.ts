@@ -21,8 +21,8 @@ export interface ProfitCategoryItem {
   name: string;
   color?: string | null;
   profit: number;
-  collected: number;
-  remaining: number;
+  collectedProfit: number;
+  remainingProfit: number;
 }
 
 export interface MonthlyProfit {

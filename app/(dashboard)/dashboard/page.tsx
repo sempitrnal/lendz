@@ -261,27 +261,33 @@ export default async function Dashboard({
   );
   const statsByCategory = new Map<
     string,
-    { profit: number; collected: number; remaining: number }
+    { profit: number; collectedProfit: number; remainingProfit: number }
   >();
   for (const row of thisMonthSchedules) {
     const borrowerId = accountBorrowerById.get(row.account_id);
     if (!borrowerId) continue;
     const categoryIds = borrowerCategoriesByBorrower.get(borrowerId) ?? [];
     if (categoryIds.length === 0) continue;
+    const principal = principalByAccountId.get(row.account_id) ?? 0;
+    const totalInstallments =
+      totalInstallmentsByAccount.get(row.account_id) ?? 1;
+    const principalPerInstallment = principal / totalInstallments;
     const paid = Number(row.amount_paid ?? 0);
     const due = Number(row.amount_due ?? 0);
-    const remaining = Math.max(0, due - paid);
-    const profit = paid + remaining;
+    const expectedProfit = Math.max(0, due - principalPerInstallment);
+    const collectedProfit = Math.max(0, paid - principalPerInstallment);
+    const remainingProfit = Math.max(0, expectedProfit - collectedProfit);
+    const profit = collectedProfit + remainingProfit;
     for (const categoryId of categoryIds) {
       const current = statsByCategory.get(categoryId) ?? {
         profit: 0,
-        collected: 0,
-        remaining: 0,
+        collectedProfit: 0,
+        remainingProfit: 0,
       };
       statsByCategory.set(categoryId, {
         profit: current.profit + profit,
-        collected: current.collected + paid,
-        remaining: current.remaining + remaining,
+        collectedProfit: current.collectedProfit + collectedProfit,
+        remainingProfit: current.remainingProfit + remainingProfit,
       });
     }
   }
@@ -290,19 +296,21 @@ export default async function Dashboard({
     .map((c) => {
       const stats = statsByCategory.get(c.id) ?? {
         profit: 0,
-        collected: 0,
-        remaining: 0,
+        collectedProfit: 0,
+        remainingProfit: 0,
       };
       return {
         id: c.id,
         name: c.name,
         color: c.color,
         profit: Math.round(stats.profit),
-        collected: Math.round(stats.collected),
-        remaining: Math.round(stats.remaining),
+        collectedProfit: Math.round(stats.collectedProfit),
+        remainingProfit: Math.round(stats.remainingProfit),
       };
     })
-    .filter((c) => c.profit > 0 || c.collected > 0 || c.remaining > 0)
+    .filter(
+      (c) => c.profit > 0 || c.collectedProfit > 0 || c.remainingProfit > 0,
+    )
     .sort((a, b) => b.profit - a.profit);
 
   const completeMonths = monthlyChartData.filter((m) => m.isComplete);
@@ -369,16 +377,14 @@ export default async function Dashboard({
             movement.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <MonthPicker currentMonth={activeMonth} />
-          <ThemeToggle />
-        </div>
       </div>
 
       <div className="mt-6">
         <SummaryCards summary={summary} />
       </div>
-
+      <div className="flex items-center gap-2">
+        <MonthPicker currentMonth={activeMonth} />
+      </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           <MonthlyCollections currentMonth={currentMonth} />

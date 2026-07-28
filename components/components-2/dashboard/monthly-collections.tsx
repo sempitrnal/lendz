@@ -20,7 +20,7 @@ export function MonthlyCollections({
     {
       label: "to collect so far",
       value: currentMonth.toCollectSoFar,
-      tone: "default",
+      tone: "accent",
     },
     { label: "collected", value: currentMonth.collected, tone: "primary" },
     { label: "meme", value: currentMonth.meme, tone: "default" },
