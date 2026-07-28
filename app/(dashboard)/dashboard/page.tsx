@@ -32,11 +32,35 @@ type ScheduleAggRow = {
 
 type AccountTotalRow = {
   id: string;
+  borrower_id: string;
   principal_amount: number | null;
   release_date: string | null;
   term_months: number | null;
   payment_frequency: string | null;
 };
+
+type CategoryRow = {
+  id: string;
+  name: string;
+  color: string | null;
+};
+
+type BorrowerCategoryRow = {
+  borrower_id: string;
+  category_id: string;
+};
+
+function metricCardClass(fromColor: string, darkFromColor: string) {
+  return `dark:border-border rounded-lg dark:border 
+    bg-linear-to-br ${fromColor} via-stone-50 to-white px-3 py-2.5
+    ${darkFromColor} dark:via-zinc-900/40 dark:to-zinc-900/60`;
+}
+
+const metricCardLabelClass = `dark:text-muted-foreground text-[10px] font-semibold
+  tracking-wide text-slate-500 uppercase`;
+
+const metricCardValueClass = `dark:text-foreground mt-0.5 text-base font-semibold
+  text-slate-600 tabular-nums`;
 
 export default async function Dashboard({
   searchParams,
@@ -74,6 +98,8 @@ export default async function Dashboard({
     { count: borrowerCount },
     { data: newBorrowerAccountsWeekData },
     { data: accountTotalsData },
+    { data: borrowerCategoriesData },
+    { data: categoriesData },
     allSchedules,
   ] = await Promise.all([
     supabase
@@ -89,9 +115,11 @@ export default async function Dashboard({
     supabase
       .from("accounts")
       .select(
-        "id, principal_amount, release_date, term_months, payment_frequency",
+        "id, borrower_id, principal_amount, release_date, term_months, payment_frequency",
       )
       .is("deleted_at", null),
+    supabase.from("borrower_categories").select("borrower_id, category_id"),
+    supabase.from("categories").select("id, name, color"),
     getAllPaymentSchedules(),
   ]);
 
@@ -228,6 +256,68 @@ export default async function Dashboard({
     (currentMonthData?.expectedProfit ?? 0) - (currentMonthData?.profit ?? 0),
   );
 
+  // Profit per category for the active month
+  const categories = (categoriesData ?? []) as CategoryRow[];
+  const borrowerCategories = (borrowerCategoriesData ?? []) as BorrowerCategoryRow[];
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const borrowerCategoriesByBorrower = new Map<string, string[]>();
+  for (const row of borrowerCategories) {
+    const list = borrowerCategoriesByBorrower.get(row.borrower_id) ?? [];
+    list.push(row.category_id);
+    borrowerCategoriesByBorrower.set(row.borrower_id, list);
+  }
+  const accountBorrowerById = new Map(
+    (accountTotalsData ?? []).map((a) => [a.id, a.borrower_id]),
+  );
+  const statsByCategory = new Map<
+    string,
+    { profit: number; collected: number; remaining: number }
+  >();
+  for (const row of thisMonthSchedules) {
+    const borrowerId = accountBorrowerById.get(row.account_id);
+    if (!borrowerId) continue;
+    const categoryIds = borrowerCategoriesByBorrower.get(borrowerId) ?? [];
+    if (categoryIds.length === 0) continue;
+    const principal = principalByAccountId.get(row.account_id) ?? 0;
+    const totalInstallments = totalInstallmentsByAccount.get(row.account_id) ?? 1;
+    const principalPerInstallment = principal / totalInstallments;
+    const paid = Number(row.amount_paid ?? 0);
+    const due = Number(row.amount_due ?? 0);
+    const profit = Math.max(0, paid - principalPerInstallment);
+    const remaining = Math.max(0, due - paid);
+    for (const categoryId of categoryIds) {
+      const current = statsByCategory.get(categoryId) ?? {
+        profit: 0,
+        collected: 0,
+        remaining: 0,
+      };
+      statsByCategory.set(categoryId, {
+        profit: current.profit + profit,
+        collected: current.collected + paid,
+        remaining: current.remaining + remaining,
+      });
+    }
+  }
+  const profitPerCategory = categories
+    .filter((c) => categoryById.has(c.id))
+    .map((c) => {
+      const stats = statsByCategory.get(c.id) ?? {
+        profit: 0,
+        collected: 0,
+        remaining: 0,
+      };
+      return {
+        id: c.id,
+        name: c.name,
+        color: c.color,
+        profit: Math.round(stats.profit),
+        collected: Math.round(stats.collected),
+        remaining: Math.round(stats.remaining),
+      };
+    })
+    .filter((c) => c.profit > 0 || c.collected > 0 || c.remaining > 0)
+    .sort((a, b) => b.profit - a.profit);
+
   const completeMonths = monthlyChartData.filter((m) => m.isComplete);
   const totalProfitComplete = completeMonths.reduce((s, m) => s + m.profit, 0);
   const avgMonthlyProfit =
@@ -349,7 +439,7 @@ export default async function Dashboard({
 
       <section className="mt-4 lg:mt-6">
         <article
-          className="dark:border-border dark:bg-card bg-background min-w-0
+          className="dark:border-border dark:bg-card bg-white min-w-0
             rounded-xl dark:border shadow-sm border-slate-300 p-4 sm:p-5"
         >
           <div
@@ -373,113 +463,74 @@ export default async function Dashboard({
             <MonthPicker currentMonth={activeMonth} />
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-            <div
-              className="dark:border-border rounded-lg dark:border shadow-sm
-                bg-linear-to-br from-indigo-50 via-stone-50 to-white px-3 py-2.5
-                dark:from-indigo-900/20 dark:via-zinc-900/40
-                dark:to-zinc-900/60"
-            >
+            <div className={metricCardClass("from-indigo-50", "dark:from-indigo-900/20")}>
               <p
-                className="dark:text-muted-foreground text-[10px] font-black
-                  tracking-wide text-slate-500 uppercase"
+                className={metricCardLabelClass}
               >
                 to collect this month
               </p>
               <p
-                className="dark:text-foreground mt-0.5 text-base font-black
-                  text-slate-600 tabular-nums"
+                className={metricCardValueClass}
               >
                 ₱{(currentMonthData?.expected ?? 0).toLocaleString()}
               </p>
             </div>
-            <div
-              className="dark:border-border rounded-lg dark:border shadow-sm
-                bg-linear-to-br from-sky-50 via-stone-50 to-white px-3 py-2.5
-                dark:from-sky-900/20 dark:via-zinc-900/40 dark:to-zinc-900/60"
-            >
+            <div className={metricCardClass("from-sky-50", "dark:from-sky-900/20")}>
               <p
-                className="dark:text-muted-foreground text-[10px] font-black
-                  tracking-wide text-slate-500 uppercase"
+                className={metricCardLabelClass}
               >
                 to collect so far
               </p>
               <p
-                className="dark:text-foreground mt-0.5 text-base font-black
-                  text-slate-600 tabular-nums"
+                className={metricCardValueClass}
               >
                 ₱{(currentMonthData?.expectedSoFar ?? 0).toLocaleString()}
               </p>
             </div>
-            <div
-              className="dark:border-border rounded-lg dark:border shadow-sm
-                bg-linear-to-br from-emerald-50 via-stone-50 to-white px-3
-                py-2.5 dark:from-emerald-900/20 dark:via-zinc-900/40
-                dark:to-zinc-900/60"
-            >
+            <div className={metricCardClass("from-emerald-50", "dark:from-emerald-900/20")}>
               <p
-                className="dark:text-muted-foreground text-[10px] font-black
-                  tracking-wide text-slate-500 uppercase"
+                className={metricCardLabelClass}
               >
                 collected
               </p>
               <p
-                className="dark:text-foreground mt-0.5 text-base font-black
-                  text-slate-600 tabular-nums"
+                className={metricCardValueClass}
               >
                 ₱{(currentMonthData?.collected ?? 0).toLocaleString()}
               </p>
             </div>
-            <div
-              className="dark:border-border rounded-lg dark:border shadow-sm
-                bg-linear-to-br from-amber-50 via-stone-50 to-white px-3 py-2.5
-                dark:from-amber-900/20 dark:via-zinc-900/40 dark:to-zinc-900/60"
-            >
+            <div className={metricCardClass("from-amber-50", "dark:from-amber-900/20")}>
               <p
-                className="dark:text-muted-foreground text-[10px] font-black
-                  tracking-wide text-slate-500 uppercase"
+                className={metricCardLabelClass}
               >
                 meme
               </p>
               <p
-                className="dark:text-foreground mt-0.5 text-base font-black
-                  text-slate-600 tabular-nums"
+                className={metricCardValueClass}
               >
                 ₱{(currentMonthData?.profit ?? 0).toLocaleString()}
               </p>
             </div>
-            <div
-              className="dark:border-border rounded-lg dark:border shadow-sm
-                bg-linear-to-br from-yellow-50 via-stone-50 to-white px-3 py-2.5
-                dark:from-yellow-900/20 dark:via-zinc-900/40
-                dark:to-zinc-900/60"
-            >
+            <div className={metricCardClass("from-yellow-50", "dark:from-yellow-900/20")}>
               <p
-                className="dark:text-muted-foreground text-[10px] font-black
-                  tracking-wide text-slate-500 uppercase"
+                className={metricCardLabelClass}
               >
                 expected profit
               </p>
               <p
-                className="dark:text-foreground mt-0.5 text-base font-black
-                  text-slate-600 tabular-nums"
+                className={metricCardValueClass}
               >
                 ₱{(currentMonthData?.expectedProfit ?? 0).toLocaleString()}
               </p>
             </div>
-            <div
-              className="dark:border-border rounded-lg dark:border shadow-sm
-                bg-linear-to-br from-rose-50 via-stone-50 to-white px-3 py-2.5
-                dark:from-rose-900/20 dark:via-zinc-900/40 dark:to-zinc-900/60"
-            >
+            <div className={metricCardClass("from-rose-50", "dark:from-rose-900/20")}>
               <p
-                className="dark:text-muted-foreground text-[10px] font-black
-                  tracking-wide text-slate-500 uppercase"
+                className={metricCardLabelClass}
               >
                 remaining profit
               </p>
               <p
-                className="dark:text-foreground mt-0.5 text-base font-black
-                  text-slate-600 tabular-nums"
+                className={metricCardValueClass}
               >
                 ₱{currentMonthRemainingProfit.toLocaleString()}
               </p>
@@ -567,6 +618,78 @@ export default async function Dashboard({
           </div>
         </article>
       </section>
+
+      {profitPerCategory.length > 0 && (
+        <section className="mt-4 lg:mt-6">
+          <article
+            className="dark:border-border dark:bg-card bg-background min-w-0
+              rounded-xl dark:border shadow-sm border-slate-300 p-4 sm:p-5"
+          >
+            <div className="mb-4 flex items-center gap-2">
+              <span
+                className="dark:border-border dark:text-foreground rounded-md
+                  border border-slate-200 bg-violet-100 p-1.5 text-slate-600
+                  dark:bg-violet-900/50"
+              >
+                <TrendingUp className="size-4" />
+              </span>
+              <h2
+                className="dark:text-foreground text-base font-black
+                  text-slate-600 lowercase"
+              >
+                profit per category
+              </h2>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+              {profitPerCategory.map((c) => (
+                <div
+                  key={c.id}
+                  className="dark:border-border rounded-lg dark:border 
+                    bg-linear-to-br from-violet-50 via-stone-50 to-white px-3 py-2.5
+                    dark:from-violet-900/20 dark:via-zinc-900/40
+                    dark:to-zinc-900/60"
+                >
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <span
+                      className="inline-block size-2.5 rounded-full"
+                      style={{
+                        backgroundColor: c.color ?? "#cbd5e1",
+                      }}
+                    />
+                    <p
+                      className="dark:text-muted-foreground min-w-0 text-[10px]
+                        font-black tracking-wide text-slate-500 uppercase
+                        truncate"
+                    >
+                      {c.name}
+                    </p>
+                  </div>
+                  <p
+                    className="text-xl font-semibold text-slate-600 tabular-nums
+                      dark:text-violet-300"
+                  >
+                    ₱{c.profit.toLocaleString()}
+                  </p>
+                  <div className="mt-1 flex gap-3">
+                    <p
+                      className="text-[10px] font-semibold tabular-nums
+                        text-slate-500 dark:text-slate-400"
+                    >
+                      collected <span className="text-[#76a188]">₱{c.collected.toLocaleString()}</span>
+                    </p>
+                    <p
+                      className="text-[10px] font-semibold tabular-nums
+                        text-slate-500 dark:text-slate-400"
+                    >
+                      remaining <span className="text-[#945d5d]">₱{c.remaining.toLocaleString()}</span>
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </article>
+        </section>
+      )}
 
       <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1fr_1fr]">
         <Link

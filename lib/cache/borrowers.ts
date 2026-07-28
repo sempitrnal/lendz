@@ -403,6 +403,40 @@ async function fetchBorrowerAccountsWithSchedules(borrowerId: string) {
       byAccount.set(row.account_id, prev);
     });
 
+    const scheduleIds = scheduleRows.map((row) => row.id);
+    const paymentsByAccount = new Map<string, number>();
+    if (scheduleIds.length > 0) {
+      const { data: paymentsData } = await supabase
+        .from("schedule_payments")
+        .select("schedule_id, amount, payment_date")
+        .in("schedule_id", scheduleIds);
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+      for (const payment of (paymentsData ?? []) as {
+        schedule_id: string;
+        amount: number | null;
+        payment_date: string | null;
+      }[]) {
+        if (!payment.payment_date || payment.amount == null) continue;
+        const paymentDate = new Date(payment.payment_date);
+        if (
+          paymentDate.getFullYear() !== currentYear ||
+          paymentDate.getMonth() !== currentMonth
+        ) {
+          continue;
+        }
+        const accountId = scheduleRows.find(
+          (row) => row.id === payment.schedule_id,
+        )?.account_id;
+        if (!accountId) continue;
+        paymentsByAccount.set(
+          accountId,
+          (paymentsByAccount.get(accountId) ?? 0) + Number(payment.amount),
+        );
+      }
+    }
+
     accountList.forEach((account) => {
       const rows = byAccount.get(account.id) ?? [];
       const totalPayment = rows.reduce(
@@ -499,6 +533,7 @@ async function fetchBorrowerAccountsWithSchedules(borrowerId: string) {
           })),
         totalDue: isFlatManual ? manualFlatTotal : totalPayment,
         totalPaid: amountPaid,
+        amountPaidThisMonth: paymentsByAccount.get(account.id) ?? 0,
         term_months: account.term_months,
         term_installments: account.term_installments,
         schedule_mode: account.schedule_mode,

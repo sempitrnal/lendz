@@ -62,6 +62,42 @@ export async function GET(
     byAccount.set(row.account_id as string, list);
   }
 
+  // Compute amount paid this month per account from schedule_payments
+  const scheduleIds = schedules.map((s) => s.id as string);
+  const paymentsByAccount = new Map<string, number>();
+  if (scheduleIds.length > 0) {
+    const { data: paymentsData } = await supabase
+      .from("schedule_payments")
+      .select("schedule_id, amount, payment_date")
+      .in("schedule_id", scheduleIds);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    for (const payment of (paymentsData ?? []) as {
+      schedule_id: string;
+      amount: number | null;
+      payment_date: string | null;
+    }[]) {
+      if (!payment.payment_date || payment.amount == null) continue;
+      const paymentDate = new Date(payment.payment_date);
+      if (
+        paymentDate.getFullYear() !== currentYear ||
+        paymentDate.getMonth() !== currentMonth
+      ) {
+        continue;
+      }
+      const accountId = schedules.find(
+        (s) => s.id === payment.schedule_id,
+      )?.account_id;
+      if (!accountId) continue;
+      paymentsByAccount.set(
+        accountId as string,
+        (paymentsByAccount.get(accountId as string) ?? 0) +
+          Number(payment.amount),
+      );
+    }
+  }
+
   // Compute metrics per account
   const metrics: Record<string, unknown> = {};
   for (const account of accountList) {
@@ -143,6 +179,7 @@ export async function GET(
       nextCollectionAmountDue: nextUnpaid
         ? Math.max(0, Number(nextUnpaid.amount_due ?? 0))
         : 0,
+      amountPaidThisMonth: paymentsByAccount.get(account.id) ?? 0,
       nextCollectionStatus: nextUnpaid?.status ?? null,
       nextUnpaidScheduleId: (nextUnpaid as any)?.id ?? null,
       nextCollections,

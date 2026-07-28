@@ -270,51 +270,64 @@ export function AccountCard({
 
         {/* Metrics */}
         {account.status !== "pending" && (
-          <div className="mt-3 flex items-center gap-4">
-            <div>
+          <div className="mt-3 grid w-full grid-cols-3 gap-2">
+            <div
+              className="flex flex-col items-center justify-center rounded-xl
+                border border-rose-100/70 bg-linear-to-br from-rose-50/60
+                to-rose-100/70 p-3 dark:border-rose-900/20
+                dark:from-rose-950/30 dark:to-rose-900/20"
+            >
               <p
-                className="text-[9px] font-bold tracking-wider text-slate-500
-                  uppercase dark:text-muted-foreground"
+                className="text-[9px] font-bold tracking-wider text-rose-700/60
+                  uppercase dark:text-rose-200/70"
               >
                 Remaining
               </p>
               <p
                 className="text-sm font-bold text-rose-400 tabular-nums
-                  dark:text-rose-400"
+                  dark:text-rose-300/80"
               >
-                ₱{fmtCompact(amountLeftToPay)}
+                ₱{Number(amountLeftToPay).toLocaleString()}
               </p>
             </div>
-            <div>
+            <div
+              className="flex flex-col items-center justify-center rounded-xl
+                border border-emerald-100 bg-linear-to-br from-[#f2fffa]
+                to-emerald-100 p-3 dark:border-emerald-900/30
+                dark:from-emerald-950/30 dark:to-emerald-900/30"
+            >
               <p
-                className="text-[9px] font-bold tracking-wider text-slate-500
-                  uppercase dark:text-muted-foreground"
+                className="text-[9px] font-bold tracking-wider text-emerald-700/80
+                  uppercase dark:text-emerald-200/80"
               >
                 {isManual ? "Paid" : "Collected"}
               </p>
               <p
-                className="text-sm font-bold text-emerald-700 tabular-nums
-                  dark:text-emerald-300"
+                className="text-sm font-bold text-[#599c82] tabular-nums
+                 "
               >
-                ₱{fmtCompact(totalPaid)}
+                ₱{totalPaid >= 100000 ? fmtCompact(totalPaid) : Number(totalPaid).toLocaleString()}
               </p>
             </div>
-            {profitToMake > 0 && (
-              <div>
-                <p
-                  className="text-[9px] font-bold tracking-wider text-slate-500
-                    uppercase dark:text-muted-foreground"
-                >
-                  ginansya
-                </p>
-                <p
-                  className="text-sm font-bold text-[#6f537b] tabular-nums
-                    dark:text-violet-300"
-                >
-                  ₱{fmtCompact(profitPerSchedule)}
-                </p>
-              </div>
-            )}
+            <div
+              className="flex flex-col items-center justify-center rounded-xl
+                border border-violet-100 bg-linear-to-br from-violet-50/60
+                to-violet-100/70 p-3 dark:border-[#2b2636]
+                dark:from-[#15121b] dark:to-[#211d2a]"
+            >
+              <p
+                className="text-[9px] font-bold tracking-wider text-[#6f537b]
+                  uppercase "
+              >
+                ginansya
+              </p>
+              <p
+                className="text-sm font-bold text-[#6f537b] tabular-nums
+                  "
+              >
+                ₱{Number(profitPerSchedule).toLocaleString()}
+              </p>
+            </div>
           </div>
         )}
 

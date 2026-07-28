@@ -99,6 +99,7 @@ export type AccountComputedMetrics = {
   overdueSchedules: { due_date: string; amount: number }[];
   totalDue: number;
   totalPaid: number;
+  amountPaidThisMonth: number;
   term_months?: string | number | null;
   term_installments?: string | number | null;
   schedule_mode?: string | null;
@@ -317,6 +318,25 @@ export default function BorrowerAccountsSection({
       totalExpected > 0
         ? Math.min(100, Math.round((totalCollected / totalExpected) * 100))
         : 0;
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const amountToPayThisMonth = metricsArr.reduce((sum, m) => {
+      const due = m.nextCollectionDate ? new Date(m.nextCollectionDate) : null;
+      if (
+        due &&
+        due.getFullYear() === currentYear &&
+        due.getMonth() === currentMonth &&
+        m.nextCollectionAmount > 0
+      ) {
+        return sum + m.nextCollectionAmount;
+      }
+      return sum;
+    }, 0);
+    const amountPaidThisMonth = metricsArr.reduce(
+      (sum, m) => sum + (m.amountPaidThisMonth ?? 0),
+      0,
+    );
     return {
       totalLoaned,
       totalExpected,
@@ -325,6 +345,8 @@ export default function BorrowerAccountsSection({
       totalRemaining,
       profitPerSchedule,
       collectedPct,
+      amountToPayThisMonth,
+      amountPaidThisMonth,
     };
   }, [accounts, accountMetricsById]);
 
@@ -422,19 +444,7 @@ export default function BorrowerAccountsSection({
         )}
 
         <div className="mt-8 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => {
-              router.push("/borrowers", { scroll: false });
-              router.refresh();
-            }}
-            className="inline-flex items-center gap-1.5 text-xs font-bold
-              text-slate-600 transition hover:text-slate-600 dark:text-slate-400
-              dark:hover:text-slate-200"
-          >
-            <ArrowLeft className="size-3.5" />
-            back to borrowers
-          </button>
+
           <button
             type="button"
             onClick={handleCopyNextCollections}
@@ -450,6 +460,52 @@ export default function BorrowerAccountsSection({
             copy amounts
           </button>
         </div>
+
+        {summaryStats &&
+          (summaryStats.amountToPayThisMonth > 0 ||
+            summaryStats.amountPaidThisMonth > 0) && (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {summaryStats.amountToPayThisMonth > 0 && (
+                <div
+                  className="flex flex-col rounded-xl border border-amber-200
+                    bg-amber-50 p-4 dark:border-amber-900/30
+                    dark:bg-amber-950/30"
+                >
+                  <span
+                    className="text-[10px] font-bold tracking-wider
+                      text-[#dac17d] uppercase dark:text-amber-200/80"
+                  >
+                    Amount to pay this month
+                  </span>
+                  <span
+                    className="text-2xl font-bold text-[#be7d1b] tabular-nums
+                      dark:text-[#d3a560]"
+                  >
+                    ₱{summaryStats.amountToPayThisMonth.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {summaryStats.amountPaidThisMonth > 0 && (
+                <div
+                  className="flex flex-col rounded-xl border border-emerald-200
+                    bg-emerald-50 p-4 dark:border-emerald-900/30
+                    dark:bg-emerald-950/30"
+                >
+                  <span
+                    className="text-[10px] font-bold tracking-wider
+                       uppercase  text-[#599c82]"
+                  >
+                    Amount paid this month
+                  </span>
+                  <span
+                    className="text-2xl font-bold text-[#599c82] tabular-nums"
+                  >
+                    ₱{summaryStats.amountPaidThisMonth.toLocaleString()}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
         {selectionMode && (
           <div
