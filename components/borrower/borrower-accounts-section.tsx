@@ -321,20 +321,38 @@ export default function BorrowerAccountsSection({
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
-    const amountToPayThisMonth = metricsArr.reduce((sum, m) => {
-      const due = m.nextCollectionDate ? new Date(m.nextCollectionDate) : null;
-      if (
-        due &&
-        due.getFullYear() === currentYear &&
-        due.getMonth() === currentMonth &&
-        m.nextCollectionAmount > 0
-      ) {
-        return sum + m.nextCollectionAmount;
+    const amountToPayThisMonth = accounts.reduce((sum, account) => {
+      const m = accountMetricsById[account.id];
+      if (!m || account.status === "pending") return sum;
+
+      let accountDue = 0;
+      // Include any current or overdue scheduled collection (partials + next pending)
+      for (const nc of m.nextCollections ?? []) {
+        if (!nc.due_date || nc.amount <= 0) continue;
+        const due = new Date(nc.due_date);
+        if (
+          due.getFullYear() < currentYear ||
+          (due.getFullYear() === currentYear && due.getMonth() <= currentMonth)
+        ) {
+          accountDue += nc.amount;
+        }
       }
-      return sum;
+
+      // Manual-flat accounts have no generated schedules, so the full remaining balance is due
+      if (
+        accountDue === 0 &&
+        m.amountLeftToPay > 0 &&
+        account.schedule_mode === "manual" &&
+        account.interest_type !== "rolling"
+      ) {
+        accountDue += m.amountLeftToPay;
+      }
+
+      return sum + accountDue;
     }, 0);
-    const amountPaidThisMonth = metricsArr.reduce(
-      (sum, m) => sum + (m.amountPaidThisMonth ?? 0),
+    const amountPaidThisMonth = accounts.reduce(
+      (sum, account) =>
+        sum + (accountMetricsById[account.id]?.amountPaidThisMonth ?? 0),
       0,
     );
     return {
@@ -444,7 +462,6 @@ export default function BorrowerAccountsSection({
         )}
 
         <div className="mt-8 flex items-center justify-between">
-
           <button
             type="button"
             onClick={handleCopyNextCollections}
@@ -492,8 +509,8 @@ export default function BorrowerAccountsSection({
                     dark:bg-emerald-950/30"
                 >
                   <span
-                    className="text-[10px] font-bold tracking-wider
-                       uppercase  text-[#599c82]"
+                    className="text-[10px] font-bold tracking-wider uppercase
+                      text-[#599c82]"
                   >
                     Amount paid this month
                   </span>
