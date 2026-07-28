@@ -68,7 +68,7 @@ export function StickyBorrowerStrip({
                 </div>
               )}
               <div
-                className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[11px]
+                className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-[14px]
                   text-slate-400 dark:text-muted-foreground"
               >
                 <span>
@@ -83,16 +83,16 @@ export function StickyBorrowerStrip({
                 <span>
                   Collected{" "}
                   <strong
-                    className="font-semibold text-emerald-600
-                      dark:text-emerald-400"
+                    className="font-semibold text-[#5f956a] dark:text-[#7bc48a]"
                   >
                     ₱{Math.round(totalAmountCollected).toLocaleString()}
                   </strong>
                 </span>
                 <span>
                   Remaining{" "}
-                  <strong className="font-semibold text-rose-600
-                    dark:text-rose-400">
+                  <strong
+                    className="font-semibold text-[#c45b5b] dark:text-[#dc7676]"
+                  >
                     ₱{Math.round(totalRemaining).toLocaleString()}
                   </strong>
                 </span>
@@ -164,7 +164,7 @@ export function StickyBorrowerStrip({
                   label: "Profit / schedule",
                   value: profitPerSchedule,
                   tint: "bg-violet-50 dark:bg-violet-900/20",
-                  text: "text-violet-700 dark:text-violet-300",
+                  text: "text-[#351953] dark:text-violet-300",
                 },
               ].map(({ label, value, tint, text }) => (
                 <div
@@ -173,14 +173,14 @@ export function StickyBorrowerStrip({
                   py-2 dark:border-slate-700/60`}
                 >
                   <p
-                    className={`text-[10px] font-semibold uppercase
+                    className={`text-[14px] font-semibold lowercase
                     tracking-wide ${text}`}
                   >
                     {label}
                   </p>
                   <p
                     className="mt-0.5 text-lg font-bold tabular-nums
-                      text-slate-700 dark:text-foreground"
+                      text-slate-600 dark:text-foreground"
                   >
                     ₱{Math.round(value).toLocaleString()}
                   </p>

@@ -256,7 +256,7 @@ export const BorrowerCard = memo(function BorrowerCard({
                       <div
                         key={id}
                         className="flex items-center gap-1.5 rounded-full
-                          text-xs font-bold text-slate-500 dark:text-slate-400
+                          text-xl font-bold text-slate-500 dark:text-slate-400
                           uppercase dark:border-border/40"
                       >
                         <span

@@ -193,7 +193,7 @@ export default function ScheduleStatusForm({
               disabled={isDisabled}
               aria-pressed={isActive}
               className={`inline-flex min-h-7 items-center justify-center gap-1
-              rounded-md border-2 px-2 py-1 text-[10px] font-bold tracking-wide
+              rounded-md border-2 px-2 py-1 text-[14px] font-bold tracking-wide
               capitalize transition active:translate-x-px active:translate-y-px
               active:shadow-none sm:min-h-9 sm:gap-1.5 sm:rounded-lg sm:px-2.5
               sm:py-1.5 sm:text-xs ${getStatusClasses(status, isActive)}

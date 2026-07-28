@@ -274,12 +274,12 @@ export function AccountCard({
             <div
               className="flex flex-col items-center justify-center rounded-xl
                 border border-rose-100/70 bg-linear-to-br from-rose-50/60
-                to-rose-100/70 p-3 dark:border-rose-900/20
-                dark:from-rose-950/30 dark:to-rose-900/20"
+                to-rose-100/70 p-3 dark:border-rose-900/20 dark:from-rose-950/30
+                dark:to-rose-900/20"
             >
               <p
-                className="text-[9px] font-bold tracking-wider text-rose-700/60
-                  uppercase dark:text-rose-200/70"
+                className="text-[14px] font-bold tracking-wider text-rose-700/60
+                  lowercase dark:text-rose-200/70"
               >
                 Remaining
               </p>
@@ -297,34 +297,31 @@ export function AccountCard({
                 dark:from-emerald-950/30 dark:to-emerald-900/30"
             >
               <p
-                className="text-[9px] font-bold tracking-wider text-emerald-700/80
-                  uppercase dark:text-emerald-200/80"
+                className="text-[14px] font-bold tracking-wider
+                  text-emerald-700/80 lowercase dark:text-emerald-200/80"
               >
                 {isManual ? "Paid" : "Collected"}
               </p>
-              <p
-                className="text-sm font-bold text-[#599c82] tabular-nums
-                 "
-              >
-                ₱{totalPaid >= 100000 ? fmtCompact(totalPaid) : Number(totalPaid).toLocaleString()}
+              <p className="text-sm font-bold text-[#599c82] tabular-nums">
+                ₱
+                {totalPaid >= 100000
+                  ? fmtCompact(totalPaid)
+                  : Number(totalPaid).toLocaleString()}
               </p>
             </div>
             <div
               className="flex flex-col items-center justify-center rounded-xl
                 border border-violet-100 bg-linear-to-br from-violet-50/60
-                to-violet-100/70 p-3 dark:border-[#2b2636]
-                dark:from-[#15121b] dark:to-[#211d2a]"
+                to-violet-100/70 p-3 dark:border-[#2b2636] dark:from-[#15121b]
+                dark:to-[#211d2a]"
             >
               <p
-                className="text-[9px] font-bold tracking-wider text-[#6f537b]
-                  uppercase "
+                className="text-[14px] font-bold tracking-wider text-[#6f537b]
+                  lowercase"
               >
                 ginansya
               </p>
-              <p
-                className="text-sm font-bold text-[#6f537b] tabular-nums
-                  "
-              >
+              <p className="text-sm font-bold text-[#6f537b] tabular-nums">
                 ₱{Number(profitPerSchedule).toLocaleString()}
               </p>
             </div>

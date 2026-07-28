@@ -252,7 +252,7 @@ export default function HeaderSearch({
             >
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <span
-                  className="dark:text-foreground truncate text-sm font-bold
+                  className="dark:text-foreground truncate text-base font-bold
                     text-slate-600 uppercase"
                 >
                   {s.first_name} {s.last_name}
@@ -268,7 +268,7 @@ export default function HeaderSearch({
                         <span
                           key={cat.id}
                           className="inline-flex items-center gap-1 rounded-full border
-                            border-slate-900/10 bg-slate-100 px-2 py-0.5 text-[10px]
+                            border-slate-900/10 bg-slate-100 px-2 py-0.5 text-[12px]
                             font-semibold text-slate-600 capitalize
                             dark:border-white/10 dark:bg-slate-800
                             dark:text-slate-300"

@@ -71,7 +71,7 @@ export default function StickyAccountStrip({
             </div>
             {categoryLabel && (
               <span
-                className={`rounded-sm px-2 py-0.5 text-[10px] font-semibold
+                className={`rounded-sm px-2 py-0.5 text-[12px] font-bold
                 ${isDarkColor(categoryColor ?? "#cbd5e1") ? "text-white" : "text-slate-700"}`}
                 style={{
                   backgroundColor: categoryColor
@@ -84,7 +84,7 @@ export default function StickyAccountStrip({
               </span>
             )}
             <div
-              className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[11px]
+              className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-[14px]
                 text-slate-400 dark:text-muted-foreground"
             >
               <span>
@@ -165,14 +165,14 @@ export default function StickyAccountStrip({
                   py-2 dark:border-slate-700/60`}
                 >
                   <p
-                    className={`text-[10px] font-semibold uppercase
+                    className={`text-[14px] font-semibold lowercase
                     tracking-wide ${text}`}
                   >
                     {label}
                   </p>
                   <p
                     className="mt-0.5 text-lg font-bold tabular-nums
-                      text-slate-700 dark:text-foreground"
+                      text-slate-600 dark:text-foreground"
                   >
                     ₱{Math.round(value).toLocaleString()}
                   </p>
@@ -184,8 +184,8 @@ export default function StickyAccountStrip({
                   dark:bg-violet-900/20"
               >
                 <p
-                  className="text-[10px] font-semibold uppercase tracking-wide
-                    text-violet-700 dark:text-violet-300"
+                  className="text-[14px] font-semibold lowercase tracking-wide
+                    text-[#351953] dark:text-violet-300"
                 >
                   Profit / payroll
                 </p>

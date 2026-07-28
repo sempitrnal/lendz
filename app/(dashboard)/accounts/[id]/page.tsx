@@ -75,9 +75,9 @@ const nb = {
     "text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400",
   /** Payment schedule block */
   scheduleShell:
-    "overflow-hidden   border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900",
+    "overflow-hidden rounded-2xl border border-border bg-card    dark:border-slate-700 dark:bg-slate-900",
   scheduleHead:
-    " bg-green-300 px-4 rounded-t-md py-3 sm:px-5 sm:py-4 dark:border-slate-700 dark:bg-green-300",
+    " px-4 rounded-t-md py-3 sm:px-5 sm:py-4 dark:border-slate-700 ",
   scheduleTh:
     "border-r border-b border-slate-300 bg-slate-50 px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-500 last:border-r-0 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
   scheduleTd:
@@ -819,7 +819,11 @@ export default async function AccountDetailPage({
                 className={`${nb.scheduleShell} `}
                 aria-labelledby="schedule-heading"
               >
-                <div className={nb.scheduleHead}>
+                <div
+                  className={
+                    nb.scheduleHead + " bg-[#d5ffda] dark:bg-[#0a0e0a] "
+                  }
+                >
                   <div
                     className="flex flex-col gap-3 sm:flex-row sm:items-end
                       sm:justify-between"
@@ -827,31 +831,31 @@ export default async function AccountDetailPage({
                     <div className="flex gap-3 items-center">
                       <span
                         className="flex size-11 items-center justify-center
-                          rounded-xl bg-primary/10 dark:bg-primary-40
-                          text-primary dark:text-slate-600"
+                          rounded-xl bg-primary/10 text-primary"
                       >
                         <CalendarClock className="size-5" aria-hidden="true" />
                       </span>
                       <div>
                         <h2
                           id="schedule-heading"
-                          className="text-xl gap-2 items-center font-semibold
-                            tracking-tight text-slate-600 flex"
+                          className="text-lg font-semibold tracking-tight
+                            text-card-foreground"
                         >
                           Payment schedules
                         </h2>
                         {nextDue ? (
                           <p
                             className="text-sm mt-0.5 font-semibold
-                              text-slate-800"
+                              text-card-foreground"
                           >
                             Next due{" "}
-                            <span className="font-bold text-slate-600">
+                            <span className="font-bold text-card-foreground">
                               {formatDate(nextDue.due_date)}
                             </span>
                             <span className="text-slate-600"> · </span>
                             <span
-                              className="font-black text-slate-600 tabular-nums"
+                              className="font-black text-card-foreground
+                                tabular-nums"
                             >
                               {formatMoney(remainingOnInstallment(nextDue))}
                             </span>
@@ -888,10 +892,14 @@ export default async function AccountDetailPage({
                       <div className="w-full sm:w-48">
                         <div
                           className="mb-1 flex justify-between text-[10px]
-                            font-black tracking-wide text-slate-800 uppercase"
+                            font-black tracking-wide text-slate-800
+                            dark:text-foreground uppercase"
                         >
                           <span>{isManual ? "Recovered" : "Progress"}</span>
-                          <span className="text-slate-600 tabular-nums">
+                          <span
+                            className="text-slate-600 dark:text-foreground
+                              tabular-nums"
+                          >
                             {progressPct}%
                           </span>
                         </div>
