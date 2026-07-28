@@ -1,13 +1,3 @@
-import Link from "next/link";
-import {
-  Coins,
-  HandCoins,
-  Plus,
-  TrendingUp,
-  UserRoundPlus,
-  ClipboardList,
-  Bell,
-} from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { logPageView } from "@/lib/audit";
 import { getAllPaymentSchedules } from "@/lib/cache/schedules";
@@ -18,6 +8,17 @@ import {
 import ThemeToggle from "@/components/theme-toggle";
 import ResetCacheButton from "@/components/reset-cache-button";
 import MonthPicker from "@/components/month-picker";
+import { SummaryCards } from "@/components/components-2/dashboard/summary-cards";
+import { MonthlyCollections } from "@/components/components-2/dashboard/monthly-collections";
+import { ProfitPerMonth } from "@/components/components-2/dashboard/profit-per-month";
+import { ProfitPerCategory } from "@/components/components-2/dashboard/profit-per-category";
+import { SidePanel } from "@/components/components-2/dashboard/side-panel";
+import type {
+  DashboardSummary,
+  CurrentMonthData,
+  ProfitCategoryItem,
+  MonthlyProfit,
+} from "@/lib/dashboard-data";
 
 type ScheduleAggRow = {
   id: string;
@@ -49,18 +50,6 @@ type BorrowerCategoryRow = {
   borrower_id: string;
   category_id: string;
 };
-
-function metricCardClass(fromColor: string, darkFromColor: string) {
-  return `dark:border-border rounded-lg dark:border 
-    bg-linear-to-br from-emerald-50 via-stone-50 to-slate-50 p-5
-    dark:via-zinc-900/40 dark:to-zinc-900/60`;
-}
-
-const metricCardLabelClass = `dark:text-muted-foreground text-[10px] font-semibold
-  tracking-wide text-slate-500 uppercase`;
-
-const metricCardValueClass = `dark:text-foreground mt-0.5 text-base font-semibold
-  text-slate-600 tabular-nums`;
 
 export default async function Dashboard({
   searchParams,
@@ -329,458 +318,85 @@ export default async function Dashboard({
 
   const dueSchedulesCount = dueSchedules.length;
 
-  const summaryCards = [
-    {
-      label: "active borrowers",
-      value: String(borrowerCount ?? 0),
-      delta: `+${newBorrowersWeekCount ?? 0} this week`,
-      icon: HandCoins,
-      tone: "bg-emerald-100 dark:bg-emerald-900/50",
-      bg: "from-emerald-50 via-stone-50 to-emerald-100",
-    },
-    // {
-    //   label: "next collection",
-    //   value: nextCollectionDate
-    //     ? new Date(nextCollectionDate).toLocaleDateString("en-CA")
-    //     : "none",
-    //   delta: nextCollectionDate
-    //     ? `PHP ${nextCollectionTotal.toLocaleString()} • ${nextCollectionCount} schedule${nextCollectionCount === 1 ? "" : "s"}`
-    //     : "no upcoming unpaid schedule",
-    //   icon: CalendarClock,
-    //   tone: "bg-lime-100 dark:bg-lime-900/50",
-    //   bg: "from-lime-50 via-stone-50 to-yellow-100",
-    // },
-    {
-      label: "dues today",
-      value: `PHP ${dueTotalToday.toLocaleString()}`,
-      delta: `${dueSchedulesCount} schedule${dueSchedulesCount === 1 ? "" : "s"}`,
-      icon: Coins,
-      tone: "bg-orange-100 dark:bg-orange-900/50",
-      bg: "from-rose-50 via-stone-50 to-orange-100",
-    },
-    {
-      label: "avg monthly profit",
-      value: `PHP ${avgMonthlyProfit.toLocaleString()}`,
-      delta: `${monthlyChartData.length}-month average`,
-      icon: TrendingUp,
-      tone: "bg-amber-100 dark:bg-amber-900/50",
-      bg: "from-amber-50 via-stone-50 to-amber-100",
-    },
-  ] as const;
+  const summary: DashboardSummary = {
+    activeBorrowers: borrowerCount ?? 0,
+    activeBorrowersDelta: newBorrowersWeekCount,
+    duesToday: dueTotalToday,
+    duesTodaySchedules: dueSchedulesCount,
+    avgMonthlyProfit,
+  };
+
+  const currentMonth: CurrentMonthData = {
+    label: currentMonthData?.fullLabel ?? activeMonth,
+    toCollectThisMonth: currentMonthData?.expected ?? 0,
+    toCollectSoFar: currentMonthData?.expectedSoFar ?? 0,
+    collected: currentMonthData?.collected ?? 0,
+    meme: currentMonthData?.profit ?? 0,
+    expectedProfit: currentMonthData?.expectedProfit ?? 0,
+    remainingProfit: currentMonthRemainingProfit,
+  };
+
+  const profitPerMonth: MonthlyProfit[] = monthlyChartData.map((m) => ({
+    month: m.fullLabel,
+    short: m.label,
+    actual: m.profit,
+    expected: m.expectedProfit,
+    percent:
+      m.expectedProfit > 0
+        ? Math.min(100, Math.round((m.profit / m.expectedProfit) * 100))
+        : 0,
+  }));
+
+  const profitPerCategoryData: ProfitCategoryItem[] = profitPerCategory;
 
   return (
-    <main className="mx-auto max-w-7xl py-10 md:max-w-full px-4 pb-16 md:px-6">
-      <section
-        className="dark:border-border mb-4 rounded-xl shadow-sm bg-white p-4
-          sm:mb-6 sm:p-6 dark:bg-card"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p
-              className="dark:text-muted-foreground text-xs font-semibold
-                tracking-wider text-slate-600 uppercase"
-            >
-              {formattedToday}
-            </p>
-            <h1
-              className="dark:text-foreground mt-1 text-2xl font-black
-                text-slate-600 lowercase sm:text-3xl"
-            >
-              utangz dashboard
-            </h1>
-          </div>
+    <main className="mx-auto max-w-7xl px-4 py-6 pb-20 lg:px-8">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p
+            className="text-xs font-semibold uppercase tracking-wider
+              text-muted-foreground"
+          >
+            {formattedToday}
+          </p>
+          <h1
+            className="mt-1 text-2xl font-black lowercase text-slate-600
+              dark:text-foreground sm:text-3xl"
+          >
+            utangz dashboard
+          </h1>
+          <p
+            className="mt-2 text-sm text-slate-700 dark:text-muted-foreground
+              sm:max-w-xl"
+          >
+            Quick glance on active collections, upcoming dues, and account
+            movement.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <MonthPicker currentMonth={activeMonth} />
           <ThemeToggle />
         </div>
-        <p
-          className="dark:text-muted-foreground mt-2 text-sm text-slate-700
-            sm:max-w-xl"
-        >
-          Quick glance on active collections, upcoming dues, and account
-          movement.
-        </p>
-        <section
-          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3
-            mt-4"
-        >
-          {summaryCards.map((card) => (
-            <article
-              key={card.label}
-              className="dark:bg-card min-w-0 rounded-xl shadow-sm dark:border-2
-                border-slate-900 bg-white p-4"
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <span
-                  className="dark:text-muted-foreground text-xs font-bold
-                    tracking-wide text-slate-600 uppercase"
-                >
-                  {card.label}
-                </span>
-                <span
-                  className={`dark:border-border dark:text-foreground rounded-md
-                  p-1.5 text-slate-600 ${card.tone}`}
-                >
-                  <card.icon className="size-4" />
-                </span>
-              </div>
-              <p
-                className="dark:text-foreground text-2xl font-black
-                  text-slate-600"
-              >
-                {card.value}
-              </p>
-              <p
-                className="dark:text-muted-foreground mt-1 text-xs font-semibold
-                  wrap-break-word text-slate-600"
-              >
-                {card.delta}
-              </p>
-            </article>
-          ))}
-        </section>
-      </section>
+      </div>
 
-      <section className="mt-4 lg:mt-6">
-        <article
-          className="dark:border-border dark:bg-card bg-white min-w-0 rounded-xl
-            dark:border shadow-sm border-slate-300 p-4 sm:p-5"
-        >
-          <div
-            className="mb-4 flex flex-wrap items-center justify-between gap-2"
-          >
-            <div className="flex items-center gap-2">
-              <span
-                className="dark:border-border dark:text-foreground rounded-md
-                  border border-slate-200 bg-emerald-100 p-1.5 text-slate-600
-                  dark:bg-emerald-900/50"
-              >
-                <TrendingUp className="size-4" />
-              </span>
-              <h2
-                className="dark:text-foreground text-base font-black
-                  text-slate-600 lowercase"
-              >
-                monthly collections
-              </h2>
-            </div>
-            <MonthPicker currentMonth={activeMonth} />
-          </div>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-            <div
-              className={metricCardClass(
-                "from-indigo-50",
-                "dark:from-indigo-900/20",
-              )}
-            >
-              <p className={metricCardLabelClass}>to collect this month</p>
-              <p className={metricCardValueClass}>
-                ₱{(currentMonthData?.expected ?? 0).toLocaleString()}
-              </p>
-            </div>
-            <div
-              className={metricCardClass("from-sky-50", "dark:from-sky-900/20")}
-            >
-              <p className={metricCardLabelClass}>to collect so far</p>
-              <p className={metricCardValueClass}>
-                ₱{(currentMonthData?.expectedSoFar ?? 0).toLocaleString()}
-              </p>
-            </div>
-            <div
-              className={metricCardClass(
-                "from-emerald-50",
-                "dark:from-emerald-900/20",
-              )}
-            >
-              <p className={metricCardLabelClass}>collected</p>
-              <p className={metricCardValueClass}>
-                ₱{(currentMonthData?.collected ?? 0).toLocaleString()}
-              </p>
-            </div>
-            <div
-              className={metricCardClass(
-                "from-amber-50",
-                "dark:from-amber-900/20",
-              )}
-            >
-              <p className={metricCardLabelClass}>meme</p>
-              <p className={metricCardValueClass}>
-                ₱{(currentMonthData?.profit ?? 0).toLocaleString()}
-              </p>
-            </div>
-            <div
-              className={metricCardClass(
-                "from-yellow-50",
-                "dark:from-yellow-900/20",
-              )}
-            >
-              <p className={metricCardLabelClass}>expected profit</p>
-              <p className={metricCardValueClass}>
-                ₱{(currentMonthData?.expectedProfit ?? 0).toLocaleString()}
-              </p>
-            </div>
-            <div
-              className={metricCardClass(
-                "from-rose-50",
-                "dark:from-rose-900/20",
-              )}
-            >
-              <p className={metricCardLabelClass}>remaining profit</p>
-              <p className={metricCardValueClass}>
-                ₱{currentMonthRemainingProfit.toLocaleString()}
-              </p>
-            </div>
-          </div>
+      <div className="mt-6">
+        <SummaryCards summary={summary} />
+      </div>
 
-          {/* Profit per month list */}
-          <div
-            className="dark:border-border mt-4 border-t-2 border-slate-200 pt-3"
-          >
-            <p
-              className="dark:text-muted-foreground mb-2 text-[10px] font-black
-                tracking-widest text-slate-400 uppercase"
-            >
-              profit per month
-            </p>
-            <div
-              className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
-            >
-              {monthlyChartData.map((m) => {
-                const progress =
-                  m.expectedProfit > 0
-                    ? Math.min(
-                        100,
-                        Math.round((m.profit / m.expectedProfit) * 100),
-                      )
-                    : 0;
-                const progressBg =
-                  progress >= 75
-                    ? "bg-emerald-50 dark:bg-emerald-900/20"
-                    : progress >= 50
-                      ? "bg-amber-50 dark:bg-amber-900/20"
-                      : progress >= 25
-                        ? "bg-orange-50 dark:bg-orange-900/20"
-                        : "bg-rose-50 dark:bg-rose-900/20";
-                const progressBar =
-                  progress >= 75
-                    ? "bg-emerald-500"
-                    : progress >= 50
-                      ? "bg-amber-500"
-                      : progress >= 25
-                        ? "bg-orange-500"
-                        : "bg-rose-500";
-                return (
-                  <div
-                    key={m.label}
-                    className={`dark:border-border flex flex-col gap-1
-                    rounded-lg dark:border shadow-sm px-2.5 py-2 ${progressBg}`}
-                  >
-                    <p
-                      className="dark:text-muted-foreground text-[10px]
-                        font-black tracking-wide text-slate-500 uppercase"
-                    >
-                      {m.fullLabel}
-                    </p>
-                    <p
-                      className="dark:text-foreground mt-0.5 text-sm font-black
-                        text-slate-600 tabular-nums"
-                    >
-                      ₱{m.profit.toLocaleString()}
-                    </p>
-                    <p
-                      className="dark:text-muted-foreground text-[10px]
-                        font-semibold text-slate-500"
-                    >
-                      expected ₱{m.expectedProfit.toLocaleString()}
-                    </p>
-                    {/* Progress bar */}
-                    <div
-                      className="mt-1 h-1.5 w-full overflow-hidden rounded-full
-                        bg-black/5 dark:bg-white/10"
-                    >
-                      <div
-                        className={`h-full rounded-full ${progressBar}`}
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <p className="text-[9px] font-semibold text-slate-400">
-                      {progress}%
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </article>
-      </section>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="space-y-6">
+          <MonthlyCollections currentMonth={currentMonth} />
+          <ProfitPerMonth profitPerMonth={profitPerMonth} />
+          {profitPerCategoryData.length > 0 && (
+            <ProfitPerCategory profitPerCategory={profitPerCategoryData} />
+          )}
+        </div>
+        <div className="lg:sticky lg:top-24 lg:self-start">
+          <SidePanel dueThisMonthSchedules={thisMonthSchedules.length} />
+        </div>
+      </div>
 
-      {profitPerCategory.length > 0 && (
-        <section className="mt-4 lg:mt-6">
-          <article
-            className="dark:border-border dark:bg-card bg-background min-w-0
-              rounded-xl dark:border shadow-sm border-slate-300 p-4 sm:p-5"
-          >
-            <div className="mb-4 flex items-center gap-2">
-              <span
-                className="dark:border-border dark:text-foreground rounded-md
-                  border border-slate-200 bg-violet-100 p-1.5 text-slate-600
-                  dark:bg-violet-900/50"
-              >
-                <TrendingUp className="size-4" />
-              </span>
-              <h2
-                className="dark:text-foreground text-base font-black
-                  text-slate-600 lowercase"
-              >
-                profit per category
-              </h2>
-            </div>
-            <div
-              className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4"
-            >
-              {profitPerCategory.map((c) => (
-                <div
-                  key={c.id}
-                  className="dark:border-border rounded-lg dark:border
-                    bg-linear-to-br from-violet-50 via-stone-50 to-white px-3
-                    py-2.5 dark:from-violet-900/20 dark:via-zinc-900/40
-                    dark:to-zinc-900/60"
-                >
-                  <div className="mb-1 flex items-center gap-1.5">
-                    <span
-                      className="inline-block size-2.5 rounded-full"
-                      style={{
-                        backgroundColor: c.color ?? "#cbd5e1",
-                      }}
-                    />
-                    <p
-                      className="dark:text-muted-foreground min-w-0 text-[10px]
-                        font-black tracking-wide text-slate-500 uppercase
-                        truncate"
-                    >
-                      {c.name}
-                    </p>
-                  </div>
-                  <p
-                    className="text-xl font-semibold text-slate-600 tabular-nums
-                      dark:text-violet-300"
-                  >
-                    ₱{c.profit.toLocaleString()}
-                  </p>
-                  <div className="mt-1 flex gap-3">
-                    <p
-                      className="text-[10px] font-semibold tabular-nums
-                        text-slate-500 dark:text-slate-400"
-                    >
-                      collected{" "}
-                      <span className="text-[#76a188]">
-                        ₱{c.collected.toLocaleString()}
-                      </span>
-                    </p>
-                    <p
-                      className="text-[10px] font-semibold tabular-nums
-                        text-slate-500 dark:text-slate-400"
-                    >
-                      remaining{" "}
-                      <span className="text-[#945d5d]">
-                        ₱{c.remaining.toLocaleString()}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
-        </section>
-      )}
-
-      <section className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-[1fr_1fr]">
-        <Link
-          href="/due-this-month"
-          className="dark:border-border dark:bg-card flex flex-col
-            justify-between rounded-xl border border-slate-300 bg-white p-4
-            transition hover:bg-slate-50 sm:p-5 dark:hover:bg-muted/50"
-        >
-          <div className="flex items-center justify-between">
-            <h2
-              className="dark:text-foreground text-base font-black
-                text-slate-600 lowercase"
-            >
-              due this month
-            </h2>
-            <span
-              className="dark:bg-card dark:text-muted-foreground inline-flex
-                items-center gap-1.5 rounded-md border border-slate-300 bg-white
-                px-2 py-1 text-xs font-bold text-slate-600 uppercase"
-            >
-              {thisMonthSchedules.length} schedule
-              {thisMonthSchedules.length === 1 ? "" : "s"}
-            </span>
-          </div>
-          <p className="dark:text-muted-foreground mt-2 text-sm text-slate-600">
-            View all payment schedules due within the current calendar month,
-            grouped by borrower.
-          </p>
-        </Link>
-
-        <article
-          className="dark:border-border dark:bg-card rounded-xl border
-            border-slate-300 bg-white p-4 sm:p-5"
-        >
-          <h2
-            className="dark:text-foreground mb-3 text-base font-black
-              text-slate-600 lowercase"
-          >
-            quick actions
-          </h2>
-          <div className="space-y-2">
-            <Link
-              href="/borrowers"
-              className="dark:border-border dark:text-foreground flex
-                items-center justify-between rounded-lg border border-slate-300
-                bg-emerald-100 px-3 py-2 text-sm font-bold text-slate-600
-                lowercase transition hover:bg-emerald-200 dark:bg-emerald-900/40
-                dark:hover:bg-emerald-900/60"
-            >
-              add borrower
-              <UserRoundPlus className="size-4" />
-            </Link>
-            <Link
-              href="/categories"
-              className="dark:border-border dark:text-foreground flex
-                items-center justify-between rounded-lg border border-slate-300
-                bg-sky-100 px-3 py-2 text-sm font-bold text-slate-600 lowercase
-                transition hover:bg-sky-200 dark:bg-sky-900/40
-                dark:hover:bg-sky-900/60"
-            >
-              manage categories
-              <Plus className="size-4" />
-            </Link>
-            <Link
-              href="/upcoming"
-              className="dark:border-border dark:text-foreground flex
-                items-center justify-between rounded-lg border border-slate-300
-                bg-violet-100 px-3 py-2 text-sm font-bold text-slate-600
-                lowercase transition hover:bg-violet-200 dark:bg-violet-900/40
-                dark:hover:bg-violet-900/60"
-            >
-              upcoming due dates
-              <Bell className="size-4" />
-            </Link>
-            <Link
-              href="/audit"
-              className="dark:border-border dark:bg-muted dark:text-foreground
-                dark:hover:bg-muted/80 flex items-center justify-between
-                rounded-lg border border-slate-300 bg-slate-100 px-3 py-2
-                text-sm font-bold text-slate-600 lowercase transition
-                hover:bg-slate-200"
-            >
-              audit trail
-              <ClipboardList className="size-4" />
-            </Link>
-          </div>
-        </article>
-      </section>
-
-      <section className="mt-4 flex justify-end lg:mt-6">
+      <section className="mt-6 flex justify-end">
         <ResetCacheButton />
       </section>
     </main>
