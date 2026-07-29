@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronDown, TrendingUp, Users, PiggyBank } from "lucide-react";
+import { CalendarDays, ChevronDown, PiggyBank } from "lucide-react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { logPageView } from "@/lib/audit";
 import CategoryScrollNav from "@/components/category-scroll-nav";
@@ -371,52 +371,10 @@ export default async function DueThisMonthPage({
         </div>
       </section>
 
-      {/* Summary Cards Grid */}
-      <section className="mb-8 grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:gap-4">
-        {/* Pending Card */}
-        <div className="rounded-lg sm:rounded-xl border border-slate-200 bg-gradient-to-br from-orange-50 to-orange-100/50 p-3 sm:p-4 dark:border-slate-700 dark:from-orange-950/30 dark:to-orange-900/10">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-200 dark:bg-orange-900/40">
-              <Users className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-            </div>
-          </div>
-          <p className="dark:text-muted-foreground text-[9px] sm:text-[10px] font-semibold tracking-wide text-slate-600 uppercase">
-            Pending
-          </p>
-          <p className="dark:text-foreground mt-1 text-xl sm:text-2xl font-bold text-slate-900">
-            {categoryEntries.reduce((sum, c) => sum + c.pending.length, 0)}
-          </p>
-          <div className="dark:text-muted-foreground mt-2 space-y-0.5 border-t border-orange-200/50 pt-2 text-[9px] sm:text-[10px] dark:border-orange-900/30">
-            <div className="flex justify-between">
-              <span className="text-slate-600 dark:text-slate-400">Collected</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">₱{totalCollectedFromPending.toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Paid Card */}
-        <div className="rounded-lg sm:rounded-xl border border-slate-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-3 sm:p-4 dark:border-slate-700 dark:from-emerald-950/30 dark:to-emerald-900/10">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-200 dark:bg-emerald-900/40">
-              <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-          </div>
-          <p className="dark:text-muted-foreground text-[9px] sm:text-[10px] font-semibold tracking-wide text-slate-600 uppercase">
-            Fully Paid
-          </p>
-          <p className="dark:text-foreground mt-1 text-xl sm:text-2xl font-bold text-slate-900">
-            {categoryEntries.reduce((sum, c) => sum + c.paid.length, 0)}
-          </p>
-          <div className="dark:text-muted-foreground mt-2 border-t border-emerald-200/50 pt-2 text-[9px] sm:text-[10px] dark:border-emerald-900/30">
-            <div className="flex justify-between">
-              <span className="text-slate-600 dark:text-slate-400">Collected</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">₱{totalPaidAmount.toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-
+      {/* Summary Card */}
+      <section className="mb-8 grid gap-2 sm:gap-3 grid-cols-1 lg:gap-4">
         {/* Profit Card */}
-        <div className="rounded-lg sm:rounded-xl border border-slate-200 bg-gradient-to-br from-amber-50 to-amber-100/50 p-3 sm:p-4 dark:border-slate-700 dark:from-amber-950/30 dark:to-amber-900/10 sm:col-span-2 md:col-span-1">
+        <div className="rounded-lg sm:rounded-xl border border-slate-200 bg-gradient-to-br from-amber-50 to-amber-100/50 p-3 sm:p-4 dark:border-slate-700 dark:from-amber-950/30 dark:to-amber-900/10">
           <div className="flex items-center justify-between mb-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-200 dark:bg-amber-900/40">
               <PiggyBank className="h-4 w-4 text-amber-600 dark:text-amber-400" />
