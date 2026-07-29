@@ -91,13 +91,43 @@ function LinkedLabel({
     return new Map(borrowers.map((b) => [`${b.first_name} ${b.last_name}`, b]));
   }, [borrowers]);
 
+  const isAmountBlock = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+    return trimmed
+      .split("\n")
+      .every((line) =>
+        /^(?:Total:\s*)?(?:₱\s*)?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:\s*-\s*.+)?$/.test(
+          line.trimStart(),
+        ),
+      );
+  };
+
+  const strike = (text: string, key: string) => {
+    if (!text) return null;
+    if (isAmountBlock(text)) {
+      return (
+        <span key={key} className="inline-block w-full pl-2 pt-2">
+          <span className={checked ? "line-through" : ""}>{text.trim()}</span>
+        </span>
+      );
+    }
+    return (
+      <span key={key} className={checked ? "line-through" : ""}>
+        {text}
+      </span>
+    );
+  };
+
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(label)) !== null) {
     if (match.index > lastIndex) {
-      parts.push(label.slice(lastIndex, match.index));
+      parts.push(
+        strike(label.slice(lastIndex, match.index), `md-${lastIndex}`),
+      );
     }
     parts.push(
       <MentionPill
@@ -116,7 +146,7 @@ function LinkedLabel({
       const idx = tail.indexOf(name, offset);
       if (idx !== -1) {
         if (idx > offset) {
-          parts.push(tail.slice(offset, idx));
+          parts.push(strike(tail.slice(offset, idx), `tail-${offset}`));
         }
         parts.push(
           <MentionPill
@@ -130,7 +160,7 @@ function LinkedLabel({
       }
     });
     if (offset < tail.length) {
-      parts.push(tail.slice(offset));
+      parts.push(strike(tail.slice(offset), "tail-end"));
     }
   }
   return <>{parts}</>;
@@ -150,12 +180,13 @@ function MentionPill({
       href={href}
       prefetch
       onClick={(e) => e.stopPropagation()}
-      className={`inline-block rounded-md border px-1.5 py-0.5 text-xs
-        font-medium leading-none transition-opacity hover:opacity-70 ${
+      className={`inline-block lowercase rounded-md border px-2 pl-2.5 py-1
+        text-sm font-semibold leading-none transition-opacity hover:opacity-70
+        ${
           checked
             ? `border-slate-200 text-slate-400 dark:border-muted-foreground/30
               dark:text-muted-foreground/60`
-            : `border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800
+            : `border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-800
               dark:bg-sky-900/20 dark:text-sky-300`
         }`}
     >
@@ -511,7 +542,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     },
     ref,
   ) => {
-    const innerRef = useRef<HTMLPreElement>(null);
+    const innerRef = useRef<HTMLDivElement>(null);
     const [focused, setFocused] = useState(false);
     const [mentionOpen, setMentionOpen] = useState(false);
     const [mentionQuery, setMentionQuery] = useState("");
@@ -726,7 +757,17 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
         if (mEnd <= cursor) target = m;
       }
       if (!target || target.index === undefined) return;
-      void handleSlashNext(target.index, target.index + target[0].length);
+      const matchStart = target.index;
+      const matchEnd = matchStart + target[0].length;
+      const start =
+        matchStart > 0 && /\s/.test(text[matchStart - 1])
+          ? matchStart - 1
+          : matchStart;
+      const end =
+        matchEnd < text.length && /\s/.test(text[matchEnd])
+          ? matchEnd + 1
+          : matchEnd;
+      void handleSlashNext(start, end);
     };
 
     const handleInput = () => {
@@ -738,7 +779,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       detectSlashCommand(text, getCaretOffset(el));
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLPreElement>) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (mentionOpen) {
         if (e.key === "ArrowDown") {
           e.preventDefault();
@@ -785,7 +826,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       }
     };
 
-    const handleBeforeInput = (e: React.FormEvent<HTMLPreElement>) => {
+    const handleBeforeInput = (e: React.FormEvent<HTMLDivElement>) => {
       const inputType = (e.nativeEvent as InputEvent).inputType;
       if (
         isMobile &&
@@ -823,7 +864,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
             </button>
           </div>
         )}
-        <pre
+        <div
           ref={innerRef}
           contentEditable
           suppressContentEditableWarning
@@ -842,9 +883,10 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
             setFocused(false);
           }}
           className={`dark:bg-card/50 dark:text-foreground min-h-[40px] w-full
-            whitespace-pre-wrap rounded-xl border border-border/50 bg-white/60
-            px-3 py-2 text-base font-sans text-slate-700 transition-all
-            duration-200 empty:before:text-slate-400
+            cursor-text select-text whitespace-pre-wrap rounded-xl border
+            border-border/50 bg-white/60 px-3 py-2 text-base font-sans
+            text-slate-700 transition-all duration-200
+            empty:before:text-slate-400
             empty:before:content-[attr(data-placeholder)] focus:border-border
             focus:outline-none dark:empty:before:text-muted-foreground
             ${className ?? ""}`}
@@ -1130,8 +1172,7 @@ function CategorySection({
                       className={`block text-sm font-medium break-words
                         whitespace-pre-wrap transition-all duration-200 ${
                           item.is_checked
-                            ? `text-slate-400 line-through
-                              dark:text-muted-foreground/60`
+                            ? "text-slate-400 dark:text-muted-foreground/60"
                             : "text-slate-700 dark:text-foreground"
                         }`}
                     >
@@ -1142,7 +1183,7 @@ function CategorySection({
                       />
                     </span>
                     <span
-                      className="block text-[10px] text-slate-400
+                      className="block text-[10px] text-slate-400 pl-2
                         dark:text-muted-foreground/60"
                     >
                       {formatChecklistDate(item.created_at)}

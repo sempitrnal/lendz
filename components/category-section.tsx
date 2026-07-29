@@ -137,28 +137,25 @@ export default function CategorySection({
               }}
             />
             <h2
-              className="text-sm font-bold uppercase tracking-wider
-                text-slate-500 dark:text-foreground"
+              className="text-md font-bold lowercase tracking-tight
+                text-foreground/90"
             >
               {cat.label}
             </h2>
           </div>
           <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-            <span
-              className="text-xs font-semibold text-slate-400
-                dark:text-muted-foreground"
-            >
+            <span className="text-xs font-semibold text-muted-foreground">
               {cat.pending.length} pending · {allPaidBorrowers.length} paid
             </span>
             {cat.pendingTotal > 0 && (
-              <span className="text-xs font-semibold text-slate-400">
+              <span className="text-xs font-semibold text-muted-foreground">
                 ₱{cat.pendingTotal.toLocaleString()} remaining
               </span>
             )}
-            <span className="text-xs font-semibold text-slate-400">
+            <span className="text-xs font-semibold text-muted-foreground">
               ₱{totalPaidInCategory.toLocaleString()} paid
             </span>
-            <span className="text-xs font-semibold text-amber-500">
+            <span className="text-xs font-semibold text-[#35ae84]">
               ₱{(cat.pendingProfit + cat.paidProfit).toLocaleString()} profit
             </span>
           </div>
@@ -191,21 +188,23 @@ export default function CategorySection({
         <div className="mb-3">
           <details open className="group">
             <summary
-              className="dark:border-border sticky top-[183px] sm:top-[179px]
-                z-20 -mx-4 md:-mx-6 flex cursor-pointer list-none items-center
-                justify-between border-slate-300 bg-orange-50 px-4 md:px-6 py-2
-                dark:bg-[#170e08]"
+              className="dark:border-border sticky top-[187px] z-20 -mx-4
+                md:-mx-6 flex cursor-pointer list-none items-center
+                justify-between border-slate-300 bg-linear-to-r from-[#fff4d6]
+                to-[#ffcc3f] px-4 md:px-6 py-2 dark:from-[#7b5614]
+                dark:to-[#281e03]"
             >
               <div className="flex items-center gap-2">
                 <span
                   className="dark:text-foreground text-xs font-bold
-                    tracking-wide text-slate-600 uppercase"
+                    tracking-wide text-slate-600 lowercase"
                 >
                   pending
                 </span>
                 <span
-                  className="dark:bg-card dark:text-muted-foreground rounded-md
-                    border border-slate-900/20 bg-white px-1 py-0.5 text-[10px]
+                  className="dark:bg-card dark:text-muted-foreground
+                    rounded-full border w-5 h-5 flex justify-center items-center
+                    border-slate-900/20 bg-white px-1 py-0.5 text-[10px]
                     font-bold text-slate-600 tabular-nums"
                 >
                   {cat.pending.length}
@@ -260,28 +259,30 @@ export default function CategorySection({
         <div>
           <details open className="group">
             <summary
-              className="dark:border-border sticky top-[183px] sm:top-[179px]
-                z-20 -mx-4 md:-mx-6 flex cursor-pointer list-none items-center
-                justify-between border-slate-400 bg-emerald-50 px-4 md:px-6 py-2
-                dark:bg-[#06180b]"
+              className="dark:border-border sticky top-[187px] z-20 -mx-4
+                md:-mx-6 flex cursor-pointer list-none items-center
+                justify-between border-slate-400 bg-linear-to-r from-[#ecfdf5]
+                to-[#6ee7b7] px-4 md:px-6 py-2 dark:from-[#047857]
+                dark:to-[#06180b]"
             >
               <div className="flex items-center gap-2">
                 <span
                   className="dark:text-foreground text-sm font-bold
-                    tracking-wide text-slate-600 uppercase"
+                    tracking-wide text-slate-600 lowercase"
                 >
                   paid
                 </span>
                 <span
-                  className="dark:bg-card dark:text-muted-foreground rounded-md
-                    border border-slate-900/20 bg-white px-2 py-0.5 text-[10px]
+                  className="dark:bg-card dark:text-muted-foreground
+                    rounded-full w-5 h-5 flex justify-center items-center border
+                    border-slate-900/20 bg-white px-2 py-0.5 text-[10px]
                     font-bold text-slate-600 tabular-nums"
                 >
                   {cat.paid.length}
                 </span>
                 {cat.paidTotal > 0 && (
                   <span
-                    className="text-[10px] font-bold text-slate-500
+                    className="text-[10px] font-bold text-foreground
                       tabular-nums"
                   >
                     ₱{cat.paidTotal.toLocaleString()}
