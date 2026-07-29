@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Search, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useState, useMemo } from "react";
 import BorrowerScheduleCard from "@/components/borrower/borrower-schedule-card";
 
@@ -39,6 +39,17 @@ function slugify(label: string) {
     .replace(/[^a-z0-9-]/g, "");
 }
 
+function getCategoryTextColor(bgColor: string | null): string {
+  if (!bgColor) return "text-slate-600 dark:text-slate-300";
+  const color = bgColor.toLowerCase();
+  if (color.includes("orange") || color.includes("amber") || color.includes("yellow")) return "text-orange-600 dark:text-orange-400";
+  if (color.includes("red") || color.includes("rose")) return "text-red-600 dark:text-red-400";
+  if (color.includes("green") || color.includes("emerald")) return "text-green-600 dark:text-green-400";
+  if (color.includes("blue") || color.includes("sky")) return "text-blue-600 dark:text-blue-400";
+  if (color.includes("purple") || color.includes("violet")) return "text-purple-600 dark:text-purple-400";
+  return "text-slate-600 dark:text-slate-300";
+}
+
 export default function CategorySection({
   cat,
   tz,
@@ -47,6 +58,8 @@ export default function CategorySection({
   tz: string;
 }) {
   const [query, setQuery] = useState("");
+  const [expandedPending, setExpandedPending] = useState(true);
+  const [expandedPaid, setExpandedPaid] = useState(true);
   const q = query.trim().toLowerCase();
 
   const scrollToCategory = () => {
@@ -122,108 +135,94 @@ export default function CategorySection({
   );
 
   return (
-    <section id={`cat-${slugify(cat.label)}`} className="mb-6">
+    <section id={`cat-${slugify(cat.label)}`} className="mb-8">
+      {/* Category Header */}
       <div
-        className="sticky top-16 sm:top-16 z-30 -mx-4 md:-mx-6 mb-3 flex
-          flex-col gap-1.5 border-b border-slate-200 bg-background px-4 md:px-6
-          py-2 dark:border-border/50"
+        className="sticky top-16 z-30 -mx-4 md:-mx-6 mb-6 border-b border-slate-200 bg-background px-4 md:px-6 py-4 dark:border-slate-800/50"
       >
-        <div className="flex flex-col items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span
-              className="size-2.5 rounded-full border border-slate-900/25"
-              style={{
-                backgroundColor: cat.color ?? "#cbd5e1",
-              }}
-            />
-            <h2
-              className="text-sm font-bold uppercase tracking-wider
-                text-slate-500 dark:text-foreground"
-            >
-              {cat.label}
-            </h2>
-          </div>
-          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-            <span
-              className="text-xs font-semibold text-slate-400
-                dark:text-muted-foreground"
-            >
-              {cat.pending.length} pending · {allPaidBorrowers.length} paid
-            </span>
-            {cat.pendingTotal > 0 && (
-              <span className="text-xs font-semibold text-slate-400">
-                ₱{cat.pendingTotal.toLocaleString()} remaining
-              </span>
-            )}
-            <span className="text-xs font-semibold text-slate-400">
-              ₱{totalPaidInCategory.toLocaleString()} paid
-            </span>
-            <span className="text-xs font-semibold text-amber-500">
-              ₱{(cat.pendingProfit + cat.paidProfit).toLocaleString()} profit
-            </span>
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <div
+                className="h-3 w-3 rounded-full border-2 border-slate-200 dark:border-slate-700"
+                style={{
+                  backgroundColor: cat.color ?? "#cbd5e1",
+                }}
+              />
+              <h2
+                className={`text-lg font-bold tracking-tight ${getCategoryTextColor(cat.color)} uppercase`}
+              >
+                {cat.label}
+              </h2>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-4 text-xs">
+              <div className="rounded-lg bg-slate-50 p-2 dark:bg-slate-900/30">
+                <p className="text-slate-500 dark:text-slate-400 font-medium">Pending</p>
+                <p className="text-base font-bold text-slate-900 dark:text-slate-100">{cat.pending.length}</p>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-2 dark:bg-slate-900/30">
+                <p className="text-slate-500 dark:text-slate-400 font-medium">Paid</p>
+                <p className="text-base font-bold text-slate-900 dark:text-slate-100">{allPaidBorrowers.length}</p>
+              </div>
+              <div className="rounded-lg bg-orange-50 p-2 dark:bg-orange-950/20">
+                <p className="text-orange-600 dark:text-orange-400 font-medium">Remaining</p>
+                <p className="text-base font-bold text-orange-700 dark:text-orange-300">₱{cat.pendingTotal.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg bg-emerald-50 p-2 dark:bg-emerald-950/20">
+                <p className="text-emerald-600 dark:text-emerald-400 font-medium">Profit</p>
+                <p className="text-base font-bold text-emerald-700 dark:text-emerald-300">₱{(cat.pendingProfit + cat.paidProfit).toLocaleString()}</p>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Search */}
         <div className="relative">
           <Search
-            className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2
-              text-slate-400"
+            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
           />
           <input
             type="search"
-            placeholder={`search ${cat.label}…`}
+            placeholder={`Search borrowers in ${cat.label}…`}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
               scrollToCategory();
             }}
             onFocus={scrollToCategory}
-            className="w-full rounded-md border border-slate-200 bg-white py-1.5
-              pl-8 pr-3 text-xs text-slate-700 placeholder:text-slate-400
-              focus:border-slate-400 focus:outline-none dark:border-border
-              dark:bg-muted dark:text-foreground
-              dark:placeholder:text-slate-500"
+            className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400 dark:focus:ring-slate-800"
           />
         </div>
       </div>
 
-      {/* Pending */}
+      {/* Pending Section */}
       {cat.pending.length > 0 && (
-        <div className="mb-3">
-          <details open className="group">
-            <summary
-              className="dark:border-border sticky top-[183px] sm:top-[179px]
-                z-20 -mx-4 md:-mx-6 flex cursor-pointer list-none items-center
-                justify-between border-slate-300 bg-orange-50 px-4 md:px-6 py-2
-                dark:bg-[#170e08]"
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className="dark:text-foreground text-xs font-bold
-                    tracking-wide text-slate-600 uppercase"
-                >
-                  pending
-                </span>
-                <span
-                  className="dark:bg-card dark:text-muted-foreground rounded-md
-                    border border-slate-900/20 bg-white px-1 py-0.5 text-[10px]
-                    font-bold text-slate-600 tabular-nums"
-                >
-                  {cat.pending.length}
-                </span>
+        <div className="mb-6">
+          <button
+            onClick={() => setExpandedPending(!expandedPending)}
+            className="w-full flex items-center justify-between gap-3 rounded-lg border border-orange-200 bg-gradient-to-r from-orange-50 to-orange-50/50 p-4 hover:bg-orange-100/50 transition-colors dark:border-orange-900/30 dark:from-orange-950/20 dark:to-orange-950/10 dark:hover:from-orange-950/30"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0" />
+              <div className="text-left min-w-0">
+                <p className="font-semibold text-slate-900 dark:text-slate-100">Pending Collection</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">{cat.pending.length} borrower{cat.pending.length !== 1 ? "s" : ""} awaiting payment</p>
               </div>
-              <ChevronDown
-                className="size-4 shrink-0 text-slate-600 transition-transform
-                  group-open:rotate-180"
-              />
-            </summary>
-            <div className="mt-3 grid gap-3 px-1 sm:grid-cols-2 lg:grid-cols-3">
+            </div>
+            <ChevronDown
+              className={`h-5 w-5 text-slate-600 dark:text-slate-400 shrink-0 transition-transform ${expandedPending ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {expandedPending && (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filteredPending.length === 0 && q ? (
-                <p
-                  className="col-span-full py-4 text-center text-xs
-                    text-slate-400 dark:text-muted-foreground"
-                >
-                  no results for &ldquo;{query}&rdquo;
-                </p>
+                <div className="col-span-full flex flex-col items-center justify-center py-8 text-center">
+                  <AlertCircle className="h-8 w-8 text-slate-300 dark:text-slate-700 mb-2" />
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    No borrowers found for &ldquo;{query}&rdquo;
+                  </p>
+                </div>
               ) : (
                 filteredPending.map((b) => {
                   const schedules = b.schedules.map((s) => ({
@@ -252,55 +251,37 @@ export default function CategorySection({
                 })
               )}
             </div>
-          </details>
+          )}
         </div>
       )}
-      {/* Paid */}
+      {/* Paid Section */}
       {cat.paid.length > 0 && (
         <div>
-          <details open className="group">
-            <summary
-              className="dark:border-border sticky top-[183px] sm:top-[179px]
-                z-20 -mx-4 md:-mx-6 flex cursor-pointer list-none items-center
-                justify-between border-slate-400 bg-emerald-50 px-4 md:px-6 py-2
-                dark:bg-[#06180b]"
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className="dark:text-foreground text-sm font-bold
-                    tracking-wide text-slate-600 uppercase"
-                >
-                  paid
-                </span>
-                <span
-                  className="dark:bg-card dark:text-muted-foreground rounded-md
-                    border border-slate-900/20 bg-white px-2 py-0.5 text-[10px]
-                    font-bold text-slate-600 tabular-nums"
-                >
-                  {cat.paid.length}
-                </span>
-                {cat.paidTotal > 0 && (
-                  <span
-                    className="text-[10px] font-bold text-slate-500
-                      tabular-nums"
-                  >
-                    ₱{cat.paidTotal.toLocaleString()}
-                  </span>
-                )}
+          <button
+            onClick={() => setExpandedPaid(!expandedPaid)}
+            className="w-full flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-gradient-to-r from-emerald-50 to-emerald-50/50 p-4 hover:bg-emerald-100/50 transition-colors dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-emerald-950/10 dark:hover:from-emerald-950/30"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div className="text-left min-w-0">
+                <p className="font-semibold text-slate-900 dark:text-slate-100">Fully Paid</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">{cat.paid.length} borrower{cat.paid.length !== 1 ? "s" : ""} • ₱{cat.paidTotal.toLocaleString()} collected</p>
               </div>
-              <ChevronDown
-                className="size-4 shrink-0 text-slate-600 transition-transform
-                  group-open:rotate-180"
-              />
-            </summary>
-            <div className="mt-3 grid gap-3 px-1 sm:grid-cols-2 lg:grid-cols-3">
+            </div>
+            <ChevronDown
+              className={`h-5 w-5 text-slate-600 dark:text-slate-400 shrink-0 transition-transform ${expandedPaid ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {expandedPaid && (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filteredPaid.length === 0 && q ? (
-                <p
-                  className="col-span-full py-4 text-center text-xs
-                    text-slate-400 dark:text-muted-foreground"
-                >
-                  no results for &ldquo;{query}&rdquo;
-                </p>
+                <div className="col-span-full flex flex-col items-center justify-center py-8 text-center">
+                  <CheckCircle2 className="h-8 w-8 text-slate-300 dark:text-slate-700 mb-2" />
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    No borrowers found for &ldquo;{query}&rdquo;
+                  </p>
+                </div>
               ) : (
                 filteredPaid.map((b) => {
                   const schedules = b.schedules.map((s) => ({
@@ -329,7 +310,7 @@ export default function CategorySection({
                 })
               )}
             </div>
-          </details>
+          )}
         </div>
       )}
     </section>
