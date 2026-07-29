@@ -125,12 +125,12 @@ export async function activateAccountAction(
     },
   });
 
-  revalidateTag("account-detail", "default");
-  revalidateTag("borrowers", "default");
-  revalidateTag("borrower-accounts", "default");
-  revalidateTag("next-collection", "default");
-  revalidateTag("calendar", "default");
-  revalidateTag("dashboard", "default");
+  revalidateTag("account-detail", "max");
+  revalidateTag("borrowers", "max");
+  revalidateTag("borrower-accounts", "max");
+  revalidateTag("next-collection", "max");
+  revalidateTag("calendar", "max");
+  revalidateTag("dashboard", "max");
   updateTag("account");
   updateTag(`account-${accountId}`);
   updateTag("accounts-page");

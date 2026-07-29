@@ -4,7 +4,7 @@ import { revalidatePath, revalidateTag, updateTag } from "next/cache";
 
 export async function revalidateBorrowersPage() {
   revalidatePath("/borrowers");
-  revalidateTag("borrowers", "default");
+  revalidateTag("borrowers", "max");
   updateTag("borrowers");
   updateTag("accounts-page");
   updateTag("dashboard");
@@ -13,7 +13,7 @@ export async function revalidateBorrowersPage() {
 
 export async function revalidateDeletedPage() {
   revalidatePath("/deleted");
-  revalidateTag("borrowers", "default");
+  revalidateTag("borrowers", "max");
   updateTag("borrowers");
   updateTag("deleted-borrowers");
   updateTag("deleted-accounts");
@@ -24,8 +24,8 @@ export async function revalidateDeletedPage() {
 export async function revalidateBorrowerDetailPage(borrowerId: string) {
   revalidatePath(`/borrowers/${borrowerId}`);
   revalidatePath("/borrowers");
-  revalidateTag("borrowers", "default");
-  revalidateTag("borrower-accounts", "default");
+  revalidateTag("borrowers", "max");
+  revalidateTag("borrower-accounts", "max");
   updateTag("borrowers");
   updateTag(`borrower-${borrowerId}`);
   updateTag("borrower-accounts");
@@ -33,5 +33,5 @@ export async function revalidateBorrowerDetailPage(borrowerId: string) {
   updateTag("accounts-page");
   updateTag("dashboard");
   updateTag("next-collection");
-  revalidateTag("account-detail", "default");
+  revalidateTag("account-detail", "max");
 }

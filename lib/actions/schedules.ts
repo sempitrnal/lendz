@@ -10,8 +10,8 @@ type ScheduleStatus = (typeof scheduleStatuses)[number];
 
 function revalidateScheduleCaches(accountId: string) {
   revalidatePath(`/accounts/${accountId}`);
-  revalidateTag("account-detail", "default");
-  revalidateTag("borrower-accounts", "default");
+  revalidateTag("account-detail", "max");
+  revalidateTag("borrower-accounts", "max");
   updateTag("account-detail");
   updateTag("account");
   updateTag(`account-${accountId}`);
