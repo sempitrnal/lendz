@@ -24,8 +24,10 @@ export default function LoginForm() {
       const result = await loginAction(email, password);
 
       if (!result.error) {
-        router.replace("/dashboard");
+        // Wait a bit for session to propagate, then refresh and navigate
+        await new Promise(resolve => setTimeout(resolve, 100));
         router.refresh();
+        router.replace("/dashboard");
       } else {
         setError(result.error);
       }
