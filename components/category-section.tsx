@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Search, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Search } from "lucide-react";
 import { useState, useMemo } from "react";
 import BorrowerScheduleCard from "@/components/borrower/borrower-schedule-card";
 
@@ -58,8 +58,6 @@ export default function CategorySection({
   tz: string;
 }) {
   const [query, setQuery] = useState("");
-  const [expandedPending, setExpandedPending] = useState(true);
-  const [expandedPaid, setExpandedPaid] = useState(true);
   const q = query.trim().toLowerCase();
 
   const scrollToCategory = () => {
@@ -195,124 +193,7 @@ export default function CategorySection({
         </div>
       </div>
 
-      {/* Pending Section */}
-      {cat.pending.length > 0 && (
-        <div className="mb-6">
-          <button
-            onClick={() => setExpandedPending(!expandedPending)}
-            className="w-full flex items-center justify-between gap-2 sm:gap-3 rounded-lg border border-orange-200 bg-gradient-to-r from-orange-50 to-orange-50/50 p-3 sm:p-4 hover:bg-orange-100/50 transition-colors dark:border-orange-900/30 dark:from-orange-950/20 dark:to-orange-950/10 dark:hover:from-orange-950/30"
-          >
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400 shrink-0" />
-              <div className="text-left min-w-0">
-                <p className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100 truncate">Pending Collection</p>
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 truncate">{cat.pending.length} borrower{cat.pending.length !== 1 ? "s" : ""} awaiting</p>
-              </div>
-            </div>
-            <ChevronDown
-              className={`h-4 w-4 sm:h-5 sm:w-5 text-slate-600 dark:text-slate-400 shrink-0 transition-transform ${expandedPending ? "rotate-180" : ""}`}
-            />
-          </button>
 
-          {expandedPending && (
-            <div className="mt-4 grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredPending.length === 0 && q ? (
-                <div className="col-span-full flex flex-col items-center justify-center py-8 text-center">
-                  <AlertCircle className="h-8 w-8 text-slate-300 dark:text-slate-700 mb-2" />
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    No borrowers found for &ldquo;{query}&rdquo;
-                  </p>
-                </div>
-              ) : (
-                filteredPending.map((b) => {
-                  const schedules = b.schedules.map((s) => ({
-                    dueDate: s.dueDate,
-                    amount: s.status === "paid" ? s.amountDue : s.remaining,
-                    amountPaid:
-                      s.status === "paid" ? s.amountDue : s.amountPaid,
-                    remaining: s.remaining,
-                    status: s.status,
-                  }));
-                  return (
-                    <BorrowerScheduleCard
-                      displayCategory={false}
-                      key={b.borrowerId ?? b.name}
-                      borrowerId={b.borrowerId}
-                      name={b.name}
-                      category={b.category}
-                      categoryColor={b.categoryColor}
-                      schedules={schedules}
-                      totalPaid={b.totalPaid}
-                      totalRemaining={b.totalRemaining}
-                      totalExpected={b.totalExpected}
-                      tz={tz}
-                    />
-                  );
-                })
-              )}
-            </div>
-          )}
-        </div>
-      )}
-      {/* Paid Section */}
-      {cat.paid.length > 0 && (
-        <div>
-          <button
-            onClick={() => setExpandedPaid(!expandedPaid)}
-            className="w-full flex items-center justify-between gap-2 sm:gap-3 rounded-lg border border-emerald-200 bg-gradient-to-r from-emerald-50 to-emerald-50/50 p-3 sm:p-4 hover:bg-emerald-100/50 transition-colors dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-emerald-950/10 dark:hover:from-emerald-950/30"
-          >
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <div className="text-left min-w-0">
-                <p className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100 truncate">Fully Paid</p>
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 truncate">{cat.paid.length} borrower{cat.paid.length !== 1 ? "s" : ""} • ₱{cat.paidTotal.toLocaleString()}</p>
-              </div>
-            </div>
-            <ChevronDown
-              className={`h-4 w-4 sm:h-5 sm:w-5 text-slate-600 dark:text-slate-400 shrink-0 transition-transform ${expandedPaid ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {expandedPaid && (
-            <div className="mt-4 grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredPaid.length === 0 && q ? (
-                <div className="col-span-full flex flex-col items-center justify-center py-8 text-center">
-                  <CheckCircle2 className="h-8 w-8 text-slate-300 dark:text-slate-700 mb-2" />
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    No borrowers found for &ldquo;{query}&rdquo;
-                  </p>
-                </div>
-              ) : (
-                filteredPaid.map((b) => {
-                  const schedules = b.schedules.map((s) => ({
-                    dueDate: s.dueDate,
-                    amount: s.amountDue,
-                    amountPaid: s.amountDue,
-                    remaining: 0,
-                    status: "paid" as const,
-                  }));
-                  return (
-                    <BorrowerScheduleCard
-                      displayCategory={false}
-                      key={b.borrowerId ?? b.name}
-                      borrowerId={b.borrowerId}
-                      name={b.name}
-                      category={b.category}
-                      categoryColor={b.categoryColor}
-                      schedules={schedules}
-                      totalPaid={b.totalPaid}
-                      totalRemaining={0}
-                      totalExpected={b.totalPaid}
-                      variant="paid"
-                      tz={tz}
-                    />
-                  );
-                })
-              )}
-            </div>
-          )}
-        </div>
-      )}
     </section>
   );
 }
