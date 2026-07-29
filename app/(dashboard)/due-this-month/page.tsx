@@ -372,67 +372,63 @@ export default async function DueThisMonthPage({
       </section>
 
       {/* Summary Cards Grid */}
-      <section className="mb-8 grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:gap-6">
+      <section className="mb-8 grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:gap-4">
         {/* Pending Card */}
-        <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-orange-50 to-orange-100/50 p-4 sm:p-6 dark:border-slate-700 dark:from-orange-950/30 dark:to-orange-900/10">
-          <div className="flex items-start justify-between mb-3 sm:mb-4">
-            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-orange-200 dark:bg-orange-900/40">
-              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400" />
+        <div className="rounded-lg sm:rounded-xl border border-slate-200 bg-gradient-to-br from-orange-50 to-orange-100/50 p-3 sm:p-4 dark:border-slate-700 dark:from-orange-950/30 dark:to-orange-900/10">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-200 dark:bg-orange-900/40">
+              <Users className="h-4 w-4 text-orange-600 dark:text-orange-400" />
             </div>
           </div>
-          <p className="dark:text-muted-foreground text-[10px] sm:text-xs font-semibold tracking-wide text-slate-600 uppercase">
-            Pending Borrowers
+          <p className="dark:text-muted-foreground text-[9px] sm:text-[10px] font-semibold tracking-wide text-slate-600 uppercase">
+            Pending
           </p>
-          <p className="dark:text-foreground mt-2 text-2xl sm:text-3xl font-bold text-slate-900">
+          <p className="dark:text-foreground mt-1 text-xl sm:text-2xl font-bold text-slate-900">
             {categoryEntries.reduce((sum, c) => sum + c.pending.length, 0)}
           </p>
-          <div className="dark:text-muted-foreground mt-3 sm:mt-4 space-y-1.5 sm:space-y-2 border-t border-orange-200/50 pt-3 sm:pt-4 text-[10px] sm:text-xs dark:border-orange-900/30">
+          <div className="dark:text-muted-foreground mt-2 space-y-0.5 border-t border-orange-200/50 pt-2 text-[9px] sm:text-[10px] dark:border-orange-900/30">
             <div className="flex justify-between">
               <span className="text-slate-600 dark:text-slate-400">Collected</span>
               <span className="font-semibold text-slate-900 dark:text-slate-100">₱{totalCollectedFromPending.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600 dark:text-slate-400">Remaining</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">₱{totalPendingAmount.toLocaleString()}</span>
             </div>
           </div>
         </div>
 
         {/* Paid Card */}
-        <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-4 sm:p-6 dark:border-slate-700 dark:from-emerald-950/30 dark:to-emerald-900/10">
-          <div className="flex items-start justify-between mb-3 sm:mb-4">
-            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-emerald-200 dark:bg-emerald-900/40">
-              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
+        <div className="rounded-lg sm:rounded-xl border border-slate-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-3 sm:p-4 dark:border-slate-700 dark:from-emerald-950/30 dark:to-emerald-900/10">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-200 dark:bg-emerald-900/40">
+              <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </div>
           </div>
-          <p className="dark:text-muted-foreground text-[10px] sm:text-xs font-semibold tracking-wide text-slate-600 uppercase">
+          <p className="dark:text-muted-foreground text-[9px] sm:text-[10px] font-semibold tracking-wide text-slate-600 uppercase">
             Fully Paid
           </p>
-          <p className="dark:text-foreground mt-2 text-2xl sm:text-3xl font-bold text-slate-900">
+          <p className="dark:text-foreground mt-1 text-xl sm:text-2xl font-bold text-slate-900">
             {categoryEntries.reduce((sum, c) => sum + c.paid.length, 0)}
           </p>
-          <div className="dark:text-muted-foreground mt-3 sm:mt-4 border-t border-emerald-200/50 pt-3 sm:pt-4 text-[10px] sm:text-xs dark:border-emerald-900/30">
+          <div className="dark:text-muted-foreground mt-2 border-t border-emerald-200/50 pt-2 text-[9px] sm:text-[10px] dark:border-emerald-900/30">
             <div className="flex justify-between">
-              <span className="text-slate-600 dark:text-slate-400">Total Collected</span>
+              <span className="text-slate-600 dark:text-slate-400">Collected</span>
               <span className="font-semibold text-slate-900 dark:text-slate-100">₱{totalPaidAmount.toLocaleString()}</span>
             </div>
           </div>
         </div>
 
         {/* Profit Card */}
-        <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-amber-50 to-amber-100/50 p-4 sm:p-6 dark:border-slate-700 dark:from-amber-950/30 dark:to-amber-900/10 sm:col-span-2 md:col-span-1">
-          <div className="flex items-start justify-between mb-3 sm:mb-4">
-            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-amber-200 dark:bg-amber-900/40">
-              <PiggyBank className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 dark:text-amber-400" />
+        <div className="rounded-lg sm:rounded-xl border border-slate-200 bg-gradient-to-br from-amber-50 to-amber-100/50 p-3 sm:p-4 dark:border-slate-700 dark:from-amber-950/30 dark:to-amber-900/10 sm:col-span-2 md:col-span-1">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-200 dark:bg-amber-900/40">
+              <PiggyBank className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             </div>
           </div>
-          <p className="dark:text-muted-foreground text-[10px] sm:text-xs font-semibold tracking-wide text-slate-600 uppercase">
-            Profit Collected
+          <p className="dark:text-muted-foreground text-[9px] sm:text-[10px] font-semibold tracking-wide text-slate-600 uppercase">
+            Profit
           </p>
-          <p className="dark:text-foreground mt-2 text-2xl sm:text-3xl font-bold text-slate-900">
+          <p className="dark:text-foreground mt-1 text-xl sm:text-2xl font-bold text-slate-900">
             ₱{totalProfit.toLocaleString()}
           </p>
-          <div className="dark:text-muted-foreground mt-3 sm:mt-4 border-t border-amber-200/50 pt-3 sm:pt-4 text-[10px] sm:text-xs dark:border-amber-900/30">
+          <div className="dark:text-muted-foreground mt-2 border-t border-amber-200/50 pt-2 text-[9px] sm:text-[10px] dark:border-amber-900/30">
             <div className="flex justify-between">
               <span className="text-slate-600 dark:text-slate-400">This Month</span>
               <span className="font-semibold text-slate-900 dark:text-slate-100">+₱{totalProfit.toLocaleString()}</span>
