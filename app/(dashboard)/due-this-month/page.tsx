@@ -355,16 +355,16 @@ export default async function DueThisMonthPage({
   );
 
   return (
-    <main className="mx-auto max-w-7xl py-8 md:max-w-full px-4 pb-16 md:px-6">
+    <main className="mx-auto max-w-7xl py-6 md:py-8 px-3 sm:px-4 pb-20 md:pb-16 md:px-6">
       {/* Header Section */}
       <section className="mb-6 md:mb-8">
-        <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex items-start justify-between gap-3 sm:gap-4 mb-4">
           <div className="min-w-0 flex-1">
             <MonthPicker currentMonth={activeMonth} />
-            <h1 className="dark:text-foreground mt-3 text-3xl md:text-4xl font-bold text-slate-900">
+            <h1 className="dark:text-foreground mt-3 text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">
               Due This Month
             </h1>
-            <p className="dark:text-muted-foreground mt-2 text-sm text-slate-600">
+            <p className="dark:text-muted-foreground mt-2 text-xs sm:text-sm text-slate-600">
               {thisMonthSchedules.length} payment schedule{thisMonthSchedules.length === 1 ? "" : "s"} • {categoryEntries.length} categor{categoryEntries.length === 1 ? "y" : "ies"}
             </p>
           </div>
@@ -372,21 +372,21 @@ export default async function DueThisMonthPage({
       </section>
 
       {/* Summary Cards Grid */}
-      <section className="mb-8 grid gap-4 md:grid-cols-3 lg:gap-6">
+      <section className="mb-8 grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:gap-6">
         {/* Pending Card */}
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-orange-50 to-orange-100/50 p-6 dark:border-slate-700 dark:from-orange-950/30 dark:to-orange-900/10">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-200 dark:bg-orange-900/40">
-              <Users className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+        <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-orange-50 to-orange-100/50 p-4 sm:p-6 dark:border-slate-700 dark:from-orange-950/30 dark:to-orange-900/10">
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-orange-200 dark:bg-orange-900/40">
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400" />
             </div>
           </div>
-          <p className="dark:text-muted-foreground text-xs font-semibold tracking-wide text-slate-600 uppercase">
+          <p className="dark:text-muted-foreground text-[10px] sm:text-xs font-semibold tracking-wide text-slate-600 uppercase">
             Pending Borrowers
           </p>
-          <p className="dark:text-foreground mt-2 text-3xl font-bold text-slate-900">
+          <p className="dark:text-foreground mt-2 text-2xl sm:text-3xl font-bold text-slate-900">
             {categoryEntries.reduce((sum, c) => sum + c.pending.length, 0)}
           </p>
-          <div className="dark:text-muted-foreground mt-4 space-y-2 border-t border-orange-200/50 pt-4 text-xs dark:border-orange-900/30">
+          <div className="dark:text-muted-foreground mt-3 sm:mt-4 space-y-1.5 sm:space-y-2 border-t border-orange-200/50 pt-3 sm:pt-4 text-[10px] sm:text-xs dark:border-orange-900/30">
             <div className="flex justify-between">
               <span className="text-slate-600 dark:text-slate-400">Collected</span>
               <span className="font-semibold text-slate-900 dark:text-slate-100">₱{totalCollectedFromPending.toLocaleString()}</span>
@@ -399,19 +399,19 @@ export default async function DueThisMonthPage({
         </div>
 
         {/* Paid Card */}
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-6 dark:border-slate-700 dark:from-emerald-950/30 dark:to-emerald-900/10">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-200 dark:bg-emerald-900/40">
-              <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+        <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-4 sm:p-6 dark:border-slate-700 dark:from-emerald-950/30 dark:to-emerald-900/10">
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-emerald-200 dark:bg-emerald-900/40">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
           </div>
-          <p className="dark:text-muted-foreground text-xs font-semibold tracking-wide text-slate-600 uppercase">
+          <p className="dark:text-muted-foreground text-[10px] sm:text-xs font-semibold tracking-wide text-slate-600 uppercase">
             Fully Paid
           </p>
-          <p className="dark:text-foreground mt-2 text-3xl font-bold text-slate-900">
+          <p className="dark:text-foreground mt-2 text-2xl sm:text-3xl font-bold text-slate-900">
             {categoryEntries.reduce((sum, c) => sum + c.paid.length, 0)}
           </p>
-          <div className="dark:text-muted-foreground mt-4 border-t border-emerald-200/50 pt-4 text-xs dark:border-emerald-900/30">
+          <div className="dark:text-muted-foreground mt-3 sm:mt-4 border-t border-emerald-200/50 pt-3 sm:pt-4 text-[10px] sm:text-xs dark:border-emerald-900/30">
             <div className="flex justify-between">
               <span className="text-slate-600 dark:text-slate-400">Total Collected</span>
               <span className="font-semibold text-slate-900 dark:text-slate-100">₱{totalPaidAmount.toLocaleString()}</span>
@@ -420,19 +420,19 @@ export default async function DueThisMonthPage({
         </div>
 
         {/* Profit Card */}
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-amber-50 to-amber-100/50 p-6 dark:border-slate-700 dark:from-amber-950/30 dark:to-amber-900/10">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-200 dark:bg-amber-900/40">
-              <PiggyBank className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+        <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-amber-50 to-amber-100/50 p-4 sm:p-6 dark:border-slate-700 dark:from-amber-950/30 dark:to-amber-900/10 sm:col-span-2 md:col-span-1">
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-amber-200 dark:bg-amber-900/40">
+              <PiggyBank className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 dark:text-amber-400" />
             </div>
           </div>
-          <p className="dark:text-muted-foreground text-xs font-semibold tracking-wide text-slate-600 uppercase">
+          <p className="dark:text-muted-foreground text-[10px] sm:text-xs font-semibold tracking-wide text-slate-600 uppercase">
             Profit Collected
           </p>
-          <p className="dark:text-foreground mt-2 text-3xl font-bold text-slate-900">
+          <p className="dark:text-foreground mt-2 text-2xl sm:text-3xl font-bold text-slate-900">
             ₱{totalProfit.toLocaleString()}
           </p>
-          <div className="dark:text-muted-foreground mt-4 border-t border-amber-200/50 pt-4 text-xs dark:border-amber-900/30">
+          <div className="dark:text-muted-foreground mt-3 sm:mt-4 border-t border-amber-200/50 pt-3 sm:pt-4 text-[10px] sm:text-xs dark:border-amber-900/30">
             <div className="flex justify-between">
               <span className="text-slate-600 dark:text-slate-400">This Month</span>
               <span className="font-semibold text-slate-900 dark:text-slate-100">+₱{totalProfit.toLocaleString()}</span>
