@@ -164,12 +164,12 @@
 :root {
   color-scheme: light;
   --background: oklch(0.985 0.004 145);
-  --foreground: oklch(0.22 0.02 155);
+  --foreground: oklch(30.946% 0.03074 157.293);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.22 0.02 155);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.22 0.02 155);
-  --primary: oklch(0.52 0.11 160);
+  --primary: oklch(58.735% 0.12939 158.676);
   --primary-foreground: oklch(0.985 0.01 150);
   --secondary: oklch(0.955 0.012 155);
   --secondary-foreground: oklch(0.3 0.03 155);
@@ -231,7 +231,6 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
-
 
 @layer base {
   html {

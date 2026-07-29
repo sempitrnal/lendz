@@ -74,8 +74,7 @@ const nb = {
   label:
     "text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400",
   /** Payment schedule block */
-  scheduleShell:
-    "overflow-hidden rounded-2xl border border-border bg-card    dark:border-slate-700 dark:bg-slate-900",
+  scheduleShell: "overflow-hidden rounded-2xl border border-border bg-card   ",
   scheduleHead:
     " px-4 rounded-t-md py-3 sm:px-5 sm:py-4 dark:border-slate-700 ",
   scheduleTh:
@@ -838,24 +837,27 @@ export default async function AccountDetailPage({
                       <div>
                         <h2
                           id="schedule-heading"
-                          className="text-lg font-semibold tracking-tight
-                            text-card-foreground"
+                          className="text-lg font-bold tracking-tight
+                            text-slate-700 dark:text-foreground"
                         >
                           Payment schedules
                         </h2>
                         {nextDue ? (
                           <p
                             className="text-sm mt-0.5 font-semibold
-                              text-card-foreground"
+                              text-slate-700 dark:text-foreground"
                           >
                             Next due{" "}
-                            <span className="font-bold text-card-foreground">
+                            <span
+                              className="font-bold text-slate-700
+                                dark:text-foreground"
+                            >
                               {formatDate(nextDue.due_date)}
                             </span>
                             <span className="text-slate-600"> · </span>
                             <span
-                              className="font-black text-card-foreground
-                                tabular-nums"
+                              className="font-black text-slate-600
+                                dark:text-foreground tabular-nums"
                             >
                               {formatMoney(remainingOnInstallment(nextDue))}
                             </span>

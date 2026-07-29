@@ -43,19 +43,18 @@ export function StickyBorrowerStrip({
             <div className="min-w-0 text-left">
               <div className="flex items-center gap-2">
                 <p
-                  className="truncate text-lg font-black tracking-tight
-                    text-slate-700 dark:text-foreground"
+                  className="truncate text-lg font-black lowercase
+                    tracking-tight text-slate-700 dark:text-foreground"
                 >
                   {borrower.first_name} {borrower.last_name}
                 </p>
               </div>
               {borrower.category && borrower.category.length > 0 && (
-                <div className="mt-0.5 flex flex-wrap gap-1">
+                <div className="mt-1 flex flex-wrap gap-1">
                   {borrower.category.map((c) => (
                     <span
                       key={c.id}
-                      className={`rounded-sm px-2 py-0.5 text-[10px]
-                      font-semibold
+                      className={`rounded-sm px-2 py-0.5 text-[10px] font-bold
                       ${isDarkColor(c.color) ? "text-white" : "text-slate-700"}`}
                       style={{
                         backgroundColor: c.color ? `${c.color}` : "#cbd5e120",
@@ -68,11 +67,11 @@ export function StickyBorrowerStrip({
                 </div>
               )}
               <div
-                className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-[14px]
+                className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px]
                   text-slate-400 dark:text-muted-foreground"
               >
                 <span>
-                  Loaned{" "}
+                  loaned{" "}
                   <strong
                     className="font-semibold text-slate-600
                       dark:text-foreground/80"
@@ -81,7 +80,7 @@ export function StickyBorrowerStrip({
                   </strong>
                 </span>
                 <span>
-                  Collected{" "}
+                  collected{" "}
                   <strong
                     className="font-semibold text-[#5f956a] dark:text-[#7bc48a]"
                   >
@@ -89,7 +88,7 @@ export function StickyBorrowerStrip({
                   </strong>
                 </span>
                 <span>
-                  Remaining{" "}
+                  remaining{" "}
                   <strong
                     className="font-semibold text-[#c45b5b] dark:text-[#dc7676]"
                   >

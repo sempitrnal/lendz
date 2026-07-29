@@ -351,9 +351,7 @@ export default async function PublicAccountViewPage({ params }: Props) {
         <p
           className="text-[10px] font-bold tracking-widest text-slate-300
             uppercase dark:text-zinc-700"
-        >
-          Powered by Utangz
-        </p>
+        ></p>
       </div>
     </div>
   );

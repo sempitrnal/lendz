@@ -252,8 +252,8 @@ export default function HeaderSearch({
             >
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <span
-                  className="dark:text-foreground truncate text-base font-black
-                    text-slate-700 uppercase"
+                  className="dark:text-foreground truncate text-base font-bold
+                    text-slate-600 lowercase"
                 >
                   {s.first_name} {s.last_name}
                 </span>

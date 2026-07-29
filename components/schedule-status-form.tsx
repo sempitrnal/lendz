@@ -62,22 +62,22 @@ export default function ScheduleStatusForm({
     const map: Record<string, { active: string; idle: string }> = {
       paid: {
         active:
-          "border-emerald-500 bg-emerald-300 text-emerald-950  dark:border-emerald-400/50 dark:bg-emerald-400/25 dark:text-emerald-200 dark:shadow-none",
+          "border-emerald-500 bg-emerald-200 text-emerald-950  dark:border-emerald-400/50 dark:bg-emerald-400/25 dark:text-emerald-200 dark:shadow-none",
         idle: "border-slate-300 bg-white text-slate-600 hover:bg-emerald-50 hover:text-emerald-900 hover:border-emerald-500 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-emerald-400/10 dark:hover:text-emerald-300",
       },
       partial: {
         active:
-          "border-violet-500 bg-violet-300 text-violet-950  dark:border-violet-400/50 dark:bg-violet-400/25 dark:text-violet-200 dark:shadow-none",
+          "border-violet-500 bg-violet-200 text-violet-950  dark:border-violet-400/50 dark:bg-violet-400/25 dark:text-violet-200 dark:shadow-none",
         idle: "border-slate-300 bg-white text-slate-600 hover:bg-violet-50 hover:text-violet-900 hover:border-violet-500 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-violet-400/10 dark:hover:text-violet-300",
       },
       overdue: {
         active:
-          "border-rose-500 bg-rose-300 text-rose-950  dark:border-rose-400/50 dark:bg-rose-400/25 dark:text-rose-200 dark:shadow-none",
+          "border-rose-500 bg-rose-100 text-rose-950  dark:border-rose-400/50 dark:bg-rose-400/25 dark:text-rose-200 dark:shadow-none",
         idle: "border-slate-300 bg-white text-slate-600 hover:bg-rose-50 hover:text-rose-900 hover:border-rose-500 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-rose-400/10 dark:hover:text-rose-300",
       },
       pending: {
         active:
-          "border-amber-500 bg-amber-300 text-amber-950 dark:border-amber-400/50 dark:bg-amber-400/25 dark:text-amber-200 dark:shadow-none",
+          "border-amber-500 bg-amber-50 text-amber-950 dark:border-amber-400/50 dark:bg-amber-400/25 dark:text-amber-200 dark:shadow-none",
         idle: "border-slate-300 bg-white text-slate-600 hover:bg-amber-50 hover:text-amber-900 hover:border-amber-500 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-amber-400/10 dark:hover:text-amber-300",
       },
     };
@@ -193,7 +193,7 @@ export default function ScheduleStatusForm({
               disabled={isDisabled}
               aria-pressed={isActive}
               className={`inline-flex min-h-7 items-center justify-center gap-1
-              rounded-md border-2 px-2 py-1 text-[12px] font-bold tracking-wide
+              rounded-md border px-2 py-1 text-[10px] font-bold tracking-wide
               capitalize transition active:translate-x-px active:translate-y-px
               active:shadow-none sm:min-h-9 sm:gap-1.5 sm:rounded-lg sm:px-2.5
               sm:py-1.5 sm:text-xs ${getStatusClasses(status, isActive)}
@@ -216,7 +216,7 @@ export default function ScheduleStatusForm({
       {showDatePicker && (
         <div
           className="dark:border-border dark:bg-card flex flex-col gap-2
-            rounded-lg border-2 border-slate-300 bg-white p-3"
+            rounded-lg border shadow-sm border-slate-300 bg-white p-3"
         >
           {isRollingManual && (
             <>
@@ -237,7 +237,7 @@ export default function ScheduleStatusForm({
                 onChange={(e) => setPaidAmount(e.target.value)}
                 className="dark:border-border dark:bg-card dark:text-foreground
                   dark:focus-visible:ring-border w-full min-w-0 rounded-md
-                  border-2 border-slate-900 bg-white px-2 py-1.5 text-sm
+                  border shadow-sm border-slate-900 bg-white px-2 py-1.5 text-sm
                   font-semibold text-slate-600 tabular-nums outline-none
                   focus-visible:ring-2 focus-visible:ring-slate-900"
               />
@@ -254,8 +254,8 @@ export default function ScheduleStatusForm({
             value={paidDate}
             onChange={(e) => setPaidDate(e.target.value)}
             className="dark:border-border dark:bg-card dark:text-foreground
-              dark:focus-visible:ring-border w-full min-w-0 rounded-md border-2
-              border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold
+              dark:focus-visible:ring-border w-full min-w-0 rounded-md shadow-sm
+              border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold
               text-slate-600 outline-none focus-visible:ring-2
               focus-visible:ring-slate-900"
           />
@@ -270,9 +270,9 @@ export default function ScheduleStatusForm({
                   : false)
               }
               className="dark:border-border flex-1 cursor-pointer rounded-lg
-                border-2 border-slate-300 bg-emerald-200 px-3 py-1.5 text-xs
-                font-black tracking-wide text-slate-600 uppercase transition
-                hover:bg-emerald-300 disabled:cursor-not-allowed
+                border border-slate-100 bg-primary px-3 py-1.5 text-xs
+                font-black tracking-wide text-background uppercase transition
+                hover:bg-primary/80 disabled:cursor-not-allowed
                 disabled:opacity-70 dark:bg-emerald-800/40 dark:text-emerald-100
                 dark:hover:bg-emerald-800/60"
             >
@@ -283,7 +283,7 @@ export default function ScheduleStatusForm({
               onClick={handleDateCancel}
               disabled={isPending}
               className="dark:border-border dark:bg-card dark:text-foreground
-                dark:hover:bg-muted flex-1 cursor-pointer rounded-lg border-2
+                dark:hover:bg-muted flex-1 cursor-pointer rounded-lg border
                 border-slate-300 bg-white px-3 py-1.5 text-xs font-black
                 tracking-wide text-slate-600 uppercase transition
                 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70"

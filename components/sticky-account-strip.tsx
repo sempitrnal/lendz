@@ -63,7 +63,7 @@ export default function StickyAccountStrip({
                   e.stopPropagation();
                 }}
                 href={`/borrowers/${borrowerId}`}
-                className="truncate text-lg font-black tracking-tight
+                className="truncate lowercase text-lg font-black tracking-tight
                   text-slate-700 dark:text-foreground"
               >
                 {borrowerName}
@@ -71,7 +71,7 @@ export default function StickyAccountStrip({
             </div>
             {categoryLabel && (
               <span
-                className={`rounded-sm px-2 py-0.5 text-[12px] font-bold
+                className={`rounded-sm px-2 py-0.5 text-[10px] font-bold
                 ${isDarkColor(categoryColor ?? "#cbd5e1") ? "text-white" : "text-slate-700"}`}
                 style={{
                   backgroundColor: categoryColor
@@ -84,11 +84,11 @@ export default function StickyAccountStrip({
               </span>
             )}
             <div
-              className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-[14px]
+              className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px]
                 text-slate-400 dark:text-muted-foreground"
             >
               <span>
-                Released{" "}
+                released{" "}
                 <strong
                   className="font-semibold text-slate-600
                     dark:text-foreground/80"
@@ -97,7 +97,7 @@ export default function StickyAccountStrip({
                 </strong>
               </span>
               <span>
-                Interest{" "}
+                interest{" "}
                 <strong
                   className="font-semibold text-slate-600
                     dark:text-foreground/80"
@@ -106,7 +106,7 @@ export default function StickyAccountStrip({
                 </strong>
               </span>
               <span>
-                Term{" "}
+                term{" "}
                 <strong
                   className="font-semibold text-slate-600
                     dark:text-foreground/80"

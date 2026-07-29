@@ -57,13 +57,13 @@ export function ProfitPerCategory({
               <div className="mt-2 flex gap-2 text-xs text-muted-foreground">
                 <span>
                   collected{" "}
-                  <span className="font-medium text-slate-600">
+                  <span className="font-medium text-foreground">
                     {formatPeso(cat.collectedProfit)}
                   </span>
                 </span>
                 <span>
                   remaining{" "}
-                  <span className="font-medium text-slate-600">
+                  <span className="font-medium text-foreground">
                     {formatPeso(cat.remainingProfit)}
                   </span>{" "}
                   · {collectedPct}%
