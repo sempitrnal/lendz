@@ -1,4 +1,10 @@
 export const RECENT_BORROWERS_KEY = "lendz:recent-borrowers";
+export const RECENT_BORROWERS_CHANGED = "lendz:recent-borrowers-changed";
+
+function notifyRecentBorrowersChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(RECENT_BORROWERS_CHANGED));
+}
 
 export type RecentBorrower = {
   id: string;
@@ -51,6 +57,7 @@ export function saveRecentBorrower(borrower: {
       ...filtered,
     ].slice(0, 10);
     localStorage.setItem(RECENT_BORROWERS_KEY, JSON.stringify(next));
+    notifyRecentBorrowersChanged();
     return next;
   } catch {
     return [];
@@ -60,6 +67,7 @@ export function saveRecentBorrower(borrower: {
 export function clearRecentBorrowers(): void {
   try {
     localStorage.removeItem(RECENT_BORROWERS_KEY);
+    notifyRecentBorrowersChanged();
   } catch {
     // ignore
   }

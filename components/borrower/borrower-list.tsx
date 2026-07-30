@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { fetchCategoriesAction } from "@/lib/actions/categories";
 import { useSeedBorrowersSearch } from "@/hooks/use-borrowers-search";
 import {
+  RECENT_BORROWERS_CHANGED,
   type RecentBorrower,
   clearRecentBorrowers,
   loadRecentBorrowers,
@@ -196,6 +197,12 @@ export default function BorrowersList({
     setRecentBorrowers(loadRecentBorrowers());
   }, []);
 
+  useEffect(() => {
+    const handle = () => setRecentBorrowers(loadRecentBorrowers());
+    window.addEventListener(RECENT_BORROWERS_CHANGED, handle);
+    return () => window.removeEventListener(RECENT_BORROWERS_CHANGED, handle);
+  }, []);
+
   const recordVisit = useCallback(
     (borrower: {
       id: string;
@@ -375,10 +382,10 @@ export default function BorrowersList({
                     }}
                     className="dark:border-border dark:bg-muted
                       dark:text-foreground dark:hover:bg-muted/70 flex
-                      items-center gap-2 rounded-md border border-border
-                      bg-[#ffffff] px-3 py-1.5 text-xs font-bold text-slate-600
-                      uppercase shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)]
-                      transition hover:bg-white"
+                      items-center gap-2 rounded-lg border border-border
+                      bg-[#ffffff] px-3 py-1.5 text-xs font-black text-slate-600
+                      shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] transition
+                      hover:bg-white lowercase"
                   >
                     <span
                       className="flex size-5 shrink-0 items-center

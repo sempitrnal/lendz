@@ -6,6 +6,7 @@ import { Clock, Search, X, XCircle } from "lucide-react";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import {
+  RECENT_BORROWERS_CHANGED,
   loadRecentBorrowers,
   saveRecentBorrower,
 } from "@/lib/recent-borrowers";
@@ -38,6 +39,12 @@ export default function HeaderSearch({
 
   useEffect(() => {
     setRecentIds(loadRecentIds());
+  }, []);
+
+  useEffect(() => {
+    const handle = () => setRecentIds(loadRecentIds());
+    window.addEventListener(RECENT_BORROWERS_CHANGED, handle);
+    return () => window.removeEventListener(RECENT_BORROWERS_CHANGED, handle);
   }, []);
 
   useEffect(() => {
