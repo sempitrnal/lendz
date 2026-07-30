@@ -1125,8 +1125,8 @@ function CategorySection({
                         ? `bg-slate-50 dark:border-muted-foreground/30
                           dark:bg-muted/80`
                         : `bg-white shadow-sm hover:bg-slate-100
-                          dark:border-muted-foreground/20 dark:bg-muted
-                          dark:hover:bg-muted/40`
+                          dark:border-muted-foreground/20 dark:bg-background
+                          dark:hover:bg-background/90`
                     }`}
                 >
                   <button
