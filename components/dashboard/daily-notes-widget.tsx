@@ -91,16 +91,12 @@ function LinkedLabel({
     return new Map(borrowers.map((b) => [`${b.first_name} ${b.last_name}`, b]));
   }, [borrowers]);
 
+  const amountPattern = /(?:₱\s*)?\b(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\b/;
+
   const isAmountBlock = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return false;
-    return trimmed
-      .split("\n")
-      .every((line) =>
-        /^(?:Total:\s*)?(?:₱\s*)?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:\s*-\s*.+)?$/.test(
-          line.trimStart(),
-        ),
-      );
+    return trimmed.split("\n").every((line) => amountPattern.test(line.trim()));
   };
 
   const strike = (text: string, key: string) => {
