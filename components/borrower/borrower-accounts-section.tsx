@@ -844,7 +844,7 @@ export default function BorrowerAccountsSection({
             </div>
 
             <motion.div
-              className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3"
+              className="flex flex-col gap-2"
               variants={cardContainerVariants}
             >
               {deletedAccounts.map((account) => {
@@ -876,88 +876,62 @@ export default function BorrowerAccountsSection({
                   <motion.div
                     key={account.id}
                     variants={cardVariants}
-                    className="relative overflow-hidden rounded-lg border
-                      border-border bg-white p-4 shadow-sm transition-all
-                      duration-200 dark:bg-card"
-                    whileHover={{
-                      y: -2,
-                      transition: {
-                        type: "spring" as const,
-                        stiffness: 400,
-                        damping: 20,
-                      },
-                    }}
-                    whileTap={{
-                      scale: 0.98,
-                      y: 0,
-                      transition: { duration: 0.1 },
-                    }}
+                    className="flex items-center gap-3 rounded-lg border
+                      border-slate-200 bg-slate-50 px-3 py-2 opacity-60
+                      grayscale transition-all duration-200
+                      dark:border-border/50 dark:bg-card/50 hover:opacity-80
+                      hover:grayscale-0"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5">
                         <span
-                          className={`shrink-0 rounded-md px-2 py-0.5
-                          text-[10px] font-black tracking-wide uppercase
-                          ${typeBadgeBg}`}
+                          className={`shrink-0 rounded px-1.5 py-0.5 text-[9px]
+                          font-black tracking-wide uppercase ${typeBadgeBg}`}
                         >
                           {typeLabel}
                         </span>
                         {account.interest_rate ? (
                           <span
-                            className="text-[11px] font-bold text-slate-500
+                            className="text-[10px] font-bold text-slate-500
                               dark:text-slate-400"
                           >
                             {account.interest_rate}%
                           </span>
                         ) : null}
+                        <span
+                          className="shrink-0 rounded-full bg-rose-100 px-1.5
+                            py-0 text-[8px] font-black uppercase text-rose-700
+                            dark:bg-rose-800 dark:text-rose-100"
+                        >
+                          deleted
+                        </span>
                       </div>
-                      <span
-                        className="shrink-0 rounded-full px-2.5 py-0.5
-                          text-[8px] font-black uppercase bg-rose-100
-                          text-rose-700 dark:bg-rose-800 dark:text-rose-100"
-                      >
-                        deleted
-                      </span>
-                    </div>
 
-                    <div className="mt-1.5">
-                      <span
-                        className="text-2xl font-black tracking-tight
-                          text-slate-600 tabular-nums dark:text-foreground"
+                      <p
+                        className="truncate text-sm font-bold text-slate-700
+                          tabular-nums dark:text-slate-200"
                       >
                         ₱{principal.toLocaleString()}
-                      </span>
-                    </div>
-
-                    <p
-                      className="text-[11px] font-medium text-slate-500
-                        dark:text-muted-foreground"
-                    >
-                      {account.type.replace("_", " ")}
-                      {isManual
-                        ? " · manual"
-                        : account.payment_frequency
-                          ? ` · ${account.payment_frequency}`
-                          : ""}
-                    </p>
-
-                    {deletedDate && (
-                      <p
-                        className="mt-1.5 text-[10px] font-bold tracking-wide
-                          uppercase text-rose-500/80 dark:text-rose-300"
-                      >
-                        deleted {deletedDate}
                       </p>
-                    )}
+
+                      <p className="text-[10px] text-slate-400">
+                        {account.type.replace("_", " ")}
+                        {isManual
+                          ? " · manual"
+                          : account.payment_frequency
+                            ? ` · ${account.payment_frequency}`
+                            : ""}
+                        {deletedDate ? ` · deleted ${deletedDate}` : ""}
+                      </p>
+                    </div>
 
                     <button
                       type="button"
                       disabled={isRestoring}
                       onClick={() => handleRestoreAccount(account.id)}
-                      className="mt-2.5 inline-flex items-center gap-1
-                        rounded-md border border-slate-900/30 bg-slate-50 px-3
-                        py-1.5 text-[11px] font-bold text-slate-600 transition
-                        hover:bg-slate-100 active:translate-y-px
+                      className="shrink-0 rounded-md border border-slate-900/30
+                        bg-white px-2 py-1 text-[10px] font-bold text-slate-600
+                        transition hover:bg-slate-100 active:translate-y-px
                         disabled:opacity-50 dark:border-border/50 dark:bg-muted
                         dark:text-slate-300 dark:hover:bg-muted/70"
                       aria-label="Restore account"
@@ -969,9 +943,8 @@ export default function BorrowerAccountsSection({
                             border-t-transparent"
                         />
                       ) : (
-                        <RotateCcw className="size-3.5" />
+                        <RotateCcw className="size-3" />
                       )}
-                      {isRestoring ? "..." : "restore"}
                     </button>
                   </motion.div>
                 );
