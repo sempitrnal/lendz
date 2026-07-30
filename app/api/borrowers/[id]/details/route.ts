@@ -203,17 +203,28 @@ export async function GET(
   }
 
   // Fetch notes
-  const { data: notesData } = await supabase
+  const { data: notesData, error: notesError } = await supabase
     .from("borrower_notes")
     .select("*")
     .eq("borrower_id", borrowerId)
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
 
+  let notes = notesData ?? [];
+
+  if (notesError && notesError.message.includes("sort_order")) {
+    const { data: fallbackNotes } = await supabase
+      .from("borrower_notes")
+      .select("*")
+      .eq("borrower_id", borrowerId)
+      .order("created_at", { ascending: false });
+    notes = fallbackNotes ?? [];
+  }
+
   return NextResponse.json({
     borrower,
     accounts: accountList,
     metrics,
-    notes: notesData ?? [],
+    notes,
   });
 }
