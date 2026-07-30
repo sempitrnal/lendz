@@ -1,6 +1,14 @@
 "use client";
 
-import { ArrowLeft, Plus, Wallet, Pencil, Copy, RotateCcw } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  Wallet,
+  Pencil,
+  Copy,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatDate } from "@/lib/utils";
 import { createPortal } from "react-dom";
@@ -20,7 +28,10 @@ import {
 } from "../ui/dialog";
 import { BorrowerSummary } from "./borrower-detail-view";
 import { supabase } from "@/lib/supabase/client";
-import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
+import {
+  revalidateBorrowerDetailPage,
+  revalidateDeletedPage,
+} from "@/lib/actions/borrowers";
 import {
   useBorrowerDetails,
   useInvalidateBorrowerDetails,
@@ -165,6 +176,10 @@ export default function BorrowerAccountsSection({
     initialMetrics ??
     {}) as Record<string, AccountComputedMetrics>;
   const [restoringIds, setRestoringIds] = useState<Set<string>>(new Set());
+  const [permaDeletingIds, setPermaDeletingIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [isClearingDeleted, setIsClearingDeleted] = useState(false);
   const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(
     new Set(),
   );
@@ -262,6 +277,7 @@ export default function BorrowerAccountsSection({
 
       toast.success("Account restored");
       await revalidateBorrowerDetailPage(borrowerId);
+      await revalidateDeletedPage();
       router.refresh();
     } finally {
       setRestoringIds((prev) => {
@@ -269,6 +285,70 @@ export default function BorrowerAccountsSection({
         next.delete(accountId);
         return next;
       });
+    }
+  };
+
+  const handlePermaDeleteAccount = async (accountId: string) => {
+    const confirmed = window.confirm(
+      "Permanently delete this account? This cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    setPermaDeletingIds((prev) => new Set(prev).add(accountId));
+    try {
+      const { error } = await supabase
+        .from("accounts")
+        .delete()
+        .eq("id", accountId);
+
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      toast.success("Account permanently deleted");
+      await revalidateBorrowerDetailPage(borrowerId);
+      await revalidateDeletedPage();
+      router.refresh();
+    } finally {
+      setPermaDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(accountId);
+        return next;
+      });
+    }
+  };
+
+  const handleClearAllDeletedAccounts = async () => {
+    if (deletedAccounts.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Permanently delete all ${deletedAccounts.length} deleted account${
+        deletedAccounts.length === 1 ? "" : "s"
+      }? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setIsClearingDeleted(true);
+    try {
+      const ids = deletedAccounts.map((a) => a.id);
+      const { error } = await supabase.from("accounts").delete().in("id", ids);
+
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      toast.success(
+        `Permanently deleted ${ids.length} account${
+          ids.length === 1 ? "" : "s"
+        }`,
+      );
+      await revalidateBorrowerDetailPage(borrowerId);
+      await revalidateDeletedPage();
+      router.refresh();
+    } finally {
+      setIsClearingDeleted(false);
     }
   };
   const handlePrefetchAccount = (id: string) => {
@@ -829,19 +909,35 @@ export default function BorrowerAccountsSection({
             viewport={{ once: true, margin: "-60px" }}
             variants={groupVariants}
           >
-            <div className="mb-3 flex items-center gap-2">
-              <span
-                className="rounded-full border border-rose-200 bg-rose-100
-                  px-2.5 py-1 text-[10px] font-black tracking-widest
-                  text-rose-800 uppercase dark:border-rose-800/40
-                  dark:bg-rose-900/20 dark:text-rose-200"
-              >
-                recently deleted
-              </span>
-              <span className="text-xs font-semibold text-slate-400">
-                {deletedAccounts.length} account
-                {deletedAccounts.length === 1 ? "" : "s"}
-              </span>
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span
+                  className="rounded-full border border-rose-200 bg-rose-100
+                    px-2.5 py-1 text-[10px] font-black tracking-widest
+                    text-rose-800 uppercase dark:border-rose-800/40
+                    dark:bg-rose-900/20 dark:text-rose-200"
+                >
+                  recently deleted
+                </span>
+                <span className="text-xs font-semibold text-slate-400">
+                  {deletedAccounts.length} account
+                  {deletedAccounts.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              {deletedAccounts.length > 0 && (
+                <button
+                  type="button"
+                  disabled={isClearingDeleted}
+                  onClick={handleClearAllDeletedAccounts}
+                  className="rounded-md border border-rose-200 bg-rose-100 px-2
+                    py-1 text-[10px] font-bold text-rose-700 transition
+                    hover:bg-rose-200 disabled:opacity-50
+                    dark:border-rose-800/40 dark:bg-rose-900/20
+                    dark:text-rose-200 dark:hover:bg-rose-900/30"
+                >
+                  {isClearingDeleted ? "clearing..." : "clear all"}
+                </button>
+              )}
             </div>
 
             <motion.div
@@ -872,6 +968,8 @@ export default function BorrowerAccountsSection({
                   : isCashAdvance
                     ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
                     : "bg-violet-200 text-violet-900 dark:bg-violet-800 dark:text-violet-100";
+
+                const isPermaDeleting = permaDeletingIds.has(account.id);
 
                 return (
                   <motion.div
@@ -926,27 +1024,53 @@ export default function BorrowerAccountsSection({
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={isRestoring}
-                      onClick={() => handleRestoreAccount(account.id)}
-                      className="shrink-0 rounded-md border border-slate-900/30
-                        bg-white px-2 py-1 text-[10px] font-bold text-slate-600
-                        transition hover:bg-slate-100 active:translate-y-px
-                        disabled:opacity-50 dark:border-border/50 dark:bg-muted
-                        dark:text-slate-300 dark:hover:bg-muted/70"
-                      aria-label="Restore account"
-                    >
-                      {isRestoring ? (
-                        <span
-                          className="inline-block size-3 animate-spin
-                            rounded-full border border-current
-                            border-t-transparent"
-                        />
-                      ) : (
-                        <RotateCcw className="size-3" />
-                      )}
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={isRestoring}
+                        onClick={() => handleRestoreAccount(account.id)}
+                        className="rounded-md border border-slate-900/30
+                          bg-white px-2 py-1 text-[10px] font-bold
+                          text-slate-600 transition hover:bg-slate-100
+                          active:translate-y-px disabled:opacity-50
+                          dark:border-border/50 dark:bg-muted
+                          dark:text-slate-300 dark:hover:bg-muted/70"
+                        aria-label="Restore account"
+                      >
+                        {isRestoring ? (
+                          <span
+                            className="inline-block size-3 animate-spin
+                              rounded-full border border-current
+                              border-t-transparent"
+                          />
+                        ) : (
+                          <RotateCcw className="size-3" />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isPermaDeleting}
+                        onClick={() => handlePermaDeleteAccount(account.id)}
+                        className="rounded-md border border-rose-200 bg-rose-50
+                          px-2 py-1 text-[10px] font-bold text-rose-600
+                          transition hover:bg-rose-100 active:translate-y-px
+                          disabled:opacity-50 dark:border-rose-800/40
+                          dark:bg-rose-900/20 dark:text-rose-200
+                          dark:hover:bg-rose-900/30"
+                        aria-label="Permanently delete account"
+                      >
+                        {isPermaDeleting ? (
+                          <span
+                            className="inline-block size-3 animate-spin
+                              rounded-full border border-current
+                              border-t-transparent"
+                          />
+                        ) : (
+                          <Trash2 className="size-3" />
+                        )}
+                      </button>
+                    </div>
                   </motion.div>
                 );
               })}
