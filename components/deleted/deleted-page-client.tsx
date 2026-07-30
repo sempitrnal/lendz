@@ -367,14 +367,13 @@ export default function DeletedPageClient({
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className={`flex items-center gap-3 rounded-xl border-2 px-4
-                    py-3 transition-all ${
+                  className={`flex items-center gap-3 rounded-lg border px-3
+                    py-2 transition-all ${
                       selected
-                        ? `border-indigo-500 bg-indigo-50
-                          shadow-[2px_2px_0px_0px_#6366f1]
-                          dark:border-indigo-400 dark:bg-indigo-900/20`
-                        : `dark:border-border dark:bg-card border-slate-900
-                          bg-white shadow-[2px_2px_0px_0px_#0f172a]`
+                        ? `border-indigo-500 bg-indigo-50 dark:border-indigo-400
+                          dark:bg-indigo-900/20`
+                        : `dark:border-border/50 border-slate-200 bg-slate-50
+                          opacity-60 grayscale dark:bg-card/50`
                     }`}
                 >
                   <button
@@ -409,10 +408,13 @@ export default function DeletedPageClient({
                     )}
                   </button>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-black">
+                    <p
+                      className="truncate text-xs font-bold text-slate-700
+                        dark:text-slate-200"
+                    >
                       {b.first_name} {b.last_name}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-[10px] text-slate-400">
                       deleted{" "}
                       {new Date(
                         b.deleted_at ?? b.created_at,
@@ -421,7 +423,7 @@ export default function DeletedPageClient({
                   </div>
                   {b.contact && (
                     <span
-                      className="hidden shrink-0 text-xs text-slate-500
+                      className="hidden shrink-0 text-[10px] text-slate-500
                         sm:inline"
                     >
                       {b.contact}
@@ -491,14 +493,13 @@ export default function DeletedPageClient({
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className={`flex items-center gap-3 rounded-xl border-2 px-4
-                    py-3 transition-all ${
+                  className={`flex items-center gap-3 rounded-lg border px-3
+                    py-2 transition-all ${
                       selected
-                        ? `border-violet-500 bg-violet-50
-                          shadow-[2px_2px_0px_0px_#8b5cf6]
-                          dark:border-violet-400 dark:bg-violet-900/20`
-                        : `dark:border-border dark:bg-card border-slate-900
-                          bg-white shadow-[2px_2px_0px_0px_#0f172a]`
+                        ? `border-violet-500 bg-violet-50 dark:border-violet-400
+                          dark:bg-violet-900/20`
+                        : `dark:border-border/50 border-slate-200 bg-slate-50
+                          opacity-60 grayscale dark:bg-card/50`
                     }`}
                 >
                   <button
@@ -533,7 +534,10 @@ export default function DeletedPageClient({
                     )}
                   </button>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-black">
+                    <p
+                      className="truncate text-xs font-bold text-slate-700
+                        dark:text-slate-200"
+                    >
                       {a.borrower
                         ? `${a.borrower.first_name} ${a.borrower.last_name}`
                         : "Unknown borrower"}{" "}
@@ -541,13 +545,13 @@ export default function DeletedPageClient({
                         &middot; {formatCurrency(principal)}
                       </span>
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-[10px] text-slate-400">
                       deleted{" "}
                       {new Date(
                         a.deleted_at ?? a.created_at ?? "",
                       ).toLocaleDateString()}{" "}
                       <span
-                        className={`rounded px-1 py-px text-[10px] font-bold
+                        className={`rounded px-1 py-px text-[9px] font-bold
                           uppercase ${
                             a.type === "cash_advance"
                               ? "bg-amber-100 text-amber-800"
