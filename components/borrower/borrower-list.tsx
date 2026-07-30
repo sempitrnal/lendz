@@ -11,6 +11,12 @@ import {
 import { useRouter } from "next/navigation";
 import { fetchCategoriesAction } from "@/lib/actions/categories";
 import { useSeedBorrowersSearch } from "@/hooks/use-borrowers-search";
+import {
+  type RecentBorrower,
+  clearRecentBorrowers,
+  loadRecentBorrowers,
+  saveRecentBorrower,
+} from "@/lib/recent-borrowers";
 
 import AddBorrowerFab from "./add-borrower-fab";
 import BorrowerScheduleCard, {
@@ -184,33 +190,10 @@ export default function BorrowersList({
     }
   }, []);
 
-  const RECENT_KEY = "borrowers-recent-visits";
-  type RecentBorrower = {
-    id: string;
-    first_name: string;
-    last_name: string;
-    categoryColor: string | null;
-    visitCount: number;
-  };
   const [recentBorrowers, setRecentBorrowers] = useState<RecentBorrower[]>([]);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(RECENT_KEY);
-      if (stored) {
-        const parsed: (Partial<RecentBorrower> & Pick<RecentBorrower, "id">)[] =
-          JSON.parse(stored);
-        setRecentBorrowers(
-          parsed.map((b) => ({
-            id: b.id,
-            first_name: b.first_name ?? "",
-            last_name: b.last_name ?? "",
-            categoryColor: b.categoryColor ?? null,
-            visitCount: b.visitCount ?? 1,
-          })),
-        );
-      }
-    } catch {}
+    setRecentBorrowers(loadRecentBorrowers());
   }, []);
 
   const recordVisit = useCallback(
@@ -220,19 +203,8 @@ export default function BorrowersList({
       last_name: string;
       categoryColor: string | null;
     }) => {
-      setRecentBorrowers((prev) => {
-        const existing = prev.find((b) => b.id === borrower.id);
-        const count = (existing?.visitCount ?? 0) + 1;
-        const filtered = prev.filter((b) => b.id !== borrower.id);
-        const next: RecentBorrower[] = [
-          { ...borrower, visitCount: count },
-          ...filtered,
-        ].slice(0, 10);
-        try {
-          localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-        } catch {}
-        return next;
-      });
+      const next = saveRecentBorrower(borrower);
+      setRecentBorrowers(next);
     },
     [],
   );
@@ -379,9 +351,7 @@ export default function BorrowersList({
                 type="button"
                 onClick={() => {
                   setRecentBorrowers([]);
-                  try {
-                    localStorage.removeItem(RECENT_KEY);
-                  } catch {}
+                  clearRecentBorrowers();
                 }}
                 className="text-[10px] font-bold tracking-wide text-slate-400
                   uppercase transition hover:text-rose-500"
@@ -657,6 +627,7 @@ const MasonryGrid = memo(function MasonryGrid({
         {borrowers.map((borrower) => (
           <BorrowerScheduleCard
             key={borrower.id}
+            onVisit={onVisit}
             {...buildBorrowerScheduleCardProps(borrower)}
           />
         ))}
@@ -674,6 +645,7 @@ const MasonryGrid = memo(function MasonryGrid({
           {col.map((borrower) => (
             <BorrowerScheduleCard
               key={borrower.id}
+              onVisit={onVisit}
               {...buildBorrowerScheduleCardProps(borrower)}
             />
           ))}

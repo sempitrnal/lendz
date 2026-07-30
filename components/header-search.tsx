@@ -5,32 +5,18 @@ import { useRouter } from "next/navigation";
 import { Clock, Search, X, XCircle } from "lucide-react";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
-
-const RECENT_KEY = "lendz:search-recent";
+import {
+  loadRecentBorrowers,
+  saveRecentBorrower,
+} from "@/lib/recent-borrowers";
 
 interface HeaderSearchProps {
   className?: string;
   onFocusChange?: (focused: boolean) => void;
 }
 
-function loadRecent(): string[] {
-  try {
-    const raw = localStorage.getItem(RECENT_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    // ignore
-  }
-  return [];
-}
-
-function saveRecent(id: string) {
-  try {
-    const current = loadRecent();
-    const next = [id, ...current.filter((x) => x !== id)].slice(0, 5);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-  } catch {
-    // ignore
-  }
+function loadRecentIds(): string[] {
+  return loadRecentBorrowers().map((b) => b.id);
 }
 
 export default function HeaderSearch({
@@ -51,7 +37,7 @@ export default function HeaderSearch({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setRecentIds(loadRecent());
+    setRecentIds(loadRecentIds());
   }, []);
 
   useEffect(() => {
@@ -103,10 +89,14 @@ export default function HeaderSearch({
   const visibleItems = isQuery ? suggestions : recents;
 
   function navigate(borrower: BorrowerSearchItem) {
-    saveRecent(borrower.id);
-    setRecentIds((prev) =>
-      [borrower.id, ...prev.filter((x) => x !== borrower.id)].slice(0, 5),
-    );
+    const category = borrower.borrower_categories[0]?.category[0];
+    const next = saveRecentBorrower({
+      id: borrower.id,
+      first_name: borrower.first_name,
+      last_name: borrower.last_name,
+      categoryColor: category?.color ?? null,
+    });
+    setRecentIds(next.map((b) => b.id));
     setShowSuggestions(false);
     setInput("");
     setDebouncedQuery("");

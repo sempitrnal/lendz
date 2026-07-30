@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowLeft, Plus, Wallet, Pencil, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Wallet, Pencil, Copy, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { formatDate } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -77,6 +78,8 @@ export type AccountRow = AccountEditableRow & {
   borrower_id: string;
   status: string;
   first_payment_date: string | null;
+  deleted_at?: string | null;
+  created_at?: string | null;
 };
 export type AccountComputedMetrics = {
   amountLeftToPay: number;
@@ -818,14 +821,19 @@ export default function BorrowerAccountsSection({
         )}
 
         {deletedAccounts.length > 0 && (
-          <div className="mt-10">
+          <motion.div
+            className="mt-10"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-60px" }}
+            variants={groupVariants}
+          >
             <div className="mb-3 flex items-center gap-2">
               <span
-                className="rounded-full border-2 border-slate-900 bg-red-100
+                className="rounded-full border border-rose-200 bg-rose-100
                   px-2.5 py-1 text-[10px] font-black tracking-widest
-                  text-red-800 uppercase shadow-[2px_2px_0px_0px_#0f172a]
-                  dark:border-red-400/40 dark:bg-red-400/[0.15]
-                  dark:text-red-300"
+                  text-rose-800 uppercase dark:border-rose-800/40
+                  dark:bg-rose-900/20 dark:text-rose-200"
               >
                 recently deleted
               </span>
@@ -834,53 +842,142 @@ export default function BorrowerAccountsSection({
                 {deletedAccounts.length === 1 ? "" : "s"}
               </span>
             </div>
-            <div
-              className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3"
+
+            <motion.div
+              className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3"
+              variants={cardContainerVariants}
             >
               {deletedAccounts.map((account) => {
                 const isRestoring = restoringIds.has(account.id);
                 const principal = Number(account.principal_amount ?? 0);
+                const deletedDate = account.deleted_at
+                  ? formatDate(account.deleted_at.slice(0, 10))
+                  : null;
+                const isCashAdvance = account.type === "cash_advance";
+                const isManual = account.schedule_mode === "manual";
+                const isRolling =
+                  isManual && account.interest_type === "rolling";
+                const typeLabel = isManual
+                  ? isRolling
+                    ? "rolling"
+                    : "flat"
+                  : isCashAdvance
+                    ? "ca"
+                    : "loan";
+                const typeBadgeBg = isManual
+                  ? isRolling
+                    ? "bg-cyan-200 text-cyan-900 dark:bg-cyan-800 dark:text-cyan-100"
+                    : "bg-lime-200 text-lime-900 dark:bg-lime-800 dark:text-lime-100"
+                  : isCashAdvance
+                    ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
+                    : "bg-violet-200 text-violet-900 dark:bg-violet-800 dark:text-violet-100";
+
                 return (
-                  <div
+                  <motion.div
                     key={account.id}
-                    className="dark:border-border dark:bg-card flex items-center
-                      justify-between rounded-xl border-2 border-slate-900/40
-                      bg-slate-50 px-4 py-3 opacity-70
-                      shadow-[1px_1px_0px_0px_rgb(15_23_42/0.2)]
-                      dark:shadow-none"
+                    variants={cardVariants}
+                    className="relative overflow-hidden rounded-lg border
+                      border-border bg-white p-4 shadow-sm transition-all
+                      duration-200 dark:bg-card"
+                    whileHover={{
+                      y: -2,
+                      transition: {
+                        type: "spring" as const,
+                        stiffness: 400,
+                        damping: 20,
+                      },
+                    }}
+                    whileTap={{
+                      scale: 0.98,
+                      y: 0,
+                      transition: { duration: 0.1 },
+                    }}
                   >
-                    <div>
-                      <p
-                        className="dark:text-foreground text-sm font-bold
-                          text-slate-700"
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`shrink-0 rounded-md px-2 py-0.5
+                          text-[10px] font-black tracking-wide uppercase
+                          ${typeBadgeBg}`}
+                        >
+                          {typeLabel}
+                        </span>
+                        {account.interest_rate ? (
+                          <span
+                            className="text-[11px] font-bold text-slate-500
+                              dark:text-slate-400"
+                          >
+                            {account.interest_rate}%
+                          </span>
+                        ) : null}
+                      </div>
+                      <span
+                        className="shrink-0 rounded-full px-2.5 py-0.5
+                          text-[8px] font-black uppercase bg-rose-100
+                          text-rose-700 dark:bg-rose-800 dark:text-rose-100"
                       >
-                        {account.type.replace("_", " ")}
-                      </p>
-                      <p
-                        className="dark:text-muted-foreground text-xs
-                          text-slate-500"
-                      >
-                        ₱{principal.toLocaleString()} ·{" "}
-                        {account.payment_frequency}
-                      </p>
+                        deleted
+                      </span>
                     </div>
+
+                    <div className="mt-1.5">
+                      <span
+                        className="text-2xl font-black tracking-tight
+                          text-slate-600 tabular-nums dark:text-foreground"
+                      >
+                        ₱{principal.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <p
+                      className="text-[11px] font-medium text-slate-500
+                        dark:text-muted-foreground"
+                    >
+                      {account.type.replace("_", " ")}
+                      {isManual
+                        ? " · manual"
+                        : account.payment_frequency
+                          ? ` · ${account.payment_frequency}`
+                          : ""}
+                    </p>
+
+                    {deletedDate && (
+                      <p
+                        className="mt-1.5 text-[10px] font-bold tracking-wide
+                          uppercase text-rose-500/80 dark:text-rose-300"
+                      >
+                        deleted {deletedDate}
+                      </p>
+                    )}
+
                     <button
                       type="button"
                       disabled={isRestoring}
                       onClick={() => handleRestoreAccount(account.id)}
-                      className="dark:border-border dark:bg-card
-                        dark:text-foreground rounded-lg border-2
-                        border-slate-900 bg-white px-3 py-1.5 text-xs font-bold
-                        transition hover:-translate-y-0.5 active:translate-y-px
-                        active:shadow-none disabled:opacity-50"
+                      className="mt-2.5 inline-flex items-center gap-1
+                        rounded-md border border-slate-900/30 bg-slate-50 px-3
+                        py-1.5 text-[11px] font-bold text-slate-600 transition
+                        hover:bg-slate-100 active:translate-y-px
+                        disabled:opacity-50 dark:border-border/50 dark:bg-muted
+                        dark:text-slate-300 dark:hover:bg-muted/70"
+                      aria-label="Restore account"
                     >
-                      {isRestoring ? "restoring..." : "restore"}
+                      {isRestoring ? (
+                        <span
+                          className="inline-block size-3 animate-spin
+                            rounded-full border border-current
+                            border-t-transparent"
+                        />
+                      ) : (
+                        <RotateCcw className="size-3.5" />
+                      )}
+                      {isRestoring ? "..." : "restore"}
                     </button>
-                  </div>
+                  </motion.div>
                 );
               })}
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
 
         {/* Speed-dial FAB — portalled to body to escape PageTransition transform stacking context */}

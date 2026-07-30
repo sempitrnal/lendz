@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { saveRecentBorrower } from "@/lib/recent-borrowers";
 
 export type BorrowerScheduleCardSchedule = {
   dueDate: string;
@@ -60,6 +61,12 @@ type BorrowerScheduleCardProps = {
   manualAccountsCount?: number;
   accountsCount?: number;
   nextSchedule?: BorrowerScheduleCardSchedule | null;
+  onVisit?: (borrower: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    categoryColor: string | null;
+  }) => void;
 };
 
 function formatDate(d: string, tz?: string) {
@@ -290,6 +297,7 @@ export default function BorrowerScheduleCard({
   manualAccountsCount = 0,
   accountsCount,
   nextSchedule,
+  onVisit,
 }: BorrowerScheduleCardProps) {
   const router = useRouter();
   const groups = groupSchedulesByDate(schedules);
@@ -302,6 +310,24 @@ export default function BorrowerScheduleCard({
   const showRemaining =
     variant !== "paid" &&
     (totalRemaining > 0 || schedules.some((s) => s.status !== "paid"));
+
+  const recordVisit = () => {
+    if (!borrowerId || !name) return;
+    const parts = name.trim().split(/\s+/);
+    const first_name = parts[0] ?? "";
+    const last_name = parts.slice(1).join(" ");
+    const payload = {
+      id: borrowerId,
+      first_name,
+      last_name,
+      categoryColor,
+    };
+    if (onVisit) {
+      onVisit(payload);
+    } else {
+      void saveRecentBorrower(payload);
+    }
+  };
 
   return (
     <article
@@ -324,6 +350,7 @@ export default function BorrowerScheduleCard({
         <Link
           href={borrowerId ? `/borrowers/${borrowerId}` : "#"}
           prefetch
+          onClick={recordVisit}
           className="dark:text-foreground block truncate text-lg tracking-tight
             font-black text-slate-600 lowercase transition hover:opacity-70"
         >
