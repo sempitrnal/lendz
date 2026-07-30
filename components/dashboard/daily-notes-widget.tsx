@@ -1033,7 +1033,7 @@ function CategorySection({
   return (
     <div
       className={`relative overflow-hidden rounded-2xl border border-border/50
-        bg-white shadow-sm transition-all duration-200 dark:bg-card ${
+        bg-white shadow-sm transition-all duration-200 dark:bg-background/80 ${
           pillBorder ? "border-l-4" : ""
         }`}
       style={{
@@ -1138,7 +1138,7 @@ function CategorySection({
                     rounded-xl border px-3 py-2.5 transition-all duration-200 ${
                       item.is_checked
                         ? `border-border/30 bg-slate-50 dark:border-border/30
-                          dark:bg-muted/50`
+                          dark:bg-muted/20`
                         : `border-border/50 bg-white shadow-sm hover:bg-slate-50
                           dark:border-border/50 dark:bg-card
                           dark:hover:bg-muted/50`

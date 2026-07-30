@@ -18,7 +18,6 @@ import BorrowerScheduleCard, {
 } from "./borrower-schedule-card";
 import { ChevronDown, Users } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PullToRefresh } from "@/components/pull-to-refresh";
 import Link from "next/link";
 
 export type Borrower = {
@@ -609,13 +608,11 @@ export default function BorrowersList({
           }
         />
       ) : (
-        <PullToRefresh>
-          <MasonryGrid
-            borrowers={sortedBorrowers}
-            onBorrowerUpdated={refreshPage}
-            onVisit={recordVisit}
-          />
-        </PullToRefresh>
+        <MasonryGrid
+          borrowers={sortedBorrowers}
+          onBorrowerUpdated={refreshPage}
+          onVisit={recordVisit}
+        />
       )}
     </div>
   );
