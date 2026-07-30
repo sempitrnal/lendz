@@ -1007,9 +1007,12 @@ function CategorySection({
       : `${catColor}25`
     : undefined;
 
+  const progress = items.length > 0 ? (checkedCount / items.length) * 100 : 0;
+  const allDone = items.length > 0 && checkedCount === items.length;
+
   return (
     <div
-      className="border-border/50 p-2 transition-all duration-200 sm:p-5"
+      className="rounded-2xl border border-border/50 p-3 transition-all duration-200 sm:p-5"
       style={{
         backgroundColor: bgColor ?? undefined,
       }}
@@ -1017,40 +1020,60 @@ function CategorySection({
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className={`flex w-full items-center gap-2.5 ${expanded ? "mb-3" : ""}`}
+        className={`flex w-full items-center gap-3 ${expanded ? "mb-4" : ""}`}
       >
-        {category ? (
-          <span
-            className="inline-flex shrink-0 items-center rounded-full px-2.5
-              py-0.5 text-xs font-semibold"
-            style={{
-              backgroundColor: pillBg ?? undefined,
-              color: pillText ?? undefined,
-              borderWidth: 1,
-              borderStyle: "solid",
-              borderColor: pillBorder ?? undefined,
-            }}
-          >
-            {category.name}
-          </span>
-        ) : (
-          <span
-            className="dark:text-muted-foreground shrink-0 text-xs font-semibold
-              text-slate-400"
-          >
-            Uncategorized
-          </span>
-        )}
         <span
-          className="dark:text-muted-foreground text-xs font-medium
-            text-slate-400 tabular-nums"
-        >
-          {checkedCount}/{items.length}
-        </span>
-        <ChevronDown
-          className={`dark:text-muted-foreground ml-auto size-4 text-slate-400
-            transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+          className="h-8 w-1.5 shrink-0 rounded-full"
+          style={{ backgroundColor: catColor ?? "#cbd5e1" }}
         />
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+          <div className="flex w-full items-center gap-2">
+            {category ? (
+              <span
+                className="inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                style={{
+                  backgroundColor: pillBg ?? undefined,
+                  color: pillText ?? undefined,
+                  borderWidth: 1,
+                  borderStyle: "solid",
+                  borderColor: pillBorder ?? undefined,
+                }}
+              >
+                {category.name}
+              </span>
+            ) : (
+              <span className="dark:text-muted-foreground shrink-0 text-sm font-semibold text-slate-500">
+                Uncategorized
+              </span>
+            )}
+            <span
+              className={`ml-auto flex shrink-0 items-center gap-1 text-xs font-semibold tabular-nums ${
+                allDone
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-slate-400 dark:text-muted-foreground"
+              }`}
+            >
+              {allDone && <Check className="size-3.5" strokeWidth={3} />}
+              {checkedCount}/{items.length}
+            </span>
+            <ChevronDown
+              className={`dark:text-muted-foreground size-4 shrink-0 text-slate-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+            />
+          </div>
+          {items.length > 0 && (
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70 dark:bg-muted-foreground/15">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${progress}%`,
+                  backgroundColor: allDone
+                    ? "#10b981"
+                    : (catColor ?? "#94a3b8"),
+                }}
+              />
+            </div>
+          )}
+        </div>
       </button>
 
       {expanded && (
@@ -1071,11 +1094,14 @@ function CategorySection({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => addInputRef.current?.submit()}
               disabled={saving || !newLabel.trim()}
-              className="dark:text-foreground dark:hover:bg-muted/60 shrink-0
-                self-start rounded-lg px-3 py-1.5 text-xs font-semibold
-                text-slate-600 bg-white dark:bg-slate-800 transition-all
-                duration-200 hover:bg-slate-100 disabled:opacity-40"
+              className="dark:text-foreground dark:hover:bg-muted/60 inline-flex
+                shrink-0 items-center gap-1.5 self-start rounded-lg border
+                border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold
+                text-slate-600 shadow-sm transition-all duration-200
+                hover:bg-slate-100 disabled:opacity-40 dark:border-transparent
+                dark:bg-slate-800"
             >
+              <Plus className="size-3.5" strokeWidth={2.5} />
               {saving ? "Adding…" : "Add item"}
             </button>
           </div>
@@ -1083,25 +1109,27 @@ function CategorySection({
           {sorted.length === 0 ? (
             <div
               className="dark:text-muted-foreground flex flex-col items-center
-                gap-2 py-8 text-center"
+                gap-2 rounded-xl border border-dashed border-slate-200 py-8
+                text-center dark:border-muted-foreground/20"
             >
               <p className="text-sm text-slate-400">
                 No items in this category yet.
               </p>
             </div>
           ) : (
-            <ul className="space-y-[8px]">
+            <ul className="space-y-2">
               {sorted.map((item) => (
                 <li
                   key={item.id}
                   onClick={() => onToggle(item)}
                   className={`group flex cursor-pointer items-center gap-3
-                    rounded-xl pl-4 border px-2 py-2 transition-all duration-200
+                    rounded-xl border px-3 py-2.5 transition-all duration-200
                     ${
                       item.is_checked
-                        ? `bg-slate-50 dark:border-muted-foreground/30
-                          dark:bg-muted/80`
-                        : `bg-white shadow-sm hover:bg-slate-100
+                        ? `border-slate-200/60 bg-slate-50
+                          dark:border-muted-foreground/20 dark:bg-muted/60`
+                        : `border-slate-200/80 bg-white shadow-sm
+                          hover:border-slate-300 hover:shadow
                           dark:border-muted-foreground/20 dark:bg-muted
                           dark:hover:bg-muted/40`
                     }`}
@@ -1113,17 +1141,18 @@ function CategorySection({
                       onToggle(item);
                     }}
                     title={item.is_checked ? "Uncheck" : "Check"}
-                    className={`shrink-0 rounded-full border-2 p-0
-                      transition-all duration-200 ${
+                    className={`flex size-5 shrink-0 items-center justify-center
+                      rounded-full border-2 p-0 transition-all duration-200 ${
                         item.is_checked
                           ? "border-emerald-500 bg-emerald-500 text-white"
                           : `border-slate-300 text-transparent
-                            hover:border-emerald-400
-                            dark:border-muted-foreground/40`
+                            hover:border-emerald-400 hover:bg-emerald-50
+                            dark:border-muted-foreground/40
+                            dark:hover:bg-emerald-900/20`
                       }`}
                     aria-label={item.is_checked ? "Uncheck" : "Check"}
                   >
-                    <Check className="size-2" strokeWidth={2} />
+                    <Check className="size-3" strokeWidth={3} />
                   </button>
                   <div className="min-w-0 flex-1 overflow-hidden">
                     <span
@@ -1157,10 +1186,11 @@ function CategorySection({
                           menuOpenFor === item.id ? null : item.id,
                         );
                       }}
-                      className="rounded-lg p-1.5 text-slate-400
-                        transition-colors duration-200 hover:bg-slate-100
-                        hover:text-slate-600 dark:text-muted-foreground
-                        dark:hover:bg-muted/60 dark:hover:text-foreground"
+                      className="rounded-lg p-1.5 text-slate-400 opacity-60
+                        transition-all duration-200 hover:bg-slate-100
+                        hover:text-slate-600 group-hover:opacity-100
+                        dark:text-muted-foreground dark:hover:bg-muted/60
+                        dark:hover:text-foreground"
                       aria-label="More options"
                     >
                       <MoreHorizontal className="size-4" />
