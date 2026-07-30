@@ -549,7 +549,6 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     const [mentionIndex, setMentionIndex] = useState(0);
     const [mentionStart, setMentionStart] = useState<number | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
-    const enterHandledRef = useRef(false);
     const lastMentionedBorrowerRef = useRef<string | null>(null);
     const isProcessingNextRef = useRef(false);
     const isMobile = useMemo(
@@ -802,18 +801,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
         }
       }
 
-      if (isMobile && (e.key === "Enter" || e.keyCode === 13)) {
-        e.preventDefault();
-        enterHandledRef.current = true;
-        const el = innerRef.current;
-        if (el) {
-          insertNodeAtCaret(document.createTextNode("\n"));
-          handleInput();
-        }
-        return;
-      }
-
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === "Enter" && !e.shiftKey && !isMobile) {
         e.preventDefault();
         const el = innerRef.current;
         if (!el || !onSubmit) return;
@@ -833,10 +821,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
         (inputType === "insertParagraph" || inputType === "insertLineBreak")
       ) {
         e.preventDefault();
-        if (enterHandledRef.current) {
-          enterHandledRef.current = false;
-          return;
-        }
+        if (mentionOpen) return;
         const el = innerRef.current;
         if (el) {
           insertNodeAtCaret(document.createTextNode("\n"));
