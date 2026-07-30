@@ -207,6 +207,7 @@ export async function GET(
     .from("borrower_notes")
     .select("*")
     .eq("borrower_id", borrowerId)
+    .order("sort_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
 
   return NextResponse.json({

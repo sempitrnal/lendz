@@ -32,6 +32,7 @@ import ActivateAccountDialog from "./activate-account-dialog";
 import { AccountCard } from "./account-card";
 import { motion } from "framer-motion";
 import { StickyBorrowerStrip } from "./sticky-borrower-strip";
+import SortableNotesGrid from "./sortable-notes-grid";
 
 const groupVariants = {
   hidden: { opacity: 0, y: 24 },
@@ -1114,55 +1115,15 @@ export default function BorrowerAccountsSection({
             </motion.div>
           )}
 
-          <motion.div
-            className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={cardContainerVariants}
-          >
-            {notes.map((note) => (
-              <motion.button
-                key={note.id}
-                onClick={() => {
-                  setSelectedNote(note);
-                  setIsNotesOpen(true);
-                }}
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                whileHover={{ scale: 1.02, transition: { duration: 0.15 } }}
-                whileTap={{ scale: 0.98 }}
-                className="relative aspect-[9/16] w-full overflow-hidden
-                  rounded-sm shadow-md"
-              >
-                {note.preview_img_url ? (
-                  <img
-                    src={
-                      resolvedTheme === "dark"
-                        ? (note.preview_img_url as string).replace(
-                            /\.webp$/,
-                            "-dark.webp",
-                          )
-                        : (note.preview_img_url as string)
-                    }
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src =
-                        note.preview_img_url as string;
-                    }}
-                    className="pointer-events-none h-full w-full object-cover"
-                  />
-                ) : (
-                  <div
-                    className="flex h-full w-full items-center justify-center
-                      bg-slate-100"
-                  >
-                    <span className="text-xs text-slate-400">No preview</span>
-                  </div>
-                )}
-              </motion.button>
-            ))}
-          </motion.div>
+          <SortableNotesGrid
+            notes={notes}
+            borrowerId={borrowerId}
+            resolvedTheme={resolvedTheme ?? "light"}
+            onNoteClick={(note) => {
+              setSelectedNote(note);
+              setIsNotesOpen(true);
+            }}
+          />
         </motion.div>
 
         <Dialog open={isNotesOpen} onOpenChange={setIsNotesOpen}>
