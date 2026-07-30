@@ -1032,15 +1032,19 @@ function CategorySection({
 
   return (
     <div
-      className="border-border/50 p-2 transition-all duration-200 sm:p-5"
+      className={`relative overflow-hidden rounded-2xl border border-border/50
+        bg-white shadow-sm transition-all duration-200 dark:bg-card ${
+          pillBorder ? "border-l-4" : ""
+        }`}
       style={{
-        backgroundColor: bgColor ?? undefined,
+        borderLeftColor: pillBorder ?? undefined,
       }}
     >
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className={`flex w-full items-center gap-2.5 ${expanded ? "mb-3" : ""}`}
+        className="flex w-full items-center gap-2.5 px-4 py-3 transition-colors
+          hover:bg-slate-50 dark:hover:bg-muted/40"
       >
         {category ? (
           <span
@@ -1058,15 +1062,17 @@ function CategorySection({
           </span>
         ) : (
           <span
-            className="dark:text-muted-foreground shrink-0 text-xs font-semibold
-              text-slate-400"
+            className="dark:bg-muted dark:text-muted-foreground inline-flex
+              shrink-0 items-center rounded-full bg-slate-100 px-2.5 py-0.5
+              text-xs font-semibold text-slate-500"
           >
             Uncategorized
           </span>
         )}
         <span
-          className="dark:text-muted-foreground text-xs font-medium
-            text-slate-400 tabular-nums"
+          className="dark:bg-muted dark:text-muted-foreground rounded-full
+            bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500
+            tabular-nums"
         >
           {checkedCount}/{items.length}
         </span>
@@ -1078,55 +1084,64 @@ function CategorySection({
 
       {expanded && (
         <>
-          <div className="mb-4 flex flex-col gap-2">
-            <ChecklistInput
-              ref={addInputRef}
-              defaultValue=""
-              onChange={setNewLabel}
-              onSubmit={handleAdd}
-              placeholder={`Add item${category ? ` to ${category.name}` : ""}…`}
-              borrowers={borrowers}
-              getBorrowerNextAmounts={getBorrowerNextAmounts}
-              showPesoButton
-            />
+          <div
+            className="mb-4 flex flex-col gap-2 px-3 sm:flex-row sm:items-start
+              sm:px-4"
+          >
+            <div className="min-w-0 flex-1">
+              <ChecklistInput
+                ref={addInputRef}
+                defaultValue=""
+                onChange={setNewLabel}
+                onSubmit={handleAdd}
+                placeholder={`Add item${category ? ` to ${category.name}` : ""}…`}
+                borrowers={borrowers}
+                getBorrowerNextAmounts={getBorrowerNextAmounts}
+                showPesoButton
+              />
+            </div>
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => addInputRef.current?.submit()}
               disabled={saving || !newLabel.trim()}
-              className="dark:text-foreground dark:hover:bg-muted/60 shrink-0
-                self-start rounded-lg px-3 py-1.5 text-xs font-semibold
-                text-slate-600 bg-white dark:bg-slate-800 transition-all
-                duration-200 hover:bg-slate-100 disabled:opacity-40"
+              className="shrink-0 w-full rounded-lg border border-slate-200
+                bg-white px-4 py-2 text-xs font-semibold text-slate-700
+                transition-all duration-200 hover:bg-slate-100
+                hover:text-slate-900 disabled:opacity-50 dark:border-border/50
+                dark:bg-muted dark:text-foreground dark:hover:bg-muted/80
+                sm:w-auto"
             >
               {saving ? "Adding…" : "Add item"}
             </button>
           </div>
 
           {sorted.length === 0 ? (
-            <div
-              className="dark:text-muted-foreground flex flex-col items-center
-                gap-2 py-8 text-center"
-            >
-              <p className="text-sm text-slate-400">
-                No items in this category yet.
-              </p>
+            <div className="px-3 sm:px-4">
+              <div
+                className="dark:bg-muted/20 flex flex-col items-center gap-2
+                  rounded-xl border border-dashed border-border/50
+                  bg-slate-50/50 py-8 text-center dark:text-muted-foreground"
+              >
+                <p className="text-sm text-slate-500 dark:text-muted-foreground">
+                  No items in this category yet.
+                </p>
+              </div>
             </div>
           ) : (
-            <ul className="space-y-[8px]">
+            <ul className="space-y-2 px-3 pb-4 sm:px-4">
               {sorted.map((item) => (
                 <li
                   key={item.id}
                   onClick={() => onToggle(item)}
                   className={`group flex cursor-pointer items-center gap-3
-                    rounded-xl pl-4 border px-2 py-2 transition-all duration-200
-                    ${
+                    rounded-xl border px-3 py-2.5 transition-all duration-200 ${
                       item.is_checked
-                        ? `bg-slate-50 dark:border-muted-foreground/30
-                          dark:bg-muted/80`
-                        : `bg-white shadow-sm hover:bg-slate-100
-                          dark:border-muted-foreground/20 dark:bg-background
-                          dark:hover:bg-background/90`
+                        ? `border-border/30 bg-slate-50 dark:border-border/30
+                          dark:bg-muted/50`
+                        : `border-border/50 bg-white shadow-sm hover:bg-slate-50
+                          dark:border-border/50 dark:bg-card
+                          dark:hover:bg-muted/50`
                     }`}
                 >
                   <button
@@ -1136,17 +1151,16 @@ function CategorySection({
                       onToggle(item);
                     }}
                     title={item.is_checked ? "Uncheck" : "Check"}
-                    className={`shrink-0 rounded-full border-2 p-0
-                      transition-all duration-200 ${
+                    className={`flex size-5 shrink-0 items-center justify-center
+                      rounded-full border-2 p-0 transition-all duration-200 ${
                         item.is_checked
                           ? "border-emerald-500 bg-emerald-500 text-white"
                           : `border-slate-300 text-transparent
-                            hover:border-emerald-400
-                            dark:border-muted-foreground/40`
+                            hover:border-emerald-400 dark:border-slate-600`
                       }`}
                     aria-label={item.is_checked ? "Uncheck" : "Check"}
                   >
-                    <Check className="size-2" strokeWidth={2} />
+                    <Check className="size-2.5" strokeWidth={2} />
                   </button>
                   <div className="min-w-0 flex-1 overflow-hidden">
                     <span
@@ -1164,7 +1178,7 @@ function CategorySection({
                       />
                     </span>
                     <span
-                      className="block text-[10px] text-slate-400 pl-2
+                      className="block text-[10px] text-slate-400
                         dark:text-muted-foreground/60"
                     >
                       {formatChecklistDate(item.created_at)}
@@ -1179,7 +1193,7 @@ function CategorySection({
                           menuOpenFor === item.id ? null : item.id,
                         );
                       }}
-                      className="rounded-lg p-1.5 text-slate-400
+                      className="shrink-0 rounded-lg p-1.5 text-slate-400
                         transition-colors duration-200 hover:bg-slate-100
                         hover:text-slate-600 dark:text-muted-foreground
                         dark:hover:bg-muted/60 dark:hover:text-foreground"
