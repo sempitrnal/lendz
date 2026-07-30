@@ -16,7 +16,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
@@ -41,10 +41,18 @@ function SortableNote({
   note,
   resolvedTheme,
   onClick,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
 }: {
   note: Note;
   resolvedTheme: string;
   onClick: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }) {
   const {
     attributes,
@@ -102,19 +110,53 @@ function SortableNote({
         )}
       </motion.div>
 
+      {/* Desktop drag handle */}
       <button
         type="button"
         {...attributes}
         {...listeners}
         onClick={(e) => e.stopPropagation()}
-        className="absolute right-2 top-2 touch-manipulation rounded bg-black/40
-          p-1 text-white opacity-100 shadow-sm transition hover:bg-black/70
-          active:cursor-grabbing active:bg-black/70 md:opacity-0
+        className="absolute right-2 top-2 hidden touch-manipulation rounded
+          bg-black/40 p-1 text-white shadow-sm transition hover:bg-black/70
+          active:cursor-grabbing active:bg-black/70 md:flex md:opacity-0
           md:group-hover:opacity-100"
         aria-label="Drag to reorder"
       >
         <GripVertical className="size-4" />
       </button>
+
+      {/* Mobile arrow buttons */}
+      <div
+        className="absolute right-2 top-2 flex flex-col gap-1 md:hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          disabled={!canMoveUp}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveUp();
+          }}
+          className="rounded bg-black/40 p-1 text-white shadow-sm transition
+            active:bg-black/70 disabled:opacity-30"
+          aria-label="Move note up"
+        >
+          <ChevronUp className="size-4" />
+        </button>
+        <button
+          type="button"
+          disabled={!canMoveDown}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveDown();
+          }}
+          className="rounded bg-black/40 p-1 text-white shadow-sm transition
+            active:bg-black/70 disabled:opacity-30"
+          aria-label="Move note down"
+        >
+          <ChevronDown className="size-4" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -142,16 +184,7 @@ export default function SortableNotesGrid({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = ordered.findIndex((n) => n.id === active.id);
-    const newIndex = ordered.findIndex((n) => n.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const next = arrayMove(ordered, oldIndex, newIndex);
-    setOrdered(next);
+  const saveOrder = async (next: Note[]) => {
     setSaving(true);
 
     try {
@@ -178,6 +211,37 @@ export default function SortableNotesGrid({
     }
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = ordered.findIndex((n) => n.id === active.id);
+    const newIndex = ordered.findIndex((n) => n.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const next = arrayMove(ordered, oldIndex, newIndex);
+    setOrdered(next);
+    void saveOrder(next);
+  };
+
+  const handleMoveUp = (id: string) => {
+    const index = ordered.findIndex((n) => n.id === id);
+    if (index <= 0) return;
+
+    const next = arrayMove(ordered, index, index - 1);
+    setOrdered(next);
+    void saveOrder(next);
+  };
+
+  const handleMoveDown = (id: string) => {
+    const index = ordered.findIndex((n) => n.id === id);
+    if (index === -1 || index >= ordered.length - 1) return;
+
+    const next = arrayMove(ordered, index, index + 1);
+    setOrdered(next);
+    void saveOrder(next);
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -193,12 +257,16 @@ export default function SortableNotesGrid({
             saving ? "pointer-events-none opacity-80" : ""
           }`}
         >
-          {ordered.map((note) => (
+          {ordered.map((note, index) => (
             <SortableNote
               key={note.id}
               note={note}
               resolvedTheme={resolvedTheme}
               onClick={() => onNoteClick(note)}
+              canMoveUp={index > 0}
+              canMoveDown={index < ordered.length - 1}
+              onMoveUp={() => handleMoveUp(note.id)}
+              onMoveDown={() => handleMoveDown(note.id)}
             />
           ))}
         </div>
