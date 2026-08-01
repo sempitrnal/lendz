@@ -27,3 +27,7 @@ export function isDarkColor(hex: string) {
 
   return brightness < 128;
 }
+
+export function formatMoney(value: number): string {
+  return `₱${value.toLocaleString("en-US")}`;
+}

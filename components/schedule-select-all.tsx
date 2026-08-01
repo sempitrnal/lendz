@@ -3,10 +3,12 @@
 import { useScheduleSelection } from "./schedule-selection-provider";
 
 export function ScheduleSelectAll({ allIds }: { allIds: string[] }) {
-  const { selectedIds, selectAll, clearAll, isEditing } = useScheduleSelection();
+  const { selectedIds, selectAll, clearAll, isEditing } =
+    useScheduleSelection();
   if (!isEditing) return null;
 
-  const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
+  const allSelected =
+    allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
 
   return (
     <input
@@ -16,7 +18,7 @@ export function ScheduleSelectAll({ allIds }: { allIds: string[] }) {
         if (allSelected) clearAll();
         else selectAll(allIds);
       }}
-      className="size-4 shrink-0 cursor-pointer accent-slate-900"
+      className="size-4 shrink-0 cursor-pointer accent-sky-500"
       aria-label="Select all schedules"
     />
   );

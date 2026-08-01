@@ -7,12 +7,12 @@ import {
   Check,
   TriangleAlert,
   ChartPie,
-  Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { triggerHaptic } from "@/lib/haptics";
 import { toast } from "sonner";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
+import type { ScheduleOptimisticAction } from "@/components/account/schedule-optimistic";
 
 const scheduleStatuses = ["pending", "paid", "overdue", "partial"] as const;
 
@@ -31,6 +31,7 @@ type Props = {
   isRollingManual?: boolean;
   applyPartialPayment?: (formData: FormData) => Promise<void>;
   borrowerId?: string;
+  onOptimisticUpdate?: (action: ScheduleOptimisticAction) => void;
 };
 
 export default function ScheduleStatusForm({
@@ -41,6 +42,7 @@ export default function ScheduleStatusForm({
   isRollingManual,
   applyPartialPayment,
   borrowerId,
+  onOptimisticUpdate,
 }: Props) {
   const router = useRouter();
   const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
@@ -50,7 +52,6 @@ export default function ScheduleStatusForm({
     return dueDate ?? new Date().toISOString().split("T")[0];
   });
   const [paidAmount, setPaidAmount] = useState("");
-  const [submittingStatus, setSubmittingStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -97,8 +98,8 @@ export default function ScheduleStatusForm({
     const fd = new FormData();
     fd.set("scheduleId", scheduleId);
     fd.set("status", status);
-    setSubmittingStatus(status);
     startTransition(() => {
+      onOptimisticUpdate?.({ type: "status", scheduleId, status });
       updateScheduleStatus(fd)
         .then(() => {
           triggerHaptic("success");
@@ -109,22 +110,40 @@ export default function ScheduleStatusForm({
         .catch(() => {
           triggerHaptic("error");
           toast.error("Failed to update schedule");
-        })
-        .finally(() => setSubmittingStatus(null));
+        });
     });
   }
 
   function handleDateConfirm() {
     if (!pendingStatus) return;
 
-    setSubmittingStatus(pendingStatus);
+    const status = pendingStatus;
+    const date = paidDate;
+    const amount = paidAmount;
 
     if (isRollingManual && applyPartialPayment) {
       const fd = new FormData();
       fd.set("scheduleId", scheduleId);
-      fd.set("paymentAmount", paidAmount);
-      fd.set("paymentDate", paidDate);
+      fd.set("paymentAmount", amount);
+      fd.set("paymentDate", date);
+
+      setShowDatePicker(false);
+      setPendingStatus(null);
+      setPaidAmount("");
+
       startTransition(() => {
+        onOptimisticUpdate?.({
+          type: "payment",
+          scheduleId,
+          payment: {
+            id: `optimistic-${Date.now()}`,
+            schedule_id: scheduleId,
+            amount: Number(amount),
+            payment_date: date,
+            note: null,
+            created_at: new Date().toISOString(),
+          },
+        });
         applyPartialPayment(fd)
           .then(() => {
             triggerHaptic("success");
@@ -135,12 +154,6 @@ export default function ScheduleStatusForm({
           .catch(() => {
             triggerHaptic("error");
             toast.error("Failed to record payment");
-          })
-          .finally(() => {
-            setShowDatePicker(false);
-            setPendingStatus(null);
-            setPaidAmount("");
-            setSubmittingStatus(null);
           });
       });
       return;
@@ -148,24 +161,29 @@ export default function ScheduleStatusForm({
 
     const fd = new FormData();
     fd.set("scheduleId", scheduleId);
-    fd.set("status", pendingStatus);
-    fd.set("paidDate", paidDate);
+    fd.set("status", status);
+    fd.set("paidDate", date);
+
+    setShowDatePicker(false);
+    setPendingStatus(null);
+
     startTransition(() => {
+      onOptimisticUpdate?.({
+        type: "status",
+        scheduleId,
+        status,
+        paid_date: date,
+      });
       updateScheduleStatus(fd)
         .then(() => {
           triggerHaptic("success");
-          toast.success(`Schedule marked as ${pendingStatus}`);
+          toast.success(`Schedule marked as ${status}`);
           router.refresh();
           if (borrowerId) invalidateBorrowerDetails(borrowerId);
         })
         .catch(() => {
           triggerHaptic("error");
           toast.error("Failed to update schedule");
-        })
-        .finally(() => {
-          setShowDatePicker(false);
-          setPendingStatus(null);
-          setSubmittingStatus(null);
         });
     });
   }
@@ -182,7 +200,6 @@ export default function ScheduleStatusForm({
         <input type="hidden" name="scheduleId" value={scheduleId} />
         {visibleStatuses.map((status) => {
           const isActive = currentStatus === status;
-          const isSubmitting = submittingStatus === status;
           const isDisabled = isActive || isPending;
           const Icon = statusIcons[status] ?? Clock;
           return (
@@ -199,14 +216,7 @@ export default function ScheduleStatusForm({
               sm:py-1.5 sm:text-xs ${getStatusClasses(status, isActive)}
               ${isDisabled ? (isActive ? "cursor-default" : "cursor-not-allowed opacity-60") : "cursor-pointer"}`}
             >
-              {isSubmitting ? (
-                <Loader2
-                  className="size-3 shrink-0 animate-spin sm:size-3.5"
-                  aria-hidden
-                />
-              ) : (
-                <Icon className="size-3 shrink-0 sm:size-3.5" aria-hidden />
-              )}
+              <Icon className="size-3 shrink-0 sm:size-3.5" aria-hidden />
               <span>{status}</span>
             </button>
           );

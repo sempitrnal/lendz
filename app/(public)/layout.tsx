@@ -27,8 +27,8 @@ export default function PublicLayout({
       <body className="bg-background text-foreground flex min-h-full flex-col">
         <ThemeProvider>
           <main
-            className="mx-auto w-full max-w-lg flex-1 py-4 sm:py-6 lg:max-w-5xl
-              xl:max-w-6xl"
+            className="mx-auto w-full max-w-3xl flex-1 py-4 sm:py-6 sm:max-w-4xl
+              lg:max-w-5xl xl:max-w-6xl"
           >
             {children}
           </main>
