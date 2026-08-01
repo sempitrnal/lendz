@@ -196,7 +196,7 @@ export default function ScheduleStatusForm({
 
   return (
     <div className="flex flex-col gap-2">
-      <form ref={formRef} className="flex flex-wrap gap-1.5">
+      <form ref={formRef} className="grid w-full grid-cols-2 gap-1.5">
         <input type="hidden" name="scheduleId" value={scheduleId} />
         {visibleStatuses.map((status) => {
           const isActive = currentStatus === status;
@@ -209,7 +209,7 @@ export default function ScheduleStatusForm({
               onClick={() => handleClick(status)}
               disabled={isDisabled}
               aria-pressed={isActive}
-              className={`inline-flex min-h-7 items-center justify-center gap-1
+              className={`flex min-h-7 w-full items-center justify-center gap-1
               rounded-md border px-2 py-1 text-[10px] font-bold tracking-wide
               capitalize transition active:translate-x-px active:translate-y-px
               active:shadow-none sm:min-h-9 sm:gap-1.5 sm:rounded-lg sm:px-2.5
