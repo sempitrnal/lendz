@@ -195,7 +195,7 @@ export default function ScheduleStatusForm({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex w-full flex-col gap-2">
       <form ref={formRef} className="grid w-full grid-cols-2 gap-1.5">
         <input type="hidden" name="scheduleId" value={scheduleId} />
         {visibleStatuses.map((status) => {
