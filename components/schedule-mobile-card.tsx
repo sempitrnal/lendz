@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useScheduleSelection } from "./schedule-selection-provider";
 
 export function ScheduleMobileCard({
@@ -26,35 +27,55 @@ export function ScheduleMobileCard({
   const [open, setOpen] = useState(defaultOpen);
 
   function handleTap() {
-    if (isEditing) { toggleId(scheduleId); return; }
+    if (isEditing) {
+      toggleId(scheduleId);
+      return;
+    }
     if (actions) setOpen((v) => !v);
   }
 
   return (
     <li
       id={id}
-      className={`${className} ${selected ? "bg-cyan-300 dark:bg-cyan-900/20" : ""}`}
+      className={cn(
+        `relative overflow-hidden rounded-2xl border border-slate-200 bg-white
+        shadow-sm transition hover:shadow-md dark:border-slate-800
+        dark:bg-slate-900`,
+        className,
+        selected && "ring-2 ring-cyan-400 dark:ring-cyan-500",
+      )}
     >
       <div
         onClick={handleTap}
-        className={`flex items-start justify-between gap-3 ${isEditing || actions ? "cursor-pointer" : ""}`}
+        className={cn(
+          "flex items-start justify-between gap-3 px-4 py-4",
+          (isEditing || actions) && "cursor-pointer",
+        )}
       >
         <div className="min-w-0 flex-1">{children}</div>
         {actions && !isEditing && (
           <ChevronDown
-            className={`mt-1 size-4 shrink-0 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            className={cn(
+              `mt-1 size-4 shrink-0 text-slate-400 transition-transform
+              duration-200`,
+              open && "rotate-180",
+            )}
           />
         )}
       </div>
 
       {actions && (
         <div
-          className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
-            open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-          }`}
+          className={cn(
+            "grid transition-[grid-template-rows] duration-300 ease-in-out",
+            open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
         >
           <div className="overflow-hidden">
-            <div className="border-t-2 border-dashed border-slate-200 dark:border-slate-900 pt-3 mt-3">
+            <div
+              className={`border-t border-slate-200 px-4 py-4
+              dark:border-slate-800`}
+            >
               {actions}
             </div>
           </div>
@@ -62,7 +83,9 @@ export function ScheduleMobileCard({
       )}
 
       {footer && (
-        <div className="border-t-2 border-dashed border-slate-200 dark:border-slate-900 pt-3 mt-3">
+        <div
+          className="border-t border-slate-200 px-4 py-4 dark:border-slate-800"
+        >
           {footer}
         </div>
       )}

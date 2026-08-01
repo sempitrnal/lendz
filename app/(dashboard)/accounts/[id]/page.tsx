@@ -111,7 +111,7 @@ function getScheduleStatusClasses(status: string) {
     return {
       badge:
         "border-emerald-600/80 bg-emerald-50 text-emerald-900 dark:border-emerald-400/40 dark:bg-emerald-400/[0.18] dark:text-emerald-300",
-      row: "bg-emerald-100 dark:bg-emerald-400/[0.10]",
+      row: "bg-emerald-50 dark:bg-emerald-400/[0.08]",
       dot: "bg-emerald-500 dark:bg-emerald-400",
       text: "text-green-500 dark:text-emerald-300",
     };
@@ -120,7 +120,7 @@ function getScheduleStatusClasses(status: string) {
     return {
       badge:
         "border-violet-600/80 bg-violet-50 text-violet-950 dark:border-violet-400/40 dark:bg-violet-400/[0.18] dark:text-violet-300",
-      row: "bg-violet-100 dark:bg-violet-400/[0.10]",
+      row: "bg-violet-50 dark:bg-violet-400/[0.08]",
       dot: "bg-violet-500 dark:bg-violet-400",
       text: "text-violet-500 dark:text-violet-300",
     };
@@ -129,7 +129,7 @@ function getScheduleStatusClasses(status: string) {
     return {
       badge:
         "border-rose-600/80 bg-rose-50 text-rose-900 dark:border-rose-400/40 dark:bg-rose-400/[0.18] dark:text-rose-300",
-      row: "bg-rose-50 dark:bg-rose-400/[0.10]",
+      row: "bg-rose-50 dark:bg-rose-400/[0.08]",
       dot: "bg-rose-500 dark:bg-rose-400",
       text: "text-rose-800 dark:text-rose-300",
     };
@@ -137,7 +137,7 @@ function getScheduleStatusClasses(status: string) {
   return {
     badge:
       "border-amber-600/80 bg-amber-50 text-amber-950 dark:border-amber-400/40 dark:bg-amber-400/[0.18] dark:text-amber-300",
-    row: "bg-white dark:bg-[#141103]",
+    row: "bg-white dark:bg-slate-900",
     dot: "bg-amber-500 dark:bg-amber-400",
     text: "text-amber-800 dark:text-amber-300",
   };
@@ -291,12 +291,13 @@ export default async function AccountDetailPage({
       <li
         key={schedule.id}
         id={isNext ? "next-schedule" : undefined}
-        className={`flex break-inside-avoid flex-col rounded-xl shadow-md p-4
-          transition-colors duration-700 ${st.row} ${
-            isNext
-              ? "relative mb-5 border-slate-400 dark:border-slate-600"
-              : "m-1 mb-4 border-slate-300 dark:border-slate-700"
-          }`}
+        className={cn(
+          `flex break-inside-avoid flex-col rounded-2xl border border-slate-200
+          bg-white p-5 shadow-sm transition hover:shadow-md
+          dark:border-slate-800 dark:bg-slate-900`,
+          st.row,
+          isNext && "border-sky-300 ring-1 ring-sky-200/70 dark:border-sky-700",
+        )}
       >
         <div className="flex items-center gap-2">
           <span
@@ -316,8 +317,11 @@ export default async function AccountDetailPage({
             </span>
           )}
           <span
-            className={`ml-auto shrink-0 rounded-full border px-2.5 py-1
-              text-[10px] font-bold capitalize ${st.badge}`}
+            className={cn(
+              `ml-auto shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold
+              uppercase tracking-wide`,
+              st.badge,
+            )}
           >
             {schedule.status}
           </span>
@@ -326,8 +330,8 @@ export default async function AccountDetailPage({
 
         <div className="mt-2 flex items-baseline gap-2">
           <p
-            className="dark:text-foreground text-3xl font-black tracking-tight
-              text-slate-600 tabular-nums"
+            className="text-3xl font-extrabold tracking-tight text-slate-900
+              tabular-nums dark:text-slate-100"
           >
             {formatMoney(Number(schedule.amount_due ?? 0))}
           </p>
@@ -403,16 +407,23 @@ export default async function AccountDetailPage({
             const pct =
               due > 0 ? Math.min(100, Math.round((paid / due) * 100)) : 0;
             return (
-              <div className="mt-2">
-                <div className="dark:text-muted-foreground flex justify-between text-[10px] font-black text-slate-500">
+              <div className="mt-3">
+                <div
+                  className="flex justify-between text-[10px] font-bold
+                    uppercase tracking-wide text-slate-400"
+                >
                   <span>Paid {formatMoney(paid)}</span>
                   <span>
                     Left {formatMoney(remainingOnInstallment(schedule))}
                   </span>
                 </div>
-                <div className="mt-1.5 h-3 overflow-hidden rounded-full border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900">
+                <div
+                  className="mt-1.5 h-1.5 overflow-hidden rounded-full
+                    bg-slate-200 dark:bg-slate-700"
+                >
                   <div
-                    className="h-full bg-amber-400 transition-all duration-500 dark:bg-amber-500"
+                    className="h-full rounded-full bg-violet-500 transition-all
+                      duration-500"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -422,8 +433,8 @@ export default async function AccountDetailPage({
 
         {schedule.note ? (
           <p
-            className="dark:text-muted-foreground mt-1 line-clamp-1 text-xs
-              text-slate-400"
+            className="mt-2 line-clamp-2 text-xs text-slate-500
+              dark:text-slate-400"
           >
             {schedule.note}
           </p>
@@ -979,11 +990,10 @@ export default async function AccountDetailPage({
                               scheduleId={schedule.id}
                               id={isNext ? "next-schedule" : undefined}
                               className={cn(
-                                "rounded-xl shadow-sm px-4 py-3",
                                 st.row,
-                                isNext
-                                  ? "relative my-5 dark:border-[#020617] "
-                                  : "border-slate-300 dark:border-[#020617]",
+                                isNext &&
+                                  `border-sky-300 ring-1 ring-sky-200/70
+                                    dark:border-sky-700`,
                               )}
                               defaultOpen={
                                 isNext || focusScheduleId === schedule.id
@@ -1045,39 +1055,39 @@ export default async function AccountDetailPage({
                               {/* always-visible card header */}
                               <div className="flex items-center gap-2">
                                 <span
-                                  className="dark:text-muted-foreground
-                                    text-[11px] font-black tracking-wide
-                                    text-slate-400 uppercase"
+                                  className="text-[11px] font-bold tracking-wide
+                                    text-slate-400"
                                 >
                                   #{i + 1}
                                 </span>
                                 {isNext && (
                                   <span
-                                    className="inline-block rounded-md border
-                                      border-sky-400 bg-sky-100 px-1.5 py-0.5
-                                      text-[9px] font-bold tracking-wide
-                                      text-sky-700 uppercase
-                                      dark:border-sky-500/40 dark:bg-sky-800/50
+                                    className="rounded-full bg-sky-100 px-2
+                                      py-0.5 text-[9px] font-bold uppercase
+                                      text-sky-700 dark:bg-sky-800/50
                                       dark:text-sky-300"
                                   >
                                     Next
                                   </span>
                                 )}
                                 <span
-                                  className={`ml-auto shrink-0 rounded-full
-                                    border px-2 py-0.5 text-[10px] font-bold
-                                    capitalize ${st.badge}`}
+                                  className={cn(
+                                    `ml-auto shrink-0 rounded-full px-2.5 py-1
+                                      text-[10px] font-bold uppercase
+                                      tracking-wide`,
+                                    st.badge,
+                                  )}
                                 >
                                   {schedule.status}
                                 </span>
                                 <ScheduleCheckbox scheduleId={schedule.id} />
                               </div>
 
-                              <div className="mt-1 flex items-baseline gap-2">
+                              <div className="mt-1.5 flex items-baseline gap-2">
                                 <p
-                                  className="dark:text-foreground text-2xl
-                                    font-black tracking-tight text-slate-600
-                                    tabular-nums"
+                                  className="text-2xl font-extrabold
+                                    tracking-tight text-slate-900 tabular-nums
+                                    dark:text-slate-100"
                                 >
                                   {formatMoney(
                                     Number(schedule.amount_due ?? 0),
@@ -1126,51 +1136,60 @@ export default async function AccountDetailPage({
                                   );
                                 })()}
 
-                              {schedule.status === "paid" ? (
-                                schedule.paid_date &&
-                                schedule.paid_date !== schedule.due_date ? (
-                                  <p
-                                    className={`mt-0.5 text-sm font-semibold ${
-                                      paidDiffDays !== null && paidDiffDays < 0
-                                        ? `text-emerald-600
-                                          dark:text-emerald-400`
-                                        : "text-amber-600 dark:text-amber-400"
-                                      }`}
-                                  >
-                                    {formatDate(schedule.paid_date)}
-                                    {paidDiffDays !== null && (
-                                      <span
-                                        className="ml-1.5 text-[11px]
-                                          font-semibold opacity-70"
-                                      >
-                                        ·{" "}
-                                        {paidDiffDays > 0
-                                          ? `${paidDiffDays} day${paidDiffDays === 1 ? "" : "s"} late`
-                                          : `${Math.abs(paidDiffDays)} day${Math.abs(paidDiffDays) === 1 ? "" : "s"} early`}
-                                      </span>
-                                    )}
-                                  </p>
+                              <div
+                                className="mt-1.5 flex items-center gap-1.5
+                                  text-xs font-medium text-slate-500
+                                  dark:text-slate-400"
+                              >
+                                <CalendarClock className="size-3.5 shrink-0" />
+                                {schedule.status === "paid" ? (
+                                  schedule.paid_date &&
+                                  schedule.paid_date !== schedule.due_date ? (
+                                    <span
+                                      className={cn(
+                                        "font-semibold",
+                                        paidDiffDays !== null &&
+                                          paidDiffDays < 0
+                                          ? `text-emerald-600
+                                            dark:text-emerald-400`
+                                          : "text-amber-600 dark:text-amber-400",
+                                      )}
+                                    >
+                                      {formatDate(schedule.paid_date)}
+                                      {paidDiffDays !== null && (
+                                        <span
+                                          className="ml-1.5 text-[11px]
+                                            font-semibold opacity-70"
+                                        >
+                                          ·{" "}
+                                          {paidDiffDays > 0
+                                            ? `${paidDiffDays} day${paidDiffDays === 1 ? "" : "s"} late`
+                                            : `${Math.abs(paidDiffDays)} day${Math.abs(paidDiffDays) === 1 ? "" : "s"} early`}
+                                        </span>
+                                      )}
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="flex items-center gap-1
+                                        font-semibold text-slate-600
+                                        dark:text-slate-300"
+                                    >
+                                      {formatDate(schedule.due_date)}
+                                      <Check
+                                        className="size-3 text-emerald-600
+                                          dark:text-emerald-400"
+                                      />
+                                    </span>
+                                  )
                                 ) : (
-                                  <p
-                                    className="dark:text-muted-foreground mt-0.5
-                                      flex items-center gap-1 text-sm
-                                      font-semibold text-slate-600"
+                                  <span
+                                    className="font-semibold text-slate-600
+                                      dark:text-slate-300"
                                   >
                                     {formatDate(schedule.due_date)}
-                                    <Check
-                                      className="size-3 text-emerald-600
-                                        dark:text-emerald-400"
-                                    />
-                                  </p>
-                                )
-                              ) : (
-                                <p
-                                  className="dark:text-muted-foreground mt-0.5
-                                    text-sm font-semibold text-slate-600"
-                                >
-                                  {formatDate(schedule.due_date)}
-                                </p>
-                              )}
+                                  </span>
+                                )}
+                              </div>
 
                               {schedule.status === "partial" &&
                                 (() => {
@@ -1185,8 +1204,12 @@ export default async function AccountDetailPage({
                                         )
                                       : 0;
                                   return (
-                                    <div className="mt-2">
-                                      <div className="dark:text-muted-foreground flex justify-between text-[10px] font-black text-slate-500">
+                                    <div className="mt-3">
+                                      <div
+                                        className="flex justify-between text-[10px]
+                                          font-bold uppercase tracking-wide
+                                          text-slate-400"
+                                      >
                                         <span>Paid {formatMoney(paid)}</span>
                                         <span>
                                           Left{" "}
@@ -1195,12 +1218,16 @@ export default async function AccountDetailPage({
                                           )}
                                         </span>
                                       </div>
-                                      <div className="mt-1.5 h-3 overflow-hidden rounded-full border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900">
+                                      <div
+                                        className="mt-1.5 h-1.5 overflow-hidden
+                                          rounded-full bg-slate-200
+                                          dark:bg-slate-700"
+                                      >
                                         <div
-                                          className="h-full bg-amber-400 transition-all duration-500 dark:bg-amber-500"
-                                          style={{
-                                            width: `${pct}%`,
-                                          }}
+                                          className="h-full rounded-full
+                                            bg-violet-500 transition-all
+                                            duration-500"
+                                          style={{ width: `${pct}%` }}
                                         />
                                       </div>
                                     </div>
@@ -1209,8 +1236,8 @@ export default async function AccountDetailPage({
 
                               {schedule.note ? (
                                 <p
-                                  className="dark:text-muted-foreground mt-1
-                                    line-clamp-1 text-xs text-slate-400"
+                                  className="mt-2 line-clamp-2 text-xs
+                                    text-slate-500 dark:text-slate-400"
                                 >
                                   {schedule.note}
                                 </p>
