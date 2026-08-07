@@ -216,7 +216,10 @@ export function PaymentSchedules({
 
       {children}
 
-      <ol className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <ol
+        className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3
+          lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+      >
         {schedules.map((schedule) => {
           const style = statusStyles[schedule.status];
           const isNext = schedule.number === nextNumber;
@@ -282,8 +285,8 @@ export function PaymentSchedules({
 
               <div className="mt-2 flex items-baseline gap-2">
                 <p
-                  className="text-3xl font-black tracking-tight text-foreground
-                    tabular-nums"
+                  className="text-2xl font-black tracking-tight text-foreground
+                    tabular-nums sm:text-3xl lg:text-2xl"
                 >
                   {formatPeso(schedule.amount)}
                 </p>
@@ -326,7 +329,7 @@ export function PaymentSchedules({
                 return renderCardActions ? (
                   actions ? (
                     <div className="mt-4 border-t border-border pt-4">
-                      <div className="flex flex-wrap items-start gap-2">
+                      <div className="grid grid-cols-[1fr_auto] items-start gap-2">
                         {actions}
                       </div>
                     </div>
