@@ -149,11 +149,11 @@ export function ScheduleTimeline({
   interestRate: number;
   focusScheduleId?: string;
   borrowerId?: string;
-  updateScheduleStatus: any;
-  applyPartialPayment: any;
-  deleteSchedule: any;
-  updatePaymentEntry: any;
-  deletePaymentEntry: any;
+  updateScheduleStatus: (formData: FormData) => Promise<void>;
+  applyPartialPayment: (formData: FormData) => Promise<void>;
+  deleteSchedule: (scheduleId: string) => Promise<void>;
+  updatePaymentEntry: (formData: FormData) => Promise<void>;
+  deletePaymentEntry: (formData: FormData) => Promise<void>;
 }) {
   const [optimistic, addOptimistic] = useOptimistic(
     { schedules, paymentsMap },
@@ -164,7 +164,10 @@ export function ScheduleTimeline({
   );
 
   return (
-    <ul className="mx-auto max-w-3xl space-y-4 px-4 py-4">
+    <ul
+      className="mx-auto grid max-w-3xl auto-rows-min grid-cols-1 gap-3 px-4
+        py-4 sm:gap-4 xl:max-w-6xl xl:grid-cols-2 2xl:grid-cols-3"
+    >
       {optimistic.schedules.map((schedule, i) => {
         const st = getScheduleStatusClasses(schedule.status);
         const isNext = i === nextIndex;
@@ -232,7 +235,7 @@ export function ScheduleTimeline({
           ) : null;
 
         const actions = (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-[1fr_auto] items-start gap-2">
             <ScheduleStatusForm
               scheduleId={schedule.id}
               currentStatus={schedule.status}

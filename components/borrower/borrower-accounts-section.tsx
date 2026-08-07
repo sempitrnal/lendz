@@ -1180,9 +1180,10 @@ export default function BorrowerAccountsSection({
                   ? accountRowToFormInitial(editingAccount)
                   : undefined
               }
-              onSuccess={() => {
+              onSuccess={async () => {
                 setIsAccountDialogOpen(false);
                 setEditingAccount(null);
+                await invalidateBorrowerDetails(borrowerId);
                 router.refresh();
               }}
             />

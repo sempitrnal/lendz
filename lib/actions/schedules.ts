@@ -12,6 +12,11 @@ function revalidateScheduleCaches(accountId: string) {
   revalidatePath(`/accounts/${accountId}`);
   revalidateTag("account-detail", "default");
   revalidateTag("borrower-accounts", "default");
+  revalidateTag("borrowers", "default");
+  revalidateTag("accounts-page", "default");
+  revalidateTag("dashboard", "default");
+  revalidateTag("calendar", "default");
+  revalidateTag("next-collection", "default");
   updateTag("account-detail");
   updateTag("account");
   updateTag(`account-${accountId}`);

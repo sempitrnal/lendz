@@ -4,11 +4,21 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { formFieldInputClassName } from "@/lib/form-field-classes";
+import { cn, formatDate, formatMoney } from "@/lib/utils";
 
 export type PaymentProgress = {
   paid: number;
   total: number;
   pct: number;
+};
+
+export type AccountListMetrics = {
+  total_paid: number;
+  total_remaining: number;
+  next_due: string | null;
+  next_amount: number;
+  next_status: "pending" | "overdue" | null;
+  overdue_count: number;
 };
 
 export type AccountListItem = {
@@ -21,6 +31,7 @@ export type AccountListItem = {
   payment_frequency: string | null;
   release_date: string | null;
   payment_progress: PaymentProgress;
+  metrics: AccountListMetrics;
   borrower: {
     id: string;
     first_name: string;
@@ -42,83 +53,217 @@ function categorySearchBlob(a: AccountListItem) {
   return cats.map((bc) => (bc.category?.name ?? "").toLowerCase()).join(" ");
 }
 
-function formatPrincipal(n: number | null) {
-  return `₱${Number(n ?? 0).toLocaleString()}`;
-}
-
 function AccountCatalogCard({ account }: { account: AccountListItem }) {
   const name = borrowerLabel(account);
-  const freq = account.payment_frequency ?? "—";
+  const freq =
+    account.payment_frequency === "bisag kanus-a"
+      ? "manual"
+      : (account.payment_frequency ?? "—");
   const rate = Number(account.interest_rate ?? 0);
   const prog = account.payment_progress;
+  const metrics = account.metrics;
   const categories = [...(account.borrower?.borrower_categories ?? [])].sort(
     (a, b) => (a.category?.name ?? "").localeCompare(b.category?.name ?? ""),
   );
 
+  const statusConfig: Record<string, { bg: string; text: string }> = {
+    active: {
+      bg: "bg-emerald-100 dark:bg-emerald-900/30",
+      text: "text-emerald-700 dark:text-emerald-300",
+    },
+    pending: {
+      bg: "bg-amber-100 dark:bg-amber-900/30",
+      text: "text-amber-700 dark:text-amber-300",
+    },
+    overdue: {
+      bg: "bg-rose-100 dark:bg-rose-900/30",
+      text: "text-rose-700 dark:text-rose-300",
+    },
+  };
+  const status = statusConfig[account.status] ?? {
+    bg: "bg-slate-100 dark:bg-slate-800",
+    text: "text-slate-600 dark:text-slate-300",
+  };
+
+  const typeLabel =
+    account.type === "cash_advance" ? "cash advance" : account.type;
+  const typeBg =
+    account.type === "cash_advance"
+      ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+      : "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300";
+
   return (
     <Link
       href={`/accounts/${account.id}`}
-      className="group block w-full min-w-0 rounded-lg border-2 border-slate-900
-        bg-white p-4 text-left transition hover:-translate-y-0.5
-        focus-visible:outline-2 focus-visible:outline-offset-2
-        focus-visible:outline-slate-900 dark:border-border dark:bg-card
-        dark:focus-visible:outline-border"
+      className="group block w-full min-w-0 rounded-xl border bg-white p-4
+        text-left shadow-sm transition hover:shadow-md focus-visible:outline-2
+        focus-visible:outline-offset-2 focus-visible:outline-slate-300
+        dark:border-border dark:bg-card dark:focus-visible:outline-border"
     >
-      <p
-        className="text-[10px] font-bold uppercase tracking-[0.14em]
-          text-slate-500 dark:text-muted-foreground"
-      >
-        Borrower
-      </p>
-      <p
-        className="mt-0.5 truncate text-lg font-bold lowercase text-slate-700
-          dark:text-foreground"
-      >
-        {name}
-      </p>
-      {categories.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {categories.map(({ category }) => {
-            const { id, color, name: catName } = category;
-            return (
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "shrink-0 rounded-md px-2 py-0.5 text-[10px] font-black",
+                "tracking-wide uppercase",
+                typeBg,
+              )}
+            >
+              {typeLabel}
+            </span>
+            {account.status !== "pending" && rate > 0 && (
               <span
-                key={id}
-                className="inline-flex items-center gap-1.5 rounded-full border
-                  border-slate-900/15 px-2.5 py-0.5 text-[10px] font-bold
-                  uppercase dark:border-border/40"
+                className="text-[11px] font-bold text-slate-500
+                  dark:text-slate-400"
               >
-                <span
-                  className="size-2 shrink-0 rounded-full border
-                    border-slate-900/15"
-                  style={{ backgroundColor: color ?? "#cbd5e1" }}
-                />
-                {catName}
+                {rate}%
               </span>
-            );
-          })}
-        </div>
-      ) : null}
-      <p
-        className="mt-2 text-xs font-medium uppercase tracking-wide
-          text-slate-500 dark:text-muted-foreground"
-      >
-        {account.type.replace("_", " ")}
-        <span className="mx-1.5 text-slate-300 dark:text-border">·</span>
-        <span className="capitalize">{account.status}</span>
-      </p>
-      {prog.total > 0 ? (
-        <div className="mt-3">
-          <div
-            className="flex justify-between text-[10px] font-black uppercase
-              tracking-wide text-slate-600 dark:text-muted-foreground"
+            )}
+          </div>
+          <p
+            className="mt-1 truncate text-lg font-black lowercase tracking-tight
+              text-slate-800 dark:text-foreground"
           >
-            <span>Schedule progress</span>
-            <span className="tabular-nums text-slate-600 dark:text-foreground">
-              {prog.pct}%
+            {name}
+          </p>
+          {categories.length > 0 ? (
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {categories.map(({ category }) => {
+                const { id, color, name: catName } = category;
+                return (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-1.5 rounded-full
+                      border border-slate-900/10 px-2 py-0.5 text-[10px]
+                      font-bold uppercase dark:border-border/40"
+                  >
+                    <span
+                      className="size-2 shrink-0 rounded-full border
+                        border-slate-900/10"
+                      style={{ backgroundColor: color ?? "#cbd5e1" }}
+                    />
+                    {catName}
+                  </span>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-black",
+            "uppercase tracking-wide",
+            status.bg,
+            status.text,
+          )}
+        >
+          {account.status}
+        </span>
+      </div>
+      <div className="mt-3">
+        <span
+          className="text-2xl font-black tracking-tight tabular-nums
+            text-slate-700 dark:text-foreground"
+        >
+          {formatMoney(account.principal_amount ?? 0)}
+        </span>
+        <span
+          className="ml-1.5 text-[11px] font-medium text-slate-500
+            dark:text-muted-foreground"
+        >
+          {account.status === "pending" ? "pending" : freq}
+        </span>
+      </div>
+
+      {account.release_date && account.status !== "pending" && (
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <span
+            className="rounded-md bg-sky-100 px-2 py-0.5 text-[10px] font-bold
+              tracking-wide text-sky-800 dark:bg-sky-900/30 dark:text-sky-300"
+          >
+            {formatDate(account.release_date)}
+          </span>
+        </div>
+      )}
+
+      {account.status !== "pending" && (
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <div
+            className="flex flex-col items-center justify-center rounded-xl
+              border border-rose-100/70 bg-linear-to-br from-rose-50/60
+              to-rose-100/70 p-3 dark:border-rose-900/20 dark:from-rose-950/30
+              dark:to-rose-900/20"
+          >
+            <p
+              className="text-[14px] font-bold tracking-wide text-rose-700/60
+                lowercase dark:text-rose-200/70"
+            >
+              Remaining
+            </p>
+            <p
+              className="text-sm font-black tracking-tight text-rose-400
+                tabular-nums dark:text-rose-300/80"
+            >
+              {formatMoney(metrics.total_remaining)}
+            </p>
+          </div>
+          <div
+            className="flex flex-col items-center justify-center rounded-xl
+              border border-emerald-100 bg-linear-to-br from-[#f2fffa]
+              to-emerald-100 p-3 dark:border-emerald-900/30
+              dark:from-emerald-950/30 dark:to-emerald-900/30"
+          >
+            <p
+              className="text-[14px] font-bold tracking-wide text-emerald-700/80
+                lowercase dark:text-emerald-200/70"
+            >
+              Collected
+            </p>
+            <p
+              className="text-sm font-black tracking-tight text-[#599c82]
+                dark:text-emerald-200/80 tabular-nums"
+            >
+              {formatMoney(metrics.total_paid)}
+            </p>
+          </div>
+          <div
+            className="flex flex-col items-center justify-center rounded-xl
+              border border-violet-100 bg-linear-to-br from-violet-50/60
+              to-violet-100/70 p-3 dark:border-violet-900/20
+              dark:from-violet-950/30 dark:to-violet-900/20"
+          >
+            <p
+              className="text-[14px] font-bold tracking-wide text-[#6f537b]
+                dark:text-[#996bac] lowercase"
+            >
+              Progress
+            </p>
+            <p
+              className="text-sm font-black tracking-tight text-[#6f537b]
+                dark:text-[#996bac] tabular-nums"
+            >
+              {prog.total > 0 ? `${prog.pct}%` : "—"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {prog.total > 0 && (
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="font-medium text-slate-400 dark:text-slate-500">
+              Schedule progress
+            </span>
+            <span
+              className="font-bold text-slate-700 tabular-nums
+                dark:text-slate-300"
+            >
+              {prog.paid} of {prog.total}
             </span>
           </div>
           <div
-            className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100
+            className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100
               dark:bg-slate-800"
             role="progressbar"
             aria-valuenow={prog.pct}
@@ -127,69 +272,76 @@ function AccountCatalogCard({ account }: { account: AccountListItem }) {
             aria-label={`${prog.paid} of ${prog.total} installments paid`}
           >
             <div
-              className="h-full bg-emerald-400 transition-[width]"
+              className="h-full bg-emerald-500 transition-all duration-500"
               style={{ width: `${prog.pct}%` }}
             />
           </div>
-          <p
-            className="mt-1 text-[10px] font-semibold text-slate-600
-              dark:text-muted-foreground"
-          >
-            <span className="tabular-nums">{prog.paid}</span> of{" "}
-            <span className="tabular-nums">{prog.total}</span> installments paid
-          </p>
         </div>
-      ) : (
+      )}
+
+      {metrics.next_due && (
+        <div
+          className="mt-3 flex items-center justify-between rounded-lg border
+            border-slate-200 bg-white p-2 dark:border-border/50 dark:bg-card"
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className="text-[10px] font-semibold tracking-wider text-slate-400
+                uppercase dark:text-muted-foreground"
+            >
+              next
+            </span>
+            <span
+              className="text-[11px] font-bold text-slate-700
+                dark:text-slate-200"
+            >
+              {formatDate(metrics.next_due)}
+            </span>
+            <span
+              className="text-[11px] font-bold text-slate-600 tabular-nums
+                dark:text-slate-100"
+            >
+              {formatMoney(metrics.next_amount)}
+            </span>
+          </div>
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase",
+              metrics.next_status === "overdue"
+                ? `bg-rose-100 text-rose-700 dark:bg-rose-900/30
+                  dark:text-rose-300`
+                : `bg-amber-100 text-amber-700 dark:bg-amber-900/30
+                  dark:text-amber-300`,
+            )}
+          >
+            {metrics.next_status}
+          </span>
+        </div>
+      )}
+
+      {metrics.overdue_count > 0 && (
+        <div
+          className="mt-2 flex items-center gap-2 rounded-lg border
+            border-rose-200 bg-rose-50 p-2 dark:border-rose-900/30
+            dark:bg-rose-950/20"
+        >
+          <span
+            className="text-[10px] font-black uppercase text-rose-700
+              dark:text-rose-300"
+          >
+            {metrics.overdue_count} overdue
+          </span>
+        </div>
+      )}
+
+      {account.status === "pending" && (
         <p
-          className="mt-2 text-[10px] font-bold uppercase tracking-wide
+          className="mt-3 text-[10px] font-bold uppercase tracking-wide
             text-slate-500 dark:text-muted-foreground"
         >
-          No payment schedule
+          No payment schedule yet
         </p>
       )}
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs">
-        <div>
-          <p
-            className="text-[9px] font-bold uppercase tracking-wide
-              text-slate-500 dark:text-muted-foreground"
-          >
-            Principal
-          </p>
-          <p
-            className="font-bold tabular-nums text-slate-600
-              dark:text-foreground"
-          >
-            {formatPrincipal(account.principal_amount)}
-          </p>
-        </div>
-        <div>
-          <p
-            className="text-[9px] font-bold uppercase tracking-wide
-              text-slate-500 dark:text-muted-foreground"
-          >
-            Interest
-          </p>
-          <p
-            className="font-bold tabular-nums text-slate-600
-              dark:text-foreground"
-          >
-            {rate}%
-          </p>
-        </div>
-        <div>
-          <p
-            className="text-[9px] font-bold uppercase tracking-wide
-              text-slate-500 dark:text-muted-foreground"
-          >
-            Frequency
-          </p>
-          <p
-            className="font-bold capitalize text-slate-600 dark:text-foreground"
-          >
-            {freq}
-          </p>
-        </div>
-      </div>
     </Link>
   );
 }
@@ -309,9 +461,8 @@ export default function AccountsList({
       </div>
 
       <div
-        className="rounded-xl border-2 border-slate-900/90 bg-slate-50/50 px-4
-          py-3 shadow-[2px_2px_0px_0px_rgb(15_23_42/0.85)] dark:border-border
-          dark:bg-muted/50 dark:shadow-none"
+        className="rounded-xl border bg-white px-4 py-3 shadow-sm
+          dark:border-border dark:bg-card"
       >
         <p className="text-sm font-bold text-slate-600 dark:text-foreground">
           <span className="tabular-nums">{shown}</span>
@@ -402,18 +553,17 @@ export default function AccountsList({
                     key={f}
                     type="button"
                     onClick={() => toggleFrequency(f)}
-                    className={`rounded-lg border-2 px-3 py-1.5 text-xs
-                      font-black uppercase tracking-wide transition ${
-                        selected
-                          ? `border-slate-900 bg-slate-900 text-white
-                            shadow-[2px_2px_0px_0px_#0f172a] dark:border-border
-                            dark:bg-foreground dark:text-background
-                            dark:shadow-none`
-                          : `border-slate-900/25 bg-white text-slate-800
-                            shadow-[1px_1px_0px_0px_rgb(15_23_42/0.12)]
-                            hover:border-slate-900/50 dark:border-border/50
-                            dark:bg-card dark:text-foreground dark:shadow-none`
-                      }`}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-xs font-semibold",
+                      "uppercase tracking-wide transition",
+                      selected
+                        ? `border-slate-900 bg-slate-900 text-white
+                          dark:border-border dark:bg-foreground
+                          dark:text-background`
+                        : `border-slate-200 bg-white text-slate-700
+                          hover:border-slate-300 dark:border-border/50
+                          dark:bg-card dark:text-foreground`,
+                    )}
                   >
                     <span className="capitalize">{f}</span>{" "}
                     <span className="tabular-nums opacity-80">
@@ -450,18 +600,17 @@ export default function AccountsList({
                     key={key}
                     type="button"
                     onClick={() => toggleInterest(r)}
-                    className={`rounded-lg border-2 px-3 py-1.5 text-xs
-                      font-black tabular-nums transition ${
-                        selected
-                          ? `border-slate-900 bg-slate-900 text-white
-                            shadow-[2px_2px_0px_0px_#0f172a] dark:border-border
-                            dark:bg-foreground dark:text-background
-                            dark:shadow-none`
-                          : `border-slate-900/25 bg-white text-slate-800
-                            shadow-[1px_1px_0px_0px_rgb(15_23_42/0.12)]
-                            hover:border-slate-900/50 dark:border-border/50
-                            dark:bg-card dark:text-foreground dark:shadow-none`
-                      }`}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-xs font-semibold",
+                      "tabular-nums transition",
+                      selected
+                        ? `border-slate-900 bg-slate-900 text-white
+                          dark:border-border dark:bg-foreground
+                          dark:text-background`
+                        : `border-slate-200 bg-white text-slate-700
+                          hover:border-slate-300 dark:border-border/50
+                          dark:bg-card dark:text-foreground`,
+                    )}
                   >
                     {r}%{" "}
                     <span className="text-[10px] font-bold opacity-80">
@@ -484,11 +633,10 @@ export default function AccountsList({
           <button
             type="button"
             onClick={clearFilters}
-            className="rounded-lg border-2 border-rose-800/35 bg-rose-50 px-3
-              py-2 text-xs font-black uppercase tracking-wide text-rose-900
-              shadow-[1px_1px_0px_0px_rgb(190_18_60/0.25)] transition
-              hover:bg-rose-100/90 dark:border-rose-500/30 dark:bg-rose-950/20
-              dark:text-rose-200 dark:shadow-none dark:hover:bg-rose-950/30"
+            className="rounded-full border border-rose-200 bg-rose-50 px-3 py-2
+              text-xs font-semibold uppercase tracking-wide text-rose-700
+              transition hover:bg-rose-100 dark:border-rose-900/30
+              dark:bg-rose-950/20 dark:text-rose-200 dark:hover:bg-rose-950/30"
           >
             Clear search & filters
           </button>

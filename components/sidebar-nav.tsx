@@ -49,14 +49,12 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/due-this-month",
         label: "Due this month",
         Icon: CalendarClock,
-        badge: "456",
       },
     ],
   },
   {
     heading: "Manage",
     items: [
-      { href: "/calendar", label: "Calendar", Icon: CalendarDays },
       { href: "/categories", label: "Categories", Icon: Tag },
       { href: "/daily-checklist", label: "Checklist", Icon: ClipboardCheck },
     ],
