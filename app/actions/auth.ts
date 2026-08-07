@@ -1,6 +1,8 @@
 "use server";
 
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/demo";
+import { redirect } from "next/navigation";
 // import { checkRateLimit } from "@/lib/rate-limit";
 // import { headers } from "next/headers";
 
@@ -19,6 +21,10 @@ export async function loginAction(
   email: string,
   password: string,
 ): Promise<{ error?: string; retryAfter?: number }> {
+  if (isDemoMode()) {
+    redirect("/dashboard");
+  }
+
   const normalizedEmail = email.toLowerCase().trim();
   // const ip = await getClientIp();
 

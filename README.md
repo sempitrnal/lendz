@@ -20,6 +20,16 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Demo mode
+
+Add this to your environment to skip authentication:
+
+```env
+IS_DEMO=true
+```
+
+In demo mode the app uses `SUPABASE_SERVICE_ROLE_KEY` to bypass Row Level Security and stubs a demo user for every auth check. This is convenient for a throwaway demo/staging database, but it makes the connected database fully writable without a login. Do **not** enable `IS_DEMO` against production data.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

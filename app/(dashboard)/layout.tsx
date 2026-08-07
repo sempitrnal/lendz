@@ -1,4 +1,5 @@
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/demo";
 import { redirect } from "next/navigation";
 import SiteHeader from "@/components/site-header";
 import BottomNav from "@/components/bottom-nav";
@@ -23,6 +24,9 @@ export default async function DashboardLayout({
 
   async function logout() {
     "use server";
+    if (isDemoMode()) {
+      return;
+    }
     const sb = await createSupabaseServer();
     await sb.auth.signOut();
     redirect("/login");
