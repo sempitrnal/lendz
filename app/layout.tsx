@@ -5,6 +5,7 @@ import MobileTopBar from "@/components/mobile-top-bar";
 import { ScrollRestoration } from "@/components/scroll-restoration";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 import { OfflineSyncManager } from "@/components/offline-sync-manager";
+import { OfflineIndicator } from "@/components/offline-indicator";
 import { ThemeProvider } from "./providers";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
@@ -52,7 +53,8 @@ export default async function RootLayout({
             <ScrollRestoration />
           </Suspense>
           <ServiceWorkerRegistrar />
-          <OfflineSyncManager />
+          <OfflineSyncManager enabled={Boolean(user)} />
+          <OfflineIndicator />
 
           <PageTransition>{children}</PageTransition>
 
