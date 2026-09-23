@@ -720,7 +720,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
         const amountsText = await getBorrowerNextAmounts(borrowerId);
         range.deleteContents();
         if (!amountsText) {
-          toast.info("No pending next collection amounts");
+          toast.info("No dues today");
         } else {
           const textWithBreak = "\n" + amountsText;
           const textNode = document.createTextNode(textWithBreak);
@@ -955,13 +955,15 @@ function CategorySection({
         accounts: Array<Record<string, unknown>>;
         metrics: Record<string, Record<string, unknown>>;
       };
+      const today = todayDateValue();
       const amounts = data.accounts
         .filter((a) => {
           const m = data.metrics[a.id as string];
           return (
             a.schedule_mode !== "manual" &&
             (a.type === "loan" || a.type === "cash_advance") &&
-            Number(m?.nextCollectionAmount ?? 0) > 0
+            Number(m?.nextCollectionAmount ?? 0) > 0 &&
+            String(m?.nextCollectionDate ?? "").slice(0, 10) === today
           );
         })
         .map((a) => {
