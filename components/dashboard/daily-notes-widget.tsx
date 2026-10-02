@@ -1040,7 +1040,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
                     type="button"
                     onMouseDown={(e) => {
                       e.preventDefault();
-                      innerRef.current?.focus();
+                      if (!isMobile) innerRef.current?.focus();
                       toggleNextAll();
                     }}
                     className={`w-full rounded-md px-2 py-1.5 text-left text-sm
@@ -1083,7 +1083,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
                       type="button"
                       onMouseDown={(e) => {
                         e.preventDefault();
-                        innerRef.current?.focus();
+                        if (!isMobile) innerRef.current?.focus();
                         toggleNextItem(i);
                       }}
                       className={`w-full rounded-md px-2 py-1.5 text-left
@@ -1148,7 +1148,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
                     disabled={nextSelected.size === 0}
                     onMouseDown={(e) => {
                       e.preventDefault();
-                      innerRef.current?.focus();
+                      if (!isMobile) innerRef.current?.focus();
                       insertNextItems(
                         nextItems.filter((_, i) => nextSelected.has(i)),
                       );
