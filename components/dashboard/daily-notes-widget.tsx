@@ -806,7 +806,10 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     const insertNextItems = (selected: NextCollectionItem[]) => {
       if (!selected.length) return;
       const lines = selected.map(
-        (i) => `₱${i.amount.toLocaleString()} (${formatShortDate(i.due_date)})`,
+        (i) =>
+          `₱${i.amount.toLocaleString()} (${formatShortDate(i.due_date)}, ${
+            i.type === "cash_advance" ? "Cash Advance" : "Loan"
+          })`,
       );
       if (lines.length > 1) {
         const total = selected.reduce((sum, i) => sum + i.amount, 0);
