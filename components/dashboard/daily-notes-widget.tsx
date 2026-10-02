@@ -250,11 +250,11 @@ function badgeClassFor(href: string): string | null {
   const m = href.match(/^#badge:(date|type):(.+)$/);
   if (!m) return null;
   const base =
-    "inline-block rounded border px-1 py-px text-[9px] font-semibold";
+    "inline-block  rounded border px-1 py-px align-middle text-[9px] font-semibold leading-none";
   if (m[1] === "type") {
     return m[2] === "cash_advance"
-      ? `${base} uppercase border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200`
-      : `${base} uppercase border-violet-300/60 bg-violet-100 text-violet-800 dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-200`;
+      ? `${base} lowercase border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200`
+      : `${base} lowercase border-violet-300/60 bg-violet-100 text-violet-800 dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-200`;
   }
   return m[2] < todayDateValue()
     ? `${base} border-rose-300/60 bg-rose-100 text-rose-700 dark:border-rose-700 dark:bg-rose-900/40 dark:text-rose-200`
@@ -675,6 +675,10 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       if (defaultValue) {
         el.appendChild(labelToFragment(defaultValue, borrowers));
       }
+      const pills = el.querySelectorAll("[data-mention]");
+      lastMentionedBorrowerRef.current = pills.length
+        ? ((pills[pills.length - 1] as HTMLElement).dataset.mention ?? null)
+        : null;
       const text = el.textContent ?? "";
       onChange?.(text);
       setMentionOpen(false);
@@ -978,6 +982,10 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     const handleInput = () => {
       const el = innerRef.current;
       if (!el) return;
+      const pills = el.querySelectorAll("[data-mention]");
+      lastMentionedBorrowerRef.current = pills.length
+        ? ((pills[pills.length - 1] as HTMLElement).dataset.mention ?? null)
+        : null;
       const text = el.textContent ?? "";
       onChange?.(text);
       detectMention(text, getCaretOffset(el));
@@ -1154,6 +1162,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
           createPortal(
             <div
               ref={nextDropdownRef}
+              data-next-dropdown
               style={{
                 position: "fixed",
                 top: nextAnchor.top,
@@ -1164,8 +1173,8 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
                   : Math.min(288, nextAnchor.width),
                 maxHeight: nextAnchor.maxHeight,
               }}
-              className="z-9999 flex flex-col rounded-lg border border-border/50
-                bg-white p-0.5 shadow-md dark:bg-card"
+              className="pointer-events-auto z-9999 flex flex-col rounded-lg
+                border border-border/50 bg-white p-0.5 shadow-md dark:bg-card"
             >
               {nextLoading ? (
                 <div
@@ -1260,7 +1269,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
                               </span>
                               <span
                                 className={`rounded border px-1 py-px text-[8px]
-                                  font-semibold uppercase ${
+                                  font-semibold lowercase ${
                                     item.type === "cash_advance"
                                       ? `border-amber-300/60 bg-amber-200
                                         text-amber-900 dark:border-amber-700
@@ -1691,7 +1700,14 @@ function CategorySection({
           if (!v) setEditingItem(null);
         }}
       >
-        <DialogContent className="overflow-visible! sm:max-w-md">
+        <DialogContent
+          className="overflow-visible! sm:max-w-md"
+          onInteractOutside={(e) => {
+            if ((e.target as HTMLElement).closest("[data-next-dropdown]")) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogHeader className="gap-3 pb-2">
             <div
               className="flex h-10 w-10 items-center justify-center rounded-full
