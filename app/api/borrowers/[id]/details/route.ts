@@ -98,6 +98,10 @@ export async function GET(
     }
   }
 
+  const dueCutoff = new Date(Date.now() + 7 * 86400000)
+    .toISOString()
+    .slice(0, 10);
+
   // Compute metrics per account
   const metrics: Record<string, unknown> = {};
   for (const account of accountList) {
@@ -143,6 +147,19 @@ export async function GET(
       amount_due: Math.max(0, Number(r.amount_due ?? 0)),
       status: r.status,
     }));
+    const dueCollections = rows
+      .filter((row) => {
+        const due = String((row as any).due_date ?? "").slice(0, 10);
+        return (
+          remainingOnInstallment(row as any) > 0 &&
+          (due <= dueCutoff || (row as any).status === "partial")
+        );
+      })
+      .map((row) => ({
+        due_date: String((row as any).due_date ?? "").slice(0, 10),
+        amount: remainingOnInstallment(row as any),
+        status: (row as any).status,
+      }));
     const overdueRows = rows.filter(
       (row) =>
         (row as any).status === "overdue" &&
@@ -183,6 +200,7 @@ export async function GET(
       nextCollectionStatus: nextUnpaid?.status ?? null,
       nextUnpaidScheduleId: (nextUnpaid as any)?.id ?? null,
       nextCollections,
+      dueCollections,
       overdueCount: overdueRows.length,
       overdueTotal: overdueRows.reduce(
         (sum, row) => sum + remainingOnInstallment(row as any),

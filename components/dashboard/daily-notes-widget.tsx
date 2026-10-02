@@ -56,6 +56,19 @@ function todayDateValue() {
   return new Date().toLocaleDateString("en-CA");
 }
 
+type NextCollectionItem = {
+  due_date: string;
+  amount: number;
+  type: string;
+};
+
+function formatShortDate(iso: string) {
+  return new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 /** Lighten a hex color to a soft tint on white */
 function tintColor(hex: string, opacity = 0.08): string {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -520,7 +533,9 @@ type ChecklistInputProps = {
   showPesoButton?: boolean;
   autoFocus?: boolean;
   className?: string;
-  getBorrowerNextAmounts?: (borrowerId: string) => Promise<string>;
+  getBorrowerNextAmounts?: (
+    borrowerId: string,
+  ) => Promise<NextCollectionItem[]>;
 };
 
 const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
@@ -547,6 +562,13 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     const wrapperRef = useRef<HTMLDivElement>(null);
     const lastMentionedBorrowerRef = useRef<string | null>(null);
     const isProcessingNextRef = useRef(false);
+    const [nextOpen, setNextOpen] = useState(false);
+    const [nextLoading, setNextLoading] = useState(false);
+    const [nextItems, setNextItems] = useState<NextCollectionItem[]>([]);
+    const [nextIndex, setNextIndex] = useState(0);
+    const [nextSelected, setNextSelected] = useState<Set<number>>(new Set());
+    const nextTokenStartRef = useRef<number | null>(null);
+    const nextTotal = nextItems.reduce((sum, i) => sum + i.amount, 0);
     const isMobile = useMemo(
       () =>
         /iPad|iPhone|iPod|Android/.test(navigator.userAgent) &&
@@ -600,6 +622,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
           !wrapperRef.current.contains(e.target as Node)
         ) {
           setMentionOpen(false);
+          setNextOpen(false);
         }
       };
       document.addEventListener("mousedown", handler);
@@ -705,32 +728,57 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       setMentionStart(null);
     };
 
-    const handleSlashNext = async (start: number, end: number) => {
-      if (!getBorrowerNextAmounts || !lastMentionedBorrowerRef.current) return;
+    const replaceNextToken = (insertText: string | null) => {
+      const el = innerRef.current;
+      if (!el) return;
+      const text = el.textContent ?? "";
+      let start = nextTokenStartRef.current ?? -1;
+      if (start < 0 || text.slice(start, start + 5) !== "/next") {
+        start = text.indexOf("/next");
+      }
+      if (start === -1) return;
+      let end = start + 5;
+      if (start > 0 && /\s/.test(text[start - 1])) start -= 1;
+      if (end < text.length && /\s/.test(text[end])) end += 1;
+      const range = getRangeForOffsets(el, start, end);
+      if (!range) return;
+      range.deleteContents();
+      if (insertText) {
+        const textWithBreak = "\n" + insertText;
+        range.insertNode(document.createTextNode(textWithBreak));
+        setCaretOffset(el, start + textWithBreak.length);
+      }
+      onChange?.(el.textContent ?? "");
+    };
+
+    const openNextDropdown = async (matchStart: number) => {
       const borrowerId = lastMentionedBorrowerRef.current;
+      if (!getBorrowerNextAmounts || !borrowerId) return;
       const el = innerRef.current;
       if (!el) return;
       isProcessingNextRef.current = true;
-      const range = getRangeForOffsets(el, start, end);
-      if (!range) {
-        isProcessingNextRef.current = false;
-        return;
-      }
+      nextTokenStartRef.current = matchStart;
+      setNextItems([]);
+      setNextSelected(new Set());
+      setNextIndex(0);
+      setNextLoading(true);
+      setNextOpen(true);
       try {
-        const amountsText = await getBorrowerNextAmounts(borrowerId);
-        range.deleteContents();
-        if (!amountsText) {
-          toast.info("No dues today");
+        const items = await getBorrowerNextAmounts(borrowerId);
+        if (!items.length) {
+          setNextOpen(false);
+          replaceNextToken(null);
+          toast.info("No pending collections");
         } else {
-          const textWithBreak = "\n" + amountsText;
-          const textNode = document.createTextNode(textWithBreak);
-          range.insertNode(textNode);
-          setCaretOffset(el, start + textWithBreak.length);
+          setNextItems(items);
+          setNextSelected(new Set(items.map((_, i) => i)));
         }
       } catch (err) {
-        console.error("handleSlashNext error:", err);
+        console.error("openNextDropdown error:", err);
+        setNextOpen(false);
         toast.error("Failed to load next collection amounts");
       } finally {
+        setNextLoading(false);
         isProcessingNextRef.current = false;
         const text = el.textContent ?? "";
         onChange?.(text);
@@ -738,9 +786,53 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       }
     };
 
+    const toggleNextItem = (index: number) => {
+      setNextSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(index)) next.delete(index);
+        else next.add(index);
+        return next;
+      });
+    };
+
+    const toggleNextAll = () => {
+      setNextSelected((prev) =>
+        prev.size === nextItems.length
+          ? new Set()
+          : new Set(nextItems.map((_, i) => i)),
+      );
+    };
+
+    const insertNextItems = (selected: NextCollectionItem[]) => {
+      if (!selected.length) return;
+      const lines = selected.map(
+        (i) => `₱${i.amount.toLocaleString()} (${formatShortDate(i.due_date)})`,
+      );
+      if (lines.length > 1) {
+        const total = selected.reduce((sum, i) => sum + i.amount, 0);
+        lines.push(`Total: ₱${total.toLocaleString()}`);
+      }
+      replaceNextToken(lines.join("\n"));
+      setNextOpen(false);
+      setNextItems([]);
+      setNextSelected(new Set());
+    };
+
+    const insertNextHighlightedOrSelected = () => {
+      const selected = nextItems.filter((_, i) => nextSelected.has(i));
+      if (selected.length) {
+        insertNextItems(selected);
+      } else {
+        const hasAll = nextItems.length > 1;
+        const item = nextItems[hasAll ? nextIndex - 1 : nextIndex];
+        if (item) insertNextItems([item]);
+      }
+    };
+
     const detectSlashCommand = (text: string, cursor: number) => {
       if (
         isProcessingNextRef.current ||
+        nextOpen ||
         !getBorrowerNextAmounts ||
         !lastMentionedBorrowerRef.current
       )
@@ -752,17 +844,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
         if (mEnd <= cursor) target = m;
       }
       if (!target || target.index === undefined) return;
-      const matchStart = target.index;
-      const matchEnd = matchStart + target[0].length;
-      const start =
-        matchStart > 0 && /\s/.test(text[matchStart - 1])
-          ? matchStart - 1
-          : matchStart;
-      const end =
-        matchEnd < text.length && /\s/.test(text[matchEnd])
-          ? matchEnd + 1
-          : matchEnd;
-      void handleSlashNext(start, end);
+      void openNextDropdown(target.index);
     };
 
     const handleInput = () => {
@@ -772,9 +854,41 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       onChange?.(text);
       detectMention(text, getCaretOffset(el));
       detectSlashCommand(text, getCaretOffset(el));
+      if (nextOpen && !text.includes("/next")) setNextOpen(false);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (nextOpen) {
+        if (e.key === "Escape") {
+          setNextOpen(false);
+          return;
+        }
+        if (nextLoading || !nextItems.length) return;
+        const count = nextItems.length + (nextItems.length > 1 ? 1 : 0);
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setNextIndex((i) => Math.min(i + 1, count - 1));
+          return;
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setNextIndex((i) => Math.max(i - 1, 0));
+          return;
+        } else if (e.key === " ") {
+          e.preventDefault();
+          const hasAll = nextItems.length > 1;
+          if (hasAll && nextIndex === 0) {
+            toggleNextAll();
+          } else {
+            toggleNextItem(hasAll ? nextIndex - 1 : nextIndex);
+          }
+          return;
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          insertNextHighlightedOrSelected();
+          return;
+        }
+      }
+
       if (mentionOpen) {
         if (e.key === "ArrowDown") {
           e.preventDefault();
@@ -906,6 +1020,151 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
             ))}
           </div>
         )}
+        {nextOpen && (nextLoading || nextItems.length > 0) && (
+          <div
+            className={`absolute left-0 right-0 top-full z-9999 mt-1 rounded-lg
+            border border-border/50 bg-white p-0.5 shadow-md dark:bg-card
+            ${isMobile ? "" : "sm:right-auto sm:w-72"}`}
+          >
+            {nextLoading ? (
+              <div
+                className="px-2 py-1.5 text-sm text-slate-500
+                  dark:text-muted-foreground"
+              >
+                Loading collections…
+              </div>
+            ) : (
+              <>
+                {nextItems.length > 1 && (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      innerRef.current?.focus();
+                      toggleNextAll();
+                    }}
+                    className={`w-full rounded-md px-2 py-1.5 text-left text-sm
+                      transition-colors ${
+                        nextIndex === 0
+                          ? "bg-slate-100 dark:bg-muted"
+                          : "hover:bg-slate-50 dark:hover:bg-muted/50"
+                      }`}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          readOnly
+                          checked={nextSelected.size === nextItems.length}
+                          className="pointer-events-none h-3.5 w-3.5
+                            accent-slate-600"
+                        />
+                        <span
+                          className="font-medium text-slate-700
+                            dark:text-foreground"
+                        >
+                          All
+                        </span>
+                      </span>
+                      <span
+                        className="text-slate-500 dark:text-muted-foreground"
+                      >
+                        ₱{nextTotal.toLocaleString()}
+                      </span>
+                    </span>
+                  </button>
+                )}
+                {nextItems.map((item, i) => {
+                  const itemIndex = nextItems.length > 1 ? i + 1 : i;
+                  const isOverdue = item.due_date < todayDateValue();
+                  return (
+                    <button
+                      key={`${item.due_date}-${i}`}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        innerRef.current?.focus();
+                        toggleNextItem(i);
+                      }}
+                      className={`w-full rounded-md px-2 py-1.5 text-left
+                        text-sm transition-colors ${
+                          itemIndex === nextIndex
+                            ? "bg-slate-100 dark:bg-muted"
+                            : "hover:bg-slate-50 dark:hover:bg-muted/50"
+                        }`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            readOnly
+                            checked={nextSelected.has(i)}
+                            className="pointer-events-none h-3.5 w-3.5
+                              accent-slate-600"
+                          />
+                          <span
+                            className="font-medium text-slate-700
+                              dark:text-foreground"
+                          >
+                            {formatShortDate(item.due_date)}
+                          </span>
+                          <span
+                            className={`rounded border px-1 py-px text-[8px]
+                              font-semibold uppercase ${
+                                item.type === "cash_advance"
+                                  ? `border-amber-300/60 bg-amber-200
+                                    text-amber-900 dark:border-amber-700
+                                    dark:bg-amber-800 dark:text-amber-100`
+                                  : `border-violet-300/60 bg-violet-200
+                                    text-violet-900 dark:border-violet-700
+                                    dark:bg-violet-800 dark:text-violet-100`
+                              }`}
+                          >
+                            {item.type === "cash_advance" ? "CA" : "Loan"}
+                          </span>
+                          {isOverdue && (
+                            <span
+                              className="rounded border border-rose-300/60
+                                bg-rose-100 px-1 py-px text-[8px] font-semibold
+                                uppercase text-rose-700 dark:border-rose-700
+                                dark:bg-rose-800 dark:text-rose-100"
+                            >
+                              overdue
+                            </span>
+                          )}
+                        </span>
+                        <span
+                          className="text-slate-500 dark:text-muted-foreground"
+                        >
+                          ₱{item.amount.toLocaleString()}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+                <div className="mt-0.5 border-t border-border/50 p-0.5">
+                  <button
+                    type="button"
+                    disabled={nextSelected.size === 0}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      innerRef.current?.focus();
+                      insertNextItems(
+                        nextItems.filter((_, i) => nextSelected.has(i)),
+                      );
+                    }}
+                    className="w-full rounded-md bg-slate-900 px-2 py-1.5
+                      text-sm font-medium text-white transition-opacity
+                      disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
+                  >
+                    Insert
+                    {nextSelected.size > 0 ? ` (${nextSelected.size})` : ""}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     );
   },
@@ -947,39 +1206,48 @@ function CategorySection({
   const isDark = resolvedTheme === "dark";
   const { data: borrowers = [] } = useBorrowersSearch();
 
-  const getBorrowerNextAmounts = useCallback(async (borrowerId: string) => {
-    try {
-      const res = await fetch(`/api/borrowers/${borrowerId}/details`);
-      if (!res.ok) return "";
-      const data = (await res.json()) as {
-        accounts: Array<Record<string, unknown>>;
-        metrics: Record<string, Record<string, unknown>>;
-      };
-      const today = todayDateValue();
-      const amounts = data.accounts
-        .filter((a) => {
+  const getBorrowerNextAmounts = useCallback(
+    async (borrowerId: string): Promise<NextCollectionItem[]> => {
+      try {
+        const res = await fetch(`/api/borrowers/${borrowerId}/details`);
+        if (!res.ok) return [];
+        const data = (await res.json()) as {
+          accounts: Array<Record<string, unknown>>;
+          metrics: Record<string, Record<string, unknown>>;
+        };
+        const items: NextCollectionItem[] = [];
+        for (const a of data.accounts) {
+          if (
+            a.schedule_mode === "manual" ||
+            (a.type !== "loan" && a.type !== "cash_advance")
+          )
+            continue;
           const m = data.metrics[a.id as string];
-          return (
-            a.schedule_mode !== "manual" &&
-            (a.type === "loan" || a.type === "cash_advance") &&
-            Number(m?.nextCollectionAmount ?? 0) > 0 &&
-            String(m?.nextCollectionDate ?? "").slice(0, 10) === today
-          );
-        })
-        .map((a) => {
-          const m = data.metrics[a.id as string];
-          return Number(m?.nextCollectionAmount ?? 0);
+          const collections =
+            (m?.dueCollections as NextCollectionItem[] | undefined) ?? [];
+          for (const c of collections) {
+            const amount = Number(c.amount ?? 0);
+            const due_date = String(c.due_date ?? "").slice(0, 10);
+            if (amount <= 0 || !due_date) continue;
+            items.push({ due_date, amount, type: String(a.type ?? "") });
+          }
+        }
+        const today = todayDateValue();
+        items.sort((a, b) => {
+          const overdueDiff =
+            (a.due_date < today ? 0 : 1) - (b.due_date < today ? 0 : 1);
+          if (overdueDiff !== 0) return overdueDiff;
+          const byDate = a.due_date.localeCompare(b.due_date);
+          if (byDate !== 0) return byDate;
+          return a.type.localeCompare(b.type);
         });
-      const lines = amounts.map((amount) => `₱${amount.toLocaleString()}`);
-      if (lines.length > 1) {
-        const total = amounts.reduce((sum, amount) => sum + amount, 0);
-        lines.push(`Total: ₱${total.toLocaleString()}`);
+        return items;
+      } catch {
+        return [];
       }
-      return lines.join("\n");
-    } catch {
-      return "";
-    }
-  }, []);
+    },
+    [],
+  );
 
   const checkedCount = items.filter((i) => i.is_checked).length;
 
