@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -112,12 +113,25 @@ function LinkedLabel({
     return trimmed.split("\n").every((line) => amountPattern.test(line.trim()));
   };
 
-  const strike = (text: string, key: string) => {
+  const strike = (text: string, key: string, preserveWs = false) => {
     if (!text) return null;
     if (isAmountBlock(text)) {
+      if (!preserveWs) {
+        return (
+          <span key={key} className="inline-block w-full pl-2 pt-2">
+            <span className={checked ? "line-through" : ""}>{text.trim()}</span>
+          </span>
+        );
+      }
+      const leading = text.match(/^\s*/)?.[0] ?? "";
+      const trailing = text.match(/\s*$/)?.[0] ?? "";
       return (
-        <span key={key} className="inline-block w-full pl-2 pt-2">
-          <span className={checked ? "line-through" : ""}>{text.trim()}</span>
+        <span key={key}>
+          {leading}
+          <span className="inline-block pl-2 pt-2">
+            <span className={checked ? "line-through" : ""}>{text.trim()}</span>
+          </span>
+          {trailing}
         </span>
       );
     }
@@ -132,10 +146,16 @@ function LinkedLabel({
   let lastIndex = 0;
   const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
   let match: RegExpExecArray | null;
+  let prevBadge = false;
   while ((match = regex.exec(label)) !== null) {
+    const isBadge = match[2].startsWith("#badge:");
     if (match.index > lastIndex) {
       parts.push(
-        strike(label.slice(lastIndex, match.index), `md-${lastIndex}`),
+        strike(
+          label.slice(lastIndex, match.index),
+          `md-${lastIndex}`,
+          prevBadge || isBadge,
+        ),
       );
     }
     parts.push(
@@ -146,6 +166,7 @@ function LinkedLabel({
         checked={checked}
       />,
     );
+    prevBadge = isBadge;
     lastIndex = regex.lastIndex;
   }
   const tail = label.slice(lastIndex);
@@ -155,7 +176,13 @@ function LinkedLabel({
       const idx = tail.indexOf(name, offset);
       if (idx !== -1) {
         if (idx > offset) {
-          parts.push(strike(tail.slice(offset, idx), `tail-${offset}`));
+          parts.push(
+            strike(
+              tail.slice(offset, idx),
+              `tail-${offset}`,
+              prevBadge && offset === 0,
+            ),
+          );
         }
         parts.push(
           <MentionPill
@@ -169,7 +196,9 @@ function LinkedLabel({
       }
     });
     if (offset < tail.length) {
-      parts.push(strike(tail.slice(offset), "tail-end"));
+      parts.push(
+        strike(tail.slice(offset), "tail-end", prevBadge && offset === 0),
+      );
     }
   }
   return <>{parts}</>;
@@ -184,6 +213,16 @@ function MentionPill({
   href: string;
   checked: boolean;
 }) {
+  const badgeClass = badgeClassFor(href);
+  if (badgeClass) {
+    return (
+      <span
+        className={`${badgeClass} ${checked ? "opacity-50 line-through" : ""}`}
+      >
+        {name}
+      </span>
+    );
+  }
   return (
     <Link
       href={href}
@@ -206,6 +245,30 @@ function MentionPill({
 
 const MENTION_PILL_CLASS =
   "inline-block rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-xs font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300";
+
+function badgeClassFor(href: string): string | null {
+  const m = href.match(/^#badge:(date|type):(.+)$/);
+  if (!m) return null;
+  const base =
+    "inline-block rounded border px-1 py-px text-[9px] font-semibold";
+  if (m[1] === "type") {
+    return m[2] === "cash_advance"
+      ? `${base} uppercase border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200`
+      : `${base} uppercase border-violet-300/60 bg-violet-100 text-violet-800 dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-200`;
+  }
+  return m[2] < todayDateValue()
+    ? `${base} border-rose-300/60 bg-rose-100 text-rose-700 dark:border-rose-700 dark:bg-rose-900/40 dark:text-rose-200`
+    : `${base} border-slate-300/70 bg-slate-100 text-slate-600 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-300`;
+}
+
+function createBadgeSpan(text: string, href: string) {
+  const span = document.createElement("span");
+  span.contentEditable = "false";
+  span.className = badgeClassFor(href) ?? "";
+  span.textContent = text;
+  span.dataset.href = href;
+  return span;
+}
 
 function escapeRegex(str: string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -295,7 +358,7 @@ function labelToFragment(label: string, borrowers: BorrowerSearchItem[]) {
     }
     const span = document.createElement("span");
     span.contentEditable = "false";
-    span.className = MENTION_PILL_CLASS;
+    span.className = (m.href && badgeClassFor(m.href)) ?? MENTION_PILL_CLASS;
     span.textContent = m.name;
     if (m.id) span.dataset.mention = m.id;
     else if (m.href) span.dataset.href = m.href;
@@ -568,6 +631,14 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     const [nextIndex, setNextIndex] = useState(0);
     const [nextSelected, setNextSelected] = useState<Set<number>>(new Set());
     const nextTokenStartRef = useRef<number | null>(null);
+    const nextDropdownRef = useRef<HTMLDivElement>(null);
+    const [nextAnchor, setNextAnchor] = useState<{
+      top?: number;
+      bottom?: number;
+      left: number;
+      width: number;
+      maxHeight: number;
+    } | null>(null);
     const nextTotal = nextItems.reduce((sum, i) => sum + i.amount, 0);
     const isMobile = useMemo(
       () =>
@@ -617,9 +688,11 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
 
     useEffect(() => {
       const handler = (e: MouseEvent) => {
+        const target = e.target as Node;
         if (
           wrapperRef.current &&
-          !wrapperRef.current.contains(e.target as Node)
+          !wrapperRef.current.contains(target) &&
+          !nextDropdownRef.current?.contains(target)
         ) {
           setMentionOpen(false);
           setNextOpen(false);
@@ -728,7 +801,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       setMentionStart(null);
     };
 
-    const replaceNextToken = (insertText: string | null) => {
+    const replaceNextToken = (insertNode: Node | null) => {
       const el = innerRef.current;
       if (!el) return;
       const text = el.textContent ?? "";
@@ -743,10 +816,10 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       const range = getRangeForOffsets(el, start, end);
       if (!range) return;
       range.deleteContents();
-      if (insertText) {
-        const textWithBreak = "\n" + insertText;
-        range.insertNode(document.createTextNode(textWithBreak));
-        setCaretOffset(el, start + textWithBreak.length);
+      if (insertNode) {
+        const insertLen = insertNode.textContent?.length ?? 0;
+        range.insertNode(insertNode);
+        setCaretOffset(el, start + insertLen);
       }
       onChange?.(el.textContent ?? "");
     };
@@ -758,6 +831,25 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       if (!el) return;
       isProcessingNextRef.current = true;
       nextTokenStartRef.current = matchStart;
+      const rect = el.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const openUp = spaceBelow < 260 && spaceAbove > spaceBelow;
+      setNextAnchor(
+        openUp
+          ? {
+              bottom: window.innerHeight - rect.top + 4,
+              left: rect.left,
+              width: rect.width,
+              maxHeight: Math.min(spaceAbove - 12, 320),
+            }
+          : {
+              top: rect.bottom + 4,
+              left: rect.left,
+              width: rect.width,
+              maxHeight: Math.min(spaceBelow - 12, 320),
+            },
+      );
       setNextItems([]);
       setNextSelected(new Set());
       setNextIndex(0);
@@ -771,7 +863,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
           toast.info("No pending collections");
         } else {
           setNextItems(items);
-          setNextSelected(new Set(items.map((_, i) => i)));
+          setNextSelected(new Set());
         }
       } catch (err) {
         console.error("openNextDropdown error:", err);
@@ -805,17 +897,50 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
 
     const insertNextItems = (selected: NextCollectionItem[]) => {
       if (!selected.length) return;
-      const lines = selected.map(
-        (i) =>
-          `₱${i.amount.toLocaleString()} (${formatShortDate(i.due_date)}, ${
-            i.type === "cash_advance" ? "Cash Advance" : "Loan"
-          })`,
-      );
-      if (lines.length > 1) {
+      const frag = document.createDocumentFragment();
+      frag.appendChild(document.createTextNode("\n"));
+      selected.forEach((item, i) => {
+        if (i > 0) frag.appendChild(document.createTextNode("\n"));
+        frag.appendChild(
+          document.createTextNode(`₱${item.amount.toLocaleString()}`),
+        );
+        const hasDate = Boolean(item.due_date);
+        const typeOk = item.type === "loan" || item.type === "cash_advance";
+        if (!hasDate && !typeOk) return;
+        if (!hasDate || !typeOk) {
+          const bits = [
+            hasDate ? formatShortDate(item.due_date) : "",
+            typeOk
+              ? item.type === "cash_advance"
+                ? "Cash Advance"
+                : "Loan"
+              : "",
+          ].filter(Boolean);
+          frag.appendChild(document.createTextNode(` (${bits.join(", ")})`));
+          return;
+        }
+        frag.appendChild(document.createTextNode(" "));
+        frag.appendChild(
+          createBadgeSpan(
+            formatShortDate(item.due_date),
+            `#badge:date:${item.due_date}`,
+          ),
+        );
+        frag.appendChild(document.createTextNode(" "));
+        frag.appendChild(
+          createBadgeSpan(
+            item.type === "cash_advance" ? "CA" : "Loan",
+            `#badge:type:${item.type}`,
+          ),
+        );
+      });
+      if (selected.length > 1) {
         const total = selected.reduce((sum, i) => sum + i.amount, 0);
-        lines.push(`Total: ₱${total.toLocaleString()}`);
+        frag.appendChild(
+          document.createTextNode(`\nTotal: ₱${total.toLocaleString()}`),
+        );
       }
-      replaceNextToken(lines.join("\n"));
+      replaceNextToken(frag);
       setNextOpen(false);
       setNextItems([]);
       setNextSelected(new Set());
@@ -1023,151 +1148,180 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
             ))}
           </div>
         )}
-        {nextOpen && (nextLoading || nextItems.length > 0) && (
-          <div
-            className={`absolute left-0 right-0 top-full z-9999 mt-1 rounded-lg
-            border border-border/50 bg-white p-0.5 shadow-md dark:bg-card
-            ${isMobile ? "" : "sm:right-auto sm:w-72"}`}
-          >
-            {nextLoading ? (
-              <div
-                className="px-2 py-1.5 text-sm text-slate-500
-                  dark:text-muted-foreground"
-              >
-                Loading collections…
-              </div>
-            ) : (
-              <>
-                {nextItems.length > 1 && (
-                  <button
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      if (!isMobile) innerRef.current?.focus();
-                      toggleNextAll();
-                    }}
-                    className={`w-full rounded-md px-2 py-1.5 text-left text-sm
-                      transition-colors ${
-                        nextIndex === 0
-                          ? "bg-slate-100 dark:bg-muted"
-                          : "hover:bg-slate-50 dark:hover:bg-muted/50"
-                      }`}
+        {nextOpen &&
+          (nextLoading || nextItems.length > 0) &&
+          nextAnchor &&
+          createPortal(
+            <div
+              ref={nextDropdownRef}
+              style={{
+                position: "fixed",
+                top: nextAnchor.top,
+                bottom: nextAnchor.bottom,
+                left: nextAnchor.left,
+                width: isMobile
+                  ? nextAnchor.width
+                  : Math.min(288, nextAnchor.width),
+                maxHeight: nextAnchor.maxHeight,
+              }}
+              className="z-9999 flex flex-col rounded-lg border border-border/50
+                bg-white p-0.5 shadow-md dark:bg-card"
+            >
+              {nextLoading ? (
+                <div
+                  className="px-2 py-1.5 text-sm text-slate-500
+                    dark:text-muted-foreground"
+                >
+                  Loading collections…
+                </div>
+              ) : (
+                <>
+                  <div
+                    className="min-h-0 divide-y divide-border/50
+                      overflow-y-auto"
                   >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          readOnly
-                          checked={nextSelected.size === nextItems.length}
-                          className="pointer-events-none h-3.5 w-3.5
-                            accent-slate-600"
-                        />
-                        <span
-                          className="font-medium text-slate-700
-                            dark:text-foreground"
-                        >
-                          All
-                        </span>
-                      </span>
-                      <span
-                        className="text-slate-500 dark:text-muted-foreground"
+                    {nextItems.length > 1 && (
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          if (!isMobile) innerRef.current?.focus();
+                          toggleNextAll();
+                        }}
+                        className={`w-full rounded-md px-2 py-3 text-left
+                          text-sm transition-colors ${
+                            nextIndex === 0
+                              ? "bg-slate-100 dark:bg-muted"
+                              : "hover:bg-slate-50 dark:hover:bg-muted/50"
+                          }`}
                       >
-                        ₱{nextTotal.toLocaleString()}
-                      </span>
-                    </span>
-                  </button>
-                )}
-                {nextItems.map((item, i) => {
-                  const itemIndex = nextItems.length > 1 ? i + 1 : i;
-                  const isOverdue = item.due_date < todayDateValue();
-                  return (
+                        <span
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <span className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              readOnly
+                              checked={nextSelected.size === nextItems.length}
+                              className="pointer-events-none h-3.5 w-3.5
+                                accent-slate-600"
+                            />
+                            <span
+                              className="font-medium text-slate-700
+                                dark:text-foreground"
+                            >
+                              All
+                            </span>
+                          </span>
+                          <span
+                            className="text-slate-500
+                              dark:text-muted-foreground"
+                          >
+                            ₱{nextTotal.toLocaleString()}
+                          </span>
+                        </span>
+                      </button>
+                    )}
+                    {nextItems.map((item, i) => {
+                      const itemIndex = nextItems.length > 1 ? i + 1 : i;
+                      const isOverdue = item.due_date < todayDateValue();
+                      return (
+                        <button
+                          key={`${item.due_date}-${i}`}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            if (!isMobile) innerRef.current?.focus();
+                            toggleNextItem(i);
+                          }}
+                          className={`w-full rounded-md px-2 py-3 text-left
+                            text-sm transition-colors ${
+                              itemIndex === nextIndex
+                                ? "bg-slate-100 dark:bg-muted"
+                                : "hover:bg-slate-50 dark:hover:bg-muted/50"
+                            }`}
+                        >
+                          <span
+                            className="flex items-center justify-between gap-2"
+                          >
+                            <span className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                readOnly
+                                checked={nextSelected.has(i)}
+                                className="pointer-events-none h-3.5 w-3.5
+                                  accent-slate-600"
+                              />
+                              <span
+                                className="font-medium text-slate-700
+                                  dark:text-foreground"
+                              >
+                                {formatShortDate(item.due_date)}
+                              </span>
+                              <span
+                                className={`rounded border px-1 py-px text-[8px]
+                                  font-semibold uppercase ${
+                                    item.type === "cash_advance"
+                                      ? `border-amber-300/60 bg-amber-200
+                                        text-amber-900 dark:border-amber-700
+                                        dark:bg-amber-800 dark:text-amber-100`
+                                      : `border-violet-300/60 bg-violet-200
+                                        text-violet-900 dark:border-violet-700
+                                        dark:bg-violet-800 dark:text-violet-100`
+                                  }`}
+                              >
+                                {item.type === "cash_advance" ? "CA" : "Loan"}
+                              </span>
+                              {isOverdue && (
+                                <span
+                                  className="rounded border border-rose-300/60
+                                    bg-rose-100 px-1 py-px text-[8px]
+                                    font-semibold uppercase text-rose-700
+                                    dark:border-rose-700 dark:bg-rose-800
+                                    dark:text-rose-100"
+                                >
+                                  overdue
+                                </span>
+                              )}
+                            </span>
+                            <span
+                              className="text-slate-500
+                                dark:text-muted-foreground"
+                            >
+                              ₱{item.amount.toLocaleString()}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div
+                    className="mt-0.5 shrink-0 border-t border-border/50 p-0.5"
+                  >
                     <button
-                      key={`${item.due_date}-${i}`}
                       type="button"
+                      disabled={nextSelected.size === 0}
                       onMouseDown={(e) => {
                         e.preventDefault();
                         if (!isMobile) innerRef.current?.focus();
-                        toggleNextItem(i);
+                        insertNextItems(
+                          nextItems.filter((_, i) => nextSelected.has(i)),
+                        );
                       }}
-                      className={`w-full rounded-md px-2 py-1.5 text-left
-                        text-sm transition-colors ${
-                          itemIndex === nextIndex
-                            ? "bg-slate-100 dark:bg-muted"
-                            : "hover:bg-slate-50 dark:hover:bg-muted/50"
-                        }`}
+                      className="w-full rounded-md bg-slate-900 px-2 py-1.5
+                        text-sm font-medium text-white transition-opacity
+                        disabled:opacity-40 dark:bg-slate-100
+                        dark:text-slate-900"
                     >
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            readOnly
-                            checked={nextSelected.has(i)}
-                            className="pointer-events-none h-3.5 w-3.5
-                              accent-slate-600"
-                          />
-                          <span
-                            className="font-medium text-slate-700
-                              dark:text-foreground"
-                          >
-                            {formatShortDate(item.due_date)}
-                          </span>
-                          <span
-                            className={`rounded border px-1 py-px text-[8px]
-                              font-semibold uppercase ${
-                                item.type === "cash_advance"
-                                  ? `border-amber-300/60 bg-amber-200
-                                    text-amber-900 dark:border-amber-700
-                                    dark:bg-amber-800 dark:text-amber-100`
-                                  : `border-violet-300/60 bg-violet-200
-                                    text-violet-900 dark:border-violet-700
-                                    dark:bg-violet-800 dark:text-violet-100`
-                              }`}
-                          >
-                            {item.type === "cash_advance" ? "CA" : "Loan"}
-                          </span>
-                          {isOverdue && (
-                            <span
-                              className="rounded border border-rose-300/60
-                                bg-rose-100 px-1 py-px text-[8px] font-semibold
-                                uppercase text-rose-700 dark:border-rose-700
-                                dark:bg-rose-800 dark:text-rose-100"
-                            >
-                              overdue
-                            </span>
-                          )}
-                        </span>
-                        <span
-                          className="text-slate-500 dark:text-muted-foreground"
-                        >
-                          ₱{item.amount.toLocaleString()}
-                        </span>
-                      </span>
+                      Insert
+                      {nextSelected.size > 0 ? ` (${nextSelected.size})` : ""}
                     </button>
-                  );
-                })}
-                <div className="mt-0.5 border-t border-border/50 p-0.5">
-                  <button
-                    type="button"
-                    disabled={nextSelected.size === 0}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      if (!isMobile) innerRef.current?.focus();
-                      insertNextItems(
-                        nextItems.filter((_, i) => nextSelected.has(i)),
-                      );
-                    }}
-                    className="w-full rounded-md bg-slate-900 px-2 py-1.5
-                      text-sm font-medium text-white transition-opacity
-                      disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
-                  >
-                    Insert
-                    {nextSelected.size > 0 ? ` (${nextSelected.size})` : ""}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+                  </div>
+                </>
+              )}
+            </div>,
+            document.body,
+          )}
       </div>
     );
   },
