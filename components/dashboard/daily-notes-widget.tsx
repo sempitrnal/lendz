@@ -766,7 +766,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       const span = document.createElement("span");
       span.contentEditable = "false";
       span.className = MENTION_PILL_CLASS;
-      span.textContent = label;
+      span.textContent = label.toLowerCase();
       span.dataset.mention = borrower.id;
 
       el.focus();
