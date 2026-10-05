@@ -57,6 +57,12 @@ function todayDateValue() {
   return new Date().toLocaleDateString("en-CA");
 }
 
+function overdueCutoffDateValue() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toLocaleDateString("en-CA");
+}
+
 type NextCollectionItem = {
   due_date: string;
   amount: number;
@@ -256,7 +262,7 @@ function badgeClassFor(href: string): string | null {
       ? `${base} lowercase border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200`
       : `${base} lowercase border-violet-300/60 bg-violet-100 text-violet-800 dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-200`;
   }
-  return m[2] < todayDateValue()
+  return m[2] < overdueCutoffDateValue()
     ? `${base} border-rose-300/60 bg-rose-100 text-rose-700 dark:border-rose-700 dark:bg-rose-900/40 dark:text-rose-200`
     : `${base} border-slate-300/70 bg-slate-100 text-slate-600 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-300`;
 }
@@ -1233,7 +1239,8 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
                     )}
                     {nextItems.map((item, i) => {
                       const itemIndex = nextItems.length > 1 ? i + 1 : i;
-                      const isOverdue = item.due_date < todayDateValue();
+                      const isOverdue =
+                        item.due_date < overdueCutoffDateValue();
                       return (
                         <button
                           key={`${item.due_date}-${i}`}
@@ -1398,10 +1405,11 @@ function CategorySection({
             items.push({ due_date, amount, type: String(a.type ?? "") });
           }
         }
-        const today = todayDateValue();
+        const overdueCutoff = overdueCutoffDateValue();
         items.sort((a, b) => {
           const overdueDiff =
-            (a.due_date < today ? 0 : 1) - (b.due_date < today ? 0 : 1);
+            (a.due_date < overdueCutoff ? 0 : 1) -
+            (b.due_date < overdueCutoff ? 0 : 1);
           if (overdueDiff !== 0) return overdueDiff;
           const byDate = a.due_date.localeCompare(b.due_date);
           if (byDate !== 0) return byDate;

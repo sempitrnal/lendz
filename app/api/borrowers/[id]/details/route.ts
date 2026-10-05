@@ -98,9 +98,7 @@ export async function GET(
     }
   }
 
-  const dueCutoff = new Date(Date.now() + 7 * 86400000)
-    .toISOString()
-    .slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
 
   // Compute metrics per account
   const metrics: Record<string, unknown> = {};
@@ -152,7 +150,9 @@ export async function GET(
         const due = String((row as any).due_date ?? "").slice(0, 10);
         return (
           remainingOnInstallment(row as any) > 0 &&
-          (due <= dueCutoff || (row as any).status === "partial")
+          (due <= today ||
+            (row as any).status === "partial" ||
+            (nextUnpaid && (row as any).id === (nextUnpaid as any).id))
         );
       })
       .map((row) => ({
