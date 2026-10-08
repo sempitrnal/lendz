@@ -9,7 +9,6 @@ import {
   revalidateBorrowersPage,
   revalidateDeletedPage,
 } from "@/lib/actions/borrowers";
-import { purgeOldDeletedItemsAction } from "@/lib/actions/deleted";
 import { Borrower } from "@/components/borrower/borrower-list";
 import { AccountRow } from "@/components/borrower/borrower-accounts-section";
 import NeobrutButton from "@/components/neobrut-button";
@@ -61,7 +60,6 @@ export default function DeletedPageClient({
 
   const [isRestoring, setIsRestoring] = useState(false);
   const [isPermaDeleting, setIsPermaDeleting] = useState(false);
-  const [isPurging, setIsPurging] = useState(false);
   const [confirmClearAll, setConfirmClearAll] = useState<
     "borrowers" | "accounts" | null
   >(null);
@@ -227,26 +225,6 @@ export default function DeletedPageClient({
     }
   };
 
-  const handlePurge = async () => {
-    setIsPurging(true);
-    try {
-      const result = await purgeOldDeletedItemsAction();
-      toast.success(
-        `Purged ${result.borrowersDeleted} deleted borrower${
-          result.borrowersDeleted === 1 ? "" : "s"
-        } and ${result.accountsDeleted} deleted account${
-          result.accountsDeleted === 1 ? "" : "s"
-        } older than 30 days`,
-      );
-      await revalidateDeletedPage();
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Purge failed");
-    } finally {
-      setIsPurging(false);
-    }
-  };
-
   const formatCurrency = (n: number) =>
     `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -255,18 +233,6 @@ export default function DeletedPageClient({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-black tracking-tight">recently deleted</h1>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled={isPurging}
-            onClick={handlePurge}
-            className="rounded-lg border-2 border-slate-900 bg-slate-100 px-2.5
-              py-1 text-xs font-bold text-slate-700 transition
-              hover:-translate-y-0.5 active:translate-y-px active:shadow-none
-              disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800
-              dark:text-slate-200"
-          >
-            {isPurging ? "purging..." : "purge items older than 30 days"}
-          </button>
           {selectedCount > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-slate-500">
