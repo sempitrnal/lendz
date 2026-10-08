@@ -156,6 +156,7 @@ export async function GET(
         );
       })
       .map((row) => ({
+        id: String((row as any).id ?? ""),
         due_date: String((row as any).due_date ?? "").slice(0, 10),
         amount: remainingOnInstallment(row as any),
         status: (row as any).status,

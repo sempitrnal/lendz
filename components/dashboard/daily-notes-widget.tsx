@@ -34,6 +34,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
+import {
+  updateScheduleStatusAction,
+  applyPartialPaymentAction,
+} from "@/lib/actions/schedules";
 
 type ChecklistCategory = {
   id: string;
@@ -64,6 +68,7 @@ function overdueCutoffDateValue() {
 }
 
 type NextCollectionItem = {
+  id: string;
   due_date: string;
   amount: number;
   type: string;
@@ -253,7 +258,7 @@ const MENTION_PILL_CLASS =
   "inline-block rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-xs font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300";
 
 function badgeClassFor(href: string): string | null {
-  const m = href.match(/^#badge:(date|type):(.+)$/);
+  const m = href.match(/^#badge:(date|type):([^|]+)/);
   if (!m) return null;
   const base =
     "inline-block  rounded border px-1 py-px align-middle text-[9px] font-semibold leading-none";
@@ -283,6 +288,33 @@ function escapeRegex(str: string) {
 function extractBorrowerId(href: string): string | null {
   const match = href.match(/\/borrowers\/([^/]+)$/);
   return match?.[1] ?? null;
+}
+
+type ScheduleRef = { id: string; due_date: string };
+
+/** Pulls payment_schedules ids embedded in `/next`-inserted date badges. */
+function extractScheduleRefs(label: string): ScheduleRef[] {
+  const regex = /\[([^\]]*)\]\(#badge:date:([^|)]+)\|([^)]*)\)/g;
+  const refs: ScheduleRef[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(label)) !== null) {
+    const id = match[3];
+    if (id) refs.push({ id, due_date: match[2] });
+  }
+  return refs;
+}
+
+/** Pulls the first borrower mention (name + id) out of a checklist label. */
+function extractBorrowerMention(
+  label: string,
+): { id: string; name: string } | null {
+  const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(label)) !== null) {
+    const id = extractBorrowerId(match[2]);
+    if (id) return { id, name: match[1] };
+  }
+  return null;
 }
 
 type MentionSegment = {
@@ -933,7 +965,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
         frag.appendChild(
           createBadgeSpan(
             formatShortDate(item.due_date),
-            `#badge:date:${item.due_date}`,
+            `#badge:date:${item.due_date}|${item.id}`,
           ),
         );
         frag.appendChild(document.createTextNode(" "));
@@ -1344,6 +1376,305 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
 );
 ChecklistInput.displayName = "ChecklistInput";
 
+type ScheduleDialogRow = {
+  id: string;
+  account_id: string;
+  due_date: string;
+  amount_due: number;
+  amount_paid: number;
+  remaining_amount: number;
+  status: string;
+};
+
+type ScheduleChoice = { status: "paid" | "partial" | null; amount: string };
+
+/**
+ * Shown when checking off a checklist item that was inserted via `/next` —
+ * lets the user mark the linked payment_schedules row(s) as paid/partial
+ * before the item is actually checked.
+ */
+function ScheduleCheckDialog({
+  item,
+  onClose,
+  onConfirmed,
+}: {
+  item: DailyChecklistItem | null;
+  onClose: () => void;
+  onConfirmed: () => void;
+}) {
+  const [rows, setRows] = useState<ScheduleDialogRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [choices, setChoices] = useState<Record<string, ScheduleChoice>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const refs = useMemo(
+    () => (item ? extractScheduleRefs(item.label) : []),
+    [item?.id, item?.label],
+  );
+  const borrowerName = useMemo(
+    () => (item ? extractBorrowerMention(item.label)?.name : null),
+    [item?.id, item?.label],
+  );
+  const open = refs.length > 0;
+
+  useEffect(() => {
+    if (refs.length === 0) {
+      setRows([]);
+      setChoices({});
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    supabase
+      .from("payment_schedules")
+      .select(
+        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
+      )
+      .in(
+        "id",
+        refs.map((r) => r.id),
+      )
+      .then(
+        ({
+          data,
+          error,
+        }: {
+          data: ScheduleDialogRow[] | null;
+          error: { message: string } | null;
+        }) => {
+          if (cancelled) return;
+          if (error) {
+            toast.error(error.message);
+            setRows([]);
+            setChoices({});
+          } else {
+            const fetched = (data ?? []) as ScheduleDialogRow[];
+            setRows(fetched);
+            const initial: Record<string, ScheduleChoice> = {};
+            fetched.forEach((r) => {
+              initial[r.id] = {
+                status: null,
+                amount: String(Math.max(0, Number(r.remaining_amount ?? 0))),
+              };
+            });
+            setChoices(initial);
+          }
+          setLoading(false);
+        },
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, [refs]);
+
+  const setChoice = (id: string, patch: Partial<ScheduleChoice>) => {
+    setChoices((prev) => ({
+      ...prev,
+      [id]: {
+        status: prev[id]?.status ?? null,
+        amount: prev[id]?.amount ?? "",
+        ...patch,
+      },
+    }));
+  };
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    try {
+      await Promise.all(
+        rows.map(async (row) => {
+          const choice = choices[row.id];
+          if (!choice?.status || choice.status === row.status) return;
+          if (choice.status === "paid") {
+            const fd = new FormData();
+            fd.set("scheduleId", row.id);
+            fd.set("status", "paid");
+            fd.set("paidDate", todayDateValue());
+            await updateScheduleStatusAction(row.account_id, fd);
+          } else if (choice.status === "partial") {
+            const amt = Number.parseFloat(choice.amount || "0");
+            if (!Number.isFinite(amt) || amt <= 0) return;
+            const fd = new FormData();
+            fd.set("scheduleId", row.id);
+            fd.set("paymentAmount", String(amt));
+            fd.set("paymentDate", todayDateValue());
+            await applyPartialPaymentAction(fd);
+          }
+        }),
+      );
+      toast.success("Payment schedule updated");
+      onConfirmed();
+    } catch (err) {
+      console.error("ScheduleCheckDialog confirm error:", err);
+      toast.error("Failed to update payment schedule");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader className="gap-3 pb-2">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-full
+              bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40
+              dark:text-emerald-300"
+          >
+            <Check className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <DialogTitle className="text-xl font-semibold tracking-tight">
+              Update payment status
+              {borrowerName ? (
+                <span className="text-muted-foreground font-normal">
+                  {" "}
+                  &middot; {borrowerName}
+                </span>
+              ) : null}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Mark {borrowerName ? `${borrowerName}'s` : "the"} linked
+              collection{rows.length === 1 ? "" : "s"} as paid or partial
+              before checking this off.
+            </DialogDescription>
+          </div>
+        </DialogHeader>
+
+        {loading ? (
+          <div
+            className="py-6 text-center text-sm text-slate-500
+              dark:text-muted-foreground"
+          >
+            Loading…
+          </div>
+        ) : rows.length === 0 ? (
+          <div
+            className="py-6 text-center text-sm text-slate-500
+              dark:text-muted-foreground"
+          >
+            Couldn&apos;t find the linked schedule — it may have been removed.
+          </div>
+        ) : (
+          <div className="space-y-3 pt-2">
+            {rows.map((row) => {
+              const choice = choices[row.id];
+              const chosen = choice?.status ?? null;
+              return (
+                <div
+                  key={row.id}
+                  className="dark:border-border dark:bg-card rounded-lg
+                    border border-slate-200 bg-white p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="text-sm font-semibold text-slate-700
+                        dark:text-foreground"
+                    >
+                      {formatShortDate(row.due_date)}
+                    </span>
+                    <span
+                      className="text-sm text-slate-500
+                        dark:text-muted-foreground"
+                    >
+                      ₱
+                      {Math.max(
+                        0,
+                        Number(row.remaining_amount ?? 0),
+                      ).toLocaleString()}{" "}
+                      due
+                    </span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setChoice(row.id, {
+                          status: chosen === "paid" ? null : "paid",
+                        })
+                      }
+                      disabled={row.status === "paid"}
+                      className={`rounded-md border px-2 py-1.5 text-xs
+                        font-bold tracking-wide uppercase transition ${
+                          chosen === "paid"
+                            ? `border-emerald-500 bg-emerald-200
+                              text-emerald-950 dark:border-emerald-400/50
+                              dark:bg-emerald-400/25 dark:text-emerald-200`
+                            : `border-slate-300 bg-white text-slate-600
+                              hover:border-emerald-500 hover:bg-emerald-50
+                              dark:border-border dark:bg-card
+                              dark:text-muted-foreground`
+                        } ${
+                          row.status === "paid"
+                            ? "cursor-not-allowed opacity-60"
+                            : "cursor-pointer"
+                        }`}
+                    >
+                      Paid
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setChoice(row.id, {
+                          status: chosen === "partial" ? null : "partial",
+                        })
+                      }
+                      className={`cursor-pointer rounded-md border px-2 py-1.5
+                        text-xs font-bold tracking-wide uppercase transition ${
+                          chosen === "partial"
+                            ? `border-violet-500 bg-violet-200
+                              text-violet-950 dark:border-violet-400/50
+                              dark:bg-violet-400/25 dark:text-violet-200`
+                            : `border-slate-300 bg-white text-slate-600
+                              hover:border-violet-500 hover:bg-violet-50
+                              dark:border-border dark:bg-card
+                              dark:text-muted-foreground`
+                        }`}
+                    >
+                      Partial
+                    </button>
+                  </div>
+                  {chosen === "partial" && (
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="0.01"
+                      placeholder="Amount paid"
+                      value={choice?.amount ?? ""}
+                      onChange={(e) =>
+                        setChoice(row.id, { amount: e.target.value })
+                      }
+                      className="dark:border-border dark:bg-background
+                        dark:text-foreground mt-2 w-full rounded-md border
+                        border-slate-300 bg-white px-2 py-1.5 text-sm
+                        font-semibold text-slate-600 outline-none
+                        focus-visible:ring-2 focus-visible:ring-slate-900"
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} disabled={loading || submitting}>
+            {submitting ? "Saving…" : "Confirm & check off"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CategorySection({
   category,
   items,
@@ -1371,6 +1702,8 @@ function CategorySection({
     null,
   );
   const [editLabelValue, setEditLabelValue] = useState("");
+  const [scheduleCheckItem, setScheduleCheckItem] =
+    useState<DailyChecklistItem | null>(null);
   const addInputRef = useRef<ChecklistInputHandle>(null);
   const editInputRef = useRef<ChecklistInputHandle>(null);
   const [expanded, setExpanded] = useState(true);
@@ -1402,7 +1735,12 @@ function CategorySection({
             const amount = Number(c.amount ?? 0);
             const due_date = String(c.due_date ?? "").slice(0, 10);
             if (amount <= 0 || !due_date) continue;
-            items.push({ due_date, amount, type: String(a.type ?? "") });
+            items.push({
+              id: String((c as { id?: unknown }).id ?? ""),
+              due_date,
+              amount,
+              type: String(a.type ?? ""),
+            });
           }
         }
         const overdueCutoff = overdueCutoffDateValue();
@@ -1450,6 +1788,17 @@ function CategorySection({
     if (trimmed) onEditLabel(editingItem.id, trimmed);
     setEditingItem(null);
     setEditLabelValue("");
+  };
+
+  const handleToggle = (item: DailyChecklistItem) => {
+    if (!item.is_checked) {
+      const refs = extractScheduleRefs(item.label);
+      if (refs.length > 0) {
+        setScheduleCheckItem(item);
+        return;
+      }
+    }
+    onToggle(item);
   };
 
   useEffect(() => {
@@ -1577,7 +1926,7 @@ function CategorySection({
               {sorted.map((item) => (
                 <li
                   key={item.id}
-                  onClick={() => onToggle(item)}
+                  onClick={() => handleToggle(item)}
                   className={`group flex cursor-pointer items-center gap-3
                     rounded-xl border px-3 py-2.5 transition-all duration-200 ${
                       item.is_checked
@@ -1592,7 +1941,7 @@ function CategorySection({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onToggle(item);
+                      handleToggle(item);
                     }}
                     title={item.is_checked ? "Uncheck" : "Check"}
                     className={`flex size-5 shrink-0 items-center justify-center
@@ -1769,6 +2118,16 @@ function CategorySection({
           )}
         </DialogContent>
       </Dialog>
+
+      <ScheduleCheckDialog
+        item={scheduleCheckItem}
+        onClose={() => setScheduleCheckItem(null)}
+        onConfirmed={() => {
+          const item = scheduleCheckItem;
+          setScheduleCheckItem(null);
+          if (item) onToggle(item);
+        }}
+      />
     </div>
   );
 }
