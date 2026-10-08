@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import webpush from "web-push";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { purgeOldDeletedItems } from "@/lib/purge-deleted";
 import { cookies } from "next/headers";
 
 function initVapid() {
@@ -26,8 +25,7 @@ export async function GET(req: NextRequest) {
     .select("endpoint, p256dh, auth");
 
   if (!subs?.length) {
-    const purge = await purgeOldDeletedItems();
-    return NextResponse.json({ sent: 0, ...purge });
+    return NextResponse.json({ sent: 0 });
   }
 
   const payload = JSON.stringify({
@@ -50,7 +48,5 @@ export async function GET(req: NextRequest) {
   const sent = results.filter((r) => r.status === "fulfilled").length;
   const failed = results.length - sent;
 
-  const purge = await purgeOldDeletedItems();
-
-  return NextResponse.json({ sent, failed, ...purge });
+  return NextResponse.json({ sent, failed });
 }
