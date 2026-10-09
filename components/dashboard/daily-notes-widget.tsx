@@ -2,15 +2,12 @@
 
 import {
   Fragment,
-  forwardRef,
   useCallback,
   useEffect,
-  useImperativeHandle,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -34,57 +31,27 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
-import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
+import type {
+  ChecklistCategory,
+  DailyChecklistItem,
+  DueChecklistGroup,
+} from "@/lib/checklist/types";
 import {
-  updateScheduleStatusAction,
-  applyPartialPaymentAction,
-} from "@/lib/actions/schedules";
-import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
-import type { DueChecklistGroup } from "@/app/api/checklist/due/route";
-
-type ChecklistCategory = {
-  id: string;
-  name: string;
-  color: string;
-  sort_order: number;
-};
-
-type DailyChecklistItem = {
-  id: string;
-  checklist_date: string;
-  label: string;
-  is_checked: boolean;
-  sort_order: number;
-  created_at: string;
-  category_id: string | null;
-  daily_checklist_categories: ChecklistCategory | null;
-};
-
-function todayDateValue() {
-  return new Date().toLocaleDateString("en-CA");
-}
-
-function overdueCutoffDateValue() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toLocaleDateString("en-CA");
-}
-
-type NextCollectionItem = {
-  id: string;
-  due_date: string;
-  amount: number;
-  type: string;
-  /** Already present in the text being edited (pre-checked in the dropdown). */
-  existing?: boolean;
-};
-
-function formatShortDate(iso: string) {
-  return new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-}
+  buildDueLabel,
+  extractScheduleRefs,
+  type NextCollectionItem,
+} from "@/lib/checklist/labels";
+import { summarizeChecklist } from "@/lib/checklist/totals";
+import { overdueCutoffDateValue, todayDateValue } from "@/lib/checklist/dates";
+import {
+  ChecklistInput,
+  type ChecklistInputHandle,
+} from "@/components/dashboard/checklist/checklist-input";
+import { LinkedLabel } from "@/components/dashboard/checklist/checklist-label";
+import {
+  BulkPaidDialog,
+  ScheduleCheckDialog,
+} from "@/components/dashboard/checklist/payment-dialogs";
 
 /** Lighten a hex color to a soft tint on white */
 function tintColor(hex: string, opacity = 0.08): string {
@@ -108,453 +75,6 @@ function darkTintColor(hex: string, opacity = 0.15): string {
   return `rgb(${blend(r, bgR)}, ${blend(g, bgG)}, ${blend(b, bgB)})`;
 }
 
-function LinkedLabel({
-  label,
-  checked,
-  borrowers,
-}: {
-  label: string;
-  checked: boolean;
-  borrowers: BorrowerSearchItem[];
-}) {
-  const names = useMemo(() => {
-    return new Map(borrowers.map((b) => [`${b.first_name} ${b.last_name}`, b]));
-  }, [borrowers]);
-
-  const amountPattern = /(?:₱\s*)?\b(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\b/;
-
-  const isAmountBlock = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return false;
-    return trimmed.split("\n").every((line) => amountPattern.test(line.trim()));
-  };
-
-  const strike = (text: string, key: string, preserveWs = false) => {
-    if (!text) return null;
-    if (isAmountBlock(text)) {
-      if (!preserveWs) {
-        return (
-          <span key={key} className="inline-block w-full pl-2 pt-2">
-            <span className={checked ? "line-through" : ""}>{text.trim()}</span>
-          </span>
-        );
-      }
-      const leading = text.match(/^\s*/)?.[0] ?? "";
-      const trailing = text.match(/\s*$/)?.[0] ?? "";
-      return (
-        <span key={key}>
-          {leading}
-          <span className="inline-block pl-2 pt-2">
-            <span className={checked ? "line-through" : ""}>{text.trim()}</span>
-          </span>
-          {trailing}
-        </span>
-      );
-    }
-    return (
-      <span key={key} className={checked ? "line-through" : ""}>
-        {text}
-      </span>
-    );
-  };
-
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
-  let match: RegExpExecArray | null;
-  let prevBadge = false;
-  while ((match = regex.exec(label)) !== null) {
-    const isBadge = match[2].startsWith("#badge:");
-    if (match.index > lastIndex) {
-      parts.push(
-        strike(
-          label.slice(lastIndex, match.index),
-          `md-${lastIndex}`,
-          prevBadge || isBadge,
-        ),
-      );
-    }
-    parts.push(
-      <MentionPill
-        key={match.index}
-        name={match[1]}
-        href={match[2]}
-        checked={checked}
-      />,
-    );
-    prevBadge = isBadge;
-    lastIndex = regex.lastIndex;
-  }
-  const tail = label.slice(lastIndex);
-  if (tail) {
-    let offset = 0;
-    names.forEach((borrower, name) => {
-      const idx = tail.indexOf(name, offset);
-      if (idx !== -1) {
-        if (idx > offset) {
-          parts.push(
-            strike(
-              tail.slice(offset, idx),
-              `tail-${offset}`,
-              prevBadge && offset === 0,
-            ),
-          );
-        }
-        parts.push(
-          <MentionPill
-            key={`${borrower.id}-${idx}`}
-            name={name}
-            href={`/borrowers/${borrower.id}`}
-            checked={checked}
-          />,
-        );
-        offset = idx + name.length;
-      }
-    });
-    if (offset < tail.length) {
-      parts.push(
-        strike(tail.slice(offset), "tail-end", prevBadge && offset === 0),
-      );
-    }
-  }
-  return <>{parts}</>;
-}
-
-function MentionPill({
-  name,
-  href,
-  checked,
-}: {
-  name: string;
-  href: string;
-  checked: boolean;
-}) {
-  const badgeClass = badgeClassFor(href);
-  if (badgeClass) {
-    return (
-      <span
-        className={`${badgeClass} ${checked ? "opacity-50 line-through" : ""}`}
-      >
-        {name}
-      </span>
-    );
-  }
-  return (
-    <Link
-      href={href}
-      prefetch
-      onClick={(e) => e.stopPropagation()}
-      className={`inline-block lowercase rounded-md border px-2 pl-2.5 py-1
-        text-sm font-semibold leading-none transition-opacity hover:opacity-70
-        ${
-          checked
-            ? `border-slate-200 text-slate-400 dark:border-muted-foreground/30
-              dark:text-muted-foreground/60`
-            : `border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-800
-              dark:bg-sky-900/20 dark:text-sky-300`
-        }`}
-    >
-      {name}
-    </Link>
-  );
-}
-
-const MENTION_PILL_CLASS =
-  "inline-block rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-xs font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300";
-
-function badgeClassFor(href: string): string | null {
-  const m = href.match(/^#badge:(date|type):([^|]+)/);
-  if (!m) return null;
-  const base =
-    "inline-block  rounded border px-1 py-px align-middle text-[9px] font-semibold leading-none";
-  if (m[1] === "type") {
-    return m[2] === "cash_advance"
-      ? `${base} lowercase border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200`
-      : `${base} lowercase border-violet-300/60 bg-violet-100 text-violet-800 dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-200`;
-  }
-  return m[2] < overdueCutoffDateValue()
-    ? `${base} border-rose-300/60 bg-rose-100 text-rose-700 dark:border-rose-700 dark:bg-rose-900/40 dark:text-rose-200`
-    : `${base} border-slate-300/70 bg-slate-100 text-slate-600 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-300`;
-}
-
-function createBadgeSpan(text: string, href: string) {
-  const span = document.createElement("span");
-  span.contentEditable = "false";
-  span.className = badgeClassFor(href) ?? "";
-  span.textContent = text;
-  span.dataset.href = href;
-  return span;
-}
-
-function escapeRegex(str: string) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function extractBorrowerId(href: string): string | null {
-  const match = href.match(/\/borrowers\/([^/]+)$/);
-  return match?.[1] ?? null;
-}
-
-type ScheduleRef = { id: string; due_date: string };
-
-/** Pulls payment_schedules ids embedded in `/next`-inserted date badges. */
-function extractScheduleRefs(label: string): ScheduleRef[] {
-  const regex = /\[([^\]]*)\]\(#badge:date:([^|)]+)\|([^)]*)\)/g;
-  const refs: ScheduleRef[] = [];
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(label)) !== null) {
-    const id = match[3];
-    if (id) refs.push({ id, due_date: match[2] });
-  }
-  return refs;
-}
-
-/** Pulls the first borrower mention (name + id) out of a checklist label. */
-function extractBorrowerMention(
-  label: string,
-): { id: string; name: string } | null {
-  const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(label)) !== null) {
-    const id = extractBorrowerId(match[2]);
-    if (id) return { id, name: match[1] };
-  }
-  return null;
-}
-
-const NEXT_LINE =
-  /^\s*₱\s*([\d,]+(?:\.\d+)?)\s+\[[^\]]*\]\(#badge:date:(\d{4}-\d{2}-\d{2})\|([^)\s]+)\)(?:\s+\[[^\]]*\]\(#badge:type:(loan|cash_advance)\))?\s*$/;
-const TOTAL_LINE = /^\s*Total:\s*₱[\d,.]+\s*$/;
-const NEXT_MARK = "\u0000";
-
-/** Collection lines (amount + date badge carrying a schedule id) in a label. */
-function parseExistingNext(label: string): NextCollectionItem[] {
-  const items: NextCollectionItem[] = [];
-  for (const line of label.replace("/next", "").split("\n")) {
-    const m = line.match(NEXT_LINE);
-    if (!m) continue;
-    items.push({
-      id: m[3],
-      due_date: m[2],
-      amount: Number(m[1].replace(/,/g, "")),
-      type: m[4] ?? "loan",
-      existing: true,
-    });
-  }
-  return items;
-}
-
-/**
- * Replaces every linked collection line (and its Total line) in `label` with
- * `selected`, written where the `/next` token was typed (or at the end when
- * the dropdown was opened from the button).
- */
-function rewriteNextBlock(
-  label: string,
-  selected: NextCollectionItem[],
-): string {
-  const tokenIdx = label.indexOf("/next");
-  const trimmed = label.trimEnd();
-  const marked =
-    tokenIdx === -1
-      ? trimmed
-        ? `${trimmed}\n${NEXT_MARK}`
-        : NEXT_MARK
-      : label.slice(0, tokenIdx) + NEXT_MARK + label.slice(tokenIdx + 5);
-
-  const lines: string[] = [];
-  let prevRemoved = false;
-  for (const line of marked.split("\n")) {
-    const bare = line.replace(NEXT_MARK, "");
-    const hadMark = bare.length !== line.length;
-    const remove: boolean =
-      NEXT_LINE.test(bare) || (prevRemoved && TOTAL_LINE.test(bare));
-    prevRemoved = remove;
-    if (!remove) lines.push(line);
-    else if (hadMark) lines.push(NEXT_MARK);
-  }
-
-  const block = selected.map(
-    (i) =>
-      `₱${i.amount.toLocaleString()} [${formatShortDate(i.due_date)}](#badge:date:${i.due_date}|${i.id}) [${i.type === "cash_advance" ? "CA" : "Loan"}](#badge:type:${i.type})`,
-  );
-  if (selected.length > 1) {
-    const total = selected.reduce((sum, i) => sum + i.amount, 0);
-    block.push(`Total: ₱${total.toLocaleString()}`);
-  }
-  const blockText = block.join("\n");
-
-  const out: string[] = [];
-  for (const line of lines) {
-    if (!line.includes(NEXT_MARK)) {
-      out.push(line);
-      continue;
-    }
-    const [before, after] = line.split(NEXT_MARK);
-    const head = before.trimEnd();
-    const tail = after.trimStart();
-    if (head) out.push(head);
-    if (blockText) out.push(blockText);
-    if (tail) out.push(tail);
-  }
-  return out.join("\n");
-}
-
-/** Same text/badge format the `/next` flow produces, one borrower per item. */
-function buildDueLabel(group: DueChecklistGroup): string {
-  const lines = group.items.map(
-    (i) =>
-      `₱${i.amount.toLocaleString()} [${formatShortDate(i.due_date)}](#badge:date:${i.due_date}|${i.id}) [${i.type === "cash_advance" ? "CA" : "Loan"}](#badge:type:${i.type})`,
-  );
-  const mention = `[${group.name.toLowerCase()}](/borrowers/${group.borrower_id})`;
-  const total = group.items.reduce((sum, i) => sum + i.amount, 0);
-  return [
-    mention,
-    ...lines,
-    ...(group.items.length > 1 ? [`Total: ₱${total.toLocaleString()}`] : []),
-  ].join("\n");
-}
-
-type MentionSegment = {
-  start: number;
-  end: number;
-  name: string;
-  id: string | null;
-  href: string | null;
-};
-
-function parseMentions(
-  label: string,
-  borrowers: BorrowerSearchItem[],
-): MentionSegment[] {
-  const names = new Map(
-    borrowers.map((b) => [`${b.first_name} ${b.last_name}`, b]),
-  );
-  const matches: MentionSegment[] = [];
-
-  const mdRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-  let mdMatch: RegExpExecArray | null;
-  while ((mdMatch = mdRegex.exec(label)) !== null) {
-    const name = mdMatch[1];
-    const href = mdMatch[2];
-    matches.push({
-      start: mdMatch.index,
-      end: mdRegex.lastIndex,
-      name,
-      id: extractBorrowerId(href),
-      href,
-    });
-  }
-
-  const nameMatches: MentionSegment[] = [];
-  names.forEach((borrower, name) => {
-    const re = new RegExp(`\\b${escapeRegex(name)}\\b`, "g");
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(label)) !== null) {
-      if (
-        matches.some(
-          (mm) => m!.index >= mm.start && m!.index + name.length <= mm.end,
-        )
-      ) {
-        continue;
-      }
-      nameMatches.push({
-        start: m.index,
-        end: m.index + name.length,
-        name,
-        id: borrower.id,
-        href: `/borrowers/${borrower.id}`,
-      });
-    }
-  });
-
-  const all = [...matches, ...nameMatches].sort((a, b) => {
-    if (a.start !== b.start) return a.start - b.start;
-    return b.end - a.end;
-  });
-
-  const result: MentionSegment[] = [];
-  let lastEnd = -1;
-  for (const m of all) {
-    if (m.start >= lastEnd) {
-      result.push(m);
-      lastEnd = m.end;
-    }
-  }
-  return result;
-}
-
-function labelToFragment(label: string, borrowers: BorrowerSearchItem[]) {
-  const fragment = document.createDocumentFragment();
-  const matches = parseMentions(label, borrowers);
-  let idx = 0;
-  for (const m of matches) {
-    if (m.start > idx) {
-      appendTextWithBreaks(fragment, label.slice(idx, m.start));
-    }
-    const span = document.createElement("span");
-    span.contentEditable = "false";
-    span.className = (m.href && badgeClassFor(m.href)) ?? MENTION_PILL_CLASS;
-    span.textContent = m.name;
-    if (m.id) span.dataset.mention = m.id;
-    else if (m.href) span.dataset.href = m.href;
-    fragment.appendChild(span);
-    idx = m.end;
-  }
-  if (idx < label.length) {
-    appendTextWithBreaks(fragment, label.slice(idx));
-  }
-  return fragment;
-}
-
-function appendTextWithBreaks(parent: Node, text: string) {
-  const parts = text.split("\n");
-  parts.forEach((part, i) => {
-    parent.appendChild(document.createTextNode(part));
-    if (i < parts.length - 1) {
-      parent.appendChild(document.createTextNode("\n"));
-    }
-  });
-}
-
-function serializeContent(el: HTMLElement): string {
-  let result = "";
-  const children = Array.from(el.childNodes);
-  for (let i = 0; i < children.length; i++) {
-    const node = children[i];
-    if (node.nodeType === Node.TEXT_NODE) {
-      result += node.textContent ?? "";
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const element = node as HTMLElement;
-      if (element.tagName === "BR") {
-        result += "\n";
-      } else if (element.dataset.mention && element.textContent) {
-        result += `[${element.textContent}](/borrowers/${element.dataset.mention})`;
-      } else if (element.dataset.href && element.textContent) {
-        result += `[${element.textContent}](${element.dataset.href})`;
-      } else if (
-        element.tagName === "DIV" ||
-        element.tagName === "P" ||
-        element.tagName === "PRE" ||
-        element.tagName === "SPAN"
-      ) {
-        result += serializeContent(element);
-        if (
-          i < children.length - 1 &&
-          (element.tagName === "DIV" ||
-            element.tagName === "P" ||
-            element.tagName === "PRE")
-        ) {
-          result += "\n";
-        }
-      } else {
-        result += element.textContent ?? "";
-      }
-    }
-  }
-  return result;
-}
-
 function formatChecklistDate(iso: string): string {
   const date = new Date(iso);
   return date.toLocaleString("en-US", {
@@ -564,138 +84,6 @@ function formatChecklistDate(iso: string): string {
     minute: "2-digit",
     hour12: true,
   });
-}
-
-function getCaretOffset(container: HTMLElement): number {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return 0;
-  const range = selection.getRangeAt(0);
-  const preCaretRange = range.cloneRange();
-  preCaretRange.selectNodeContents(container);
-  preCaretRange.setEnd(range.endContainer, range.endOffset);
-  return preCaretRange.toString().length;
-}
-
-function setCaretOffset(container: HTMLElement, offset: number) {
-  const selection = window.getSelection();
-  const range = document.createRange();
-  let currentOffset = 0;
-  let found = false;
-
-  function traverse(node: Node) {
-    if (found) return;
-    if (node.nodeType === Node.TEXT_NODE) {
-      const len = node.textContent?.length ?? 0;
-      if (currentOffset + len >= offset) {
-        range.setStart(node, Math.max(0, offset - currentOffset));
-        range.collapse(true);
-        found = true;
-      } else {
-        currentOffset += len;
-      }
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const el = node as HTMLElement;
-      if (el.contentEditable === "false") {
-        const len = el.textContent?.length ?? 0;
-        if (currentOffset + len >= offset) {
-          const pos = offset - currentOffset;
-          if (pos <= 0) {
-            range.setStartBefore(el);
-          } else {
-            range.setStartAfter(el);
-          }
-          range.collapse(true);
-          found = true;
-        } else {
-          currentOffset += len;
-        }
-        return;
-      }
-      for (const child of Array.from(node.childNodes)) {
-        traverse(child);
-        if (found) return;
-      }
-    }
-  }
-
-  traverse(container);
-  if (!found) {
-    range.selectNodeContents(container);
-    range.collapse(false);
-  }
-  selection?.removeAllRanges();
-  selection?.addRange(range);
-}
-
-function getRangeForOffsets(
-  container: HTMLElement,
-  start: number,
-  end: number,
-): Range | null {
-  const range = document.createRange();
-  let currentOffset = 0;
-  let startSet = false;
-  let endSet = false;
-
-  function traverse(node: Node) {
-    if (endSet) return;
-    if (node.nodeType === Node.TEXT_NODE) {
-      const len = node.textContent?.length ?? 0;
-      if (!startSet && currentOffset + len >= start) {
-        range.setStart(node, Math.max(0, start - currentOffset));
-        startSet = true;
-      }
-      if (startSet && currentOffset + len >= end) {
-        range.setEnd(node, Math.max(0, end - currentOffset));
-        endSet = true;
-        return;
-      }
-      currentOffset += len;
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const el = node as HTMLElement;
-      if (el.contentEditable === "false") {
-        const len = el.textContent?.length ?? 0;
-        if (!startSet && currentOffset + len >= start) {
-          const pos = start - currentOffset;
-          if (pos <= 0) range.setStartBefore(el);
-          else range.setStartAfter(el);
-          startSet = true;
-        }
-        if (startSet && currentOffset + len >= end) {
-          const pos = end - currentOffset;
-          if (pos <= 0) range.setEndBefore(el);
-          else range.setEndAfter(el);
-          endSet = true;
-          return;
-        }
-        currentOffset += len;
-        return;
-      }
-      for (const child of Array.from(node.childNodes)) {
-        traverse(child);
-        if (endSet) return;
-      }
-    }
-  }
-
-  traverse(container);
-  if (!startSet) return null;
-  if (!endSet) {
-    range.setEnd(range.startContainer, range.startOffset);
-  }
-  return range;
-}
-
-function insertNodeAtCaret(node: Node): Range | null {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return null;
-  const range = selection.getRangeAt(0);
-  range.deleteContents();
-  range.insertNode(node);
-  range.collapse(false);
-  selection.removeAllRanges();
-  selection.addRange(range);
-  return range;
 }
 
 function readableColor(hex: string, isDark: boolean): string {
@@ -716,1167 +104,6 @@ function readableColor(hex: string, isDark: boolean): string {
   return hex;
 }
 
-type ChecklistInputHandle = {
-  getValue: () => string;
-  submit: () => void;
-  clear: () => void;
-  focus: () => void;
-  openNext: () => void;
-};
-
-type ChecklistInputProps = {
-  defaultValue?: string;
-  onChange?: (value: string) => void;
-  onSubmit?: (value: string) => void;
-  placeholder?: string;
-  borrowers: BorrowerSearchItem[];
-  showPesoButton?: boolean;
-  autoFocus?: boolean;
-  className?: string;
-  getBorrowerNextAmounts?: (
-    borrowerId: string,
-  ) => Promise<NextCollectionItem[]>;
-};
-
-const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
-  (
-    {
-      defaultValue = "",
-      onChange,
-      onSubmit,
-      placeholder,
-      borrowers,
-      showPesoButton = false,
-      autoFocus = false,
-      className,
-      getBorrowerNextAmounts,
-    },
-    ref,
-  ) => {
-    const innerRef = useRef<HTMLDivElement>(null);
-    const [focused, setFocused] = useState(false);
-    const [mentionOpen, setMentionOpen] = useState(false);
-    const [mentionQuery, setMentionQuery] = useState("");
-    const [mentionIndex, setMentionIndex] = useState(0);
-    const [mentionStart, setMentionStart] = useState<number | null>(null);
-    const wrapperRef = useRef<HTMLDivElement>(null);
-    const lastMentionedBorrowerRef = useRef<string | null>(null);
-    const isProcessingNextRef = useRef(false);
-    const [nextOpen, setNextOpen] = useState(false);
-    const [nextLoading, setNextLoading] = useState(false);
-    const [nextItems, setNextItems] = useState<NextCollectionItem[]>([]);
-    const [nextIndex, setNextIndex] = useState(0);
-    const [nextSelected, setNextSelected] = useState<Set<number>>(new Set());
-    const nextTokenStartRef = useRef<number | null>(null);
-    const tokenlessRef = useRef(false);
-    const nextDropdownRef = useRef<HTMLDivElement>(null);
-    const [nextAnchor, setNextAnchor] = useState<{
-      top?: number;
-      bottom?: number;
-      left: number;
-      width: number;
-      maxHeight: number;
-    } | null>(null);
-    const nextTotal = nextItems.reduce((sum, i) => sum + i.amount, 0);
-    const isMobile = useMemo(
-      () =>
-        /iPad|iPhone|iPod|Android/.test(navigator.userAgent) &&
-        !(window as any).MSStream,
-      [],
-    );
-
-    useEffect(() => {
-      const el = innerRef.current;
-      if (!el) return;
-      el.innerHTML = "";
-      if (defaultValue) {
-        el.appendChild(labelToFragment(defaultValue, borrowers));
-      }
-      const pills = el.querySelectorAll("[data-mention]");
-      lastMentionedBorrowerRef.current = pills.length
-        ? ((pills[pills.length - 1] as HTMLElement).dataset.mention ?? null)
-        : null;
-      const text = el.textContent ?? "";
-      onChange?.(text);
-      setMentionOpen(false);
-      setMentionQuery("");
-      setMentionStart(null);
-    }, [defaultValue, borrowers]);
-
-    useEffect(() => {
-      if (autoFocus) innerRef.current?.focus();
-    }, [autoFocus]);
-
-    useEffect(() => {
-      const handler = (e: MouseEvent) => {
-        const target = e.target as Node;
-        if (
-          wrapperRef.current &&
-          !wrapperRef.current.contains(target) &&
-          !nextDropdownRef.current?.contains(target)
-        ) {
-          setMentionOpen(false);
-          setNextOpen(false);
-        }
-      };
-      document.addEventListener("mousedown", handler);
-      return () => document.removeEventListener("mousedown", handler);
-    }, []);
-
-    const mentionSuggestions = useMemo(() => {
-      const q = mentionQuery.toLowerCase();
-      if (!q) return borrowers.slice(0, 6);
-      return borrowers
-        .filter(
-          (b) =>
-            b.first_name.toLowerCase().includes(q) ||
-            b.last_name.toLowerCase().includes(q) ||
-            `${b.first_name} ${b.last_name}`.toLowerCase().includes(q),
-        )
-        .slice(0, 6);
-    }, [borrowers, mentionQuery]);
-
-    const insertPeso = () => {
-      const el = innerRef.current;
-      if (!el) return;
-      el.focus();
-      insertNodeAtCaret(document.createTextNode("₱"));
-      const text = el.textContent ?? "";
-      onChange?.(text);
-      detectMention(text, getCaretOffset(el));
-    };
-
-    const detectMention = (text: string, cursor: number) => {
-      const textBeforeCursor = text.slice(0, cursor);
-      const atIndex = textBeforeCursor.lastIndexOf("@");
-      if (atIndex === -1) {
-        setMentionOpen(false);
-        setMentionQuery("");
-        setMentionStart(null);
-        return;
-      }
-      const query = textBeforeCursor.slice(atIndex + 1);
-      if (/\s/.test(query)) {
-        setMentionOpen(false);
-        setMentionQuery("");
-        setMentionStart(null);
-        return;
-      }
-      setMentionOpen(true);
-      setMentionQuery(query);
-      setMentionStart(atIndex);
-      setMentionIndex(0);
-    };
-
-    const insertMention = (borrower: BorrowerSearchItem) => {
-      if (mentionStart === null) return;
-      const el = innerRef.current;
-      if (!el) return;
-      lastMentionedBorrowerRef.current = borrower.id;
-      const label = `${borrower.first_name} ${borrower.last_name}`;
-      const span = document.createElement("span");
-      span.contentEditable = "false";
-      span.className = MENTION_PILL_CLASS;
-      span.textContent = label.toLowerCase();
-      span.dataset.mention = borrower.id;
-
-      el.focus();
-      setCaretOffset(el, mentionStart);
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const startRange = selection.getRangeAt(0);
-        setCaretOffset(el, mentionStart + 1 + mentionQuery.length);
-        const endRange = selection.getRangeAt(0);
-        const fullRange = document.createRange();
-        fullRange.setStart(startRange.startContainer, startRange.startOffset);
-        fullRange.setEnd(endRange.endContainer, endRange.endOffset);
-        fullRange.deleteContents();
-        fullRange.insertNode(span);
-        const afterSpan = document.createRange();
-        afterSpan.setStartAfter(span);
-        afterSpan.setEndAfter(span);
-        afterSpan.insertNode(document.createTextNode(" "));
-        afterSpan.collapse(false);
-        el.focus();
-        selection.removeAllRanges();
-        selection.addRange(afterSpan);
-      } else {
-        const fallback = insertNodeAtCaret(span);
-        if (fallback) {
-          const afterSpan = document.createRange();
-          afterSpan.setStartAfter(span);
-          afterSpan.setEndAfter(span);
-          afterSpan.insertNode(document.createTextNode(" "));
-          afterSpan.collapse(false);
-          el.focus();
-          const sel = window.getSelection();
-          sel?.removeAllRanges();
-          sel?.addRange(afterSpan);
-        }
-      }
-
-      const text = el.textContent ?? "";
-      onChange?.(text);
-      setMentionOpen(false);
-      setMentionQuery("");
-      setMentionStart(null);
-    };
-
-    const replaceNextToken = (insertNode: Node | null) => {
-      const el = innerRef.current;
-      if (!el) return;
-      const text = el.textContent ?? "";
-      let start = nextTokenStartRef.current ?? -1;
-      if (start < 0 || text.slice(start, start + 5) !== "/next") {
-        start = text.indexOf("/next");
-      }
-      if (start === -1) return;
-      let end = start + 5;
-      if (start > 0 && /\s/.test(text[start - 1])) start -= 1;
-      if (end < text.length && /\s/.test(text[end])) end += 1;
-      const range = getRangeForOffsets(el, start, end);
-      if (!range) return;
-      range.deleteContents();
-      if (insertNode) {
-        const insertLen = insertNode.textContent?.length ?? 0;
-        range.insertNode(insertNode);
-        setCaretOffset(el, start + insertLen);
-      }
-      onChange?.(el.textContent ?? "");
-    };
-
-    const openNextDropdown = async (matchStart: number | null) => {
-      const borrowerId = lastMentionedBorrowerRef.current;
-      if (!getBorrowerNextAmounts || !borrowerId) return;
-      const el = innerRef.current;
-      if (!el) return;
-      isProcessingNextRef.current = true;
-      nextTokenStartRef.current = matchStart;
-      tokenlessRef.current = matchStart === null;
-      const rect = el.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      const openUp = spaceBelow < 260 && spaceAbove > spaceBelow;
-      setNextAnchor(
-        openUp
-          ? {
-              bottom: window.innerHeight - rect.top + 4,
-              left: rect.left,
-              width: rect.width,
-              maxHeight: Math.min(spaceAbove - 12, 320),
-            }
-          : {
-              top: rect.bottom + 4,
-              left: rect.left,
-              width: rect.width,
-              maxHeight: Math.min(spaceBelow - 12, 320),
-            },
-      );
-      setNextItems([]);
-      setNextSelected(new Set());
-      setNextIndex(0);
-      setNextLoading(true);
-      setNextOpen(true);
-      try {
-        const fetched = await getBorrowerNextAmounts(borrowerId);
-        const present = parseExistingNext(serializeContent(el));
-        const presentIds = new Set(present.map((p) => p.id));
-        const fetchedIds = new Set(fetched.map((f) => f.id));
-        const items = [
-          ...fetched.map((f) => ({ ...f, existing: presentIds.has(f.id) })),
-          ...present.filter((p) => !fetchedIds.has(p.id)),
-        ].sort(
-          (a, b) =>
-            a.due_date.localeCompare(b.due_date) ||
-            a.type.localeCompare(b.type),
-        );
-        if (!items.length) {
-          setNextOpen(false);
-          if (!tokenlessRef.current) replaceNextToken(null);
-          toast.info("No pending collections");
-        } else {
-          setNextItems(items);
-          setNextSelected(
-            new Set(items.flatMap((item, i) => (item.existing ? [i] : []))),
-          );
-        }
-      } catch (err) {
-        console.error("openNextDropdown error:", err);
-        setNextOpen(false);
-        toast.error("Failed to load next collection amounts");
-      } finally {
-        setNextLoading(false);
-        isProcessingNextRef.current = false;
-        const text = el.textContent ?? "";
-        onChange?.(text);
-        detectMention(text, getCaretOffset(el));
-      }
-    };
-
-    const openNextFromButton = () => {
-      if (!getBorrowerNextAmounts) return;
-      const el = innerRef.current;
-      if (!el) return;
-      if (nextOpen) {
-        setNextOpen(false);
-        return;
-      }
-      const pills = el.querySelectorAll("[data-mention]");
-      lastMentionedBorrowerRef.current = pills.length
-        ? ((pills[pills.length - 1] as HTMLElement).dataset.mention ?? null)
-        : null;
-      if (!lastMentionedBorrowerRef.current) {
-        toast.info("Mention a borrower first (@name)");
-        return;
-      }
-      if (!isMobile) el.focus();
-      void openNextDropdown(null);
-    };
-
-    useImperativeHandle(ref, () => ({
-      getValue: () =>
-        innerRef.current ? serializeContent(innerRef.current) : "",
-      submit: () => {
-        const el = innerRef.current;
-        if (!el || !onSubmit) return;
-        const value = serializeContent(el).trim();
-        if (!value) return;
-        onSubmit(value);
-        el.innerHTML = "";
-        onChange?.("");
-      },
-      clear: () => {
-        const el = innerRef.current;
-        if (!el) return;
-        el.innerHTML = "";
-        onChange?.("");
-      },
-      focus: () => innerRef.current?.focus(),
-      openNext: () => openNextFromButton(),
-    }));
-
-    const toggleNextItem = (index: number) => {
-      setNextSelected((prev) => {
-        const next = new Set(prev);
-        if (next.has(index)) next.delete(index);
-        else next.add(index);
-        return next;
-      });
-    };
-
-    const toggleNextAll = () => {
-      setNextSelected((prev) =>
-        prev.size === nextItems.length
-          ? new Set()
-          : new Set(nextItems.map((_, i) => i)),
-      );
-    };
-
-    const insertNextItems = (selected: NextCollectionItem[]) => {
-      const useRewrite =
-        tokenlessRef.current || nextItems.some((item) => item.existing);
-      if (useRewrite) {
-        const el = innerRef.current;
-        const next = el
-          ? rewriteNextBlock(serializeContent(el), selected)
-          : null;
-        if (el && next !== null) {
-          el.innerHTML = "";
-          el.appendChild(labelToFragment(next, borrowers));
-          setCaretOffset(el, (el.textContent ?? "").length);
-          const pills = el.querySelectorAll("[data-mention]");
-          lastMentionedBorrowerRef.current = pills.length
-            ? ((pills[pills.length - 1] as HTMLElement).dataset.mention ?? null)
-            : null;
-          onChange?.(el.textContent ?? "");
-        }
-        setNextOpen(false);
-        setNextItems([]);
-        setNextSelected(new Set());
-        return;
-      }
-      if (!selected.length) return;
-      const frag = document.createDocumentFragment();
-      frag.appendChild(document.createTextNode("\n"));
-      selected.forEach((item, i) => {
-        if (i > 0) frag.appendChild(document.createTextNode("\n"));
-        frag.appendChild(
-          document.createTextNode(`₱${item.amount.toLocaleString()}`),
-        );
-        const hasDate = Boolean(item.due_date);
-        const typeOk = item.type === "loan" || item.type === "cash_advance";
-        if (!hasDate && !typeOk) return;
-        if (!hasDate || !typeOk) {
-          const bits = [
-            hasDate ? formatShortDate(item.due_date) : "",
-            typeOk
-              ? item.type === "cash_advance"
-                ? "Cash Advance"
-                : "Loan"
-              : "",
-          ].filter(Boolean);
-          frag.appendChild(document.createTextNode(` (${bits.join(", ")})`));
-          return;
-        }
-        frag.appendChild(document.createTextNode(" "));
-        frag.appendChild(
-          createBadgeSpan(
-            formatShortDate(item.due_date),
-            `#badge:date:${item.due_date}|${item.id}`,
-          ),
-        );
-        frag.appendChild(document.createTextNode(" "));
-        frag.appendChild(
-          createBadgeSpan(
-            item.type === "cash_advance" ? "CA" : "Loan",
-            `#badge:type:${item.type}`,
-          ),
-        );
-      });
-      if (selected.length > 1) {
-        const total = selected.reduce((sum, i) => sum + i.amount, 0);
-        frag.appendChild(
-          document.createTextNode(`\nTotal: ₱${total.toLocaleString()}`),
-        );
-      }
-      replaceNextToken(frag);
-      setNextOpen(false);
-      setNextItems([]);
-      setNextSelected(new Set());
-    };
-
-    const insertNextHighlightedOrSelected = () => {
-      const selected = nextItems.filter((_, i) => nextSelected.has(i));
-      if (selected.length || nextItems.some((item) => item.existing)) {
-        insertNextItems(selected);
-      } else {
-        const hasAll = nextItems.length > 1;
-        const item = nextItems[hasAll ? nextIndex - 1 : nextIndex];
-        if (item) insertNextItems([item]);
-      }
-    };
-
-    const detectSlashCommand = (text: string, cursor: number) => {
-      if (
-        isProcessingNextRef.current ||
-        nextOpen ||
-        !getBorrowerNextAmounts ||
-        !lastMentionedBorrowerRef.current
-      )
-        return;
-      const matches = [...text.matchAll(/\/next\b/g)];
-      let target: RegExpMatchArray | null = null;
-      for (const m of matches) {
-        const mEnd = (m.index ?? 0) + m[0].length;
-        if (mEnd <= cursor) target = m;
-      }
-      if (!target || target.index === undefined) return;
-      void openNextDropdown(target.index);
-    };
-
-    const handleInput = () => {
-      const el = innerRef.current;
-      if (!el) return;
-      const pills = el.querySelectorAll("[data-mention]");
-      lastMentionedBorrowerRef.current = pills.length
-        ? ((pills[pills.length - 1] as HTMLElement).dataset.mention ?? null)
-        : null;
-      const text = el.textContent ?? "";
-      onChange?.(text);
-      detectMention(text, getCaretOffset(el));
-      detectSlashCommand(text, getCaretOffset(el));
-      if (nextOpen && !text.includes("/next")) setNextOpen(false);
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-      if (nextOpen) {
-        if (e.key === "Escape") {
-          setNextOpen(false);
-          return;
-        }
-        if (nextLoading || !nextItems.length) return;
-        const count = nextItems.length + (nextItems.length > 1 ? 1 : 0);
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          setNextIndex((i) => Math.min(i + 1, count - 1));
-          return;
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault();
-          setNextIndex((i) => Math.max(i - 1, 0));
-          return;
-        } else if (e.key === " ") {
-          e.preventDefault();
-          const hasAll = nextItems.length > 1;
-          if (hasAll && nextIndex === 0) {
-            toggleNextAll();
-          } else {
-            toggleNextItem(hasAll ? nextIndex - 1 : nextIndex);
-          }
-          return;
-        } else if (e.key === "Enter") {
-          e.preventDefault();
-          insertNextHighlightedOrSelected();
-          return;
-        }
-      }
-
-      if (mentionOpen) {
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          setMentionIndex((i) =>
-            Math.min(i + 1, mentionSuggestions.length - 1),
-          );
-          return;
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault();
-          setMentionIndex((i) => Math.max(i - 1, 0));
-          return;
-        } else if (e.key === "Enter") {
-          e.preventDefault();
-          const selected = mentionSuggestions[mentionIndex];
-          if (selected) insertMention(selected);
-          return;
-        } else if (e.key === "Escape") {
-          setMentionOpen(false);
-          return;
-        }
-      }
-
-      if (e.key === "Enter" && !e.shiftKey && !isMobile) {
-        e.preventDefault();
-        const el = innerRef.current;
-        if (!el || !onSubmit) return;
-        const value = serializeContent(el).trim();
-        if (value) {
-          onSubmit(value);
-          el.innerHTML = "";
-          onChange?.("");
-        }
-      }
-    };
-
-    const handleBeforeInput = (e: React.FormEvent<HTMLDivElement>) => {
-      const inputType = (e.nativeEvent as InputEvent).inputType;
-      if (
-        isMobile &&
-        (inputType === "insertParagraph" || inputType === "insertLineBreak")
-      ) {
-        e.preventDefault();
-        if (mentionOpen) return;
-        const el = innerRef.current;
-        if (el) {
-          insertNodeAtCaret(document.createTextNode("\n"));
-          handleInput();
-        }
-      }
-    };
-
-    return (
-      <div ref={wrapperRef} className="relative flex flex-col gap-1">
-        {showPesoButton && focused && (
-          <div className="flex items-center justify-start">
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onPointerDown={(e) => e.preventDefault()}
-              onTouchStart={(e) => e.preventDefault()}
-              onClick={() => insertPeso()}
-              className="rounded-md border border-border/50 bg-white px-3 py-1.5
-                text-sm font-semibold text-slate-600 shadow-sm transition-colors
-                hover:bg-slate-50 dark:bg-card dark:text-slate-300 min-h-[36px]
-                min-w-[40px] touch-manipulation select-none"
-            >
-              ₱
-            </button>
-            {getBorrowerNextAmounts && (
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onPointerDown={(e) => e.preventDefault()}
-                onTouchStart={(e) => e.preventDefault()}
-                onClick={() => openNextFromButton()}
-                className="ml-2 rounded-md border border-border/50 bg-white px-3
-                  py-1.5 text-sm font-semibold text-slate-600 shadow-sm
-                  transition-colors hover:bg-slate-50 dark:bg-card
-                  dark:text-slate-300 min-h-[36px] touch-manipulation
-                  select-none"
-              >
-                Next
-              </button>
-            )}
-          </div>
-        )}
-        <div
-          ref={innerRef}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={handleInput}
-          onKeyDown={handleKeyDown}
-          onBeforeInput={handleBeforeInput}
-          onFocus={() => setFocused(true)}
-          onBlur={(e) => {
-            if (
-              e.relatedTarget &&
-              wrapperRef.current?.contains(e.relatedTarget as Node)
-            ) {
-              innerRef.current?.focus();
-              return;
-            }
-            setFocused(false);
-          }}
-          className={`dark:bg-card/50 dark:text-foreground min-h-[40px] w-full
-            cursor-text select-text whitespace-pre-wrap rounded-xl border
-            border-border/50 bg-white/60 px-3 py-2 text-base font-sans
-            text-slate-700 transition-all duration-200
-            empty:before:text-slate-400
-            empty:before:content-[attr(data-placeholder)] focus:border-border
-            focus:outline-none dark:empty:before:text-muted-foreground
-            ${className ?? ""}`}
-          data-placeholder={placeholder ?? ""}
-          role="textbox"
-          aria-multiline="true"
-        />
-        {mentionOpen && mentionSuggestions.length > 0 && (
-          <div
-            className="absolute left-0 right-0 top-full z-9999 mt-1 max-h-48
-              overflow-auto rounded-xl border border-border/50 bg-white p-1
-              shadow-md dark:bg-card"
-          >
-            {mentionSuggestions.map((b, i) => (
-              <button
-                key={b.id}
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  innerRef.current?.focus();
-                  insertMention(b);
-                }}
-                className={`w-full rounded-lg px-3 py-2 text-left text-sm
-                transition-colors ${
-                  i === mentionIndex
-                    ? "bg-slate-100 dark:bg-muted"
-                    : "hover:bg-slate-50 dark:hover:bg-muted/50"
-                }`}
-              >
-                <span
-                  className="font-medium text-slate-700 dark:text-foreground"
-                >
-                  {b.first_name} {b.last_name}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-        {nextOpen &&
-          (nextLoading || nextItems.length > 0) &&
-          nextAnchor &&
-          createPortal(
-            <div
-              ref={nextDropdownRef}
-              data-next-dropdown
-              style={{
-                position: "fixed",
-                top: nextAnchor.top,
-                bottom: nextAnchor.bottom,
-                left: nextAnchor.left,
-                width: isMobile
-                  ? nextAnchor.width
-                  : Math.min(288, nextAnchor.width),
-                maxHeight: nextAnchor.maxHeight,
-              }}
-              className="pointer-events-auto z-9999 flex flex-col rounded-lg
-                border border-border/50 bg-white p-0.5 shadow-md dark:bg-card"
-            >
-              {nextLoading ? (
-                <div
-                  className="px-2 py-1.5 text-sm text-slate-500
-                    dark:text-muted-foreground"
-                >
-                  Loading collections…
-                </div>
-              ) : (
-                <>
-                  <div
-                    className="min-h-0 divide-y divide-border/50
-                      overflow-y-auto"
-                  >
-                    {nextItems.length > 1 && (
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          if (!isMobile) innerRef.current?.focus();
-                          toggleNextAll();
-                        }}
-                        className={`w-full rounded-md px-2 py-3 text-left
-                          text-sm transition-colors ${
-                            nextIndex === 0
-                              ? "bg-slate-100 dark:bg-muted"
-                              : "hover:bg-slate-50 dark:hover:bg-muted/50"
-                          }`}
-                      >
-                        <span
-                          className="flex items-center justify-between gap-2"
-                        >
-                          <span className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              readOnly
-                              checked={nextSelected.size === nextItems.length}
-                              className="pointer-events-none h-3.5 w-3.5
-                                accent-slate-600"
-                            />
-                            <span
-                              className="font-medium text-slate-700
-                                dark:text-foreground"
-                            >
-                              All
-                            </span>
-                          </span>
-                          <span
-                            className="text-slate-500
-                              dark:text-muted-foreground"
-                          >
-                            ₱{nextTotal.toLocaleString()}
-                          </span>
-                        </span>
-                      </button>
-                    )}
-                    {nextItems.map((item, i) => {
-                      const itemIndex = nextItems.length > 1 ? i + 1 : i;
-                      const isOverdue =
-                        item.due_date < overdueCutoffDateValue();
-                      const year = item.due_date.slice(0, 4);
-                      const showYear =
-                        i === 0 ||
-                        nextItems[i - 1].due_date.slice(0, 4) !== year;
-                      return (
-                        <Fragment key={`${item.due_date}-${i}`}>
-                          {showYear && (
-                            <div
-                              className="px-2 pb-1 pt-2 text-[10px] font-bold
-                                tracking-wide text-slate-400
-                                dark:text-muted-foreground"
-                            >
-                              {year}
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              if (!isMobile) innerRef.current?.focus();
-                              toggleNextItem(i);
-                            }}
-                            className={`w-full rounded-md px-2 py-3 text-left
-                              text-sm transition-colors ${
-                                itemIndex === nextIndex
-                                  ? "bg-slate-100 dark:bg-muted"
-                                  : "hover:bg-slate-50 dark:hover:bg-muted/50"
-                              }`}
-                          >
-                            <span
-                              className="flex items-center justify-between
-                                gap-2"
-                            >
-                              <span className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  readOnly
-                                  checked={nextSelected.has(i)}
-                                  className="pointer-events-none h-3.5 w-3.5
-                                    accent-slate-600"
-                                />
-                                <span
-                                  className="font-medium text-slate-700
-                                    dark:text-foreground"
-                                >
-                                  {formatShortDate(item.due_date)}
-                                </span>
-                                <span
-                                  className={`rounded border px-1 py-px
-                                    text-[8px] font-semibold lowercase ${
-                                      item.type === "cash_advance"
-                                        ? `border-amber-300/60 bg-amber-200
-                                          text-amber-900 dark:border-amber-700
-                                          dark:bg-amber-800 dark:text-amber-100`
-                                        : `border-violet-300/60 bg-violet-200
-                                          text-violet-900 dark:border-violet-700
-                                          dark:bg-violet-800
-                                          dark:text-violet-100`
-                                    }`}
-                                >
-                                  {item.type === "cash_advance" ? "CA" : "Loan"}
-                                </span>
-                                {isOverdue && (
-                                  <span
-                                    className="rounded border border-rose-300/60
-                                      bg-rose-100 px-1 py-px text-[8px]
-                                      font-semibold uppercase text-rose-700
-                                      dark:border-rose-700 dark:bg-rose-800
-                                      dark:text-rose-100"
-                                  >
-                                    overdue
-                                  </span>
-                                )}
-                              </span>
-                              <span
-                                className="text-slate-500
-                                  dark:text-muted-foreground"
-                              >
-                                ₱{item.amount.toLocaleString()}
-                              </span>
-                            </span>
-                          </button>
-                        </Fragment>
-                      );
-                    })}
-                  </div>
-                  <div
-                    className="mt-0.5 shrink-0 border-t border-border/50 p-0.5"
-                  >
-                    <button
-                      type="button"
-                      disabled={
-                        nextSelected.size === 0 &&
-                        !nextItems.some((item) => item.existing)
-                      }
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        if (!isMobile) innerRef.current?.focus();
-                        insertNextItems(
-                          nextItems.filter((_, i) => nextSelected.has(i)),
-                        );
-                      }}
-                      className="w-full rounded-md bg-slate-900 px-2 py-1.5
-                        text-sm font-medium text-white transition-opacity
-                        disabled:opacity-40 dark:bg-slate-100
-                        dark:text-slate-900"
-                    >
-                      {nextItems.some((item) => item.existing)
-                        ? "Update"
-                        : "Insert"}
-                      {nextSelected.size > 0 ? ` (${nextSelected.size})` : ""}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>,
-            document.body,
-          )}
-      </div>
-    );
-  },
-);
-ChecklistInput.displayName = "ChecklistInput";
-
-type ScheduleDialogRow = {
-  id: string;
-  account_id: string;
-  due_date: string;
-  amount_due: number;
-  amount_paid: number;
-  remaining_amount: number;
-  status: string;
-};
-
-type ScheduleChoice = { status: "paid" | "partial" | null; amount: string };
-
-/**
- * Shown when checking off a checklist item that was inserted via `/next` —
- * lets the user mark the linked payment_schedules row(s) as paid/partial
- * before the item is actually checked.
- */
-function ScheduleCheckDialog({
-  item,
-  onClose,
-  onConfirmed,
-}: {
-  item: DailyChecklistItem | null;
-  onClose: () => void;
-  onConfirmed: () => void;
-}) {
-  const [rows, setRows] = useState<ScheduleDialogRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [choices, setChoices] = useState<Record<string, ScheduleChoice>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const refs = useMemo(
-    () => (item ? extractScheduleRefs(item.label) : []),
-    [item?.id, item?.label],
-  );
-  const borrower = useMemo(
-    () => (item ? extractBorrowerMention(item.label) : null),
-    [item?.id, item?.label],
-  );
-  const borrowerName = borrower?.name;
-  const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
-  const open = refs.length > 0;
-
-  useEffect(() => {
-    if (refs.length === 0) {
-      setRows([]);
-      setChoices({});
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    supabase
-      .from("payment_schedules")
-      .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
-      )
-      .in(
-        "id",
-        refs.map((r) => r.id),
-      )
-      .then(
-        ({
-          data,
-          error,
-        }: {
-          data: ScheduleDialogRow[] | null;
-          error: { message: string } | null;
-        }) => {
-          if (cancelled) return;
-          if (error) {
-            toast.error(error.message);
-            setRows([]);
-            setChoices({});
-          } else {
-            const order = new Map(refs.map((r, i) => [r.id, i]));
-            const fetched = ((data ?? []) as ScheduleDialogRow[]).sort(
-              (a, b) =>
-                (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0) ||
-                a.due_date.localeCompare(b.due_date),
-            );
-            setRows(fetched);
-            const initial: Record<string, ScheduleChoice> = {};
-            fetched.forEach((r) => {
-              initial[r.id] = {
-                status: null,
-                amount: String(Math.max(0, Number(r.remaining_amount ?? 0))),
-              };
-            });
-            setChoices(initial);
-          }
-          setLoading(false);
-        },
-      );
-    return () => {
-      cancelled = true;
-    };
-  }, [refs]);
-
-  const setChoice = (id: string, patch: Partial<ScheduleChoice>) => {
-    setChoices((prev) => ({
-      ...prev,
-      [id]: {
-        status: prev[id]?.status ?? null,
-        amount: prev[id]?.amount ?? "",
-        ...patch,
-      },
-    }));
-  };
-
-  const handleConfirm = async () => {
-    setSubmitting(true);
-    try {
-      await Promise.all(
-        rows.map(async (row) => {
-          const choice = choices[row.id];
-          if (!choice?.status || choice.status === row.status) return;
-          if (choice.status === "paid") {
-            const fd = new FormData();
-            fd.set("scheduleId", row.id);
-            fd.set("status", "paid");
-            fd.set("paidDate", todayDateValue());
-            await updateScheduleStatusAction(row.account_id, fd);
-          } else if (choice.status === "partial") {
-            const amt = Number.parseFloat(choice.amount || "0");
-            if (!Number.isFinite(amt) || amt <= 0) return;
-            const fd = new FormData();
-            fd.set("scheduleId", row.id);
-            fd.set("paymentAmount", String(amt));
-            fd.set("paymentDate", todayDateValue());
-            await applyPartialPaymentAction(fd);
-          }
-        }),
-      );
-      if (borrower) invalidateBorrowerDetails(borrower.id);
-      toast.success("Payment schedule updated");
-      onConfirmed();
-    } catch (err) {
-      console.error("ScheduleCheckDialog confirm error:", err);
-      toast.error("Failed to update payment schedule");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) onClose();
-      }}
-    >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader className="gap-3 pb-2">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-full
-              bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40
-              dark:text-emerald-300"
-          >
-            <Check className="h-5 w-5" />
-          </div>
-          <div className="space-y-1">
-            <DialogTitle className="text-xl font-semibold tracking-tight">
-              Update payment status
-              {borrowerName ? (
-                <span className="text-muted-foreground font-normal">
-                  {" "}
-                  &middot; {borrowerName}
-                </span>
-              ) : null}
-            </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              Mark {borrowerName ? `${borrowerName}'s` : "the"} linked
-              collection{rows.length === 1 ? "" : "s"} as paid or partial before
-              checking this off.
-            </DialogDescription>
-          </div>
-        </DialogHeader>
-
-        {loading ? (
-          <div
-            className="py-6 text-center text-sm text-slate-500
-              dark:text-muted-foreground"
-          >
-            Loading…
-          </div>
-        ) : rows.length === 0 ? (
-          <div
-            className="py-6 text-center text-sm text-slate-500
-              dark:text-muted-foreground"
-          >
-            Couldn&apos;t find the linked schedule — it may have been removed.
-          </div>
-        ) : (
-          <div className="space-y-3 pt-2">
-            {rows.map((row) => {
-              const choice = choices[row.id];
-              const chosen = choice?.status ?? null;
-              return (
-                <div
-                  key={row.id}
-                  className="dark:border-border dark:bg-card rounded-lg border
-                    border-slate-200 bg-white p-3"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="text-sm font-semibold text-slate-700
-                        dark:text-foreground"
-                    >
-                      {formatShortDate(row.due_date)}
-                    </span>
-                    <span
-                      className="text-sm text-slate-500
-                        dark:text-muted-foreground"
-                    >
-                      ₱
-                      {Math.max(
-                        0,
-                        Number(row.remaining_amount ?? 0),
-                      ).toLocaleString()}{" "}
-                      due
-                    </span>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setChoice(row.id, {
-                          status: chosen === "paid" ? null : "paid",
-                        })
-                      }
-                      disabled={row.status === "paid"}
-                      className={`rounded-md border px-2 py-1.5 text-xs
-                        font-bold tracking-wide uppercase transition ${
-                          chosen === "paid"
-                            ? `border-emerald-500 bg-emerald-200
-                              text-emerald-950 dark:border-emerald-400/50
-                              dark:bg-emerald-400/25 dark:text-emerald-200`
-                            : `border-slate-300 bg-white text-slate-600
-                              hover:border-emerald-500 hover:bg-emerald-50
-                              dark:border-border dark:bg-card
-                              dark:text-muted-foreground`
-                        } ${
-                          row.status === "paid"
-                            ? "cursor-not-allowed opacity-60"
-                            : "cursor-pointer"
-                        }`}
-                    >
-                      Paid
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setChoice(row.id, {
-                          status: chosen === "partial" ? null : "partial",
-                        })
-                      }
-                      className={`cursor-pointer rounded-md border px-2 py-1.5
-                        text-xs font-bold tracking-wide uppercase transition ${
-                          chosen === "partial"
-                            ? `border-violet-500 bg-violet-200 text-violet-950
-                              dark:border-violet-400/50 dark:bg-violet-400/25
-                              dark:text-violet-200`
-                            : `border-slate-300 bg-white text-slate-600
-                              hover:border-violet-500 hover:bg-violet-50
-                              dark:border-border dark:bg-card
-                              dark:text-muted-foreground`
-                        }`}
-                    >
-                      Partial
-                    </button>
-                  </div>
-                  {chosen === "partial" && (
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step="0.01"
-                      placeholder="Amount paid"
-                      value={choice?.amount ?? ""}
-                      onChange={(e) =>
-                        setChoice(row.id, { amount: e.target.value })
-                      }
-                      className="dark:border-border dark:bg-background
-                        dark:text-foreground mt-2 w-full rounded-md border
-                        border-slate-300 bg-white px-2 py-1.5 text-sm
-                        font-semibold text-slate-600 outline-none
-                        focus-visible:ring-2 focus-visible:ring-slate-900"
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button onClick={handleConfirm} disabled={loading || submitting}>
-            {submitting ? "Saving…" : "Confirm & check off"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function CategorySection({
   category,
   items,
@@ -1887,6 +114,7 @@ function CategorySection({
   onEditLabel,
   onPopulate,
   onUndoPopulate,
+  onCheckMany,
 }: {
   category: ChecklistCategory | null;
   items: DailyChecklistItem[];
@@ -1901,7 +129,9 @@ function CategorySection({
   onEditLabel: (itemId: string, newLabel: string) => void;
   onPopulate: (categoryId: string | null, date: string) => Promise<void>;
   onUndoPopulate?: () => void;
+  onCheckMany: (ids: string[]) => void;
 }) {
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [saving, setSaving] = useState(false);
   const [populating, setPopulating] = useState(false);
@@ -1969,6 +199,7 @@ function CategorySection({
   );
 
   const checkedCount = items.filter((i) => i.is_checked).length;
+  const totals = useMemo(() => summarizeChecklist(items), [items]);
 
   const sorted = useMemo(
     () =>
@@ -1977,6 +208,14 @@ function CategorySection({
         return b.created_at.localeCompare(a.created_at);
       }),
     [items],
+  );
+
+  const bulkItems = useMemo(
+    () =>
+      sorted.filter(
+        (i) => !i.is_checked && extractScheduleRefs(i.label).length > 0,
+      ),
+    [sorted],
   );
 
   const handleAdd = async (value: string) => {
@@ -2035,7 +274,7 @@ function CategorySection({
       className={`relative overflow-hidden rounded-2xl border border-border/50
         bg-white shadow-sm transition-all duration-200 dark:bg-background/80 ${
           pillBorder ? "border-l-4" : ""
-        }`}
+        } ${expanded && items.length > 0 ? "min-h-[26rem]" : ""}`}
       style={{
         borderLeftColor: pillBorder ?? undefined,
       }}
@@ -2076,6 +315,14 @@ function CategorySection({
         >
           {checkedCount}/{items.length}
         </span>
+        {totals.collections > 0 && (
+          <span
+            className="dark:text-muted-foreground text-[10px] font-medium
+              text-slate-400 tabular-nums"
+          >
+            ₱{totals.left.toLocaleString()} left
+          </span>
+        )}
         <ChevronDown
           className={`dark:text-muted-foreground ml-auto size-4 text-slate-400
             transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
@@ -2132,6 +379,18 @@ function CategorySection({
             >
               {populating ? "Loading…" : "Populate due"}
             </button>
+            {bulkItems.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setBulkOpen(true)}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold
+                  text-emerald-600 transition-colors duration-200
+                  hover:bg-emerald-50 dark:text-emerald-300
+                  dark:hover:bg-emerald-900/20"
+              >
+                Mark all paid ({bulkItems.length})
+              </button>
+            )}
             {onUndoPopulate && (
               <button
                 type="button"
@@ -2366,6 +625,16 @@ function CategorySection({
           )}
         </DialogContent>
       </Dialog>
+
+      <BulkPaidDialog
+        items={bulkOpen ? bulkItems : null}
+        categoryName={category?.name ?? "this category"}
+        onClose={() => setBulkOpen(false)}
+        onConfirmed={(ids) => {
+          setBulkOpen(false);
+          onCheckMany(ids);
+        }}
+      />
 
       <ScheduleCheckDialog
         item={scheduleCheckItem}
@@ -2630,6 +899,28 @@ export default function DailyNotesWidget() {
       });
   };
 
+  const checkItems = (ids: string[]) => {
+    setItems((prev) =>
+      prev.map((row) =>
+        ids.includes(row.id) ? { ...row, is_checked: true } : row,
+      ),
+    );
+    supabase
+      .from("daily_checklist_items")
+      .update({ is_checked: true })
+      .in("id", ids)
+      .then(({ error }: { error: { message: string } | null }) => {
+        if (error) {
+          toast.error(error.message);
+          setItems((prev) =>
+            prev.map((row) =>
+              ids.includes(row.id) ? { ...row, is_checked: false } : row,
+            ),
+          );
+        }
+      });
+  };
+
   const undoPopulate = async (rows: { id: string; label: string }[]) => {
     const current = itemsRef.current;
     const untouched = rows.filter((r) => {
@@ -2728,6 +1019,8 @@ export default function DailyNotesWidget() {
       },
     );
   };
+
+  const dayTotals = useMemo(() => summarizeChecklist(items), [items]);
 
   const grouped = useMemo(() => {
     const map = new Map<string | null, DailyChecklistItem[]>();
@@ -2837,6 +1130,34 @@ export default function DailyNotesWidget() {
         </div>
       ) : (
         <>
+          {dayTotals.collections > 0 && (
+            <div
+              className="dark:bg-background/80 grid grid-cols-3 gap-2
+                rounded-2xl border border-border/50 bg-white p-3 text-center
+                shadow-sm"
+            >
+              {[
+                ["Expected", dayTotals.expected],
+                ["Checked off", dayTotals.checkedOff],
+                ["Left", dayTotals.left],
+              ].map(([label, value]) => (
+                <div key={label as string}>
+                  <p
+                    className="dark:text-muted-foreground text-[10px]
+                      font-semibold tracking-wide text-slate-400 uppercase"
+                  >
+                    {label}
+                  </p>
+                  <p
+                    className="text-sm font-bold text-slate-700 tabular-nums
+                      dark:text-foreground"
+                  >
+                    ₱{(value as number).toLocaleString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
           {categories.map((cat) => (
             <CategorySection
               key={cat.id}
@@ -2848,6 +1169,7 @@ export default function DailyNotesWidget() {
               onDelete={deleteItem}
               onEditLabel={editItemLabel}
               onPopulate={populateDue}
+              onCheckMany={checkItems}
               onUndoPopulate={
                 lastPopulate &&
                 lastPopulate.date === date &&

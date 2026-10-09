@@ -1,19 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import type { DueChecklistGroup } from "@/lib/checklist/types";
 import { remainingOnInstallment } from "@/lib/payment-schedule/schedule-balances";
-
-export type DueChecklistItem = {
-  id: string;
-  due_date: string;
-  amount: number;
-  type: "loan" | "cash_advance";
-};
-
-export type DueChecklistGroup = {
-  borrower_id: string;
-  name: string;
-  items: DueChecklistItem[];
-};
 
 export async function GET(request: Request) {
   const date = new URL(request.url).searchParams.get("date") ?? "";
