@@ -290,7 +290,7 @@ export default function ShareScheduleButton({
                 <div
                   style={{
                     fontSize: 10,
-                    fontWeight: 600,
+                    fontWeight: 500,
                     textTransform: "uppercase",
                     letterSpacing: "0.16em",
                     color: p.textSecondary,
@@ -302,8 +302,8 @@ export default function ShareScheduleButton({
                 <div
                   style={{
                     fontSize: 22,
-                    fontWeight: 700,
-                    textTransform: "capitalize",
+                    fontWeight: 500,
+                    textTransform: "none",
                     color: p.textPrimary,
                     marginTop: 4,
                     letterSpacing: "-0.01em",
@@ -323,7 +323,7 @@ export default function ShareScheduleButton({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  <span style={{ fontWeight: 700, color: p.textPrimary }}>
+                  <span style={{ fontWeight: 500, color: p.textPrimary }}>
                     {paidCount}
                   </span>{" "}
                   / {schedules.length} paid
@@ -360,7 +360,7 @@ export default function ShareScheduleButton({
                         <div
                           style={{
                             fontSize: 9,
-                            fontWeight: 600,
+                            fontWeight: 500,
                             textTransform: "uppercase",
                             letterSpacing: "0.12em",
                             color: p.textSecondary,
@@ -379,7 +379,7 @@ export default function ShareScheduleButton({
                           <span
                             style={{
                               fontSize: 18,
-                              fontWeight: 700,
+                              fontWeight: 500,
                               color: p.textPrimary,
                               fontVariantNumeric: "tabular-nums",
                             }}
@@ -405,7 +405,7 @@ export default function ShareScheduleButton({
                             justifyContent: "flex-end",
                             gap: 6,
                             fontSize: 10,
-                            fontWeight: 700,
+                            fontWeight: 500,
                             textTransform: "uppercase",
                             letterSpacing: "0.06em",
                             color: st.badgeText,
@@ -449,7 +449,7 @@ export default function ShareScheduleButton({
                           marginBottom: 20,
                           textAlign: "center",
                           fontSize: 11,
-                          fontWeight: 700,
+                          fontWeight: 500,
                           textTransform: "uppercase",
                           letterSpacing: "0.12em",
                           color: st.badgeText,
@@ -487,7 +487,7 @@ export default function ShareScheduleButton({
                       <div
                         style={{
                           fontSize: 9,
-                          fontWeight: 600,
+                          fontWeight: 500,
                           textTransform: "uppercase",
                           letterSpacing: "0.12em",
                           color: p.textSecondary,
@@ -498,7 +498,7 @@ export default function ShareScheduleButton({
                       <div
                         style={{
                           fontSize: 14,
-                          fontWeight: 700,
+                          fontWeight: 500,
                           color: p.textPrimary,
                           marginTop: 2,
                           fontVariantNumeric: "tabular-nums",
@@ -538,7 +538,7 @@ export default function ShareScheduleButton({
                   <div
                     style={{
                       fontSize: 11,
-                      fontWeight: 600,
+                      fontWeight: 500,
                       color: p.textMuted,
                       fontVariantNumeric: "tabular-nums",
                     }}
@@ -553,7 +553,7 @@ export default function ShareScheduleButton({
             <div
               style={{
                 fontSize: 9,
-                fontWeight: 600,
+                fontWeight: 500,
                 textTransform: "uppercase",
                 letterSpacing: "0.16em",
                 color: p.textSecondary,
@@ -601,7 +601,7 @@ export default function ShareScheduleButton({
                         width: 22,
                         flexShrink: 0,
                         fontSize: 9,
-                        fontWeight: 600,
+                        fontWeight: 500,
                         color: p.textSecondary,
                         fontVariantNumeric: "tabular-nums",
                       }}
@@ -612,7 +612,7 @@ export default function ShareScheduleButton({
                       <div
                         style={{
                           fontSize: 14,
-                          fontWeight: 700,
+                          fontWeight: 500,
                           color: p.textPrimary,
                           fontVariantNumeric: "tabular-nums",
                         }}
@@ -642,7 +642,7 @@ export default function ShareScheduleButton({
                         ) : null}
                         {isNext ? (
                           <span
-                            style={{ fontWeight: 700, color: st.badgeText }}
+                            style={{ fontWeight: 500, color: st.badgeText }}
                           >
                             {" "}
                             · next
@@ -657,7 +657,7 @@ export default function ShareScheduleButton({
                         alignItems: "center",
                         gap: 5,
                         fontSize: 9,
-                        fontWeight: 700,
+                        fontWeight: 500,
                         textTransform: "uppercase",
                         letterSpacing: "0.06em",
                         color: st.badgeText,
@@ -697,13 +697,13 @@ export default function ShareScheduleButton({
                 {!noDetails ? (
                   <>
                     Total{" "}
-                    <span style={{ fontWeight: 700, color: p.textPrimary }}>
+                    <span style={{ fontWeight: 500, color: p.textPrimary }}>
                       {formatMoney(totalPayment)}
                     </span>
                   </>
                 ) : (
                   <>
-                    <span style={{ fontWeight: 700, color: p.textPrimary }}>
+                    <span style={{ fontWeight: 500, color: p.textPrimary }}>
                       {paidCount}
                     </span>{" "}
                     of {schedules.length} paid
@@ -713,7 +713,7 @@ export default function ShareScheduleButton({
               <div
                 style={{
                   fontSize: 10,
-                  fontWeight: 700,
+                  fontWeight: 500,
                   color: p.watermark,
                   letterSpacing: "0.08em",
                 }}
