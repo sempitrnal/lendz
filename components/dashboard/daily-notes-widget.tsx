@@ -40,6 +40,7 @@ import {
   applyPartialPaymentAction,
 } from "@/lib/actions/schedules";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
+import type { DueChecklistGroup } from "@/app/api/checklist/due/route";
 
 type ChecklistCategory = {
   id: string;
@@ -74,6 +75,8 @@ type NextCollectionItem = {
   due_date: string;
   amount: number;
   type: string;
+  /** Already present in the text being edited (pre-checked in the dropdown). */
+  existing?: boolean;
 };
 
 function formatShortDate(iso: string) {
@@ -317,6 +320,99 @@ function extractBorrowerMention(
     if (id) return { id, name: match[1] };
   }
   return null;
+}
+
+const NEXT_LINE =
+  /^\s*₱\s*([\d,]+(?:\.\d+)?)\s+\[[^\]]*\]\(#badge:date:(\d{4}-\d{2}-\d{2})\|([^)\s]+)\)(?:\s+\[[^\]]*\]\(#badge:type:(loan|cash_advance)\))?\s*$/;
+const TOTAL_LINE = /^\s*Total:\s*₱[\d,.]+\s*$/;
+const NEXT_MARK = "\u0000";
+
+/** Collection lines (amount + date badge carrying a schedule id) in a label. */
+function parseExistingNext(label: string): NextCollectionItem[] {
+  const items: NextCollectionItem[] = [];
+  for (const line of label.replace("/next", "").split("\n")) {
+    const m = line.match(NEXT_LINE);
+    if (!m) continue;
+    items.push({
+      id: m[3],
+      due_date: m[2],
+      amount: Number(m[1].replace(/,/g, "")),
+      type: m[4] ?? "loan",
+      existing: true,
+    });
+  }
+  return items;
+}
+
+/**
+ * Replaces every linked collection line (and its Total line) in `label` with
+ * `selected`, written where the `/next` token was typed (or at the end when
+ * the dropdown was opened from the button).
+ */
+function rewriteNextBlock(
+  label: string,
+  selected: NextCollectionItem[],
+): string {
+  const tokenIdx = label.indexOf("/next");
+  const trimmed = label.trimEnd();
+  const marked =
+    tokenIdx === -1
+      ? trimmed
+        ? `${trimmed}\n${NEXT_MARK}`
+        : NEXT_MARK
+      : label.slice(0, tokenIdx) + NEXT_MARK + label.slice(tokenIdx + 5);
+
+  const lines: string[] = [];
+  let prevRemoved = false;
+  for (const line of marked.split("\n")) {
+    const bare = line.replace(NEXT_MARK, "");
+    const hadMark = bare.length !== line.length;
+    const remove: boolean =
+      NEXT_LINE.test(bare) || (prevRemoved && TOTAL_LINE.test(bare));
+    prevRemoved = remove;
+    if (!remove) lines.push(line);
+    else if (hadMark) lines.push(NEXT_MARK);
+  }
+
+  const block = selected.map(
+    (i) =>
+      `₱${i.amount.toLocaleString()} [${formatShortDate(i.due_date)}](#badge:date:${i.due_date}|${i.id}) [${i.type === "cash_advance" ? "CA" : "Loan"}](#badge:type:${i.type})`,
+  );
+  if (selected.length > 1) {
+    const total = selected.reduce((sum, i) => sum + i.amount, 0);
+    block.push(`Total: ₱${total.toLocaleString()}`);
+  }
+  const blockText = block.join("\n");
+
+  const out: string[] = [];
+  for (const line of lines) {
+    if (!line.includes(NEXT_MARK)) {
+      out.push(line);
+      continue;
+    }
+    const [before, after] = line.split(NEXT_MARK);
+    const head = before.trimEnd();
+    const tail = after.trimStart();
+    if (head) out.push(head);
+    if (blockText) out.push(blockText);
+    if (tail) out.push(tail);
+  }
+  return out.join("\n");
+}
+
+/** Same text/badge format the `/next` flow produces, one borrower per item. */
+function buildDueLabel(group: DueChecklistGroup): string {
+  const lines = group.items.map(
+    (i) =>
+      `₱${i.amount.toLocaleString()} [${formatShortDate(i.due_date)}](#badge:date:${i.due_date}|${i.id}) [${i.type === "cash_advance" ? "CA" : "Loan"}](#badge:type:${i.type})`,
+  );
+  const mention = `[${group.name.toLowerCase()}](/borrowers/${group.borrower_id})`;
+  const total = group.items.reduce((sum, i) => sum + i.amount, 0);
+  return [
+    mention,
+    ...lines,
+    ...(group.items.length > 1 ? [`Total: ₱${total.toLocaleString()}`] : []),
+  ].join("\n");
 }
 
 type MentionSegment = {
@@ -625,6 +721,7 @@ type ChecklistInputHandle = {
   submit: () => void;
   clear: () => void;
   focus: () => void;
+  openNext: () => void;
 };
 
 type ChecklistInputProps = {
@@ -671,6 +768,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     const [nextIndex, setNextIndex] = useState(0);
     const [nextSelected, setNextSelected] = useState<Set<number>>(new Set());
     const nextTokenStartRef = useRef<number | null>(null);
+    const tokenlessRef = useRef(false);
     const nextDropdownRef = useRef<HTMLDivElement>(null);
     const [nextAnchor, setNextAnchor] = useState<{
       top?: number;
@@ -686,27 +784,6 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
         !(window as any).MSStream,
       [],
     );
-
-    useImperativeHandle(ref, () => ({
-      getValue: () =>
-        innerRef.current ? serializeContent(innerRef.current) : "",
-      submit: () => {
-        const el = innerRef.current;
-        if (!el || !onSubmit) return;
-        const value = serializeContent(el).trim();
-        if (!value) return;
-        onSubmit(value);
-        el.innerHTML = "";
-        onChange?.("");
-      },
-      clear: () => {
-        const el = innerRef.current;
-        if (!el) return;
-        el.innerHTML = "";
-        onChange?.("");
-      },
-      focus: () => innerRef.current?.focus(),
-    }));
 
     useEffect(() => {
       const el = innerRef.current;
@@ -868,13 +945,14 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       onChange?.(el.textContent ?? "");
     };
 
-    const openNextDropdown = async (matchStart: number) => {
+    const openNextDropdown = async (matchStart: number | null) => {
       const borrowerId = lastMentionedBorrowerRef.current;
       if (!getBorrowerNextAmounts || !borrowerId) return;
       const el = innerRef.current;
       if (!el) return;
       isProcessingNextRef.current = true;
       nextTokenStartRef.current = matchStart;
+      tokenlessRef.current = matchStart === null;
       const rect = el.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
@@ -900,14 +978,27 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
       setNextLoading(true);
       setNextOpen(true);
       try {
-        const items = await getBorrowerNextAmounts(borrowerId);
+        const fetched = await getBorrowerNextAmounts(borrowerId);
+        const present = parseExistingNext(serializeContent(el));
+        const presentIds = new Set(present.map((p) => p.id));
+        const fetchedIds = new Set(fetched.map((f) => f.id));
+        const items = [
+          ...fetched.map((f) => ({ ...f, existing: presentIds.has(f.id) })),
+          ...present.filter((p) => !fetchedIds.has(p.id)),
+        ].sort(
+          (a, b) =>
+            a.due_date.localeCompare(b.due_date) ||
+            a.type.localeCompare(b.type),
+        );
         if (!items.length) {
           setNextOpen(false);
-          replaceNextToken(null);
+          if (!tokenlessRef.current) replaceNextToken(null);
           toast.info("No pending collections");
         } else {
           setNextItems(items);
-          setNextSelected(new Set());
+          setNextSelected(
+            new Set(items.flatMap((item, i) => (item.existing ? [i] : []))),
+          );
         }
       } catch (err) {
         console.error("openNextDropdown error:", err);
@@ -921,6 +1012,48 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
         detectMention(text, getCaretOffset(el));
       }
     };
+
+    const openNextFromButton = () => {
+      if (!getBorrowerNextAmounts) return;
+      const el = innerRef.current;
+      if (!el) return;
+      if (nextOpen) {
+        setNextOpen(false);
+        return;
+      }
+      const pills = el.querySelectorAll("[data-mention]");
+      lastMentionedBorrowerRef.current = pills.length
+        ? ((pills[pills.length - 1] as HTMLElement).dataset.mention ?? null)
+        : null;
+      if (!lastMentionedBorrowerRef.current) {
+        toast.info("Mention a borrower first (@name)");
+        return;
+      }
+      if (!isMobile) el.focus();
+      void openNextDropdown(null);
+    };
+
+    useImperativeHandle(ref, () => ({
+      getValue: () =>
+        innerRef.current ? serializeContent(innerRef.current) : "",
+      submit: () => {
+        const el = innerRef.current;
+        if (!el || !onSubmit) return;
+        const value = serializeContent(el).trim();
+        if (!value) return;
+        onSubmit(value);
+        el.innerHTML = "";
+        onChange?.("");
+      },
+      clear: () => {
+        const el = innerRef.current;
+        if (!el) return;
+        el.innerHTML = "";
+        onChange?.("");
+      },
+      focus: () => innerRef.current?.focus(),
+      openNext: () => openNextFromButton(),
+    }));
 
     const toggleNextItem = (index: number) => {
       setNextSelected((prev) => {
@@ -940,6 +1073,28 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
     };
 
     const insertNextItems = (selected: NextCollectionItem[]) => {
+      const useRewrite =
+        tokenlessRef.current || nextItems.some((item) => item.existing);
+      if (useRewrite) {
+        const el = innerRef.current;
+        const next = el
+          ? rewriteNextBlock(serializeContent(el), selected)
+          : null;
+        if (el && next !== null) {
+          el.innerHTML = "";
+          el.appendChild(labelToFragment(next, borrowers));
+          setCaretOffset(el, (el.textContent ?? "").length);
+          const pills = el.querySelectorAll("[data-mention]");
+          lastMentionedBorrowerRef.current = pills.length
+            ? ((pills[pills.length - 1] as HTMLElement).dataset.mention ?? null)
+            : null;
+          onChange?.(el.textContent ?? "");
+        }
+        setNextOpen(false);
+        setNextItems([]);
+        setNextSelected(new Set());
+        return;
+      }
       if (!selected.length) return;
       const frag = document.createDocumentFragment();
       frag.appendChild(document.createTextNode("\n"));
@@ -992,7 +1147,7 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
 
     const insertNextHighlightedOrSelected = () => {
       const selected = nextItems.filter((_, i) => nextSelected.has(i));
-      if (selected.length) {
+      if (selected.length || nextItems.some((item) => item.existing)) {
         insertNextItems(selected);
       } else {
         const hasAll = nextItems.length > 1;
@@ -1133,6 +1288,22 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
             >
               ₱
             </button>
+            {getBorrowerNextAmounts && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onPointerDown={(e) => e.preventDefault()}
+                onTouchStart={(e) => e.preventDefault()}
+                onClick={() => openNextFromButton()}
+                className="ml-2 rounded-md border border-border/50 bg-white px-3
+                  py-1.5 text-sm font-semibold text-slate-600 shadow-sm
+                  transition-colors hover:bg-slate-50 dark:bg-card
+                  dark:text-slate-300 min-h-[36px] touch-manipulation
+                  select-none"
+              >
+                Next
+              </button>
+            )}
           </div>
         )}
         <div
@@ -1366,7 +1537,10 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
                   >
                     <button
                       type="button"
-                      disabled={nextSelected.size === 0}
+                      disabled={
+                        nextSelected.size === 0 &&
+                        !nextItems.some((item) => item.existing)
+                      }
                       onMouseDown={(e) => {
                         e.preventDefault();
                         if (!isMobile) innerRef.current?.focus();
@@ -1379,7 +1553,9 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
                         disabled:opacity-40 dark:bg-slate-100
                         dark:text-slate-900"
                     >
-                      Insert
+                      {nextItems.some((item) => item.existing)
+                        ? "Update"
+                        : "Insert"}
                       {nextSelected.size > 0 ? ` (${nextSelected.size})` : ""}
                     </button>
                   </div>
@@ -1709,6 +1885,8 @@ function CategorySection({
   onToggle,
   onDelete,
   onEditLabel,
+  onPopulate,
+  onUndoPopulate,
 }: {
   category: ChecklistCategory | null;
   items: DailyChecklistItem[];
@@ -1721,9 +1899,12 @@ function CategorySection({
   onToggle: (item: DailyChecklistItem) => void;
   onDelete: (id: string) => void;
   onEditLabel: (itemId: string, newLabel: string) => void;
+  onPopulate: (categoryId: string | null, date: string) => Promise<void>;
+  onUndoPopulate?: () => void;
 }) {
   const [newLabel, setNewLabel] = useState("");
   const [saving, setSaving] = useState(false);
+  const [populating, setPopulating] = useState(false);
   const [editingItem, setEditingItem] = useState<DailyChecklistItem | null>(
     null,
   );
@@ -1904,7 +2085,7 @@ function CategorySection({
       {expanded && (
         <>
           <div
-            className="mb-4 flex flex-col gap-2 px-3 sm:flex-row sm:items-start
+            className="mb-2 flex flex-col gap-2 px-3 sm:flex-row sm:items-start
               sm:px-4"
           >
             <div className="min-w-0 flex-1">
@@ -1933,6 +2114,35 @@ function CategorySection({
             >
               {saving ? "Adding…" : "Add item"}
             </button>
+          </div>
+          <div className="mb-4 flex items-center gap-2 px-3 sm:px-4">
+            <button
+              type="button"
+              title="Add everyone with a collection due on this date"
+              disabled={populating}
+              onClick={async () => {
+                setPopulating(true);
+                await onPopulate(category?.id ?? null, date);
+                setPopulating(false);
+              }}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5
+                text-xs font-semibold text-slate-600 transition-all duration-200
+                hover:bg-slate-100 disabled:opacity-50 dark:border-border/50
+                dark:bg-muted dark:text-foreground dark:hover:bg-muted/80"
+            >
+              {populating ? "Loading…" : "Populate due"}
+            </button>
+            {onUndoPopulate && (
+              <button
+                type="button"
+                onClick={onUndoPopulate}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold
+                  text-rose-500 transition-colors duration-200 hover:bg-rose-50
+                  dark:hover:bg-rose-900/20"
+              >
+                Undo populate
+              </button>
+            )}
           </div>
 
           {sorted.length === 0 ? (
@@ -2128,6 +2338,18 @@ function CategorySection({
                   getBorrowerNextAmounts={getBorrowerNextAmounts}
                   showPesoButton
                 />
+                <button
+                  type="button"
+                  onClick={() => editInputRef.current?.openNext()}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg
+                    border border-slate-200 bg-white px-3 py-1.5 text-xs
+                    font-semibold text-slate-600 transition-colors
+                    hover:bg-slate-100 dark:border-border/50 dark:bg-muted
+                    dark:text-foreground dark:hover:bg-muted/80"
+                >
+                  <Plus className="size-3.5" />
+                  Add / remove collections
+                </button>
               </div>
               <DialogFooter className="gap-2">
                 <Button variant="outline" onClick={() => setEditingItem(null)}>
@@ -2160,6 +2382,12 @@ function CategorySection({
 
 export default function DailyNotesWidget() {
   const [items, setItems] = useState<DailyChecklistItem[]>([]);
+  const itemsRef = useRef<DailyChecklistItem[]>([]);
+  const [lastPopulate, setLastPopulate] = useState<{
+    date: string;
+    categoryId: string | null;
+    rows: { id: string; label: string }[];
+  } | null>(null);
   const [categories, setCategories] = useState<ChecklistCategory[]>([]);
   const [date, setDate] = useState(todayDateValue());
   const [loading, setLoading] = useState(true);
@@ -2219,6 +2447,10 @@ export default function DailyNotesWidget() {
     void loadCategories();
     void loadItems(date);
   }, [date]);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const refreshTimerRef = useRef<number | null>(null);
 
@@ -2358,6 +2590,25 @@ export default function DailyNotesWidget() {
       });
   };
 
+  const restoreItem = async (item: DailyChecklistItem) => {
+    setItems((prev) =>
+      prev.some((i) => i.id === item.id) ? prev : [...prev, item],
+    );
+    const { error } = await supabase.from("daily_checklist_items").insert({
+      id: item.id,
+      checklist_date: item.checklist_date,
+      label: item.label,
+      is_checked: item.is_checked,
+      sort_order: item.sort_order,
+      created_at: item.created_at,
+      ...(item.category_id ? { category_id: item.category_id } : {}),
+    });
+    if (error) {
+      toast.error(error.message);
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+    }
+  };
+
   const deleteItem = (id: string) => {
     const removed = items.find((i) => i.id === id);
     setItems((prev) => prev.filter((i) => i.id !== id));
@@ -2370,8 +2621,112 @@ export default function DailyNotesWidget() {
         if (error) {
           toast.error(error.message);
           if (removed) setItems((prev) => [...prev, removed]);
+        } else if (removed) {
+          toast("Item deleted", {
+            duration: 8000,
+            action: { label: "Undo", onClick: () => void restoreItem(removed) },
+          });
         }
       });
+  };
+
+  const undoPopulate = async (rows: { id: string; label: string }[]) => {
+    const current = itemsRef.current;
+    const untouched = rows.filter((r) => {
+      const item = current.find((i) => i.id === r.id);
+      return item && item.label === r.label && !item.is_checked;
+    });
+    const kept =
+      rows.filter((r) => current.some((i) => i.id === r.id)).length -
+      untouched.length;
+    setLastPopulate(null);
+    if (untouched.length === 0) {
+      toast.info("Nothing to undo — items were already changed or removed");
+      return;
+    }
+    const ids = untouched.map((r) => r.id);
+    const { error } = await supabase
+      .from("daily_checklist_items")
+      .delete()
+      .in("id", ids);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setItems((prev) => prev.filter((i) => !ids.includes(i.id)));
+    toast.success(
+      `Removed ${ids.length} item${ids.length === 1 ? "" : "s"}${
+        kept > 0 ? ` (${kept} kept — edited or ticked)` : ""
+      }`,
+    );
+  };
+
+  const populateDue = async (categoryId: string | null, targetDate: string) => {
+    let groups: DueChecklistGroup[];
+    try {
+      const res = await fetch(`/api/checklist/due?date=${targetDate}`);
+      if (!res.ok) throw new Error("Failed to load due collections");
+      groups = ((await res.json()) as { groups: DueChecklistGroup[] }).groups;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to populate");
+      return;
+    }
+
+    const already = new Set(
+      itemsRef.current.flatMap((i) =>
+        extractScheduleRefs(i.label).map((r) => r.id),
+      ),
+    );
+    const labels = groups
+      .map((g) => ({ ...g, items: g.items.filter((i) => !already.has(i.id)) }))
+      .filter((g) => g.items.length > 0)
+      .map(buildDueLabel);
+    if (labels.length === 0) {
+      toast.info(
+        "Nothing new to add — everything due on this date is already listed",
+      );
+      return;
+    }
+
+    const minSort = itemsRef.current
+      .filter((i) => i.category_id === categoryId)
+      .reduce((min, i) => Math.min(min, i.sort_order), 0);
+    const payload = labels.map((label, idx) => ({
+      checklist_date: targetDate,
+      label,
+      is_checked: false,
+      sort_order: minSort - labels.length + idx,
+      ...(categoryId ? { category_id: categoryId } : {}),
+    }));
+    const { data, error } = await supabase
+      .from("daily_checklist_items")
+      .insert(payload)
+      .select(
+        "id, checklist_date, label, is_checked, sort_order, created_at, category_id",
+      );
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    const cat = categories.find((c) => c.id === categoryId) ?? null;
+    const created = ((data ?? []) as DailyChecklistItem[]).map((row) => ({
+      ...row,
+      daily_checklist_categories: cat,
+    }));
+    const rows = created.map((c) => ({ id: c.id, label: c.label }));
+    setItems((prev) => [
+      ...created,
+      ...prev.filter((p) => !created.some((c) => c.id === p.id)),
+    ]);
+    setLastPopulate({ date: targetDate, categoryId, rows });
+    toast.success(
+      `Added ${created.length} borrower${created.length === 1 ? "" : "s"}`,
+      {
+        duration: 8000,
+        action: { label: "Undo", onClick: () => void undoPopulate(rows) },
+      },
+    );
   };
 
   const grouped = useMemo(() => {
@@ -2492,6 +2847,14 @@ export default function DailyNotesWidget() {
               onToggle={toggleItem}
               onDelete={deleteItem}
               onEditLabel={editItemLabel}
+              onPopulate={populateDue}
+              onUndoPopulate={
+                lastPopulate &&
+                lastPopulate.date === date &&
+                lastPopulate.categoryId === cat.id
+                  ? () => void undoPopulate(lastPopulate.rows)
+                  : undefined
+              }
             />
           ))}
         </>
