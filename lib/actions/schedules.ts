@@ -43,13 +43,18 @@ export async function updateScheduleStatusAction(
   const updateSupabase = await createSupabaseServer();
   const { data: row } = await updateSupabase
     .from("payment_schedules")
-    .select("id, amount_due, due_date")
+    .select("id, amount_due, amount_paid, due_date, status")
     .eq("id", scheduleId)
     .single();
 
   if (!row) return;
 
   const due = Math.max(0, Number(row.amount_due ?? 0));
+  const alreadyPaid = row.status === "paid";
+  const previouslyPaid = Math.min(
+    due,
+    Math.max(0, Number(row.amount_paid ?? 0)),
+  );
   const paidDate = paidDateRaw || null;
   const patch: Record<string, string | number | null> =
     status === "paid"
@@ -87,10 +92,11 @@ export async function updateScheduleStatusAction(
     },
   });
 
-  if (status === "paid" && due > 0) {
+  const owed = alreadyPaid ? 0 : due - previouslyPaid;
+  if (status === "paid" && owed > 0) {
     await updateSupabase.from("schedule_payments").insert({
       schedule_id: scheduleId,
-      amount: due,
+      amount: owed,
       payment_date: paidDate,
     });
   }
@@ -163,6 +169,82 @@ export async function batchUpdateScheduleStatusAction(
   });
 
   revalidateScheduleCaches(accountId);
+}
+
+/** Marks schedules (possibly across accounts) fully paid in one pass. */
+export async function markSchedulesPaidAction(
+  ids: string[],
+  paidDate: string,
+): Promise<{ updated: number; skipped: number }> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return { updated: 0, skipped: 0 };
+
+  const sb = await createSupabaseServer();
+  const rows: {
+    id: string;
+    account_id: string;
+    amount_due: number | null;
+    amount_paid: number | null;
+    status: string;
+  }[] = [];
+  for (let i = 0; i < unique.length; i += 100) {
+    const { data, error } = await sb
+      .from("payment_schedules")
+      .select("id, account_id, amount_due, amount_paid, status")
+      .in("id", unique.slice(i, i + 100));
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+  }
+
+  const open = rows.filter((r) => r.status !== "paid");
+  await Promise.all(
+    open.map(async (row) => {
+      const due = Math.max(0, Number(row.amount_due ?? 0));
+      const previouslyPaid = Math.min(
+        due,
+        Math.max(0, Number(row.amount_paid ?? 0)),
+      );
+      const { error } = await sb
+        .from("payment_schedules")
+        .update({
+          status: "paid",
+          amount_paid: due,
+          remaining_amount: 0,
+          paid_date: paidDate,
+        })
+        .eq("id", row.id);
+      if (error) throw new Error(error.message);
+
+      const owed = due - previouslyPaid;
+      if (owed > 0) {
+        await sb.from("schedule_payments").insert({
+          schedule_id: row.id,
+          amount: owed,
+          payment_date: paidDate,
+        });
+      }
+    }),
+  );
+
+  const byAccount = new Map<string, string[]>();
+  for (const row of open) {
+    byAccount.set(row.account_id, [
+      ...(byAccount.get(row.account_id) ?? []),
+      row.id,
+    ]);
+  }
+  for (const [accountId, accountIds] of byAccount) {
+    await logAudit({
+      action: "schedule.batch_paid",
+      entity_type: "payment_schedule",
+      account_id: accountId,
+      description: `Checklist marked ${accountIds.length} schedule${accountIds.length === 1 ? "" : "s"} as paid`,
+      metadata: { ids: accountIds, paidDate, source: "checklist" },
+    });
+    revalidateScheduleCaches(accountId);
+  }
+
+  return { updated: open.length, skipped: rows.length - open.length };
 }
 
 export async function applyPartialPaymentAction(formData: FormData) {
