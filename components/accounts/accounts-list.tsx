@@ -29,6 +29,8 @@ export type AccountListItem = {
   principal_amount: number | null;
   interest_rate: number | null;
   payment_frequency: string | null;
+  schedule_mode?: string | null;
+  interest_type?: string | null;
   release_date: string | null;
   payment_progress: PaymentProgress;
   metrics: AccountListMetrics;
@@ -48,6 +50,20 @@ function borrowerLabel(a: AccountListItem) {
   return `${b.first_name} ${b.last_name}`;
 }
 
+const SCHEDULE_TYPES = [
+  { key: "auto", label: "Auto" },
+  { key: "manual-flat", label: "Manual flat" },
+  { key: "manual-rolling", label: "Manual rolling" },
+] as const;
+
+/** Manual accounts store "bisag kanus-a" as their frequency. */
+function scheduleTypeKey(a: AccountListItem) {
+  const manual =
+    a.schedule_mode === "manual" || a.payment_frequency === "bisag kanus-a";
+  if (!manual) return "auto";
+  return a.interest_type === "rolling" ? "manual-rolling" : "manual-flat";
+}
+
 function categorySearchBlob(a: AccountListItem) {
   const cats = a.borrower?.borrower_categories ?? [];
   return cats.map((bc) => (bc.category?.name ?? "").toLowerCase()).join(" ");
@@ -55,10 +71,13 @@ function categorySearchBlob(a: AccountListItem) {
 
 function AccountCatalogCard({ account }: { account: AccountListItem }) {
   const name = borrowerLabel(account);
+  const scheduleType = scheduleTypeKey(account);
   const freq =
-    account.payment_frequency === "bisag kanus-a"
-      ? "manual"
-      : (account.payment_frequency ?? "—");
+    scheduleType === "manual-rolling"
+      ? "manual rolling"
+      : scheduleType === "manual-flat"
+        ? "manual flat"
+        : (account.payment_frequency ?? "—");
   const rate = Number(account.interest_rate ?? 0);
   const prog = account.payment_progress;
   const metrics = account.metrics;
@@ -354,6 +373,7 @@ export default function AccountsList({
   const [search, setSearch] = useState("");
   const [frequencySet, setFrequencySet] = useState<Set<string>>(new Set());
   const [interestSet, setInterestSet] = useState<Set<string>>(new Set());
+  const [modeSet, setModeSet] = useState<Set<string>>(new Set());
 
   const distinctFrequencies = useMemo(() => {
     const s = new Set<string>();
@@ -377,6 +397,15 @@ export default function AccountsList({
     accounts.forEach((a) => {
       const f = a.payment_frequency ?? "—";
       m.set(f, (m.get(f) ?? 0) + 1);
+    });
+    return m;
+  }, [accounts]);
+
+  const modeCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    accounts.forEach((a) => {
+      const k = scheduleTypeKey(a);
+      m.set(k, (m.get(k) ?? 0) + 1);
     });
     return m;
   }, [accounts]);
@@ -412,9 +441,12 @@ export default function AccountsList({
         const key = String(Number(a.interest_rate ?? NaN));
         if (key === "NaN" || !interestSet.has(key)) return false;
       }
+      if (modeSet.size > 0) {
+        if (!modeSet.has(scheduleTypeKey(a))) return false;
+      }
       return true;
     });
-  }, [accounts, normalizedSearch, frequencySet, interestSet]);
+  }, [accounts, normalizedSearch, frequencySet, interestSet, modeSet]);
 
   function toggleFrequency(f: string) {
     setFrequencySet((prev) => {
@@ -435,15 +467,26 @@ export default function AccountsList({
     });
   }
 
+  function toggleMode(mode: string) {
+    setModeSet((prev) => {
+      const n = new Set(prev);
+      if (n.has(mode)) n.delete(mode);
+      else n.add(mode);
+      return n;
+    });
+  }
+
   function clearFilters() {
     setFrequencySet(new Set());
     setInterestSet(new Set());
+    setModeSet(new Set());
     setSearch("");
   }
 
   const hasActiveFilters =
     frequencySet.size > 0 ||
     interestSet.size > 0 ||
+    modeSet.size > 0 ||
     normalizedSearch.length > 0;
 
   const total = accounts.length;
@@ -536,6 +579,55 @@ export default function AccountsList({
             aria-label="Search accounts by borrower name"
           />
         </div>
+
+        {(modeCounts.get("manual-flat") ?? 0) +
+          (modeCounts.get("manual-rolling") ?? 0) >
+        0 ? (
+          <div>
+            <p
+              className="mb-1.5 text-[10px] font-bold uppercase
+                tracking-[0.14em] text-slate-500 dark:text-muted-foreground"
+            >
+              Schedule type
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {SCHEDULE_TYPES.map(({ key: mode, label }) => {
+                const selected = modeSet.has(mode);
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => toggleMode(mode)}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-xs font-semibold",
+                      "uppercase tracking-wide transition",
+                      selected
+                        ? `border-slate-900 bg-slate-900 text-white
+                          dark:border-border dark:bg-foreground
+                          dark:text-background`
+                        : `border-slate-200 bg-white text-slate-700
+                          hover:border-slate-300 dark:border-border/50
+                          dark:bg-card dark:text-foreground`,
+                    )}
+                  >
+                    {label}{" "}
+                    <span className="tabular-nums opacity-80">
+                      ({modeCounts.get(mode) ?? 0})
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p
+              className="mt-1 text-[10px] text-slate-500
+                dark:text-muted-foreground"
+            >
+              Manual = no fixed schedule, payments are recorded as they come.
+              Rolling = interest is charged again on the unpaid balance each
+              cycle.
+            </p>
+          </div>
+        ) : null}
 
         {distinctFrequencies.length > 0 ? (
           <div>

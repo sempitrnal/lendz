@@ -23,6 +23,8 @@ type AccountListItem = {
   principal_amount: number | null;
   interest_rate: number | null;
   payment_frequency: string | null;
+  schedule_mode: string | null;
+  interest_type: string | null;
   release_date: string | null;
   borrower: {
     id: string;
@@ -74,6 +76,8 @@ export async function getAccountsPageData(): Promise<AccountsPageData> {
       principal_amount,
       interest_rate,
       payment_frequency,
+      schedule_mode,
+      interest_type,
       release_date,
       borrower:borrowers (
         id,
