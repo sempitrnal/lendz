@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   forwardRef,
   useCallback,
   useEffect,
@@ -38,6 +39,7 @@ import {
   updateScheduleStatusAction,
   applyPartialPaymentAction,
 } from "@/lib/actions/schedules";
+import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 
 type ChecklistCategory = {
   id: string;
@@ -1273,73 +1275,89 @@ const ChecklistInput = forwardRef<ChecklistInputHandle, ChecklistInputProps>(
                       const itemIndex = nextItems.length > 1 ? i + 1 : i;
                       const isOverdue =
                         item.due_date < overdueCutoffDateValue();
+                      const year = item.due_date.slice(0, 4);
+                      const showYear =
+                        i === 0 ||
+                        nextItems[i - 1].due_date.slice(0, 4) !== year;
                       return (
-                        <button
-                          key={`${item.due_date}-${i}`}
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            if (!isMobile) innerRef.current?.focus();
-                            toggleNextItem(i);
-                          }}
-                          className={`w-full rounded-md px-2 py-3 text-left
-                            text-sm transition-colors ${
-                              itemIndex === nextIndex
-                                ? "bg-slate-100 dark:bg-muted"
-                                : "hover:bg-slate-50 dark:hover:bg-muted/50"
-                            }`}
-                        >
-                          <span
-                            className="flex items-center justify-between gap-2"
-                          >
-                            <span className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                readOnly
-                                checked={nextSelected.has(i)}
-                                className="pointer-events-none h-3.5 w-3.5
-                                  accent-slate-600"
-                              />
-                              <span
-                                className="font-medium text-slate-700
-                                  dark:text-foreground"
-                              >
-                                {formatShortDate(item.due_date)}
-                              </span>
-                              <span
-                                className={`rounded border px-1 py-px text-[8px]
-                                  font-semibold lowercase ${
-                                    item.type === "cash_advance"
-                                      ? `border-amber-300/60 bg-amber-200
-                                        text-amber-900 dark:border-amber-700
-                                        dark:bg-amber-800 dark:text-amber-100`
-                                      : `border-violet-300/60 bg-violet-200
-                                        text-violet-900 dark:border-violet-700
-                                        dark:bg-violet-800 dark:text-violet-100`
-                                  }`}
-                              >
-                                {item.type === "cash_advance" ? "CA" : "Loan"}
-                              </span>
-                              {isOverdue && (
-                                <span
-                                  className="rounded border border-rose-300/60
-                                    bg-rose-100 px-1 py-px text-[8px]
-                                    font-semibold uppercase text-rose-700
-                                    dark:border-rose-700 dark:bg-rose-800
-                                    dark:text-rose-100"
-                                >
-                                  overdue
-                                </span>
-                              )}
-                            </span>
-                            <span
-                              className="text-slate-500
+                        <Fragment key={`${item.due_date}-${i}`}>
+                          {showYear && (
+                            <div
+                              className="px-2 pb-1 pt-2 text-[10px] font-bold
+                                tracking-wide text-slate-400
                                 dark:text-muted-foreground"
                             >
-                              ₱{item.amount.toLocaleString()}
+                              {year}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              if (!isMobile) innerRef.current?.focus();
+                              toggleNextItem(i);
+                            }}
+                            className={`w-full rounded-md px-2 py-3 text-left
+                              text-sm transition-colors ${
+                                itemIndex === nextIndex
+                                  ? "bg-slate-100 dark:bg-muted"
+                                  : "hover:bg-slate-50 dark:hover:bg-muted/50"
+                              }`}
+                          >
+                            <span
+                              className="flex items-center justify-between
+                                gap-2"
+                            >
+                              <span className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  readOnly
+                                  checked={nextSelected.has(i)}
+                                  className="pointer-events-none h-3.5 w-3.5
+                                    accent-slate-600"
+                                />
+                                <span
+                                  className="font-medium text-slate-700
+                                    dark:text-foreground"
+                                >
+                                  {formatShortDate(item.due_date)}
+                                </span>
+                                <span
+                                  className={`rounded border px-1 py-px
+                                    text-[8px] font-semibold lowercase ${
+                                      item.type === "cash_advance"
+                                        ? `border-amber-300/60 bg-amber-200
+                                          text-amber-900 dark:border-amber-700
+                                          dark:bg-amber-800 dark:text-amber-100`
+                                        : `border-violet-300/60 bg-violet-200
+                                          text-violet-900 dark:border-violet-700
+                                          dark:bg-violet-800
+                                          dark:text-violet-100`
+                                    }`}
+                                >
+                                  {item.type === "cash_advance" ? "CA" : "Loan"}
+                                </span>
+                                {isOverdue && (
+                                  <span
+                                    className="rounded border border-rose-300/60
+                                      bg-rose-100 px-1 py-px text-[8px]
+                                      font-semibold uppercase text-rose-700
+                                      dark:border-rose-700 dark:bg-rose-800
+                                      dark:text-rose-100"
+                                  >
+                                    overdue
+                                  </span>
+                                )}
+                              </span>
+                              <span
+                                className="text-slate-500
+                                  dark:text-muted-foreground"
+                              >
+                                ₱{item.amount.toLocaleString()}
+                              </span>
                             </span>
-                          </span>
-                        </button>
+                          </button>
+                        </Fragment>
                       );
                     })}
                   </div>
@@ -1410,10 +1428,12 @@ function ScheduleCheckDialog({
     () => (item ? extractScheduleRefs(item.label) : []),
     [item?.id, item?.label],
   );
-  const borrowerName = useMemo(
-    () => (item ? extractBorrowerMention(item.label)?.name : null),
+  const borrower = useMemo(
+    () => (item ? extractBorrowerMention(item.label) : null),
     [item?.id, item?.label],
   );
+  const borrowerName = borrower?.name;
+  const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
   const open = refs.length > 0;
 
   useEffect(() => {
@@ -1447,7 +1467,12 @@ function ScheduleCheckDialog({
             setRows([]);
             setChoices({});
           } else {
-            const fetched = (data ?? []) as ScheduleDialogRow[];
+            const order = new Map(refs.map((r, i) => [r.id, i]));
+            const fetched = ((data ?? []) as ScheduleDialogRow[]).sort(
+              (a, b) =>
+                (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0) ||
+                a.due_date.localeCompare(b.due_date),
+            );
             setRows(fetched);
             const initial: Record<string, ScheduleChoice> = {};
             fetched.forEach((r) => {
@@ -1501,6 +1526,7 @@ function ScheduleCheckDialog({
           }
         }),
       );
+      if (borrower) invalidateBorrowerDetails(borrower.id);
       toast.success("Payment schedule updated");
       onConfirmed();
     } catch (err) {
@@ -1539,8 +1565,8 @@ function ScheduleCheckDialog({
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
               Mark {borrowerName ? `${borrowerName}'s` : "the"} linked
-              collection{rows.length === 1 ? "" : "s"} as paid or partial
-              before checking this off.
+              collection{rows.length === 1 ? "" : "s"} as paid or partial before
+              checking this off.
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -1567,8 +1593,8 @@ function ScheduleCheckDialog({
               return (
                 <div
                   key={row.id}
-                  className="dark:border-border dark:bg-card rounded-lg
-                    border border-slate-200 bg-white p-3"
+                  className="dark:border-border dark:bg-card rounded-lg border
+                    border-slate-200 bg-white p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span
@@ -1626,9 +1652,9 @@ function ScheduleCheckDialog({
                       className={`cursor-pointer rounded-md border px-2 py-1.5
                         text-xs font-bold tracking-wide uppercase transition ${
                           chosen === "partial"
-                            ? `border-violet-500 bg-violet-200
-                              text-violet-950 dark:border-violet-400/50
-                              dark:bg-violet-400/25 dark:text-violet-200`
+                            ? `border-violet-500 bg-violet-200 text-violet-950
+                              dark:border-violet-400/50 dark:bg-violet-400/25
+                              dark:text-violet-200`
                             : `border-slate-300 bg-white text-slate-600
                               hover:border-violet-500 hover:bg-violet-50
                               dark:border-border dark:bg-card
