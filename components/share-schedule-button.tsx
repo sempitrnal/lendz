@@ -28,6 +28,8 @@ type Props = {
   progressPct: number;
   schedules: ShareSchedule[];
   noDetails?: boolean;
+  /** Manual accounts: rows are payments received, not fixed installments. */
+  isManual?: boolean;
 };
 
 function formatMoney(value: number) {
@@ -152,6 +154,7 @@ export default function ShareScheduleButton({
   progressPct,
   schedules,
   noDetails,
+  isManual,
 }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [rendering, setRendering] = useState(false);
@@ -323,10 +326,21 @@ export default function ShareScheduleButton({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  <span style={{ fontWeight: 500, color: p.textPrimary }}>
-                    {paidCount}
-                  </span>{" "}
-                  / {schedules.length} paid
+                  {isManual ? (
+                    <>
+                      <span style={{ fontWeight: 500, color: p.textPrimary }}>
+                        {schedules.length}
+                      </span>{" "}
+                      payment{schedules.length === 1 ? "" : "s"}
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontWeight: 500, color: p.textPrimary }}>
+                        {paidCount}
+                      </span>{" "}
+                      / {schedules.length} paid
+                    </>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -437,9 +451,9 @@ export default function ShareScheduleButton({
                     </div>
                   );
                 })()
-              : schedules.length > 0
+              : isManual && remaining > 0
                 ? (() => {
-                    const st = statusPalette("paid", isDark);
+                    const st = statusPalette("pending", isDark);
                     return (
                       <div
                         style={{
@@ -447,19 +461,72 @@ export default function ShareScheduleButton({
                           backgroundColor: st.rowBg,
                           padding: "12px 16px",
                           marginBottom: 20,
-                          textAlign: "center",
-                          fontSize: 11,
-                          fontWeight: 500,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.12em",
-                          color: st.badgeText,
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 12,
                         }}
                       >
-                        Fully paid
+                        <div>
+                          <div
+                            style={{
+                              fontSize: 9,
+                              fontWeight: 500,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.12em",
+                              color: p.textSecondary,
+                            }}
+                          >
+                            Remaining balance
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 18,
+                              fontWeight: 500,
+                              color: p.textPrimary,
+                              marginTop: 3,
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {formatMoney(remaining)}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 500,
+                            color: p.textMuted,
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {formatMoney(collected)} paid so far
+                        </div>
                       </div>
                     );
                   })()
-                : null}
+                : schedules.length > 0
+                  ? (() => {
+                      const st = statusPalette("paid", isDark);
+                      return (
+                        <div
+                          style={{
+                            borderRadius: 12,
+                            backgroundColor: st.rowBg,
+                            padding: "12px 16px",
+                            marginBottom: 20,
+                            textAlign: "center",
+                            fontSize: 11,
+                            fontWeight: 500,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.12em",
+                            color: st.badgeText,
+                          }}
+                        >
+                          Fully paid
+                        </div>
+                      );
+                    })()
+                  : null}
 
             {!noDetails && (
               <div
@@ -704,9 +771,11 @@ export default function ShareScheduleButton({
                 ) : (
                   <>
                     <span style={{ fontWeight: 500, color: p.textPrimary }}>
-                      {paidCount}
+                      {isManual ? schedules.length : paidCount}
                     </span>{" "}
-                    of {schedules.length} paid
+                    {isManual
+                      ? `payment${schedules.length === 1 ? "" : "s"} received`
+                      : `of ${schedules.length} paid`}
                   </>
                 )}
               </div>

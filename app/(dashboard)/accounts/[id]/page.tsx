@@ -607,6 +607,7 @@ export default async function AccountDetailPage({
             <div className="flex px-2 gap-2 print:hidden">
               <ShareScheduleButton
                 noDetails
+                isManual={isManual}
                 borrowerName={borrowerName}
                 accountType={accountRow.type}
                 releaseDate={accountRow.release_date}
