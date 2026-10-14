@@ -3,7 +3,11 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
-import { badgeClassFor } from "@/components/dashboard/checklist/dom";
+import { badgeClassFor, chipClass } from "@/components/dashboard/checklist/dom";
+import {
+  formatShortDate,
+  type CollectionRowModel,
+} from "@/lib/checklist/labels";
 
 export function LinkedLabel({
   label,
@@ -145,13 +149,89 @@ export function MentionPill({
         text-sm font-semibold leading-none transition-opacity hover:opacity-70
         ${
           checked
-            ? `border-slate-200 text-slate-400 dark:border-muted-foreground/30
-              dark:text-muted-foreground/60`
+            ? "border-border text-muted-foreground/70"
             : `border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-800
               dark:bg-sky-900/20 dark:text-sky-300`
         }`}
     >
       {name}
     </Link>
+  );
+}
+
+/** A `/next`-linked item: borrower, one chip row per collection, amount on the right. */
+export function CollectionLabel({
+  model,
+  checked,
+  borrowers,
+}: {
+  model: CollectionRowModel;
+  checked: boolean;
+  borrowers: BorrowerSearchItem[];
+}) {
+  const multi = model.lines.length > 1;
+  return (
+    <div className="flex items-start gap-3">
+      <div className="min-w-0 flex-1 space-y-1.5">
+        {model.borrower ? (
+          <MentionPill
+            name={model.borrower.name}
+            href={`/borrowers/${model.borrower.id}`}
+            checked={checked}
+          />
+        ) : null}
+        <div className={`space-y-1 ${checked ? "opacity-60" : ""}`}>
+          {model.lines.map((line) => (
+            <div
+              key={line.id}
+              className="flex flex-wrap items-center gap-1.5 text-xs"
+            >
+              {multi && (
+                <span
+                  className={`font-medium text-muted-foreground tabular-nums ${
+                    checked ? "line-through" : ""
+                  }`}
+                >
+                  ₱{line.amount.toLocaleString()}
+                </span>
+              )}
+              <span
+                className={chipClass(
+                  line.daysOverdue > 0 && !checked ? "overdue" : "neutral",
+                )}
+              >
+                {formatShortDate(line.due_date).toLowerCase()}
+                {line.daysOverdue > 0 && !checked
+                  ? ` · ${line.daysOverdue}d overdue`
+                  : ""}
+              </span>
+              <span
+                className={chipClass(
+                  line.type === "cash_advance" ? "cash_advance" : "loan",
+                )}
+              >
+                {line.type === "cash_advance" ? "ca" : "loan"}
+              </span>
+            </div>
+          ))}
+        </div>
+        {model.note ? (
+          <p className="text-xs whitespace-pre-wrap text-muted-foreground">
+            <LinkedLabel
+              label={model.note}
+              checked={checked}
+              borrowers={borrowers}
+            />
+          </p>
+        ) : null}
+      </div>
+      <span
+        className={`shrink-0 text-base font-semibold tabular-nums ${
+          checked ? "text-muted-foreground line-through" : "text-foreground"
+        }`}
+      >
+        ₱{model.total.toLocaleString()}
+      </span>
+    </div>
   );
 }

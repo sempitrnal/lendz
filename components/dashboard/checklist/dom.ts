@@ -5,19 +5,28 @@ import { overdueCutoffDateValue } from "@/lib/checklist/dates";
 export const MENTION_PILL_CLASS =
   "inline-block rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-xs font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300";
 
+export type ChipTone = "neutral" | "overdue" | "loan" | "cash_advance";
+
+const CHIP_TONES: Record<ChipTone, string> = {
+  neutral: "border-border bg-muted text-muted-foreground",
+  overdue:
+    "border-rose-300/60 bg-rose-100 text-rose-700 dark:border-rose-700 dark:bg-rose-900/40 dark:text-rose-200",
+  loan: "lowercase border-violet-300/60 bg-violet-100 text-violet-800 dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-200",
+  cash_advance:
+    "lowercase border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200",
+};
+
+export function chipClass(tone: ChipTone) {
+  return `inline-block rounded border px-1.5 py-0.5 align-middle text-[11px] font-semibold leading-none ${CHIP_TONES[tone]}`;
+}
+
 export function badgeClassFor(href: string): string | null {
   const m = href.match(/^#badge:(date|type):([^|]+)/);
   if (!m) return null;
-  const base =
-    "inline-block  rounded border px-1 py-px align-middle text-[9px] font-semibold leading-none";
   if (m[1] === "type") {
-    return m[2] === "cash_advance"
-      ? `${base} lowercase border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200`
-      : `${base} lowercase border-violet-300/60 bg-violet-100 text-violet-800 dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-200`;
+    return chipClass(m[2] === "cash_advance" ? "cash_advance" : "loan");
   }
-  return m[2] < overdueCutoffDateValue()
-    ? `${base} border-rose-300/60 bg-rose-100 text-rose-700 dark:border-rose-700 dark:bg-rose-900/40 dark:text-rose-200`
-    : `${base} border-slate-300/70 bg-slate-100 text-slate-600 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-300`;
+  return chipClass(m[2] < overdueCutoffDateValue() ? "overdue" : "neutral");
 }
 
 export function createBadgeSpan(text: string, href: string) {
