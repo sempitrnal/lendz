@@ -30,6 +30,48 @@ import {
 } from "@/lib/checklist/labels";
 import { overdueCutoffDateValue } from "@/lib/checklist/dates";
 
+/** Room the /next dropdown wants under the input before it opens above. */
+const NEXT_MIN_SPACE = 260;
+
+type NextAnchor = {
+  top?: number;
+  bottom?: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+};
+
+/** Space above/below `el` inside the visible area (excludes the mobile keyboard). */
+function visibleSpace(el: HTMLElement) {
+  const rect = el.getBoundingClientRect();
+  const vv = window.visualViewport;
+  const visibleTop = vv?.offsetTop ?? 0;
+  const visibleBottom = visibleTop + (vv?.height ?? window.innerHeight);
+  return {
+    rect,
+    above: rect.top - visibleTop,
+    below: visibleBottom - rect.bottom,
+  };
+}
+
+/** Pins the dropdown flush under (or on top of) the input. */
+function measureNextAnchor(el: HTMLElement, openUp: boolean): NextAnchor {
+  const { rect, above, below } = visibleSpace(el);
+  return openUp
+    ? {
+        bottom: window.innerHeight - rect.top + 4,
+        left: rect.left,
+        width: rect.width,
+        maxHeight: Math.max(120, Math.min(above - 12, 320)),
+      }
+    : {
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        maxHeight: Math.max(120, Math.min(below - 12, 320)),
+      };
+}
+
 export type ChecklistInputHandle = {
   getValue: () => string;
   submit: () => void;
@@ -87,13 +129,9 @@ export const ChecklistInput = forwardRef<
     const nextTokenStartRef = useRef<number | null>(null);
     const tokenlessRef = useRef(false);
     const nextDropdownRef = useRef<HTMLDivElement>(null);
-    const [nextAnchor, setNextAnchor] = useState<{
-      top?: number;
-      bottom?: number;
-      left: number;
-      width: number;
-      maxHeight: number;
-    } | null>(null);
+    const [nextAnchor, setNextAnchor] = useState<NextAnchor | null>(null);
+    // Side is picked once per open so the list doesn't flip while you scroll.
+    const nextOpenUpRef = useRef(false);
     const nextTotal = nextItems.reduce((sum, i) => sum + i.amount, 0);
     const isMobile = useMemo(
       () =>
@@ -239,6 +277,32 @@ export const ChecklistInput = forwardRef<
       setMentionStart(null);
     };
 
+    // Keep the /next dropdown pinned under the input while it's open, even
+    // as the page scrolls or the input grows/moves.
+    useEffect(() => {
+      if (!nextOpen) return;
+      let frame = 0;
+      const tick = () => {
+        const el = innerRef.current;
+        if (el) {
+          const next = measureNextAnchor(el, nextOpenUpRef.current);
+          setNextAnchor((prev) =>
+            prev &&
+            prev.top === next.top &&
+            prev.bottom === next.bottom &&
+            prev.left === next.left &&
+            prev.width === next.width &&
+            prev.maxHeight === next.maxHeight
+              ? prev
+              : next,
+          );
+        }
+        frame = requestAnimationFrame(tick);
+      };
+      frame = requestAnimationFrame(tick);
+      return () => cancelAnimationFrame(frame);
+    }, [nextOpen]);
+
     const replaceNextToken = (insertNode: Node | null) => {
       const el = innerRef.current;
       if (!el) return;
@@ -270,25 +334,9 @@ export const ChecklistInput = forwardRef<
       isProcessingNextRef.current = true;
       nextTokenStartRef.current = matchStart;
       tokenlessRef.current = matchStart === null;
-      const rect = el.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      const openUp = spaceBelow < 260 && spaceAbove > spaceBelow;
-      setNextAnchor(
-        openUp
-          ? {
-              bottom: window.innerHeight - rect.top + 4,
-              left: rect.left,
-              width: rect.width,
-              maxHeight: Math.min(spaceAbove - 12, 320),
-            }
-          : {
-              top: rect.bottom + 4,
-              left: rect.left,
-              width: rect.width,
-              maxHeight: Math.min(spaceBelow - 12, 320),
-            },
-      );
+      const { above, below } = visibleSpace(el);
+      nextOpenUpRef.current = below < NEXT_MIN_SPACE && above > below;
+      setNextAnchor(measureNextAnchor(el, nextOpenUpRef.current));
       setNextItems([]);
       setNextSelected(new Set());
       setNextIndex(0);
