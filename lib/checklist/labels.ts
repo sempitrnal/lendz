@@ -1,5 +1,6 @@
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import type { DueChecklistGroup } from "@/lib/checklist/types";
+import { daysBetween } from "@/lib/checklist/dates";
 
 export function formatShortDate(iso: string) {
   return new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("en-US", {
@@ -216,3 +217,49 @@ export type NextCollectionItem = {
   /** Already present in the text being edited (pre-checked in the dropdown). */
   existing?: boolean;
 };
+
+export type CollectionRowLine = NextCollectionItem & {
+  /** Days past due relative to the checklist date (0 when not late). */
+  daysOverdue: number;
+};
+
+export type CollectionRowModel = {
+  borrower: { id: string; name: string } | null;
+  lines: CollectionRowLine[];
+  total: number;
+  /** Whatever else the label says, with the mention and collection lines removed. */
+  note: string;
+};
+
+/**
+ * Splits a `/next`-style label into the parts the checklist row shows.
+ * Returns null when the label has no linked collection lines.
+ */
+export function collectionRowModel(
+  label: string,
+  checklistDate: string,
+): CollectionRowModel | null {
+  const parsed = parseExistingNext(label);
+  if (parsed.length === 0) return null;
+
+  const borrower = extractBorrowerMention(label);
+  const lines = parsed.map((l) => ({
+    ...l,
+    daysOverdue: Math.max(0, daysBetween(l.due_date, checklistDate)),
+  }));
+  const total =
+    Math.round(lines.reduce((sum, l) => sum + l.amount, 0) * 100) / 100;
+
+  let rest = label.replace("/next", "");
+  if (borrower) {
+    rest = rest.replace(`[${borrower.name}](/borrowers/${borrower.id})`, "");
+  }
+  const note = rest
+    .split("\n")
+    .filter((line) => !NEXT_LINE.test(line) && !TOTAL_LINE.test(line))
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
+
+  return { borrower, lines, total, note };
+}

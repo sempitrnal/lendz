@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildDueLabel,
+  collectionRowModel,
   extractBorrowerId,
   extractBorrowerMention,
   extractScheduleRefs,
@@ -203,5 +204,39 @@ describe("parseMentions", () => {
       ["ana cruz", "b1"],
       ["Ana Cruz", "b1"],
     ]);
+  });
+});
+
+describe("collectionRowModel", () => {
+  it("returns null for a plain label", () => {
+    expect(collectionRowModel("buy load", "2026-10-10")).toBeNull();
+  });
+
+  it("splits a populated label into borrower, lines and total", () => {
+    const model = collectionRowModel(buildDueLabel(group), "2026-10-10");
+    expect(model?.borrower).toEqual({ id: BORROWER, name: "bo test" });
+    expect(model?.lines.map((l) => [l.id, l.amount, l.type])).toEqual([
+      [ID_A, 1450, "loan"],
+      [ID_B, 2400.5, "cash_advance"],
+    ]);
+    expect(model?.total).toBe(3850.5);
+    expect(model?.note).toBe("");
+  });
+
+  it("counts days overdue against the checklist date", () => {
+    const model = collectionRowModel(buildDueLabel(group), "2026-10-13");
+    expect(model?.lines.map((l) => l.daysOverdue)).toEqual([3, 3]);
+    const early = collectionRowModel(buildDueLabel(group), "2026-10-09");
+    expect(early?.lines.map((l) => l.daysOverdue)).toEqual([0, 0]);
+  });
+
+  it("keeps free text as the note", () => {
+    const label = rewriteNextBlock(
+      `[bo test](/borrowers/${BORROWER}) said friday /next`,
+      [item(ID_A, 500)],
+    );
+    const model = collectionRowModel(label, "2026-10-10");
+    expect(model?.total).toBe(500);
+    expect(model?.note).toBe("said friday");
   });
 });
