@@ -73,6 +73,10 @@ import {
   type ChecklistInputHandle,
 } from "@/components/dashboard/checklist/checklist-input";
 import {
+  NEAR_WHITE_BORDER,
+  isNearWhite,
+} from "@/components/dashboard/checklist/dom";
+import {
   CollectionLabel,
   LinkedLabel,
 } from "@/components/dashboard/checklist/checklist-label";
@@ -439,7 +443,14 @@ function CategorySection({
                 border-t border-border"
             >
               {groups.map((group) => (
-                <div key={group.key}>
+                <div
+                  key={group.key}
+                  style={
+                    group.color
+                      ? ({ "--grp": group.color } as React.CSSProperties)
+                      : undefined
+                  }
+                >
                   <button
                     type="button"
                     onClick={() => toggleGroup(group.key)}
@@ -449,11 +460,6 @@ function CategorySection({
                       text-slate-700 sm:px-4 dark:text-slate-300 ${
                         group.color ? GROUP_HEADER : "bg-card"
                       }`}
-                    style={
-                      group.color
-                        ? ({ "--grp": group.color } as React.CSSProperties)
-                        : undefined
-                    }
                   >
                     <span
                       className="size-2 shrink-0 rounded-full"
@@ -461,6 +467,10 @@ function CategorySection({
                         backgroundColor:
                           group.color ?? "var(--muted-foreground)",
                         opacity: group.color ? 1 : 0.4,
+                        boxShadow:
+                          group.color && isNearWhite(group.color)
+                            ? `inset 0 0 0 1px ${NEAR_WHITE_BORDER}`
+                            : undefined,
                       }}
                     />
                     <span className="truncate">{group.name}</span>
@@ -504,7 +514,7 @@ function CategorySection({
                                 gap-3 px-3 py-3 transition-colors duration-200
                                 sm:px-4 ${
                                   item.is_checked
-                                    ? "bg-muted/50"
+                                    ? "bg-muted/20"
                                     : "hover:bg-muted/30"
                                 }`}
                             >

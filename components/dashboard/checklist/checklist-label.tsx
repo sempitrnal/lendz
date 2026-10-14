@@ -162,16 +162,15 @@ export function MentionPill({
       href={href}
       prefetch
       onClick={(e) => e.stopPropagation()}
-      style={!checked && color ? categoryTintStyle(color) : undefined}
+      style={color ? categoryTintStyle(color) : undefined}
       className={`inline-block lowercase rounded-md border px-2 pl-2.5 py-1
-        text-sm font-semibold leading-none transition-opacity hover:opacity-70
-        ${
-          checked
-            ? "border-border text-muted-foreground/70"
-            : color
-              ? "text-slate-700 dark:text-slate-200"
-              : `border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-800
-                dark:bg-sky-900/20 dark:text-sky-300`
+        text-sm font-semibold leading-none transition-opacity ${
+          checked ? "opacity-60 hover:opacity-80" : "hover:opacity-70"
+        } ${
+          color
+            ? "text-slate-700 dark:text-slate-200"
+            : `border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-800
+              dark:bg-sky-900/20 dark:text-sky-300`
         }`}
     >
       {name}

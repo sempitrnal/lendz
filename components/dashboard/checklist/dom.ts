@@ -9,9 +9,22 @@ export const MENTION_PILL_CLASS = `${MENTION_PILL_BASE} border-sky-200 bg-sky-50
 
 const CATEGORY_MENTION_PILL_CLASS = `${MENTION_PILL_BASE} text-slate-700 dark:text-slate-200`;
 
+/** Grey border for near-white categories, whose own tint would vanish on the card. */
+export const NEAR_WHITE_BORDER = "#cbd5e1";
+
+export function isNearWhite(color: string) {
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 230;
+}
+
 /** Tint derived from a `#rrggbb` category color; text stays neutral for contrast. */
 export function categoryTintStyle(color: string) {
-  return { backgroundColor: `${color}24`, borderColor: `${color}80` };
+  return {
+    backgroundColor: `${color}24`,
+    borderColor: isNearWhite(color) ? NEAR_WHITE_BORDER : `${color}80`,
+  };
 }
 
 export function createMentionSpan(
