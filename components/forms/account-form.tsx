@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { triggerHaptic } from "@/lib/haptics";
+import { formatDate, formatMoney } from "@/lib/utils";
 
 import {
   accountSchema,
@@ -42,6 +43,10 @@ type AccountFormProps = {
   /** Prefill when editing (merged with borrower_id). */
   initialValues?: Partial<AccountFormValues>;
   onSuccess?: () => void;
+  /** After creating, navigate to the borrower page. When false, a detailed toast is shown instead. */
+  redirectOnCreate?: boolean;
+  /** Shown in the creation toast when `redirectOnCreate` is false. */
+  borrowerName?: string;
 };
 
 const emptyDefaults = (borrowerId: string): AccountFormValues => ({
@@ -110,6 +115,8 @@ export default function AccountForm({
   accountId,
   initialValues,
   onSuccess,
+  redirectOnCreate = true,
+  borrowerName,
 }: AccountFormProps) {
   const router = useRouter();
   const isEdit = Boolean(accountId);
@@ -355,11 +362,56 @@ export default function AccountForm({
               : " Add schedules manually."
             : "");
     triggerHaptic("success");
-    toast.success(msg);
+    if (isEdit || redirectOnCreate) {
+      toast.success(msg);
+    } else {
+      toast.success("Account created", {
+        position: "top-center",
+        className:
+          "!border-green-200 !bg-green-50 !text-green-900 dark:!border-green-900 dark:!bg-green-950 dark:!text-green-100",
+        classNames: {
+          description: "!text-green-800 dark:!text-green-200",
+        },
+        description: (
+          <div className="mt-1 flex flex-col gap-1 text-sm">
+            {borrowerName ? (
+              <div className="flex items-center gap-2">
+                <span className="text-green-700 dark:text-green-300">Borrower</span>
+                <span className="font-semibold">{borrowerName}</span>
+              </div>
+            ) : null}
+            <div className="flex items-center gap-2">
+              <span className="text-green-700 dark:text-green-300">Principal</span>
+              <span className="font-semibold">
+                {formatMoney(values.principal_amount)}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-green-700 dark:text-green-300">Type</span>
+              <span className="rounded-full bg-green-200 px-2 py-0.5 text-xs font-medium text-green-900 dark:bg-green-900 dark:text-green-100">
+                {values.type === "cash_advance" ? "Cash advance" : "Loan"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-green-700 dark:text-green-300">Release date</span>
+              <span className="font-semibold">
+                {formatDate(values.release_date)}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-green-700 dark:text-green-300">First payment</span>
+              <span className="font-semibold">
+                {formatDate(values.first_payment_date)}
+              </span>
+            </div>
+          </div>
+        ),
+      });
+    }
 
     await revalidateBorrowerDetailPage(values.borrower_id);
     router.refresh();
-    if (!isEdit) {
+    if (!isEdit && redirectOnCreate) {
       router.push(`/borrowers/${values.borrower_id}`);
     }
     onSuccess?.();

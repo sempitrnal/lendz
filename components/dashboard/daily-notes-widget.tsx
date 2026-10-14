@@ -688,6 +688,8 @@ function CategorySection({
                 key={releasedAccount.item.id}
                 borrowerId={releasedAccount.parsed.borrowerId}
                 initialValues={releasedAccount.parsed.initialValues}
+                redirectOnCreate={false}
+                borrowerName={releasedAccount.parsed.borrowerName}
                 onSuccess={async () => {
                   const { item, parsed } = releasedAccount;
                   setReleasedAccount(null);
