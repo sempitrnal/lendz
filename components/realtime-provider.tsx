@@ -28,6 +28,7 @@ export default function RealtimeProvider({
   const queryClient = useQueryClient();
   const refreshTimerRef = useRef<number | null>(null);
   const pollRef = useRef<number | null>(null);
+  const realtimeOk = useRef(false);
 
   useEffect(() => {
     const refresh = () => {
@@ -67,7 +68,9 @@ export default function RealtimeProvider({
       );
     });
 
+    realtimeOk.current = false;
     channel.subscribe((status: string, err?: Error) => {
+      realtimeOk.current = status === "SUBSCRIBED";
       if (err) {
         console.error("[realtime] subscription error:", err);
       } else {
@@ -93,6 +96,9 @@ export default function RealtimeProvider({
       pathname?.startsWith("/borrowers/")
     ) {
       pollRef.current = window.setInterval(() => {
+        // Realtime already pushes changes — only poll as a fallback while
+        // the channel is down, otherwise this is a wasted render + queries.
+        if (realtimeOk.current) return;
         if (document.visibilityState === "visible") {
           refresh();
         }

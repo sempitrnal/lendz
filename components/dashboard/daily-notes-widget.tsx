@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Settings,
   Check,
@@ -30,6 +31,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import AccountForm from "@/components/forms/account-form";
+import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
+import {
+  parseReleasedLabel,
+  type ParsedReleasedLabel,
+} from "@/lib/checklist/released";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import type {
   ChecklistCategory,
@@ -141,6 +148,12 @@ function CategorySection({
   const [editLabelValue, setEditLabelValue] = useState("");
   const [scheduleCheckItem, setScheduleCheckItem] =
     useState<DailyChecklistItem | null>(null);
+  const [releasedAccount, setReleasedAccount] = useState<{
+    item: DailyChecklistItem;
+    parsed: ParsedReleasedLabel;
+  } | null>(null);
+  const router = useRouter();
+  const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
   const addInputRef = useRef<ChecklistInputHandle>(null);
   const editInputRef = useRef<ChecklistInputHandle>(null);
   const [expanded, setExpanded] = useState(true);
@@ -242,6 +255,13 @@ function CategorySection({
       if (refs.length > 0) {
         setScheduleCheckItem(item);
         return;
+      }
+      if (category?.name.trim().toLowerCase() === "released") {
+        const parsed = parseReleasedLabel(item.label, item.checklist_date);
+        if (parsed) {
+          setReleasedAccount({ item, parsed });
+          return;
+        }
       }
     }
     onToggle(item);
@@ -645,6 +665,52 @@ function CategorySection({
           if (item) onToggle(item);
         }}
       />
+
+      <Dialog
+        open={Boolean(releasedAccount)}
+        onOpenChange={(open) => {
+          if (!open) setReleasedAccount(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Create account for {releasedAccount?.parsed.borrowerName}
+            </DialogTitle>
+            <DialogDescription>
+              Prefilled from the checklist item. Review and save to check it
+              off.
+            </DialogDescription>
+          </DialogHeader>
+          {releasedAccount ? (
+            <>
+              <AccountForm
+                key={releasedAccount.item.id}
+                borrowerId={releasedAccount.parsed.borrowerId}
+                initialValues={releasedAccount.parsed.initialValues}
+                onSuccess={async () => {
+                  const { item, parsed } = releasedAccount;
+                  setReleasedAccount(null);
+                  onToggle(item);
+                  await invalidateBorrowerDetails(parsed.borrowerId);
+                  router.refresh();
+                }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  const { item } = releasedAccount;
+                  setReleasedAccount(null);
+                  onToggle(item);
+                }}
+              >
+                Check off without account
+              </Button>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
