@@ -85,6 +85,10 @@ const CAT_PILL =
   "border-[color:color-mix(in_oklab,var(--cat)_35%,transparent)] bg-[color:color-mix(in_oklab,var(--cat)_14%,var(--card))] text-[color:color-mix(in_oklab,var(--cat)_70%,var(--foreground))]";
 const CAT_HEADER = "bg-[color:color-mix(in_oklab,var(--cat)_6%,var(--card))]";
 
+/** Neutral highlight; the theme's accent (amber) reads as a warning here. */
+const MENU_ITEM =
+  "focus:bg-muted focus:text-foreground not-data-[variant=destructive]:focus:**:text-foreground";
+
 const ICON_BUTTON =
   "inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground";
 
@@ -262,10 +266,8 @@ function CategorySection({
 
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-border bg-card
-        shadow-sm transition-all duration-200 ${
-          expanded && items.length > 0 ? "min-h-[26rem]" : ""
-        }`}
+      className="rounded-2xl border border-border bg-card shadow-sm
+        transition-all duration-200"
       style={
         {
           "--cat": category?.color ?? "var(--muted-foreground)",
@@ -274,7 +276,7 @@ function CategorySection({
     >
       <div
         className={`flex items-center gap-1 pr-2 ${CAT_HEADER} ${
-          expanded ? "border-b border-border" : ""
+          expanded ? "rounded-t-2xl border-b border-border" : "rounded-2xl"
         }`}
       >
         <button
@@ -321,6 +323,7 @@ function CategorySection({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-auto min-w-48">
             <DropdownMenuItem
+              className={MENU_ITEM}
               disabled={populating}
               onSelect={async () => {
                 setPopulating(true);
@@ -332,7 +335,10 @@ function CategorySection({
               {populating ? "Loading…" : "Populate due"}
             </DropdownMenuItem>
             {bulkItems.length > 0 && (
-              <DropdownMenuItem onSelect={() => setBulkOpen(true)}>
+              <DropdownMenuItem
+                className={MENU_ITEM}
+                onSelect={() => setBulkOpen(true)}
+              >
                 <Check />
                 Mark all paid ({bulkItems.length})
               </DropdownMenuItem>
@@ -396,7 +402,8 @@ function CategorySection({
                   key={item.id}
                   onClick={() => handleToggle(item)}
                   className={`group flex cursor-pointer items-start gap-3 px-3
-                    py-3 transition-colors duration-200 sm:px-4 ${
+                    last:rounded-b-2xl py-3 transition-colors duration-200
+                    sm:px-4 ${
                       item.is_checked ? "bg-muted/50" : "hover:bg-muted/30"
                     }`}
                 >
@@ -470,6 +477,7 @@ function CategorySection({
                       onClick={(e) => e.stopPropagation()}
                     >
                       <DropdownMenuItem
+                        className={MENU_ITEM}
                         onSelect={() => {
                           setEditingItem(item);
                           setEditLabelValue(item.label);
