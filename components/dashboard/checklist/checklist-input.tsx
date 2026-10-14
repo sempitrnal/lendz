@@ -54,19 +54,46 @@ function visibleSpace(el: HTMLElement) {
   };
 }
 
-/** Pins the dropdown flush under (or on top of) the input. */
-function measureNextAnchor(el: HTMLElement, openUp: boolean): NextAnchor {
+/**
+ * Where the /next dropdown is portaled. Inside a dialog it must live in the
+ * dialog content, or the dialog's scroll lock blocks scrolling/tapping it.
+ */
+function nextPortalTarget(el: HTMLElement | null): HTMLElement {
+  return (
+    el?.closest<HTMLElement>('[data-slot="dialog-content"]') ?? document.body
+  );
+}
+
+/**
+ * Pins the dropdown flush under (or on top of) the input. Coordinates are
+ * relative to `container` when it's a (transformed) dialog, since that
+ * becomes the containing block for the `position: fixed` dropdown.
+ */
+function measureNextAnchor(
+  el: HTMLElement,
+  openUp: boolean,
+  container: HTMLElement,
+): NextAnchor {
   const { rect, above, below } = visibleSpace(el);
+  let originTop = 0;
+  let originLeft = 0;
+  let originBottom = window.innerHeight;
+  if (container !== document.body) {
+    const c = container.getBoundingClientRect();
+    originTop = c.top + container.clientTop;
+    originLeft = c.left + container.clientLeft;
+    originBottom = originTop + container.clientHeight;
+  }
   return openUp
     ? {
-        bottom: window.innerHeight - rect.top + 4,
-        left: rect.left,
+        bottom: originBottom - rect.top + 4,
+        left: rect.left - originLeft,
         width: rect.width,
         maxHeight: Math.max(120, Math.min(above - 12, 320)),
       }
     : {
-        top: rect.bottom + 4,
-        left: rect.left,
+        top: rect.bottom + 4 - originTop,
+        left: rect.left - originLeft,
         width: rect.width,
         maxHeight: Math.max(120, Math.min(below - 12, 320)),
       };
@@ -132,6 +159,7 @@ export const ChecklistInput = forwardRef<
     const [nextAnchor, setNextAnchor] = useState<NextAnchor | null>(null);
     // Side is picked once per open so the list doesn't flip while you scroll.
     const nextOpenUpRef = useRef(false);
+    const [nextPortal, setNextPortal] = useState<HTMLElement | null>(null);
     const nextTotal = nextItems.reduce((sum, i) => sum + i.amount, 0);
     const isMobile = useMemo(
       () =>
@@ -285,7 +313,11 @@ export const ChecklistInput = forwardRef<
       const tick = () => {
         const el = innerRef.current;
         if (el) {
-          const next = measureNextAnchor(el, nextOpenUpRef.current);
+          const next = measureNextAnchor(
+            el,
+            nextOpenUpRef.current,
+            nextPortalTarget(wrapperRef.current),
+          );
           setNextAnchor((prev) =>
             prev &&
             prev.top === next.top &&
@@ -336,7 +368,9 @@ export const ChecklistInput = forwardRef<
       tokenlessRef.current = matchStart === null;
       const { above, below } = visibleSpace(el);
       nextOpenUpRef.current = below < NEXT_MIN_SPACE && above > below;
-      setNextAnchor(measureNextAnchor(el, nextOpenUpRef.current));
+      const portal = nextPortalTarget(wrapperRef.current);
+      setNextPortal(portal);
+      setNextAnchor(measureNextAnchor(el, nextOpenUpRef.current, portal));
       setNextItems([]);
       setNextSelected(new Set());
       setNextIndex(0);
@@ -927,7 +961,7 @@ export const ChecklistInput = forwardRef<
                 </>
               )}
             </div>,
-            document.body,
+            nextPortal ?? document.body,
           )}
       </div>
     );
