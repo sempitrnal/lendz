@@ -3,6 +3,8 @@ import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import {
   borrowerCategoryColor,
   buildDueLabel,
+  groupByBorrowerCategory,
+  OTHER_GROUP_KEY,
   collectionRowModel,
   extractBorrowerId,
   extractBorrowerMention,
@@ -271,5 +273,61 @@ describe("borrowerCategoryColor", () => {
       { category: { id: "c", name: "c", color: "#123456" } as never },
     ];
     expect(borrowerCategoryColor(b)).toBe("#123456");
+  });
+});
+
+describe("groupByBorrowerCategory", () => {
+  const cat = (
+    id: string,
+    color: string | null,
+    sort_order: number | null,
+  ) => ({
+    id,
+    name: id,
+    color,
+    sort_order,
+  });
+  const person = (
+    id: string,
+    first: string,
+    cats: ReturnType<typeof cat>[],
+  ): BorrowerSearchItem => ({
+    id,
+    first_name: first,
+    last_name: "Test",
+    contact: null,
+    borrower_categories: cats.map((c) => ({ category: [c] })),
+  });
+  const borrowers = [
+    person("b1", "Ana", [cat("vip", "#22c55e", 2)]),
+    person("b2", "Ben", [cat("weekly", "#3b82f6", 1)]),
+    person("b3", "Cy", []),
+    person("b4", "Di", [cat("vip", "#22c55e", 2)]),
+  ];
+
+  it("groups by category sort order with other last, keeping row order", () => {
+    const labels = [
+      "[Ana Test](/borrowers/b1) pay",
+      "plain note",
+      "[Ben Test](/borrowers/b2)",
+      "Di Test owes",
+      "[Cy Test](/borrowers/b3)",
+    ];
+    const groups = groupByBorrowerCategory(labels, (l) => l, borrowers);
+    expect(groups.map((g) => [g.key, g.rows])).toEqual([
+      ["weekly", ["[Ben Test](/borrowers/b2)"]],
+      ["vip", ["[Ana Test](/borrowers/b1) pay", "Di Test owes"]],
+      [OTHER_GROUP_KEY, ["plain note", "[Cy Test](/borrowers/b3)"]],
+    ]);
+    expect(groups[0].color).toBe("#3b82f6");
+  });
+
+  it("omits the other group when everything is categorized", () => {
+    const groups = groupByBorrowerCategory(
+      ["[Ana Test](/borrowers/b1)"],
+      (l) => l,
+      borrowers,
+    );
+    expect(groups.map((g) => g.key)).toEqual(["vip"]);
   });
 });

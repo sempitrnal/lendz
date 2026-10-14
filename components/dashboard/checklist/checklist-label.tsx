@@ -198,6 +198,9 @@ export function CollectionLabel({
             name={model.borrower.name}
             href={`/borrowers/${model.borrower.id}`}
             checked={checked}
+            color={borrowerCategoryColor(
+              borrowers.find((b) => b.id === model.borrower?.id),
+            )}
           />
         ) : null}
         <div className={`space-y-1 ${checked ? "opacity-60" : ""}`}>

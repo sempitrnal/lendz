@@ -575,7 +575,7 @@ async function fetchBorrowerSearchList() {
     .from("borrowers")
     .select(
       `id, first_name, last_name, contact,
-       borrower_categories ( category:categories ( id, name, color ) )`,
+       borrower_categories ( category:categories ( id, name, color, sort_order ) )`,
     )
     .is("deleted_at", null)
     .order("created_at", { ascending: false });

@@ -140,21 +140,113 @@ export function buildDueLabel(group: DueChecklistGroup): string {
   ].join("\n");
 }
 
+function normalizeHex(color: string | null | undefined): string | null {
+  const hex = color?.trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!hex) return null;
+  const digits =
+    hex[1].length === 3 ? hex[1].replace(/./g, (c) => c + c) : hex[1];
+  return `#${digits.toLowerCase()}`;
+}
+
+export type BorrowerCategory = {
+  id: string;
+  name: string;
+  /** Normalized `#rrggbb`, or null when unset/invalid. */
+  color: string | null;
+  sort_order: number | null;
+};
+
+/**
+ * The category a borrower is shown under: the first one with a valid color,
+ * else the first one at all.
+ */
+export function borrowerPrimaryCategory(
+  borrower: BorrowerSearchItem | null | undefined,
+): BorrowerCategory | null {
+  const categories = (borrower?.borrower_categories ?? [])
+    .flatMap((row) => row.category ?? [])
+    .filter(Boolean)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      color: normalizeHex(c.color),
+      sort_order: c.sort_order ?? null,
+    }));
+  return categories.find((c) => c.color) ?? categories[0] ?? null;
+}
+
 /** First valid category color on a borrower, normalized to `#rrggbb`. */
 export function borrowerCategoryColor(
   borrower: BorrowerSearchItem | null | undefined,
 ): string | null {
-  const categories = (borrower?.borrower_categories ?? []).flatMap(
-    (row) => row.category ?? [],
-  );
-  for (const category of categories) {
-    const hex = category?.color?.trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
-    if (!hex) continue;
-    const digits =
-      hex[1].length === 3 ? hex[1].replace(/./g, (c) => c + c) : hex[1];
-    return `#${digits.toLowerCase()}`;
+  return borrowerPrimaryCategory(borrower)?.color ?? null;
+}
+
+export const OTHER_GROUP_KEY = "other";
+
+export type BorrowerCategoryGroup<T> = {
+  key: string;
+  name: string;
+  color: string | null;
+  rows: T[];
+};
+
+/**
+ * Buckets rows by the primary category of the first borrower mentioned in
+ * each label. Rows with no mention or an uncategorized borrower land in a
+ * trailing "other" group. Row order within a group is preserved.
+ */
+export function groupByBorrowerCategory<T>(
+  rows: T[],
+  labelOf: (row: T) => string,
+  borrowers: BorrowerSearchItem[],
+): BorrowerCategoryGroup<T>[] {
+  const byId = new Map(borrowers.map((b) => [b.id, b]));
+  const groups = new Map<string, BorrowerCategoryGroup<T>>();
+  const sortOrder = new Map<string, number | null>();
+  const other: BorrowerCategoryGroup<T> = {
+    key: OTHER_GROUP_KEY,
+    name: "other",
+    color: null,
+    rows: [],
+  };
+
+  for (const row of rows) {
+    const label = labelOf(row);
+    const id =
+      extractBorrowerMention(label)?.id ??
+      parseMentions(label, borrowers).find((m) => m.id)?.id ??
+      null;
+    const category = id ? borrowerPrimaryCategory(byId.get(id)) : null;
+    if (!category) {
+      other.rows.push(row);
+      continue;
+    }
+    let group = groups.get(category.id);
+    if (!group) {
+      group = {
+        key: category.id,
+        name: category.name,
+        color: category.color,
+        rows: [],
+      };
+      groups.set(category.id, group);
+      sortOrder.set(category.id, category.sort_order);
+    }
+    group.rows.push(row);
   }
-  return null;
+
+  const ordered = [...groups.values()].sort((a, b) => {
+    const sa = sortOrder.get(a.key) ?? null;
+    const sb = sortOrder.get(b.key) ?? null;
+    if (sa !== sb) {
+      if (sa === null) return 1;
+      if (sb === null) return -1;
+      return sa - sb;
+    }
+    return a.name.localeCompare(b.name);
+  });
+  return other.rows.length > 0 ? [...ordered, other] : ordered;
 }
 
 export type MentionSegment = {

@@ -56,6 +56,7 @@ import type {
 import {
   buildDueLabel,
   collectionRowModel,
+  groupByBorrowerCategory,
   extractScheduleRefs,
   type NextCollectionItem,
 } from "@/lib/checklist/labels";
@@ -85,6 +86,10 @@ const CAT_PILL =
   "border-[color:color-mix(in_oklab,var(--cat)_35%,transparent)] bg-[color:color-mix(in_oklab,var(--cat)_14%,var(--card))] text-[color:color-mix(in_oklab,var(--cat)_70%,var(--foreground))]";
 const CAT_HEADER = "bg-[color:color-mix(in_oklab,var(--cat)_6%,var(--card))]";
 
+/** Borrower-category sub-header tint, from `--grp`; kept off the muted checked-row fill. */
+const GROUP_HEADER =
+  "bg-[color:color-mix(in_oklab,var(--grp)_6.7%,var(--card))]";
+
 /** Neutral highlight; the theme's accent (amber) reads as a warning here. */
 const MENU_ITEM =
   "focus:bg-muted focus:text-foreground not-data-[variant=destructive]:focus:**:text-foreground";
@@ -99,6 +104,7 @@ function CategorySection({
   onAdd,
   onToggle,
   onDelete,
+  onClear,
   onEditLabel,
   onPopulate,
   onUndoPopulate,
@@ -114,6 +120,7 @@ function CategorySection({
   ) => Promise<void>;
   onToggle: (item: DailyChecklistItem) => void;
   onDelete: (id: string) => void;
+  onClear: (ids: string[]) => void;
   onEditLabel: (itemId: string, newLabel: string) => void;
   onPopulate: (categoryId: string | null, date: string) => Promise<void>;
   onUndoPopulate?: () => void;
@@ -138,6 +145,16 @@ function CategorySection({
   const addInputRef = useRef<ChecklistInputHandle>(null);
   const editInputRef = useRef<ChecklistInputHandle>(null);
   const [expanded, setExpanded] = useState(true);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const toggleGroup = (key: string) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   const { data: borrowers = [] } = useBorrowersSearch();
 
   const getBorrowerNextAmounts = useCallback(
@@ -264,6 +281,18 @@ function CategorySection({
     [sorted, isReleasedCategory],
   );
 
+  const groups = useMemo(
+    () =>
+      groupByBorrowerCategory(rows, (r) => r.item.label, borrowers).map(
+        (group) => ({
+          ...group,
+          checked: group.rows.filter((r) => r.item.is_checked).length,
+          totals: summarizeChecklist(group.rows.map((r) => r.item)),
+        }),
+      ),
+    [rows, borrowers],
+  );
+
   return (
     <div
       className="rounded-2xl border border-border bg-card shadow-sm
@@ -349,6 +378,15 @@ function CategorySection({
                 Undo populate
               </DropdownMenuItem>
             )}
+            {items.length > 0 && (
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => onClear(items.map((i) => i.id))}
+              >
+                <Trash2 />
+                Clear all ({items.length})
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -396,108 +434,183 @@ function CategorySection({
               </div>
             </div>
           ) : (
-            <ul className="divide-y divide-border border-t border-border">
-              {rows.map(({ item, collection, canCreateAccount }) => (
-                <li
-                  key={item.id}
-                  onClick={() => handleToggle(item)}
-                  className={`group flex cursor-pointer items-start gap-3 px-3
-                    last:rounded-b-2xl py-3 transition-colors duration-200
-                    sm:px-4 ${
-                      item.is_checked ? "bg-muted/50" : "hover:bg-muted/30"
-                    }`}
-                >
+            <div
+              className="divide-y divide-border overflow-hidden rounded-b-2xl
+                border-t border-border"
+            >
+              {groups.map((group) => (
+                <div key={group.key}>
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggle(item);
-                    }}
-                    title={item.is_checked ? "Uncheck" : "Check"}
-                    className={`mt-0.5 flex size-5 shrink-0 items-center
-                      justify-center rounded-full border-2 p-0 transition-all
-                      duration-200 ${
-                        item.is_checked
-                          ? "border-emerald-500 bg-emerald-500 text-white"
-                          : `border-muted-foreground/40 text-transparent
-                            hover:border-emerald-400`
+                    onClick={() => toggleGroup(group.key)}
+                    aria-expanded={!collapsedGroups.has(group.key)}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5
+                      text-left text-[11px] font-semibold lowercase
+                      text-slate-700 sm:px-4 dark:text-slate-300 ${
+                        group.color ? GROUP_HEADER : "bg-card"
                       }`}
-                    aria-label={item.is_checked ? "Uncheck" : "Check"}
+                    style={
+                      group.color
+                        ? ({ "--grp": group.color } as React.CSSProperties)
+                        : undefined
+                    }
                   >
-                    <Check className="size-2.5" strokeWidth={2} />
-                  </button>
-                  <div className="min-w-0 flex-1 overflow-hidden">
-                    {collection ? (
-                      <CollectionLabel
-                        model={collection}
-                        checked={item.is_checked}
-                        borrowers={borrowers}
-                      />
-                    ) : (
-                      <span
-                        className={`block text-sm font-medium break-words
-                          whitespace-pre-wrap transition-colors duration-200 ${
-                            item.is_checked
-                              ? "text-muted-foreground"
-                              : "text-foreground"
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{
+                        backgroundColor:
+                          group.color ?? "var(--muted-foreground)",
+                        opacity: group.color ? 1 : 0.4,
+                      }}
+                    />
+                    <span className="truncate">{group.name}</span>
+                    <span className="shrink-0 tabular-nums">
+                      {group.checked}/{group.rows.length}
+                    </span>
+                    <span className="ml-auto flex shrink-0 items-center gap-2">
+                      {group.totals.collections > 0 && (
+                        <span className="tabular-nums">
+                          ₱{group.totals.left.toLocaleString()} left
+                        </span>
+                      )}
+                      <ChevronDown
+                        className={`size-3.5 transition-transform duration-200
+                          ${
+                            collapsedGroups.has(group.key) ? "-rotate-90" : ""
                           }`}
+                      />
+                    </span>
+                  </button>
+                  <div
+                    className={`grid transition-[grid-template-rows]
+                      duration-300 ease-in-out ${
+                        collapsedGroups.has(group.key)
+                          ? "grid-rows-[0fr]"
+                          : "grid-rows-[1fr]"
+                      }`}
+                    inert={collapsedGroups.has(group.key)}
+                  >
+                    <div className="overflow-hidden">
+                      <ul
+                        className="divide-y divide-border border-t
+                          border-border"
                       >
-                        <LinkedLabel
-                          label={item.label}
-                          checked={item.is_checked}
-                          borrowers={borrowers}
-                        />
-                      </span>
-                    )}
-                    {canCreateAccount && (
-                      <span
-                        className="mt-1.5 inline-flex items-center gap-1
-                          rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[11px]
-                          font-semibold text-emerald-700 dark:text-emerald-300"
-                      >
-                        create account
-                        <ArrowRight className="size-3" />
-                      </span>
-                    )}
+                        {group.rows.map(
+                          ({ item, collection, canCreateAccount }) => (
+                            <li
+                              key={item.id}
+                              onClick={() => handleToggle(item)}
+                              className={`group flex cursor-pointer items-start
+                                gap-3 px-3 py-3 transition-colors duration-200
+                                sm:px-4 ${
+                                  item.is_checked
+                                    ? "bg-muted/50"
+                                    : "hover:bg-muted/30"
+                                }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggle(item);
+                                }}
+                                title={item.is_checked ? "Uncheck" : "Check"}
+                                className={`mt-0.5 flex size-5 shrink-0
+                                  items-center justify-center rounded-full
+                                  border-2 p-0 transition-all duration-200 ${
+                                    item.is_checked
+                                      ? `border-emerald-500 bg-emerald-500
+                                        text-white`
+                                      : `border-muted-foreground/40
+                                        text-transparent
+                                        hover:border-emerald-400`
+                                  }`}
+                                aria-label={
+                                  item.is_checked ? "Uncheck" : "Check"
+                                }
+                              >
+                                <Check className="size-2.5" strokeWidth={2} />
+                              </button>
+                              <div className="min-w-0 flex-1 overflow-hidden">
+                                {collection ? (
+                                  <CollectionLabel
+                                    model={collection}
+                                    checked={item.is_checked}
+                                    borrowers={borrowers}
+                                  />
+                                ) : (
+                                  <span
+                                    className={`block text-sm font-medium
+                                      break-words whitespace-pre-wrap
+                                      transition-colors duration-200 ${
+                                        item.is_checked
+                                          ? "text-muted-foreground"
+                                          : "text-foreground"
+                                      }`}
+                                  >
+                                    <LinkedLabel
+                                      label={item.label}
+                                      checked={item.is_checked}
+                                      borrowers={borrowers}
+                                    />
+                                  </span>
+                                )}
+                                {canCreateAccount && (
+                                  <span
+                                    className="mt-1.5 inline-flex items-center
+                                      gap-1 rounded-md bg-emerald-500/10 px-1.5
+                                      py-0.5 text-[11px] font-semibold
+                                      text-emerald-700 dark:text-emerald-300"
+                                  >
+                                    create account
+                                    <ArrowRight className="size-3" />
+                                  </span>
+                                )}
+                              </div>
+                              <DropdownMenu modal={false}>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className={`-my-1 ${ICON_BUTTON}`}
+                                    aria-label="More options"
+                                  >
+                                    <MoreHorizontal className="size-4" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="w-auto min-w-32"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <DropdownMenuItem
+                                    className={MENU_ITEM}
+                                    onSelect={() => {
+                                      setEditingItem(item);
+                                      setEditLabelValue(item.label);
+                                    }}
+                                  >
+                                    <Pencil />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    variant="destructive"
+                                    onSelect={() => onDelete(item.id)}
+                                  >
+                                    <Trash2 />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </li>
+                          ),
+                        )}
+                      </ul>
+                    </div>
                   </div>
-                  <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={(e) => e.stopPropagation()}
-                        className={`-my-1 ${ICON_BUTTON}`}
-                        aria-label="More options"
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="end"
-                      className="w-auto min-w-32"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <DropdownMenuItem
-                        className={MENU_ITEM}
-                        onSelect={() => {
-                          setEditingItem(item);
-                          setEditLabelValue(item.label);
-                        }}
-                      >
-                        <Pencil />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onSelect={() => onDelete(item.id)}
-                      >
-                        <Trash2 />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </>
       )}
@@ -902,6 +1015,60 @@ export default function DailyNotesWidget() {
       });
   };
 
+  const clearItems = (ids: string[]) => {
+    const removed = itemsRef.current.filter((i) => ids.includes(i.id));
+    if (removed.length === 0) return;
+    setItems((prev) => prev.filter((i) => !ids.includes(i.id)));
+
+    supabase
+      .from("daily_checklist_items")
+      .delete()
+      .in("id", ids)
+      .then(({ error }: { error: { message: string } | null }) => {
+        if (error) {
+          toast.error(error.message);
+          setItems((prev) => [
+            ...prev,
+            ...removed.filter((r) => !prev.some((i) => i.id === r.id)),
+          ]);
+          return;
+        }
+        toast(
+          `Cleared ${removed.length} item${removed.length === 1 ? "" : "s"}`,
+          {
+            duration: 8000,
+            action: {
+              label: "Undo",
+              onClick: () => void restoreItems(removed),
+            },
+          },
+        );
+      });
+  };
+
+  const restoreItems = async (rows: DailyChecklistItem[]) => {
+    setItems((prev) => [
+      ...prev,
+      ...rows.filter((r) => !prev.some((i) => i.id === r.id)),
+    ]);
+    const { error } = await supabase.from("daily_checklist_items").insert(
+      rows.map((item) => ({
+        id: item.id,
+        checklist_date: item.checklist_date,
+        label: item.label,
+        is_checked: item.is_checked,
+        sort_order: item.sort_order,
+        created_at: item.created_at,
+        category_id: item.category_id ?? null,
+      })),
+    );
+    if (error) {
+      toast.error(error.message);
+      const ids = new Set(rows.map((r) => r.id));
+      setItems((prev) => prev.filter((i) => !ids.has(i.id)));
+    }
+  };
+
   const checkItems = (ids: string[]) => {
     setItems((prev) =>
       prev.map((row) =>
@@ -1241,6 +1408,7 @@ export default function DailyNotesWidget() {
               onAdd={addItem}
               onToggle={toggleItem}
               onDelete={deleteItem}
+              onClear={clearItems}
               onEditLabel={editItemLabel}
               onPopulate={populateDue}
               onCheckMany={checkItems}
