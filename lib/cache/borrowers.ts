@@ -16,6 +16,7 @@ import type {
 } from "@/components/borrower/borrower-accounts-section";
 
 const PAGE_SIZE = 8;
+const ACCOUNT_ID_IN_CHUNK = 120;
 
 function createSupabaseAdmin() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -159,10 +160,12 @@ async function enrichBorrowerBatch(
     }));
   }
 
-  // Paginate schedule fetch so no borrower is truncated by a single-query limit
+  // Chunk the account ids (PostgREST echoes the query in a response header,
+  // which overflows Node's fetch past ~350 ids) and paginate each chunk so no
+  // borrower is truncated by a single-query limit.
   const batchSize = 1000;
-  let from = 0;
   const scheduleRows: Array<{
+    id: string;
     account_id: string;
     due_date: string;
     amount_due: number | null;
@@ -170,21 +173,34 @@ async function enrichBorrowerBatch(
     remaining_amount: number | null;
     status: string;
   }> = [];
-  while (true) {
-    const { data: batch } = await supabase
-      .from("payment_schedules")
-      .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
-      )
-      .in("account_id", allAccountIds)
-      .order("due_date", { ascending: true })
-      .order("id", { ascending: true })
-      .range(from, from + batchSize - 1);
-    if (!batch || batch.length === 0) break;
-    scheduleRows.push(...(batch as typeof scheduleRows));
-    if (batch.length < batchSize) break;
-    from += batchSize;
+  for (let c = 0; c < allAccountIds.length; c += ACCOUNT_ID_IN_CHUNK) {
+    const chunk = allAccountIds.slice(c, c + ACCOUNT_ID_IN_CHUNK);
+    let from = 0;
+    while (true) {
+      const { data: batch, error } = await supabase
+        .from("payment_schedules")
+        .select(
+          "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
+        )
+        .in("account_id", chunk)
+        .order("due_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + batchSize - 1);
+      if (error) {
+        console.error(error);
+        break;
+      }
+      if (!batch || batch.length === 0) break;
+      scheduleRows.push(...(batch as typeof scheduleRows));
+      if (batch.length < batchSize) break;
+      from += batchSize;
+    }
   }
+  // Chunks are each sorted; restore the global due_date order across them.
+  scheduleRows.sort(
+    (a, b) =>
+      a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id),
+  );
 
   const schedules = scheduleRows;
   const overdueByBorrower = new Map<string, { total: number; count: number }>();

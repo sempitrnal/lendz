@@ -5,12 +5,13 @@ import {
   isInstallmentFullyPaid,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
-import ThemeToggle from "@/components/theme-toggle";
-import ResetCacheButton from "@/components/reset-cache-button";
 import MonthPicker from "@/components/month-picker";
 import { SummaryCards } from "@/components/components-2/dashboard/summary-cards";
 import { MonthlyCollections } from "@/components/components-2/dashboard/monthly-collections";
 import { ProfitPerMonth } from "@/components/components-2/dashboard/profit-per-month";
+import { LoansReleased } from "@/components/components-2/dashboard/loans-released";
+import { CashFlowForecast } from "@/components/components-2/dashboard/cash-flow-forecast";
+import { OverdueAging } from "@/components/components-2/dashboard/overdue-aging";
 import { ProfitPerCategory } from "@/components/components-2/dashboard/profit-per-category";
 import { SidePanel } from "@/components/components-2/dashboard/side-panel";
 import type {
@@ -18,22 +19,15 @@ import type {
   CurrentMonthData,
   ProfitCategoryItem,
   MonthlyProfit,
+  CashFlowWeek,
+  OverdueBucket,
+  OverdueBorrower,
 } from "@/lib/dashboard-data";
-
-type ScheduleAggRow = {
-  id: string;
-  account_id: string;
-  amount_due: number | null;
-  amount_paid: number | null;
-  remaining_amount: number | null;
-  due_date: string;
-  paid_date: string | null;
-  status: string;
-};
 
 type AccountTotalRow = {
   id: string;
   borrower_id: string;
+  status: string | null;
   principal_amount: number | null;
   release_date: string | null;
   term_months: number | null;
@@ -51,6 +45,62 @@ type BorrowerCategoryRow = {
   category_id: string;
 };
 
+type BorrowerNameRow = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+};
+
+const TZ = "Asia/Manila";
+const CHART_MONTHS = 12;
+const AVG_PROFIT_MONTHS = 6;
+const FORECAST_WEEKS = 8;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Shift a YYYY-MM-DD date by whole days without touching local timezones. */
+function addDays(iso: string, days: number) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function daysBetween(fromIso: string, toIso: string) {
+  return Math.round(
+    (Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`)) /
+      DAY_MS,
+  );
+}
+
+function monthKeyOffset(monthKey: string, offset: number) {
+  const [y, m] = monthKey.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + offset, 1));
+  return d.toISOString().slice(0, 7);
+}
+
+function monthLabel(monthKey: string, month: "short" | "long") {
+  return new Date(`${monthKey}-01T00:00:00Z`).toLocaleDateString("en-US", {
+    month,
+    year: month === "long" ? "numeric" : undefined,
+    timeZone: "UTC",
+  });
+}
+
+function shortDate(iso: string) {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+const AGING_BUCKETS = [
+  { label: "1–7 days", max: 7 },
+  { label: "8–30 days", max: 30 },
+  { label: "31–60 days", max: 60 },
+  { label: "61–90 days", max: 90 },
+  { label: "90+ days", max: Infinity },
+];
+
 export default async function Dashboard({
   searchParams,
 }: {
@@ -60,28 +110,11 @@ export default async function Dashboard({
   const supabase = await createSupabaseServer();
   await logPageView("/dashboard");
   const now = new Date();
-  const TZ = "Asia/Manila";
   const todayIso = now.toLocaleDateString("en-CA", { timeZone: TZ });
-  const defaultMonth = todayIso.slice(0, 7);
+  const todayMonth = todayIso.slice(0, 7);
   const isValid = /^\d{4}-\d{2}$/.test(params.month ?? "");
-  const activeMonth = isValid ? params.month! : defaultMonth;
-
-  const [yearStr, monthStr] = activeMonth.split("-");
-  const phtYear = Number(yearStr);
-  const phtMonth = Number(monthStr);
-  const startOfMonthDate = `${yearStr}-${monthStr}-01`;
-  const lastDay = new Date(phtYear, phtMonth, 0).getDate();
-  const endOfMonthDate = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
-  const weekAgoDate = new Date(
-    now.getTime() - 7 * 24 * 60 * 60 * 1000,
-  ).toLocaleDateString("en-CA", { timeZone: TZ });
-
-  // 6-month window for chart
-  const sixMonthsAgoDate = (() => {
-    const d = new Date(`${activeMonth}-01`);
-    d.setMonth(d.getMonth() - 5);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-  })();
+  const activeMonth = isValid ? params.month! : todayMonth;
+  const weekAgoDate = addDays(todayIso, -7);
 
   const [
     { count: borrowerCount },
@@ -104,7 +137,7 @@ export default async function Dashboard({
     supabase
       .from("accounts")
       .select(
-        "id, borrower_id, principal_amount, release_date, term_months, payment_frequency",
+        "id, borrower_id, status, principal_amount, release_date, term_months, payment_frequency",
       )
       .is("deleted_at", null),
     supabase.from("borrower_categories").select("borrower_id, category_id"),
@@ -112,246 +145,308 @@ export default async function Dashboard({
     getAllPaymentSchedules(),
   ]);
 
-  const validAccountIds = new Set(
-    (accountTotalsData ?? []).map((a: { id: string }) => a.id),
-  );
-  const filteredSchedules = allSchedules.filter((row) =>
+  const accountTotals = (accountTotalsData ?? []) as AccountTotalRow[];
+  const validAccountIds = new Set(accountTotals.map((a) => a.id));
+  const schedules = allSchedules.filter((row) =>
     validAccountIds.has(row.account_id),
   );
+  const openSchedules = schedules.filter((row) => !isInstallmentFullyPaid(row));
 
-  const unpaidSchedules = filteredSchedules.filter(
-    (row) => row.status !== "paid",
+  const accountBorrowerById = new Map(
+    accountTotals.map((a) => [a.id, a.borrower_id]),
   );
-  const thisMonthSchedules = filteredSchedules.filter(
-    (row) => row.due_date >= startOfMonthDate && row.due_date <= endOfMonthDate,
-  );
-  const sixMonthSchedules = filteredSchedules.filter(
-    (row) => row.due_date >= sixMonthsAgoDate && row.due_date <= endOfMonthDate,
-  );
-
-  const dueSchedules = unpaidSchedules
-    .filter((row) => row.due_date === todayIso && !isInstallmentFullyPaid(row))
-    .sort((a, b) => a.id.localeCompare(b.id))
-    .slice(0, 8);
-
-  const newBorrowerAccountsWeek = (newBorrowerAccountsWeekData ?? []) as Array<{
-    borrower_id: string | null;
-  }>;
-  const accountTotals = (accountTotalsData ?? []) as AccountTotalRow[];
-
-  const dueTotalToday = dueSchedules.reduce(
-    (sum, row) => sum + remainingOnInstallment(row),
-    0,
-  );
-  const newBorrowersWeekCount = new Set(
-    newBorrowerAccountsWeek
-      .map((row) => row.borrower_id)
-      .filter((id): id is string => Boolean(id)),
-  ).size;
-  const principalByAccountId = new Map(
-    accountTotals.map((a) => [a.id, Number(a.principal_amount ?? 0)]),
-  );
-  const totalInstallmentsByAccount = new Map(
+  const principalPerInstallmentByAccount = new Map(
     accountTotals.map((a) => {
       const term = Number(a.term_months ?? 1);
       const freq = a.payment_frequency ?? "monthly";
       let n = term;
       if (freq === "weekly") n = term * 4;
       else if (freq === "bimonthly") n = term * 2;
-      return [a.id, Math.max(1, n)];
+      return [a.id, Number(a.principal_amount ?? 0) / Math.max(1, n)];
     }),
   );
+
+  // ── Per-month rollup ────────────────────────────────────────────────
+  // profit = amount_paid − principal_per_installment (interest collected)
+  type MonthStats = {
+    expected: number;
+    expectedSoFar: number;
+    collected: number;
+    profit: number;
+    expectedProfit: number;
+    released: number;
+    releasedCount: number;
+  };
+  const statsByMonth = new Map<string, MonthStats>();
+  const monthStats = (key: string) => {
+    let s = statsByMonth.get(key);
+    if (!s) {
+      s = {
+        expected: 0,
+        expectedSoFar: 0,
+        collected: 0,
+        profit: 0,
+        expectedProfit: 0,
+        released: 0,
+        releasedCount: 0,
+      };
+      statsByMonth.set(key, s);
+    }
+    return s;
+  };
+  for (const row of schedules) {
+    const s = monthStats(row.due_date.slice(0, 7));
+    const due = Number(row.amount_due ?? 0);
+    const paid = Number(row.amount_paid ?? 0);
+    const principalShare =
+      principalPerInstallmentByAccount.get(row.account_id) ?? 0;
+    s.expected += due;
+    if (row.due_date <= todayIso) s.expectedSoFar += due;
+    s.collected += paid;
+    s.expectedProfit += Math.max(0, due - principalShare);
+    s.profit += Math.max(0, paid - principalShare);
+  }
+  for (const a of accountTotals) {
+    if (a.status === "pending" || !a.release_date) continue;
+    const s = monthStats(a.release_date.slice(0, 7));
+    s.released += Number(a.principal_amount ?? 0);
+    s.releasedCount += 1;
+  }
+
+  const profitPerMonth: MonthlyProfit[] = [];
+  for (let i = CHART_MONTHS - 1; i >= 0; i--) {
+    const key = monthKeyOffset(activeMonth, -i);
+    const s = monthStats(key);
+    profitPerMonth.push({
+      key,
+      month: monthLabel(key, "long"),
+      short: monthLabel(key, "short"),
+      actual: Math.round(s.profit),
+      expected: Math.round(s.expectedProfit),
+      percent:
+        s.expectedProfit > 0
+          ? Math.min(100, Math.round((s.profit / s.expectedProfit) * 100))
+          : 0,
+      collected: Math.round(s.collected),
+      due: Math.round(s.expected),
+      released: Math.round(s.released),
+      releasedCount: s.releasedCount,
+      isCurrent: key === todayMonth,
+      isFuture: key > todayMonth,
+    });
+  }
+
+  const active = monthStats(activeMonth);
+  const currentMonth: CurrentMonthData = {
+    label: monthLabel(activeMonth, "long"),
+    toCollectThisMonth: Math.round(active.expected),
+    toCollectSoFar: Math.round(active.expectedSoFar),
+    collected: Math.round(active.collected),
+    meme: Math.round(active.profit),
+    expectedProfit: Math.round(active.expectedProfit),
+    remainingProfit: Math.round(
+      Math.max(0, active.expectedProfit - active.profit),
+    ),
+  };
+
+  // Trailing average over completed months that had any lending activity,
+  // so months before the first loan don't drag the average down.
+  const trailingMonths = Array.from({ length: AVG_PROFIT_MONTHS }, (_, i) =>
+    monthStats(monthKeyOffset(todayMonth, -(i + 1))),
+  ).filter((s) => s.expected > 0 || s.profit > 0);
+  const avgMonthlyProfit =
+    trailingMonths.length > 0
+      ? Math.round(
+          trailingMonths.reduce((sum, s) => sum + s.profit, 0) /
+            trailingMonths.length,
+        )
+      : 0;
+
+  // ── Portfolio health (always as of today) ───────────────────────────
+  let outstanding = 0;
+  let dueTotalToday = 0;
+  let dueTodayCount = 0;
+  const activeLoanIds = new Set<string>();
+  const overdueBuckets: OverdueBucket[] = AGING_BUCKETS.map((b) => ({
+    label: b.label,
+    amount: 0,
+    count: 0,
+  }));
+  const overdueByBorrower = new Map<
+    string,
+    { amount: number; oldestDaysLate: number }
+  >();
+  let overdueTotal = 0;
+  let overdueCount = 0;
+
+  const weekStart = (() => {
+    // Monday of the current week (Manila date).
+    const dow = new Date(`${todayIso}T00:00:00Z`).getUTCDay();
+    return addDays(todayIso, -((dow + 6) % 7));
+  })();
+  const forecastEnd = addDays(weekStart, FORECAST_WEEKS * 7 - 1);
+  const cashFlow: CashFlowWeek[] = Array.from(
+    { length: FORECAST_WEEKS },
+    (_, i) => {
+      const start = addDays(weekStart, i * 7);
+      const end = addDays(start, 6);
+      return {
+        label: i === 0 ? "this wk" : shortDate(start),
+        range: `${shortDate(i === 0 ? todayIso : start)} – ${shortDate(end)}`,
+        expected: 0,
+        count: 0,
+      };
+    },
+  );
+
+  for (const row of openSchedules) {
+    const remaining = remainingOnInstallment(row);
+    if (remaining <= 0) continue;
+    outstanding += remaining;
+    activeLoanIds.add(row.account_id);
+
+    if (row.due_date === todayIso) {
+      dueTotalToday += remaining;
+      dueTodayCount += 1;
+    }
+
+    if (row.due_date < todayIso) {
+      const daysLate = daysBetween(row.due_date, todayIso);
+      const bucket = AGING_BUCKETS.findIndex((b) => daysLate <= b.max);
+      overdueBuckets[bucket].amount += remaining;
+      overdueBuckets[bucket].count += 1;
+      overdueTotal += remaining;
+      overdueCount += 1;
+      const borrowerId = accountBorrowerById.get(row.account_id);
+      if (borrowerId) {
+        const cur = overdueByBorrower.get(borrowerId) ?? {
+          amount: 0,
+          oldestDaysLate: 0,
+        };
+        cur.amount += remaining;
+        cur.oldestDaysLate = Math.max(cur.oldestDaysLate, daysLate);
+        overdueByBorrower.set(borrowerId, cur);
+      }
+    } else if (row.due_date <= forecastEnd) {
+      const week = Math.floor(daysBetween(weekStart, row.due_date) / 7);
+      cashFlow[week].expected += remaining;
+      cashFlow[week].count += 1;
+    }
+  }
+
+  const topOverdueIds = [...overdueByBorrower.entries()]
+    .sort((a, b) => b[1].amount - a[1].amount)
+    .slice(0, 5);
+  const { data: overdueBorrowerNames } = topOverdueIds.length
+    ? await supabase
+        .from("borrowers")
+        .select("id, first_name, last_name")
+        .in(
+          "id",
+          topOverdueIds.map(([id]) => id),
+        )
+    : { data: [] as BorrowerNameRow[] };
+  const nameById = new Map(
+    ((overdueBorrowerNames ?? []) as BorrowerNameRow[]).map((b) => [
+      b.id,
+      [b.first_name, b.last_name].filter(Boolean).join(" ") || "Unnamed",
+    ]),
+  );
+  const topOverdueBorrowers: OverdueBorrower[] = topOverdueIds.map(
+    ([id, s]) => ({
+      id,
+      name: nameById.get(id) ?? "Unknown borrower",
+      amount: Math.round(s.amount),
+      oldestDaysLate: s.oldestDaysLate,
+    }),
+  );
+
+  const newBorrowersWeekCount = new Set(
+    ((newBorrowerAccountsWeekData ?? []) as { borrower_id: string | null }[])
+      .map((row) => row.borrower_id)
+      .filter((id): id is string => Boolean(id)),
+  ).size;
+
+  const summary: DashboardSummary = {
+    outstanding: Math.round(outstanding),
+    activeLoans: activeLoanIds.size,
+    overdue: Math.round(overdueTotal),
+    overdueSchedules: overdueCount,
+    overdueBorrowers: overdueByBorrower.size,
+    duesToday: Math.round(dueTotalToday),
+    duesTodaySchedules: dueTodayCount,
+    avgMonthlyProfit,
+    avgMonthlyProfitMonths: trailingMonths.length,
+    activeBorrowers: borrowerCount ?? 0,
+    activeBorrowersDelta: newBorrowersWeekCount,
+  };
+
+  // ── Profit per category for the active month ────────────────────────
+  const categories = (categoriesData ?? []) as CategoryRow[];
+  const borrowerCategoriesByBorrower = new Map<string, string[]>();
+  for (const row of (borrowerCategoriesData ?? []) as BorrowerCategoryRow[]) {
+    const list = borrowerCategoriesByBorrower.get(row.borrower_id) ?? [];
+    list.push(row.category_id);
+    borrowerCategoriesByBorrower.set(row.borrower_id, list);
+  }
+  const statsByCategory = new Map<
+    string,
+    { collectedProfit: number; remainingProfit: number }
+  >();
+  for (const row of schedules) {
+    if (!row.due_date.startsWith(activeMonth)) continue;
+    const borrowerId = accountBorrowerById.get(row.account_id);
+    if (!borrowerId) continue;
+    const categoryIds = borrowerCategoriesByBorrower.get(borrowerId) ?? [];
+    if (categoryIds.length === 0) continue;
+    const principalShare =
+      principalPerInstallmentByAccount.get(row.account_id) ?? 0;
+    const expectedProfit = Math.max(
+      0,
+      Number(row.amount_due ?? 0) - principalShare,
+    );
+    const collectedProfit = Math.max(
+      0,
+      Number(row.amount_paid ?? 0) - principalShare,
+    );
+    const remainingProfit = Math.max(0, expectedProfit - collectedProfit);
+    for (const categoryId of categoryIds) {
+      const cur = statsByCategory.get(categoryId) ?? {
+        collectedProfit: 0,
+        remainingProfit: 0,
+      };
+      cur.collectedProfit += collectedProfit;
+      cur.remainingProfit += remainingProfit;
+      statsByCategory.set(categoryId, cur);
+    }
+  }
+  const profitPerCategory: ProfitCategoryItem[] = categories
+    .map((c) => {
+      const stats = statsByCategory.get(c.id);
+      const collectedProfit = Math.round(stats?.collectedProfit ?? 0);
+      const remainingProfit = Math.round(stats?.remainingProfit ?? 0);
+      return {
+        id: c.id,
+        name: c.name,
+        color: c.color,
+        profit: collectedProfit + remainingProfit,
+        collectedProfit,
+        remainingProfit,
+      };
+    })
+    .filter((c) => c.profit > 0)
+    .sort((a, b) => b.profit - a.profit);
+
+  const dueThisMonthCount = schedules.filter((row) =>
+    row.due_date.startsWith(activeMonth),
+  ).length;
+
   const formattedToday = now.toLocaleDateString("en-US", {
     weekday: "long",
     month: "short",
     day: "numeric",
     timeZone: TZ,
   });
-
-  const activeDate = new Date(`${activeMonth}-01`);
-
-  // Build 6-month chart data: expected = sum of amount_due, collected = sum of amount_paid
-  // profit = amount_paid − principal_per_installment (interest collected)
-  const monthlyChartData = (() => {
-    const months: {
-      label: string;
-      fullLabel: string;
-      expected: number;
-      expectedSoFar: number;
-      collected: number;
-      profit: number;
-      expectedProfit: number;
-      expectedProfitSoFar: number;
-      isComplete: boolean;
-    }[] = [];
-    const activeYear = activeDate.getFullYear();
-    const activeMonthIndex = activeDate.getMonth();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(activeYear, activeMonthIndex - i, 1);
-      const y = d.getFullYear();
-      const m = d.getMonth() + 1;
-      const monthKey = `${y}-${String(m).padStart(2, "0")}`;
-      const label = d.toLocaleDateString("en-US", { month: "short" });
-      const fullLabel = d.toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-      });
-      const isPastMonth = monthKey < todayIso.slice(0, 7);
-      const isCurrentMonth = monthKey === todayIso.slice(0, 7);
-
-      let expected = 0;
-      let expectedSoFar = 0;
-      let collected = 0;
-      let profit = 0;
-      let expectedProfit = 0;
-      let expectedProfitSoFar = 0;
-      for (const row of sixMonthSchedules) {
-        const paid = Number(row.amount_paid ?? 0);
-        const due = Number(row.amount_due ?? 0);
-        const principal = principalByAccountId.get(row.account_id) ?? 0;
-        const totalInstallments =
-          totalInstallmentsByAccount.get(row.account_id) ?? 1;
-        const principalPerInstallment = principal / totalInstallments;
-
-        if (row.due_date.startsWith(monthKey)) {
-          expected += due;
-          if (isPastMonth || (isCurrentMonth && row.due_date <= todayIso))
-            expectedSoFar += due;
-          expectedProfit += Math.max(0, due - principalPerInstallment);
-          if (isPastMonth || (isCurrentMonth && row.due_date <= todayIso))
-            expectedProfitSoFar += Math.max(0, due - principalPerInstallment);
-          collected += paid;
-          profit += Math.max(0, paid - principalPerInstallment);
-        }
-      }
-      months.push({
-        label,
-        fullLabel,
-        expected: Math.round(expected),
-        expectedSoFar: Math.round(expectedSoFar),
-        collected: Math.round(collected),
-        profit: Math.round(profit),
-        expectedProfit: Math.round(expectedProfit),
-        expectedProfitSoFar: Math.round(expectedProfitSoFar),
-        isComplete: i > 0,
-      });
-    }
-    return months;
-  })();
-
-  const currentMonthData = monthlyChartData[monthlyChartData.length - 1];
-  const currentMonthRemainingProfit = Math.max(
-    0,
-    (currentMonthData?.expectedProfit ?? 0) - (currentMonthData?.profit ?? 0),
-  );
-
-  // Profit per category for the active month
-  const categories = (categoriesData ?? []) as CategoryRow[];
-  const borrowerCategories = (borrowerCategoriesData ??
-    []) as BorrowerCategoryRow[];
-  const categoryById = new Map(categories.map((c) => [c.id, c]));
-  const borrowerCategoriesByBorrower = new Map<string, string[]>();
-  for (const row of borrowerCategories) {
-    const list = borrowerCategoriesByBorrower.get(row.borrower_id) ?? [];
-    list.push(row.category_id);
-    borrowerCategoriesByBorrower.set(row.borrower_id, list);
-  }
-  const accountBorrowerById = new Map(
-    (accountTotalsData ?? []).map((a) => [a.id, a.borrower_id]),
-  );
-  const statsByCategory = new Map<
-    string,
-    { profit: number; collectedProfit: number; remainingProfit: number }
-  >();
-  for (const row of thisMonthSchedules) {
-    const borrowerId = accountBorrowerById.get(row.account_id);
-    if (!borrowerId) continue;
-    const categoryIds = borrowerCategoriesByBorrower.get(borrowerId) ?? [];
-    if (categoryIds.length === 0) continue;
-    const principal = principalByAccountId.get(row.account_id) ?? 0;
-    const totalInstallments =
-      totalInstallmentsByAccount.get(row.account_id) ?? 1;
-    const principalPerInstallment = principal / totalInstallments;
-    const paid = Number(row.amount_paid ?? 0);
-    const due = Number(row.amount_due ?? 0);
-    const expectedProfit = Math.max(0, due - principalPerInstallment);
-    const collectedProfit = Math.max(0, paid - principalPerInstallment);
-    const remainingProfit = Math.max(0, expectedProfit - collectedProfit);
-    const profit = collectedProfit + remainingProfit;
-    for (const categoryId of categoryIds) {
-      const current = statsByCategory.get(categoryId) ?? {
-        profit: 0,
-        collectedProfit: 0,
-        remainingProfit: 0,
-      };
-      statsByCategory.set(categoryId, {
-        profit: current.profit + profit,
-        collectedProfit: current.collectedProfit + collectedProfit,
-        remainingProfit: current.remainingProfit + remainingProfit,
-      });
-    }
-  }
-  const profitPerCategory = categories
-    .filter((c) => categoryById.has(c.id))
-    .map((c) => {
-      const stats = statsByCategory.get(c.id) ?? {
-        profit: 0,
-        collectedProfit: 0,
-        remainingProfit: 0,
-      };
-      return {
-        id: c.id,
-        name: c.name,
-        color: c.color,
-        profit: Math.round(stats.profit),
-        collectedProfit: Math.round(stats.collectedProfit),
-        remainingProfit: Math.round(stats.remainingProfit),
-      };
-    })
-    .filter(
-      (c) => c.profit > 0 || c.collectedProfit > 0 || c.remainingProfit > 0,
-    )
-    .sort((a, b) => b.profit - a.profit);
-
-  const completeMonths = monthlyChartData.filter((m) => m.isComplete);
-  const totalProfitComplete = completeMonths.reduce((s, m) => s + m.profit, 0);
-  const avgMonthlyProfit =
-    completeMonths.length > 0
-      ? Math.round(totalProfitComplete / completeMonths.length)
-      : 0;
-
-  const dueSchedulesCount = dueSchedules.length;
-
-  const summary: DashboardSummary = {
-    activeBorrowers: borrowerCount ?? 0,
-    activeBorrowersDelta: newBorrowersWeekCount,
-    duesToday: dueTotalToday,
-    duesTodaySchedules: dueSchedulesCount,
-    avgMonthlyProfit,
-  };
-
-  const currentMonth: CurrentMonthData = {
-    label: currentMonthData?.fullLabel ?? activeMonth,
-    toCollectThisMonth: currentMonthData?.expected ?? 0,
-    toCollectSoFar: currentMonthData?.expectedSoFar ?? 0,
-    collected: currentMonthData?.collected ?? 0,
-    meme: currentMonthData?.profit ?? 0,
-    expectedProfit: currentMonthData?.expectedProfit ?? 0,
-    remainingProfit: currentMonthRemainingProfit,
-  };
-
-  const profitPerMonth: MonthlyProfit[] = monthlyChartData.map((m) => ({
-    month: m.fullLabel,
-    short: m.label,
-    actual: m.profit,
-    expected: m.expectedProfit,
-    percent:
-      m.expectedProfit > 0
-        ? Math.min(100, Math.round((m.profit / m.expectedProfit) * 100))
-        : 0,
-  }));
-
-  const profitPerCategoryData: ProfitCategoryItem[] = profitPerCategory;
 
   return (
     <main className="mx-auto px-4 py-6 pb-20 lg:px-8">
@@ -373,8 +468,7 @@ export default async function Dashboard({
             className="mt-2 text-sm text-slate-700 dark:text-muted-foreground
               sm:max-w-xl"
           >
-            Quick glance on active collections, upcoming dues, and account
-            movement.
+            Portfolio health, profit trends, and what&apos;s coming in.
           </p>
         </div>
       </div>
@@ -382,19 +476,30 @@ export default async function Dashboard({
       <div className="mt-6">
         <SummaryCards summary={summary} />
       </div>
-      <div className="flex items-center gap-2">
-        <MonthPicker currentMonth={activeMonth} />
-      </div>
+
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
+          <CashFlowForecast weeks={cashFlow} />
+          <div className="flex items-center gap-2 pt-2">
+            <MonthPicker currentMonth={activeMonth} />
+          </div>
           <MonthlyCollections currentMonth={currentMonth} />
           <ProfitPerMonth profitPerMonth={profitPerMonth} />
-          {profitPerCategoryData.length > 0 && (
-            <ProfitPerCategory profitPerCategory={profitPerCategoryData} />
+          <LoansReleased months={profitPerMonth} />
+          {profitPerCategory.length > 0 && (
+            <ProfitPerCategory profitPerCategory={profitPerCategory} />
           )}
         </div>
-        <div className="lg:sticky lg:top-24 lg:self-start">
-          <SidePanel dueThisMonthSchedules={thisMonthSchedules.length} />
+        <div className="space-y-6">
+          <OverdueAging
+            total={summary.overdue}
+            buckets={overdueBuckets.map((b) => ({
+              ...b,
+              amount: Math.round(b.amount),
+            }))}
+            topBorrowers={topOverdueBorrowers}
+          />
+          <SidePanel dueThisMonthSchedules={dueThisMonthCount} />
         </div>
       </div>
     </main>
