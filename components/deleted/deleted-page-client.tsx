@@ -11,7 +11,7 @@ import {
 } from "@/lib/actions/borrowers";
 import { Borrower } from "@/components/borrower/borrower-list";
 import { AccountRow } from "@/components/borrower/borrower-accounts-section";
-import NeobrutButton from "@/components/neobrut-button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -550,22 +550,22 @@ export default function DeletedPageClient({
           </DialogDescription>
           <DialogFooter>
             <div className="flex justify-end gap-3">
-              <NeobrutButton
-                variant="white"
+              <Button
+                variant="outline"
                 disabled={isPermaDeleting}
                 onClick={() => setConfirmClearAll(null)}
               >
                 cancel
-              </NeobrutButton>
-              <NeobrutButton
-                variant="red"
+              </Button>
+              <Button
+                variant="destructive"
                 disabled={isPermaDeleting}
                 onClick={() =>
                   confirmClearAll && handleClearAll(confirmClearAll)
                 }
               >
                 {isPermaDeleting ? "deleting..." : "permanently delete all"}
-              </NeobrutButton>
+              </Button>
             </div>
           </DialogFooter>
         </DialogContent>

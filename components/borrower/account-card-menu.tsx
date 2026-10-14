@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { MoreVertical } from "lucide-react";
 
-import NeobrutButton from "@/components/neobrut-button";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase/client";
 import { logAuditAction } from "@/app/actions/audit";
 import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
@@ -14,7 +14,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { DialogContent, DialogTitle, DialogHeader, Dialog } from "../ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 
 type AccountCardMenuProps = {
   accountId: string;
@@ -109,7 +116,7 @@ export default function AccountCardMenu({
         <DropdownMenuContent align="end" className="w-32">
           {onEdit ? (
             <DropdownMenuItem
-              className="cursor-pointer"
+              className="cursor-pointer focus:bg-slate-100 focus:text-slate-900"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -119,17 +126,15 @@ export default function AccountCardMenu({
               Edit
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem className="cursor-pointer hover:bg-red-100">
-            <button
-              type="button"
-              className="w-full text-left text-red-400 hover:text-red-600"
-              onClick={(e) => {
-                e.stopPropagation();
-                openDeleteModal();
-              }}
-            >
-              Delete
-            </button>
+          <DropdownMenuItem
+            variant="destructive"
+            className="cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              openDeleteModal();
+            }}
+          >
+            Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -171,28 +176,26 @@ export default function AccountCardMenu({
           <DialogHeader>
             <DialogTitle>Delete account</DialogTitle>
           </DialogHeader>
-          <p className="text-stone-700">
+          <DialogDescription>
             This account will be moved to "recently deleted" and hidden from the
             main list. You can restore it anytime.
-          </p>
-          <div className="flex justify-end gap-4">
-            <NeobrutButton
-              variant="white"
+          </DialogDescription>
+          <DialogFooter>
+            <Button
+              variant="outline"
               disabled={isDeleting}
               onClick={closeDeleteModal}
-              className="mt-5"
             >
-              cancel
-            </NeobrutButton>
-            <NeobrutButton
-              variant="red"
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
               disabled={isDeleting}
               onClick={confirmDelete}
-              className="mt-5"
             >
-              {isDeleting ? "deleting..." : "delete"}
-            </NeobrutButton>
-          </div>
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -12,7 +12,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import NeobrutButton from "@/components/neobrut-button";
 import {
   activateAccountAction,
   type ActivateAccountData,
@@ -487,13 +486,9 @@ export default function ActivateAccountDialog({
             <Button variant="outline" type="button" onClick={onClose}>
               cancel
             </Button>
-            <NeobrutButton
-              variant="green"
-              type="submit"
-              disabled={isSubmitting}
-            >
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? "activating..." : "activate account"}
-            </NeobrutButton>
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

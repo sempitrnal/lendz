@@ -9,7 +9,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import NeobrutButton from "@/components/neobrut-button";
 
 export type CalendarEventFormData = {
   borrower_id: string;
@@ -315,9 +314,9 @@ export default function AddEventModal({
             <Button variant="outline" type="button" onClick={handleClose}>
               cancel
             </Button>
-            <NeobrutButton variant="green" type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending}>
               {isPending ? "saving..." : "save"}
-            </NeobrutButton>
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

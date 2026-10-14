@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import NeobrutButton from "./neobrut-button";
+import { Button } from "@/components/ui/button";
 import ThemeToggle from "./theme-toggle";
 import HeaderSearch from "./header-search";
 
@@ -81,21 +81,20 @@ export default function SiteHeader({
           </p>
 
           <div className="mt-4 flex justify-center gap-2">
-            <NeobrutButton
+            <Button
               onClick={() => {
                 logoutAction();
                 setIsLogoutModalOpen(false);
               }}
-              variant="white"
             >
-              yes
-            </NeobrutButton>
-            <NeobrutButton
-              variant="red"
+              Yes
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => setIsLogoutModalOpen(false)}
             >
-              no
-            </NeobrutButton>
+              No
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

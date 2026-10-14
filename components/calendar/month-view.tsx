@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import NeobrutButton from "@/components/neobrut-button";
+import { Button } from "@/components/ui/button";
 import { formatDate, isDarkColor } from "@/lib/utils";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -694,8 +694,8 @@ export default function MonthView({
 
           <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-2">
             {deleteEventAction && selectedEvent && (
-              <NeobrutButton
-                variant="red"
+              <Button
+                variant="destructive"
                 type="button"
                 disabled={deletingIds.has(selectedEvent.id)}
                 onClick={() => {
@@ -708,12 +708,11 @@ export default function MonthView({
                 className="w-full sm:w-auto"
               >
                 {deletingIds.has(selectedEvent.id) ? "deleting..." : "delete"}
-              </NeobrutButton>
+              </Button>
             )}
             {selectedEvent?.account?.status === "pending" &&
               selectedEvent.account_id && (
-                <NeobrutButton
-                  variant="green"
+                <Button
                   type="button"
                   onClick={() => {
                     router.push(`/accounts/${selectedEvent.account_id}`);
@@ -723,7 +722,7 @@ export default function MonthView({
                   className="w-full sm:w-auto"
                 >
                   activate account
-                </NeobrutButton>
+                </Button>
               )}
           </DialogFooter>
         </DialogContent>
