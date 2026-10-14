@@ -1,9 +1,37 @@
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
-import { parseMentions } from "@/lib/checklist/labels";
+import { borrowerCategoryColor, parseMentions } from "@/lib/checklist/labels";
 import { overdueCutoffDateValue } from "@/lib/checklist/dates";
 
-export const MENTION_PILL_CLASS =
-  "inline-block rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-xs font-medium text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300";
+const MENTION_PILL_BASE =
+  "inline-block rounded-md border px-1.5 py-0.5 text-xs font-medium";
+
+export const MENTION_PILL_CLASS = `${MENTION_PILL_BASE} border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300`;
+
+const CATEGORY_MENTION_PILL_CLASS = `${MENTION_PILL_BASE} text-slate-700 dark:text-slate-200`;
+
+/** Tint derived from a `#rrggbb` category color; text stays neutral for contrast. */
+export function categoryTintStyle(color: string) {
+  return { backgroundColor: `${color}24`, borderColor: `${color}80` };
+}
+
+export function createMentionSpan(
+  name: string,
+  borrowerId: string,
+  borrower: BorrowerSearchItem | undefined,
+) {
+  const span = document.createElement("span");
+  span.contentEditable = "false";
+  span.textContent = name;
+  span.dataset.mention = borrowerId;
+  const color = borrowerCategoryColor(borrower);
+  if (color) {
+    span.className = CATEGORY_MENTION_PILL_CLASS;
+    Object.assign(span.style, categoryTintStyle(color));
+  } else {
+    span.className = MENTION_PILL_CLASS;
+  }
+  return span;
+}
 
 export type ChipTone = "neutral" | "overdue" | "loan" | "cash_advance";
 
@@ -44,17 +72,22 @@ export function labelToFragment(
 ) {
   const fragment = document.createDocumentFragment();
   const matches = parseMentions(label, borrowers);
+  const byId = new Map(borrowers.map((b) => [b.id, b]));
   let idx = 0;
   for (const m of matches) {
     if (m.start > idx) {
       appendTextWithBreaks(fragment, label.slice(idx, m.start));
     }
+    if (m.id) {
+      fragment.appendChild(createMentionSpan(m.name, m.id, byId.get(m.id)));
+      idx = m.end;
+      continue;
+    }
     const span = document.createElement("span");
     span.contentEditable = "false";
     span.className = (m.href && badgeClassFor(m.href)) ?? MENTION_PILL_CLASS;
     span.textContent = m.name;
-    if (m.id) span.dataset.mention = m.id;
-    else if (m.href) span.dataset.href = m.href;
+    if (m.href) span.dataset.href = m.href;
     fragment.appendChild(span);
     idx = m.end;
   }

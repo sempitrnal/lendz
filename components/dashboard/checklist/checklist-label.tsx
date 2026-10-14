@@ -3,8 +3,14 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
-import { badgeClassFor, chipClass } from "@/components/dashboard/checklist/dom";
 import {
+  badgeClassFor,
+  categoryTintStyle,
+  chipClass,
+} from "@/components/dashboard/checklist/dom";
+import {
+  borrowerCategoryColor,
+  extractBorrowerId,
   formatShortDate,
   type CollectionRowModel,
 } from "@/lib/checklist/labels";
@@ -21,6 +27,10 @@ export function LinkedLabel({
   const names = useMemo(() => {
     return new Map(borrowers.map((b) => [`${b.first_name} ${b.last_name}`, b]));
   }, [borrowers]);
+  const byId = useMemo(
+    () => new Map(borrowers.map((b) => [b.id, b])),
+    [borrowers],
+  );
 
   const amountPattern = /(?:₱\s*)?\b(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\b/;
 
@@ -75,12 +85,16 @@ export function LinkedLabel({
         ),
       );
     }
+    const mentionedId = extractBorrowerId(match[2]);
     parts.push(
       <MentionPill
         key={match.index}
         name={match[1]}
         href={match[2]}
         checked={checked}
+        color={
+          mentionedId ? borrowerCategoryColor(byId.get(mentionedId)) : null
+        }
       />,
     );
     prevBadge = isBadge;
@@ -107,6 +121,7 @@ export function LinkedLabel({
             name={name}
             href={`/borrowers/${borrower.id}`}
             checked={checked}
+            color={borrowerCategoryColor(borrower)}
           />,
         );
         offset = idx + name.length;
@@ -125,10 +140,12 @@ export function MentionPill({
   name,
   href,
   checked,
+  color = null,
 }: {
   name: string;
   href: string;
   checked: boolean;
+  color?: string | null;
 }) {
   const badgeClass = badgeClassFor(href);
   if (badgeClass) {
@@ -145,13 +162,16 @@ export function MentionPill({
       href={href}
       prefetch
       onClick={(e) => e.stopPropagation()}
+      style={!checked && color ? categoryTintStyle(color) : undefined}
       className={`inline-block lowercase rounded-md border px-2 pl-2.5 py-1
         text-sm font-semibold leading-none transition-opacity hover:opacity-70
         ${
           checked
             ? "border-border text-muted-foreground/70"
-            : `border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-800
-              dark:bg-sky-900/20 dark:text-sky-300`
+            : color
+              ? "text-slate-700 dark:text-slate-200"
+              : `border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-800
+                dark:bg-sky-900/20 dark:text-sky-300`
         }`}
     >
       {name}

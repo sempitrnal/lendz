@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import {
+  borrowerCategoryColor,
   buildDueLabel,
   collectionRowModel,
   extractBorrowerId,
@@ -238,5 +240,36 @@ describe("collectionRowModel", () => {
     const model = collectionRowModel(label, "2026-10-10");
     expect(model?.total).toBe(500);
     expect(model?.note).toBe("said friday");
+  });
+});
+
+describe("borrowerCategoryColor", () => {
+  const borrower = (colors: (string | null)[]): BorrowerSearchItem => ({
+    id: "b1",
+    first_name: "Ana",
+    last_name: "Cruz",
+    contact: null,
+    borrower_categories: colors.map((color, i) => ({
+      category: [{ id: `c${i}`, name: `cat ${i}`, color }],
+    })),
+  });
+
+  it("returns null for missing or uncategorized borrowers", () => {
+    expect(borrowerCategoryColor(undefined)).toBeNull();
+    expect(borrowerCategoryColor(borrower([]))).toBeNull();
+  });
+
+  it("picks the first valid color and normalizes it", () => {
+    expect(borrowerCategoryColor(borrower([null, "#22C55E"]))).toBe("#22c55e");
+    expect(borrowerCategoryColor(borrower(["#abc"]))).toBe("#aabbcc");
+    expect(borrowerCategoryColor(borrower(["red", "#0f0f0f"]))).toBe("#0f0f0f");
+  });
+
+  it("accepts a category object instead of an array", () => {
+    const b = borrower([]);
+    b.borrower_categories = [
+      { category: { id: "c", name: "c", color: "#123456" } as never },
+    ];
+    expect(borrowerCategoryColor(b)).toBe("#123456");
   });
 });

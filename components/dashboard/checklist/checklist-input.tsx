@@ -13,8 +13,8 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import {
-  MENTION_PILL_CLASS,
   createBadgeSpan,
+  createMentionSpan,
   getCaretOffset,
   getRangeForOffsets,
   insertNodeAtCaret,
@@ -257,11 +257,11 @@ export const ChecklistInput = forwardRef<
       if (!el) return;
       lastMentionedBorrowerRef.current = borrower.id;
       const label = `${borrower.first_name} ${borrower.last_name}`;
-      const span = document.createElement("span");
-      span.contentEditable = "false";
-      span.className = MENTION_PILL_CLASS;
-      span.textContent = label.toLowerCase();
-      span.dataset.mention = borrower.id;
+      const span = createMentionSpan(
+        label.toLowerCase(),
+        borrower.id,
+        borrower,
+      );
 
       el.focus();
       setCaretOffset(el, mentionStart);

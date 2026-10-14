@@ -140,6 +140,23 @@ export function buildDueLabel(group: DueChecklistGroup): string {
   ].join("\n");
 }
 
+/** First valid category color on a borrower, normalized to `#rrggbb`. */
+export function borrowerCategoryColor(
+  borrower: BorrowerSearchItem | null | undefined,
+): string | null {
+  const categories = (borrower?.borrower_categories ?? []).flatMap(
+    (row) => row.category ?? [],
+  );
+  for (const category of categories) {
+    const hex = category?.color?.trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (!hex) continue;
+    const digits =
+      hex[1].length === 3 ? hex[1].replace(/./g, (c) => c + c) : hex[1];
+    return `#${digits.toLowerCase()}`;
+  }
+  return null;
+}
+
 export type MentionSegment = {
   start: number;
   end: number;
