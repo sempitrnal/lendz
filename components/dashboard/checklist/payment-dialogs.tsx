@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import {
@@ -18,13 +18,13 @@ import {
   markSchedulesPaidAction,
   applyPartialPaymentAction,
 } from "@/lib/actions/schedules";
-import { remainingOnInstallment } from "@/lib/payment-schedule/schedule-balances";
 import {
-  borrowerDetailsQueryKey,
-  fetchBorrowerDetails,
-  useInvalidateBorrowerDetails,
-  type BorrowerDetailsResponse,
-} from "@/lib/hooks/use-borrower-details";
+  accountBalances,
+  remainingOnInstallment,
+  type AccountBalanceInput,
+  type ScheduleBalanceInput,
+} from "@/lib/payment-schedule/schedule-balances";
+import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import {
   borrowerCategoryColor,
   extractBorrowerMention,
@@ -58,38 +58,65 @@ type AccountSummary = {
   installmentCount: number;
 };
 
-function accountSummary(
-  details: BorrowerDetailsResponse | undefined,
-  accountId: string,
-): AccountSummary | null {
-  const account = details?.accounts.find((a) => a.id === accountId);
-  const m = details?.metrics[accountId] as
-    | {
-        totalPaid?: number;
-        amountLeftToPay?: number;
-        paidInstallments?: number;
-        installmentCount?: number;
-      }
-    | undefined;
-  if (!account || !m) return null;
-  const isCashAdvance = account.type === "cash_advance";
-  const base = isCashAdvance ? "cash advance" : "loan";
-  const typeLabel =
-    account.schedule_mode === "manual"
-      ? `${base} · manual ${account.interest_type === "rolling" ? "rolling" : "flat"}`
-      : base;
-  const paid = Number(m.totalPaid ?? 0);
-  const left = Number(m.amountLeftToPay ?? 0);
-  const total = paid + left;
-  return {
-    typeLabel,
-    isCashAdvance,
-    paid,
-    left,
-    pct: total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0,
-    paidInstallments: Number(m.paidInstallments ?? 0),
-    installmentCount: Number(m.installmentCount ?? 0),
-  };
+const ACCOUNT_SUMMARIES_KEY = "checklist-account-summaries";
+
+type SummaryAccountRow = AccountBalanceInput & {
+  id: string;
+  type: string | null;
+};
+
+/** Type + paid/left for the given accounts: two small parallel queries. */
+async function fetchAccountSummaries(
+  accountIds: string[],
+): Promise<Record<string, AccountSummary>> {
+  const [accountsRes, schedulesRes] = await Promise.all([
+    supabase
+      .from("accounts")
+      .select(
+        "id, type, schedule_mode, interest_type, principal_amount, interest_rate",
+      )
+      .in("id", accountIds),
+    supabase
+      .from("payment_schedules")
+      .select("account_id, amount_due, amount_paid, remaining_amount, status")
+      .in("account_id", accountIds),
+  ]);
+  if (accountsRes.error) throw new Error(accountsRes.error.message);
+  if (schedulesRes.error) throw new Error(schedulesRes.error.message);
+
+  const schedulesByAccount = new Map<string, ScheduleBalanceInput[]>();
+  for (const row of (schedulesRes.data ?? []) as (ScheduleBalanceInput & {
+    account_id: string;
+  })[]) {
+    const list = schedulesByAccount.get(row.account_id) ?? [];
+    list.push(row);
+    schedulesByAccount.set(row.account_id, list);
+  }
+
+  const summaries: Record<string, AccountSummary> = {};
+  for (const account of (accountsRes.data ?? []) as SummaryAccountRow[]) {
+    const b = accountBalances(
+      account,
+      schedulesByAccount.get(account.id) ?? [],
+    );
+    const isCashAdvance = account.type === "cash_advance";
+    const base = isCashAdvance ? "cash advance" : "loan";
+    const paid = b.amountPaid;
+    const left = b.amountLeftToPay;
+    const total = paid + left;
+    summaries[account.id] = {
+      typeLabel: b.isManual
+        ? `${base} · manual ${b.isRolling ? "rolling" : "flat"}`
+        : base,
+      isCashAdvance,
+      paid,
+      left,
+      pct: total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0,
+      paidInstallments: b.paidInstallments,
+      installmentCount: b.installmentCount,
+    };
+  }
+  return summaries;
 }
 
 type PendingPayment = {
@@ -252,10 +279,15 @@ export function ScheduleCheckDialog({
   );
   const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
   const open = refs.length > 0;
-  const { data: details, isPending: detailsPending } = useQuery({
-    queryKey: borrowerDetailsQueryKey(borrower?.id ?? ""),
-    queryFn: () => fetchBorrowerDetails(borrower!.id),
-    enabled: open && !!borrower,
+  const queryClient = useQueryClient();
+  const accountIds = useMemo(
+    () => [...new Set(rows.map((r) => r.account_id))].sort(),
+    [rows],
+  );
+  const { data: summaries, isPending: summariesPending } = useQuery({
+    queryKey: [ACCOUNT_SUMMARIES_KEY, ...accountIds],
+    queryFn: () => fetchAccountSummaries(accountIds),
+    enabled: open && accountIds.length > 0,
     // Show cached numbers instantly but refresh each time the dialog opens.
     staleTime: 0,
   });
@@ -365,6 +397,7 @@ export function ScheduleCheckDialog({
         }),
       ]);
       if (borrower) invalidateBorrowerDetails(borrower.id);
+      queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
       toast.success("Payment schedule updated");
       onConfirmed();
     } catch (err) {
@@ -457,7 +490,7 @@ export function ScheduleCheckDialog({
               </button>
             )}
             {accountGroups.map((group) => {
-              const summary = accountSummary(details, group.accountId);
+              const summary = summaries?.[group.accountId] ?? null;
               return (
                 <div
                   key={group.accountId}
@@ -472,7 +505,7 @@ export function ScheduleCheckDialog({
                         pending={pendingPayment(group.rows, choices)}
                       />
                     </div>
-                  ) : borrower && detailsPending ? (
+                  ) : summariesPending ? (
                     <div className="space-y-1.5 p-3">
                       <div className="h-4 w-24 animate-pulse rounded bg-muted" />
                       <div className="h-1.5 animate-pulse rounded-full bg-muted" />
