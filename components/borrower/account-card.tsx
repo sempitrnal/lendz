@@ -118,10 +118,11 @@ function StatTile({
   );
 }
 
-/** The dots cover at most this many of the installments still to complete. */
+/** Installments are shown in fixed pages of this many dots. */
 const MAX_DOTS = 6;
 
 function dotClasses(state: InstallmentDot["state"], isNext: boolean) {
+  if (state === "paid") return "border-2 border-emerald-500 bg-emerald-500";
   if (state === "partial")
     return "border-2 border-[#b9a8d8] bg-[#ece5f7] dark:border-[#6b5a8c] dark:bg-[#322a44]";
   if (state === "overdue")
@@ -131,16 +132,19 @@ function dotClasses(state: InstallmentDot["state"], isNext: boolean) {
   return "border-2 border-slate-300 dark:border-slate-600";
 }
 
-/** The next installments not yet fully paid, and how many more follow them. */
-function upcomingDots(installments: InstallmentDot[]) {
-  const incomplete = installments.filter((i) => i.state !== "paid");
-  return {
-    shown: incomplete.slice(0, MAX_DOTS),
-    more: Math.max(0, incomplete.length - MAX_DOTS),
-  };
+/**
+ * The page of installments holding the first one not yet fully paid, so with
+ * 13 of 20 paid it is 13-18 (the last paid one stays in view). Once every
+ * installment on a page is paid it flips to the next page.
+ */
+function dotWindow(installments: InstallmentDot[]) {
+  const first = installments.findIndex((i) => i.state !== "paid");
+  if (first < 0) return { shown: [] as InstallmentDot[], start: 0 };
+  const start = Math.floor(first / MAX_DOTS) * MAX_DOTS;
+  return { shown: installments.slice(start, start + MAX_DOTS), start };
 }
 
-/** One dot per upcoming installment: partial, overdue, the next one, later ones. */
+/** One dot per installment on the current page: paid, partial, overdue, next, later. */
 function ScheduleDots({
   installments,
   nextDate,
@@ -149,7 +153,7 @@ function ScheduleDots({
   nextDate: string | null;
 }) {
   const reduceMotion = useReducedMotion();
-  const { shown } = upcomingDots(installments);
+  const { shown, start } = dotWindow(installments);
   const paid = installments.filter((i) => i.state === "paid").length;
 
   if (shown.length === 0) {
@@ -180,7 +184,7 @@ function ScheduleDots({
   return (
     <div
       role="img"
-      aria-label={`${paid} of ${installments.length} installments paid; next ${shown.length} shown`}
+      aria-label={`${paid} of ${installments.length} installments paid; showing ${start + 1} to ${start + shown.length}`}
       className="mt-2 grid gap-1"
       style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr))` }}
     >
@@ -199,9 +203,13 @@ function ScheduleDots({
           }}
         >
           <div
-            className={`mx-auto size-[26px] rounded-full ${dotClasses( i.state,
-            idx === nextIndex, )}`}
-          />
+            className={`mx-auto flex size-[26px] items-center justify-center
+            rounded-full ${dotClasses(i.state, idx === nextIndex)}`}
+          >
+            {i.state === "paid" && (
+              <Check className="size-3.5 text-white" strokeWidth={3} />
+            )}
+          </div>
           <p
             className={`mt-1 text-[10px] tabular-nums ${
               idx === nextIndex
@@ -325,7 +333,7 @@ export function AccountCard({
   const paidInstallments = installments.filter(
     (i) => i.state === "paid",
   ).length;
-  const { more: moreDots } = upcomingDots(installments);
+  const dotPage = dotWindow(installments);
   const partialPaid = installments
     .filter((i) => i.state === "partial")
     .reduce((sum, i) => sum + i.amount_paid, 0);
@@ -769,7 +777,9 @@ export function AccountCard({
                             {paidInstallments} of {installments.length} paid
                           </span>
                           <span className="tabular-nums">
-                            {moreDots > 0 && `+${moreDots} more · `}
+                            {installments.length > MAX_DOTS &&
+                              dotPage.shown.length > 0 &&
+                              `${dotPage.start + 1}–${dotPage.start + dotPage.shown.length} · `}
                             {progressPct}%
                           </span>
                         </div>
