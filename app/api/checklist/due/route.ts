@@ -4,10 +4,17 @@ import type { DueChecklistGroup } from "@/lib/checklist/types";
 import { remainingOnInstallment } from "@/lib/payment-schedule/schedule-balances";
 
 export async function GET(request: Request) {
-  const date = new URL(request.url).searchParams.get("date") ?? "";
+  const params = new URL(request.url).searchParams;
+  const date = params.get("date") ?? "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: "Invalid date" }, { status: 400 });
   }
+  // Also carry over unpaid schedules due up to `back` days before `date`
+  // (capped at 7).
+  const back = Math.min(7, Math.max(0, Number(params.get("back")) || 0));
+  const start = new Date(`${date}T00:00:00Z`);
+  start.setUTCDate(start.getUTCDate() - back);
+  const startDate = start.toISOString().slice(0, 10);
 
   try {
     const supabase = await createSupabaseServer();
@@ -30,7 +37,8 @@ export async function GET(request: Request) {
       .select(
         "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
       )
-      .eq("due_date", date)
+      .gte("due_date", startDate)
+      .lte("due_date", date)
       .neq("status", "paid");
     if (schedulesError) throw new Error(schedulesError.message);
 

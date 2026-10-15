@@ -57,7 +57,10 @@ import {
   buildDueLabel,
   collectionRowModel,
   groupByBorrowerCategory,
+  extractBorrowerMention,
   extractScheduleRefs,
+  parseExistingNext,
+  rewriteNextBlock,
   type NextCollectionItem,
 } from "@/lib/checklist/labels";
 import { summarizeChecklist } from "@/lib/checklist/totals";
@@ -98,6 +101,22 @@ const GROUP_HEADER =
 const MENU_ITEM =
   "focus:bg-muted focus:text-foreground not-data-[variant=destructive]:focus:**:text-foreground";
 
+/** A row rewritten by "Add carry-over": its new label and the one it replaced. */
+type ExtendedRow = { id: string; label: string; previous: string };
+
+/** Unpaid schedules carry over onto the checklist for this many days after their due date. */
+const CARRY_OVER_DAYS = 3;
+
+async function fetchDueGroups(
+  targetDate: string,
+): Promise<DueChecklistGroup[]> {
+  const res = await fetch(
+    `/api/checklist/due?date=${targetDate}&back=${CARRY_OVER_DAYS}`,
+  );
+  if (!res.ok) throw new Error("Failed to load due collections");
+  return ((await res.json()) as { groups: DueChecklistGroup[] }).groups;
+}
+
 const ICON_BUTTON =
   "inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground";
 
@@ -112,6 +131,8 @@ function CategorySection({
   onEditLabel,
   onPopulate,
   onUndoPopulate,
+  onExtendPopulated,
+  onUndoExtend,
   onCheckMany,
 }: {
   category: ChecklistCategory | null;
@@ -128,6 +149,8 @@ function CategorySection({
   onEditLabel: (itemId: string, newLabel: string) => void;
   onPopulate: (categoryId: string | null, date: string) => Promise<void>;
   onUndoPopulate?: () => void;
+  onExtendPopulated: (date: string) => Promise<void>;
+  onUndoExtend?: () => void;
   onCheckMany: (ids: string[]) => void;
 }) {
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -367,6 +390,19 @@ function CategorySection({
               <Plus />
               {populating ? "Loading…" : "Populate due"}
             </DropdownMenuItem>
+            {/* TEMP: backfill rows populated before the 3-day window existed. */}
+            <DropdownMenuItem
+              className={MENU_ITEM}
+              disabled={populating}
+              onSelect={async () => {
+                setPopulating(true);
+                await onExtendPopulated(date);
+                setPopulating(false);
+              }}
+            >
+              <ArrowRight />
+              {populating ? "Loading…" : "Add carry-over"}
+            </DropdownMenuItem>
             {bulkItems.length > 0 && (
               <DropdownMenuItem
                 className={MENU_ITEM}
@@ -380,6 +416,12 @@ function CategorySection({
               <DropdownMenuItem variant="destructive" onSelect={onUndoPopulate}>
                 <Undo2 />
                 Undo populate
+              </DropdownMenuItem>
+            )}
+            {onUndoExtend && (
+              <DropdownMenuItem variant="destructive" onSelect={onUndoExtend}>
+                <Undo2 />
+                Undo add carry-over
               </DropdownMenuItem>
             )}
             {items.length > 0 && (
@@ -783,6 +825,11 @@ export default function DailyNotesWidget() {
     categoryId: string | null;
     rows: { id: string; label: string }[];
   } | null>(null);
+  /** TEMP: last "Add carry-over" run, for undo. */
+  const [lastExtend, setLastExtend] = useState<{
+    date: string;
+    rows: ExtendedRow[];
+  } | null>(null);
   const [categories, setCategories] = useState<ChecklistCategory[]>([]);
   const [date, setDate] = useState(todayDateValue());
   const [loading, setLoading] = useState(true);
@@ -1135,9 +1182,7 @@ export default function DailyNotesWidget() {
   const populateDue = async (categoryId: string | null, targetDate: string) => {
     let groups: DueChecklistGroup[];
     try {
-      const res = await fetch(`/api/checklist/due?date=${targetDate}`);
-      if (!res.ok) throw new Error("Failed to load due collections");
-      groups = ((await res.json()) as { groups: DueChecklistGroup[] }).groups;
+      groups = await fetchDueGroups(targetDate);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to populate");
       return;
@@ -1148,13 +1193,23 @@ export default function DailyNotesWidget() {
         extractScheduleRefs(i.label).map((r) => r.id),
       ),
     );
+    // Borrowers who already have a collection row on the day are skipped so
+    // they don't get a second one; "Add carry-over" tops those rows up.
+    const listedBorrowers = new Set(
+      itemsRef.current
+        .filter((i) => extractScheduleRefs(i.label).length > 0)
+        .flatMap((i) => extractBorrowerMention(i.label)?.id ?? []),
+    );
+    // Every borrower with something unlisted due on the date or still unpaid
+    // from the last CARRY_OVER_DAYS days, one row each.
     const labels = groups
+      .filter((g) => !listedBorrowers.has(g.borrower_id))
       .map((g) => ({ ...g, items: g.items.filter((i) => !already.has(i.id)) }))
       .filter((g) => g.items.length > 0)
       .map(buildDueLabel);
     if (labels.length === 0) {
       toast.info(
-        "Nothing new to add — everything due on this date is already listed",
+        "Nothing new to add — everyone due or carried over is already listed",
       );
       return;
     }
@@ -1198,6 +1253,126 @@ export default function DailyNotesWidget() {
         action: { label: "Undo", onClick: () => void undoPopulate(rows) },
       },
     );
+  };
+
+  /**
+   * TEMP: rewrites every unticked collection row on `targetDate` to also carry
+   * that borrower's unpaid schedules from the last CARRY_OVER_DAYS that aren't
+   * listed anywhere on the day yet. Remove once old rows have been backfilled.
+   */
+  const extendPopulated = async (targetDate: string) => {
+    let groups: DueChecklistGroup[];
+    try {
+      groups = await fetchDueGroups(targetDate);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load");
+      return;
+    }
+    const byBorrower = new Map(groups.map((g) => [g.borrower_id, g]));
+    const dayItems = itemsRef.current.filter(
+      (i) => i.checklist_date === targetDate,
+    );
+    const listed = new Set(
+      dayItems.flatMap((i) => extractScheduleRefs(i.label).map((r) => r.id)),
+    );
+
+    const updates: ExtendedRow[] = [];
+    for (const item of dayItems) {
+      if (item.is_checked) continue;
+      const existing = parseExistingNext(item.label);
+      const borrower = extractBorrowerMention(item.label);
+      if (existing.length === 0 || !borrower) continue;
+      const extra = (byBorrower.get(borrower.id)?.items ?? []).filter(
+        (i) => !listed.has(i.id),
+      );
+      if (extra.length === 0) continue;
+      for (const i of extra) listed.add(i.id);
+      const merged = [...existing, ...extra].sort(
+        (a, b) =>
+          a.due_date.localeCompare(b.due_date) || a.type.localeCompare(b.type),
+      );
+      updates.push({
+        id: item.id,
+        label: rewriteNextBlock(item.label, merged),
+        previous: item.label,
+      });
+    }
+
+    if (updates.length === 0) {
+      toast.info("Nothing to add — no unpaid schedules to carry over");
+      return;
+    }
+
+    const results = await Promise.all(
+      updates.map((u) =>
+        supabase
+          .from("daily_checklist_items")
+          .update({ label: u.label })
+          .eq("id", u.id),
+      ),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) toast.error(failed.error.message);
+    const ok = new Map(
+      updates.filter((_, idx) => !results[idx].error).map((u) => [u.id, u]),
+    );
+    setItems((prev) =>
+      prev.map((row) =>
+        ok.has(row.id) ? { ...row, label: ok.get(row.id)!.label } : row,
+      ),
+    );
+    if (ok.size > 0) {
+      const rows = [...ok.values()];
+      setLastExtend({ date: targetDate, rows });
+      toast.success(`Updated ${ok.size} borrower${ok.size === 1 ? "" : "s"}`, {
+        duration: 8000,
+        action: { label: "Undo", onClick: () => void undoExtend(rows) },
+      });
+    }
+  };
+
+  /** TEMP: puts back the labels "Add carry-over" replaced, skipping rows changed since. */
+  const undoExtend = async (rows: ExtendedRow[]) => {
+    const current = itemsRef.current;
+    const untouched = rows.filter((r) => {
+      const item = current.find((i) => i.id === r.id);
+      return item && item.label === r.label && !item.is_checked;
+    });
+    const kept =
+      rows.filter((r) => current.some((i) => i.id === r.id)).length -
+      untouched.length;
+    setLastExtend(null);
+    if (untouched.length === 0) {
+      toast.info("Nothing to undo — items were already changed or removed");
+      return;
+    }
+    const results = await Promise.all(
+      untouched.map((r) =>
+        supabase
+          .from("daily_checklist_items")
+          .update({ label: r.previous })
+          .eq("id", r.id),
+      ),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) toast.error(failed.error.message);
+    const reverted = new Map(
+      untouched
+        .filter((_, idx) => !results[idx].error)
+        .map((r) => [r.id, r.previous]),
+    );
+    setItems((prev) =>
+      prev.map((row) =>
+        reverted.has(row.id) ? { ...row, label: reverted.get(row.id)! } : row,
+      ),
+    );
+    if (reverted.size > 0) {
+      toast.success(
+        `Reverted ${reverted.size} borrower${reverted.size === 1 ? "" : "s"}${
+          kept > 0 ? ` (${kept} kept — edited or ticked)` : ""
+        }`,
+      );
+    }
   };
 
   const dayTotals = useMemo(() => summarizeChecklist(items), [items]);
@@ -1421,6 +1596,12 @@ export default function DailyNotesWidget() {
               onClear={clearItems}
               onEditLabel={editItemLabel}
               onPopulate={populateDue}
+              onExtendPopulated={extendPopulated}
+              onUndoExtend={
+                lastExtend && lastExtend.date === date
+                  ? () => void undoExtend(lastExtend.rows)
+                  : undefined
+              }
               onCheckMany={checkItems}
               onUndoPopulate={
                 lastPopulate &&
