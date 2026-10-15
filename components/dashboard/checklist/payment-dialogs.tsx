@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check } from "lucide-react";
+import { Check, Undo2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,10 +16,16 @@ import { Button } from "@/components/ui/button";
 import {
   markSchedulesPaidAction,
   applyPartialPaymentAction,
+  updateScheduleStatusAction,
 } from "@/lib/actions/schedules";
-import { remainingOnInstallment } from "@/lib/payment-schedule/schedule-balances";
 import {
-  applyOfflinePayments,
+  amountPaidOnInstallment,
+  remainingOnInstallment,
+} from "@/lib/payment-schedule/schedule-balances";
+import {
+  applyPaymentsToCache,
+  refreshCachedAccounts,
+  undoPaymentsInCache,
   actionWasQueued,
   loadAccountSummaries,
   loadSchedules,
@@ -36,14 +42,56 @@ import {
   extractScheduleRefs,
   formatShortDate,
 } from "@/lib/checklist/labels";
-import { todayDateValue } from "@/lib/checklist/dates";
+import { overdueCutoffDateValue, todayDateValue } from "@/lib/checklist/dates";
 import { MentionPill } from "@/components/dashboard/checklist/checklist-label";
+import { chipClass, type ChipTone } from "@/components/dashboard/checklist/dom";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import type { DailyChecklistItem } from "@/lib/checklist/types";
 
-type ScheduleChoice = { status: "paid" | "partial" | null; amount: string };
+type ScheduleChoice = {
+  /** `undo` resets a schedule that already has payments back to unpaid. */
+  status: "paid" | "partial" | "undo" | null;
+  amount: string;
+};
+
+/** A schedule with money on it, which the dialog lets you undo. */
+const hasPayment = (row: ScheduleDialogRow) =>
+  row.status === "paid" || amountPaidOnInstallment(row) > 0;
 
 const ACCOUNT_SUMMARIES_KEY = "checklist-account-summaries";
+
+/** Each schedule is its own card; paid/part-paid ones get a soft glow. */
+const SCHEDULE_CARD = {
+  plain: "border-slate-200 bg-white dark:border-border dark:bg-card",
+  paid: "border-emerald-300/70 bg-emerald-50/80 shadow-[inset_0_0_18px_-6px_rgba(16,185,129,0.55)] dark:border-emerald-700/60 dark:bg-emerald-400/[0.07] dark:shadow-[inset_0_0_18px_-6px_rgba(52,211,153,0.45)]",
+  partial:
+    "border-violet-300/70 bg-violet-50/80 shadow-[inset_0_0_18px_-6px_rgba(139,92,246,0.5)] dark:border-violet-700/60 dark:bg-violet-400/[0.07] dark:shadow-[inset_0_0_18px_-6px_rgba(167,139,250,0.45)]",
+  undo: "border-dashed border-orange-300 bg-orange-50/50 dark:border-orange-700 dark:bg-orange-400/[0.05]",
+} as const;
+
+type ScheduleState = "paid" | "partial" | "overdue" | "unpaid";
+
+const STATE_CHIP: Record<ScheduleState, ChipTone> = {
+  paid: "paid",
+  partial: "partial",
+  overdue: "overdue",
+  unpaid: "neutral",
+};
+
+const STATE_LABEL: Record<ScheduleState, string> = {
+  paid: "paid",
+  partial: "partial",
+  overdue: "overdue",
+  unpaid: "unpaid",
+};
+
+const ACTION_BUTTON =
+  "cursor-pointer rounded-md border px-2 py-1.5 text-sm font-semibold lowercase transition";
+
+const PAID_TEXT = {
+  paid: "font-semibold text-emerald-700 dark:text-emerald-300",
+  partial: "font-semibold text-violet-700 dark:text-violet-300",
+} as const;
 
 /** Fade + rise used to stagger account cards and schedule rows in on open. */
 const ENTER_ANIMATION =
@@ -53,6 +101,10 @@ type PendingPayment = {
   paidAmount: number;
   partialAmount: number;
   installments: number;
+  /** Paid amounts that Undo would take back off the account. */
+  undoAmount: number;
+  /** Fully paid installments Undo would reopen. */
+  undoInstallments: number;
 };
 
 /** What the selected Paid/Partial choices would add to an account. */
@@ -63,8 +115,15 @@ function pendingPayment(
   let paidAmount = 0;
   let partialAmount = 0;
   let installments = 0;
+  let undoAmount = 0;
+  let undoInstallments = 0;
   for (const row of rows) {
     const choice = choices[row.id];
+    if (choice?.status === "undo") {
+      undoAmount += amountPaidOnInstallment(row);
+      if (row.status === "paid") undoInstallments += 1;
+      continue;
+    }
     if (!choice?.status || row.status === "paid") continue;
     const remaining = remainingOnInstallment(row);
     if (choice.status === "paid") {
@@ -78,7 +137,13 @@ function pendingPayment(
     partialAmount += applied;
     if (applied >= remaining) installments += 1;
   }
-  return { paidAmount, partialAmount, installments };
+  return {
+    paidAmount,
+    partialAmount,
+    installments,
+    undoAmount,
+    undoInstallments,
+  };
 }
 
 function AccountSummaryHeader({
@@ -89,20 +154,26 @@ function AccountSummaryHeader({
   pending: PendingPayment;
 }) {
   const total = summary.paid + summary.left;
-  const paidAdded = Math.min(pending.paidAmount, summary.left);
-  const partialAdded = Math.min(
-    pending.partialAmount,
-    summary.left - paidAdded,
-  );
+  // Undo moves money from paid back to left before any new payment lands.
+  const undone = Math.min(pending.undoAmount, summary.paid);
+  const basePaid = summary.paid - undone;
+  const baseLeft = summary.left + undone;
+  const paidAdded = Math.min(pending.paidAmount, baseLeft);
+  const partialAdded = Math.min(pending.partialAmount, baseLeft - paidAdded);
   const added = paidAdded + partialAdded;
-  const changed = added > 0;
-  const paid = summary.paid + added;
-  const left = Math.max(0, summary.left - added);
+  const changed = added > 0 || undone > 0;
+  const paid = basePaid + added;
+  const left = Math.max(0, baseLeft - added);
   const share = (amount: number) => (total > 0 ? (amount / total) * 100 : 0);
   const pct = Math.round(Math.min(100, share(paid)));
-  const paidInstallments = Math.min(
-    summary.installmentCount,
-    summary.paidInstallments + pending.installments,
+  const paidInstallments = Math.max(
+    0,
+    Math.min(
+      summary.installmentCount,
+      summary.paidInstallments +
+        pending.installments -
+        pending.undoInstallments,
+    ),
   );
   // Start empty so the bar fills on open instead of appearing pre-filled.
   const [filled, setFilled] = useState(false);
@@ -111,9 +182,11 @@ function AccountSummaryHeader({
     return () => cancelAnimationFrame(frame);
   }, []);
   const width = (amount: number) => `${filled ? share(amount) : 0}%`;
-  const highlight = changed
-    ? "font-semibold text-emerald-600 dark:text-emerald-400"
-    : "";
+  const highlight = !changed
+    ? ""
+    : added >= undone
+      ? "font-semibold text-emerald-600 dark:text-emerald-400"
+      : "font-semibold text-orange-600 dark:text-orange-400";
 
   return (
     <div className="space-y-1.5">
@@ -125,9 +198,8 @@ function AccountSummaryHeader({
                 ? `border-amber-300/60 bg-amber-100 text-amber-800
                   dark:border-amber-700 dark:bg-amber-900/40
                   dark:text-amber-200`
-                : `border-violet-300/60 bg-violet-100 text-violet-800
-                  dark:border-violet-700 dark:bg-violet-900/40
-                  dark:text-violet-200`
+                : `border-sky-300/60 bg-sky-100 text-sky-800 dark:border-sky-700
+                  dark:bg-sky-900/40 dark:text-sky-200`
             }`}
         >
           {summary.typeLabel}
@@ -135,9 +207,11 @@ function AccountSummaryHeader({
         {summary.installmentCount > 0 && (
           <span
             className={`text-xs font-semibold tabular-nums transition-colors ${
-              pending.installments > 0
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-slate-700 dark:text-slate-300"
+              pending.undoInstallments > 0
+                ? "text-orange-600 dark:text-orange-400"
+                : pending.installments > 0
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-slate-700 dark:text-slate-300"
             }`}
           >
             {paidInstallments} of {summary.installmentCount} paid
@@ -155,7 +229,7 @@ function AccountSummaryHeader({
       >
         <div
           className="h-full bg-emerald-500 transition-[width] duration-500"
-          style={{ width: width(summary.paid) }}
+          style={{ width: width(basePaid) }}
         />
         <div
           className="h-full bg-emerald-500/30 transition-[width] duration-300"
@@ -185,14 +259,19 @@ function AccountSummaryHeader({
 /**
  * Shown when checking off a checklist item that was inserted via `/next` —
  * lets the user mark the linked payment_schedules row(s) as paid/partial
- * before the item is actually checked.
+ * before the item is actually checked. Schedules that already have payments
+ * can be undone (reset to unpaid). With `mode="edit"` it is opened from an
+ * already ticked item to undo or change what was recorded; saving leaves the
+ * tick alone.
  */
 export function ScheduleCheckDialog({
   item,
+  mode = "check",
   onClose,
   onConfirmed,
 }: {
   item: DailyChecklistItem | null;
+  mode?: "check" | "edit";
   onClose: () => void;
   onConfirmed: () => void;
 }) {
@@ -313,7 +392,9 @@ export function ScheduleCheckDialog({
   const chosenPayments = () =>
     rows.flatMap((row) => {
       const choice = choices[row.id];
-      if (!choice?.status || choice.status === row.status) return [];
+      // Partial always adds a payment, even on a schedule that is already
+      // partial; undo is handled separately.
+      if (!choice?.status || choice.status === "undo") return [];
       if (choice.status === "paid") {
         return row.status === "paid"
           ? []
@@ -324,6 +405,8 @@ export function ScheduleCheckDialog({
         ? [{ scheduleId: row.id, amount: amt }]
         : [];
     });
+
+  const undoRows = rows.filter((row) => choices[row.id]?.status === "undo");
 
   const handleConfirm = async () => {
     setSubmitting(true);
@@ -340,8 +423,7 @@ export function ScheduleCheckDialog({
           : Promise.resolve(),
         ...rows.map(async (row) => {
           const choice = choices[row.id];
-          if (!choice?.status || choice.status === row.status) return;
-          if (choice.status === "partial") {
+          if (choice?.status === "partial") {
             const amt = Number.parseFloat(choice.amount || "0");
             if (!Number.isFinite(amt) || amt <= 0) return;
             const fd = new FormData();
@@ -351,15 +433,36 @@ export function ScheduleCheckDialog({
             await applyPartialPaymentAction(fd);
           }
         }),
+        // Same reset as the account page's "pending": clears what was paid
+        // and its payment records. Past the grace day it is overdue instead.
+        ...undoRows.map((row) => {
+          const fd = new FormData();
+          fd.set("scheduleId", row.id);
+          fd.set(
+            "status",
+            row.due_date < overdueCutoffDateValue() ? "overdue" : "pending",
+          );
+          return updateScheduleStatusAction(row.account_id, fd);
+        }),
       ]);
+      // Line statuses read the saved schedules: update them now, then
+      // re-download so they match what the server actually recorded.
+      undoPaymentsInCache(undoRows.map((r) => r.id));
+      applyPaymentsToCache(chosenPayments());
+      void refreshCachedAccounts(rows.map((r) => r.account_id)).catch(() => {});
       if (borrower) invalidateBorrowerDetails(borrower.id);
       queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
-      toast.success("Payment schedule updated");
+      toast.success(
+        undoRows.length > 0 && chosenPayments().length === 0
+          ? `Undid ${undoRows.length} payment${undoRows.length === 1 ? "" : "s"}`
+          : "Payment schedule updated",
+      );
       onConfirmed();
     } catch (err) {
       if (await actionWasQueued(queuedBefore)) {
         // The service worker queued the action calls; show them as done.
-        applyOfflinePayments(chosenPayments());
+        undoPaymentsInCache(undoRows.map((r) => r.id));
+        applyPaymentsToCache(chosenPayments());
         queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
         onConfirmed();
         return;
@@ -380,17 +483,10 @@ export function ScheduleCheckDialog({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="gap-3 pb-2">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-full
-              bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40
-              dark:text-emerald-300"
-          >
-            <Check className="h-5 w-5" />
-          </div>
           <div className="space-y-1">
             <DialogTitle
-              className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xl
-                font-semibold tracking-tight"
+              className="flex flex-col items-start gap-1.5 text-xl font-semibold
+                tracking-tight"
             >
               <span>Update payment status</span>
               {borrower ? (
@@ -404,9 +500,15 @@ export function ScheduleCheckDialog({
               ) : null}
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
-              Mark {borrowerName ? `${borrowerName}'s` : "the"} linked
-              collection{rows.length === 1 ? "" : "s"} as paid or partial before
-              checking this off.
+              {mode === "edit" ? (
+                <>Undo or change what&apos;s been recorded.</>
+              ) : (
+                <>
+                  Mark {borrowerName ? `${borrowerName}'s` : "the"} linked
+                  collection{rows.length === 1 ? "" : "s"} as paid or partial
+                  before checking this off.
+                </>
+              )}
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -444,8 +546,8 @@ export function ScheduleCheckDialog({
                   })
                 }
                 className="w-full cursor-pointer rounded-md border
-                  border-emerald-500 bg-emerald-50 px-2 py-1.5 text-xs font-bold
-                  tracking-wide text-emerald-900 uppercase transition
+                  border-emerald-500 bg-emerald-50 px-2 py-1.5 text-sm
+                  font-semibold text-emerald-900 lowercase transition
                   hover:bg-emerald-100 dark:border-emerald-400/50
                   dark:bg-emerald-400/10 dark:text-emerald-200"
               >
@@ -455,22 +557,23 @@ export function ScheduleCheckDialog({
             {accountGroups.map((group, groupIndex) => {
               const summary = summaries?.[group.accountId] ?? null;
               return (
-                <div
+                <section
                   key={group.accountId}
-                  className={`dark:border-border dark:bg-card dark:divide-border
-                    divide-y divide-slate-200 rounded-lg border border-slate-200
-                    bg-white ${ENTER_ANIMATION}`}
+                  // One container per account: its type and progress together
+                  // with its schedules, set apart from the other accounts.
+                  className={`space-y-2.5 rounded-2xl bg-slate-100/70 p-3
+                    dark:bg-muted/30 ${ENTER_ANIMATION}`}
                   style={{ animationDelay: `${groupIndex * 80}ms` }}
                 >
                   {summary ? (
-                    <div className="p-3">
+                    <div className="px-0.5">
                       <AccountSummaryHeader
                         summary={summary}
                         pending={pendingPayment(group.rows, choices)}
                       />
                     </div>
                   ) : summariesPending ? (
-                    <div className="space-y-1.5 p-3">
+                    <div className="space-y-1.5 px-0.5">
                       <div className="h-4 w-24 animate-pulse rounded bg-muted" />
                       <div className="h-1.5 animate-pulse rounded-full bg-muted" />
                     </div>
@@ -478,79 +581,178 @@ export function ScheduleCheckDialog({
                   {group.rows.map((row, rowIndex) => {
                     const choice = choices[row.id];
                     const chosen = choice?.status ?? null;
+                    const paidSoFar = amountPaidOnInstallment(row);
+                    const due = Math.max(0, Number(row.amount_due ?? 0));
+                    const remaining = remainingOnInstallment(row);
+                    const state: ScheduleState =
+                      row.status === "paid"
+                        ? "paid"
+                        : paidSoFar > 0
+                          ? "partial"
+                          : row.due_date < overdueCutoffDateValue()
+                            ? "overdue"
+                            : "unpaid";
+                    const undoing = chosen === "undo";
+                    const isPaid = state === "paid";
+                    const undoButton = (wide: boolean) => (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setChoice(row.id, {
+                            status: undoing ? null : "undo",
+                          })
+                        }
+                        aria-pressed={undoing}
+                        aria-label={`Undo ₱${paidSoFar.toLocaleString()} payment`}
+                        className={`${ACTION_BUTTON} flex items-center
+                          justify-center gap-1.5 ${wide ? "w-full" : "px-3"} ${
+                            undoing
+                              ? `border-orange-500 bg-orange-100 text-orange-900
+                                dark:border-orange-400/50 dark:bg-orange-400/20
+                                dark:text-orange-200`
+                              : `border-dashed border-slate-300 bg-white/70
+                                text-slate-600 hover:border-orange-500
+                                hover:bg-orange-50 dark:border-border
+                                dark:bg-card dark:text-muted-foreground`
+                          }`}
+                      >
+                        <Undo2 className="size-3.5" />
+                        {wide ? "Undo payment" : "Undo"}
+                      </button>
+                    );
                     return (
                       <div
                         key={row.id}
-                        className={`p-3 ${ENTER_ANIMATION}`}
+                        className={`rounded-xl border p-3 shadow-sm
+                          transition-[background-color,border-color,box-shadow]
+                          duration-300 ${
+                            undoing
+                              ? SCHEDULE_CARD.undo
+                              : isPaid
+                                ? SCHEDULE_CARD.paid
+                                : state === "partial"
+                                  ? SCHEDULE_CARD.partial
+                                  : SCHEDULE_CARD.plain
+                          } ${ENTER_ANIMATION}`}
                         style={{
                           animationDelay: `${groupIndex * 80 + (rowIndex + 1) * 60}ms`,
                         }}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span
-                            className="text-sm font-semibold text-slate-700
-                              dark:text-foreground"
-                          >
-                            {formatShortDate(row.due_date)}
-                          </span>
-                          <span
-                            className="text-sm text-slate-500
-                              dark:text-muted-foreground"
-                          >
-                            ₱{remainingOnInstallment(row).toLocaleString()} due
-                          </span>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span
+                                className="text-sm font-semibold text-slate-800
+                                  dark:text-foreground"
+                              >
+                                {formatShortDate(row.due_date)}
+                              </span>
+                              {undoing ? (
+                                <span className={chipClass("unpaid")}>
+                                  will reset to unpaid
+                                </span>
+                              ) : (
+                                <span className={chipClass(STATE_CHIP[state])}>
+                                  {STATE_LABEL[state]}
+                                </span>
+                              )}
+                            </div>
+                            {state === "partial" && !undoing && (
+                              <p
+                                className="text-xs text-muted-foreground
+                                  tabular-nums"
+                              >
+                                <span className={PAID_TEXT.partial}>
+                                  ₱{paidSoFar.toLocaleString()}
+                                </span>{" "}
+                                of ₱{due.toLocaleString()} paid
+                              </p>
+                            )}
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p
+                              className={`text-base leading-tight font-semibold
+                                tabular-nums ${
+                                  isPaid && !undoing
+                                    ? PAID_TEXT.paid
+                                    : "text-slate-800 dark:text-foreground"
+                                }`}
+                            >
+                              ₱
+                              {(isPaid && !undoing
+                                ? paidSoFar
+                                : undoing
+                                  ? due
+                                  : remaining
+                              ).toLocaleString()}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {isPaid && !undoing ? "paid" : "due"}
+                            </p>
+                          </div>
                         </div>
-                        <div className="mt-2 grid grid-cols-2 gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setChoice(row.id, {
-                                status: chosen === "paid" ? null : "paid",
-                              })
-                            }
-                            disabled={row.status === "paid"}
-                            className={`rounded-md border px-2 py-1.5 text-xs
-                              font-bold tracking-wide uppercase transition ${
-                                chosen === "paid"
-                                  ? `border-emerald-500 bg-emerald-200
-                                    text-emerald-950 dark:border-emerald-400/50
-                                    dark:bg-emerald-400/25
-                                    dark:text-emerald-200`
-                                  : `border-slate-300 bg-white text-slate-600
-                                    hover:border-emerald-500 hover:bg-emerald-50
-                                    dark:border-border dark:bg-card
-                                    dark:text-muted-foreground`
-                              } ${
-                                row.status === "paid"
-                                  ? "cursor-not-allowed opacity-60"
-                                  : "cursor-pointer"
-                              }`}
-                          >
-                            Paid
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setChoice(row.id, {
-                                status: chosen === "partial" ? null : "partial",
-                              })
-                            }
-                            className={`cursor-pointer rounded-md border px-2
-                              py-1.5 text-xs font-bold tracking-wide uppercase
-                              transition ${
-                                chosen === "partial"
-                                  ? `border-violet-500 bg-violet-200
-                                    text-violet-950 dark:border-violet-400/50
-                                    dark:bg-violet-400/25 dark:text-violet-200`
-                                  : `border-slate-300 bg-white text-slate-600
-                                    hover:border-violet-500 hover:bg-violet-50
-                                    dark:border-border dark:bg-card
-                                    dark:text-muted-foreground`
-                              }`}
-                          >
-                            Partial
-                          </button>
+
+                        <div className="mt-3">
+                          {isPaid ? (
+                            // Nothing left to pay — the only action is undo.
+                            undoButton(true)
+                          ) : (
+                            <div
+                              className={`grid gap-1.5 ${
+                                hasPayment(row)
+                                  ? "grid-cols-[1fr_1fr_auto]"
+                                  : "grid-cols-2"
+                                }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setChoice(row.id, {
+                                    status: chosen === "paid" ? null : "paid",
+                                  })
+                                }
+                                className={`${ACTION_BUTTON} ${
+                                  chosen === "paid"
+                                    ? `border-emerald-500 bg-emerald-200
+                                      text-emerald-950
+                                      dark:border-emerald-400/50
+                                      dark:bg-emerald-400/25
+                                      dark:text-emerald-200`
+                                    : `border-slate-300 bg-white text-slate-600
+                                      hover:border-emerald-500
+                                      hover:bg-emerald-50 dark:border-border
+                                      dark:bg-card dark:text-muted-foreground`
+                                  }`}
+                              >
+                                Paid
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setChoice(row.id, {
+                                    status:
+                                      chosen === "partial" ? null : "partial",
+                                  })
+                                }
+                                className={`${ACTION_BUTTON} ${
+                                  chosen === "partial"
+                                    ? `border-violet-500 bg-violet-200
+                                      text-violet-950 dark:border-violet-400/50
+                                      dark:bg-violet-400/25
+                                      dark:text-violet-200`
+                                    : `border-slate-300 bg-white text-slate-600
+                                      hover:border-violet-500 hover:bg-violet-50
+                                      dark:border-border dark:bg-card
+                                      dark:text-muted-foreground`
+                                  }`}
+                              >
+                                Partial
+                              </button>
+                              {hasPayment(row) && undoButton(false)}
+                            </div>
+                          )}
                         </div>
+
                         {chosen === "partial" && (
                           <label
                             className="mt-2 flex cursor-text items-center
@@ -571,7 +773,7 @@ export function ScheduleCheckDialog({
                               type="number"
                               inputMode="decimal"
                               min={0}
-                              max={remainingOnInstallment(row)}
+                              max={remaining}
                               step="0.01"
                               placeholder="0"
                               aria-label="Amount paid"
@@ -590,30 +792,43 @@ export function ScheduleCheckDialog({
                             <span
                               className={`shrink-0 text-xs tabular-nums ${
                                 Number.parseFloat(choice?.amount || "0") >
-                                remainingOnInstallment(row)
+                                remaining
                                   ? "text-amber-600 dark:text-amber-400"
                                   : "text-muted-foreground"
                                 }`}
                             >
-                              of ₱{remainingOnInstallment(row).toLocaleString()}
+                              of ₱{remaining.toLocaleString()}
                             </span>
                           </label>
                         )}
                       </div>
                     );
                   })}
-                </div>
+                </section>
               );
             })}
           </div>
         )}
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose} disabled={submitting}>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={submitting}
+            className="lowercase"
+          >
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={loading || submitting}>
-            {submitting ? "Saving…" : "Confirm & check off"}
+          <Button
+            onClick={handleConfirm}
+            disabled={loading || submitting}
+            className="lowercase"
+          >
+            {submitting
+              ? "Saving…"
+              : mode === "edit"
+                ? "Save changes"
+                : "Confirm & check off"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -691,6 +906,13 @@ export function BulkPaidDialog({
     const queuedBefore = await getPendingOutboxCount();
     try {
       const result = await markSchedulesPaidAction(ids, paidDate);
+      applyPaymentsToCache(
+        openRows.map((r) => ({
+          scheduleId: r.id,
+          amount: remainingOnInstallment(r),
+        })),
+      );
+      void refreshCachedAccounts(rows.map((r) => r.account_id)).catch(() => {});
       new Set(
         items.map((i) => extractBorrowerMention(i.label)?.id).filter(Boolean),
       ).forEach((id) => invalidateBorrowerDetails(id as string));
@@ -701,7 +923,7 @@ export function BulkPaidDialog({
     } catch (err) {
       if (await actionWasQueued(queuedBefore)) {
         // Queued by the service worker; reflect it locally until it syncs.
-        applyOfflinePayments(
+        applyPaymentsToCache(
           openRows.map((r) => ({
             scheduleId: r.id,
             amount: remainingOnInstallment(r),

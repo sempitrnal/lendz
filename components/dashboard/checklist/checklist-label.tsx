@@ -14,6 +14,7 @@ import {
   formatShortDate,
   type CollectionRowModel,
 } from "@/lib/checklist/labels";
+import type { ScheduleDialogRow } from "@/lib/checklist/schedule-cache";
 
 export function LinkedLabel({
   label,
@@ -190,17 +191,41 @@ export function MentionPill({
   );
 }
 
-/** A `/next`-linked item: borrower, one chip row per collection, amount on the right. */
+type LineState = "paid" | "partial" | "unpaid";
+
+function lineState(row: ScheduleDialogRow | undefined): LineState | null {
+  if (!row) return null;
+  if (row.status === "paid") return "paid";
+  return Number(row.amount_paid ?? 0) > 0 ? "partial" : "unpaid";
+}
+
+const peso = (n: number) => `₱${n.toLocaleString()}`;
+
+/**
+ * A `/next`-linked item: borrower, one chip row per collection, amount on the
+ * right. Each line carries its schedule's payment state from the saved
+ * schedules, so a ticked row only strikes the lines actually paid; lines the
+ * device has no status for follow the tick, as before.
+ */
 export function CollectionLabel({
   model,
   checked,
   borrowers,
+  schedules,
 }: {
   model: CollectionRowModel;
   checked: boolean;
   borrowers: BorrowerSearchItem[];
+  schedules?: Map<string, ScheduleDialogRow>;
 }) {
   const multi = model.lines.length > 1;
+  const lines = model.lines.map((line) => {
+    const row = schedules?.get(line.id);
+    const state = lineState(row);
+    const settled = state === "paid" || (checked && state === null);
+    return { line, row, state, settled };
+  });
+  const allSettled = lines.every((l) => l.settled);
   return (
     <div className="flex items-start gap-3">
       <div className="min-w-0 flex-1 space-y-1.5">
@@ -214,28 +239,30 @@ export function CollectionLabel({
             )}
           />
         ) : null}
-        <div className={`space-y-1 ${checked ? "opacity-60" : ""}`}>
-          {model.lines.map((line) => (
+        <div className="space-y-1">
+          {lines.map(({ line, row, state, settled }) => (
             <div
               key={line.id}
-              className="flex flex-wrap items-center gap-1.5 text-xs"
+              className={`flex flex-wrap items-center gap-1.5 text-xs ${
+                settled ? "opacity-60" : ""
+              }`}
             >
               {multi && (
                 <span
                   className={`font-medium text-muted-foreground tabular-nums ${
-                    checked ? "line-through" : ""
+                    settled ? "line-through" : ""
                   }`}
                 >
-                  ₱{line.amount.toLocaleString()}
+                  {peso(line.amount)}
                 </span>
               )}
               <span
                 className={chipClass(
-                  line.daysOverdue > 0 && !checked ? "overdue" : "neutral",
+                  line.daysOverdue > 0 && !settled ? "overdue" : "neutral",
                 )}
               >
                 {formatShortDate(line.due_date).toLowerCase()}
-                {line.daysOverdue > 0 && !checked
+                {line.daysOverdue > 0 && !settled
                   ? ` · ${line.daysOverdue}d overdue`
                   : ""}
               </span>
@@ -246,6 +273,18 @@ export function CollectionLabel({
               >
                 {line.type === "cash_advance" ? "ca" : "loan"}
               </span>
+              {state === "paid" && (
+                <span className={chipClass("paid")}>paid</span>
+              )}
+              {state === "partial" && row && (
+                <span className={`${chipClass("partial")} tabular-nums`}>
+                  {peso(Number(row.amount_paid ?? 0))} paid ·{" "}
+                  {peso(Number(row.remaining_amount ?? 0))} left
+                </span>
+              )}
+              {state === "unpaid" && checked && (
+                <span className={chipClass("unpaid")}>not paid</span>
+              )}
             </div>
           ))}
         </div>
@@ -261,10 +300,10 @@ export function CollectionLabel({
       </div>
       <span
         className={`shrink-0 text-base font-semibold tabular-nums ${
-          checked ? "text-muted-foreground line-through" : "text-foreground"
-        }`}
+          allSettled ? "text-muted-foreground line-through" : "text-foreground"
+          }`}
       >
-        ₱{model.total.toLocaleString()}
+        {peso(model.total)}
       </span>
     </div>
   );

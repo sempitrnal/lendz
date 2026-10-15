@@ -899,10 +899,9 @@ export const ChecklistInput = forwardRef<
                                         ? `border-amber-300/60 bg-amber-200
                                           text-amber-900 dark:border-amber-700
                                           dark:bg-amber-800 dark:text-amber-100`
-                                        : `border-violet-300/60 bg-violet-200
-                                          text-violet-900 dark:border-violet-700
-                                          dark:bg-violet-800
-                                          dark:text-violet-100`
+                                        : `border-sky-300/60 bg-sky-200
+                                          text-sky-900 dark:border-sky-700
+                                          dark:bg-sky-800 dark:text-sky-100`
                                     }`}
                                 >
                                   {item.type === "cash_advance" ? "CA" : "Loan"}

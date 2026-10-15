@@ -30,10 +30,11 @@ vi.stubGlobal("localStorage", {
 });
 
 const {
-  applyOfflinePayments,
+  applyPaymentsToCache,
   readCachedSchedules,
   readCachedSummaries,
   refreshCachedAccounts,
+  undoPaymentsInCache,
 } = await import("@/lib/checklist/schedule-cache");
 
 const now = Date.now();
@@ -73,9 +74,9 @@ beforeEach(() => {
   );
 });
 
-describe("applyOfflinePayments", () => {
+describe("applyPaymentsToCache", () => {
   it("marks paid and partial rows and moves the account totals", () => {
-    applyOfflinePayments([
+    applyPaymentsToCache([
       { scheduleId: "s1", amount: 1000 },
       { scheduleId: "s2", amount: 100 },
     ]);
@@ -99,7 +100,7 @@ describe("applyOfflinePayments", () => {
   });
 
   it("caps a payment at what is still owed", () => {
-    applyOfflinePayments([{ scheduleId: "s2", amount: 999 }]);
+    applyPaymentsToCache([{ scheduleId: "s2", amount: 999 }]);
     expect(readCachedSchedules(["s2"])[0]).toMatchObject({
       status: "paid",
       amount_paid: 500,
@@ -108,7 +109,7 @@ describe("applyOfflinePayments", () => {
   });
 
   it("ignores schedules that are not cached", () => {
-    applyOfflinePayments([{ scheduleId: "missing", amount: 50 }]);
+    applyPaymentsToCache([{ scheduleId: "missing", amount: 50 }]);
     expect(readCachedSummaries(["s1"])?.acc.paid).toBe(2000);
   });
 });
@@ -174,5 +175,28 @@ describe("refreshCachedAccounts", () => {
     await refreshCachedAccounts(["acc"]);
     expect(queried).toEqual([]);
     expect(readCachedSchedules(["s2"])).toHaveLength(1);
+  });
+});
+
+describe("undoPaymentsInCache", () => {
+  it("resets paid and partial schedules and takes their payments back off", () => {
+    applyPaymentsToCache([{ scheduleId: "s1", amount: 1000 }]);
+    // s1 now paid (1000), s2 partial (200 of 500); account 3000 paid, 3 inst.
+    undoPaymentsInCache(["s1", "s2"]);
+    const [s1, s2] = readCachedSchedules(["s1", "s2"]);
+    expect(s1).toMatchObject({ amount_paid: 0, remaining_amount: 1000 });
+    expect(s2).toMatchObject({ amount_paid: 0, remaining_amount: 500 });
+    expect(["pending", "overdue"]).toContain(s1.status);
+    expect(readCachedSummaries(["s1"])?.acc).toMatchObject({
+      paid: 1800,
+      left: 8200,
+      paidInstallments: 2,
+    });
+  });
+
+  it("leaves schedules with nothing paid alone", () => {
+    applyPaymentsToCache([]);
+    undoPaymentsInCache(["missing"]);
+    expect(readCachedSummaries(["s1"])?.acc.paid).toBe(2000);
   });
 });

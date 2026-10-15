@@ -41,6 +41,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
 import AccountForm from "@/components/forms/account-form";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import {
@@ -98,6 +103,7 @@ import {
   BulkPaidDialog,
   ScheduleCheckDialog,
 } from "@/components/dashboard/checklist/payment-dialogs";
+import { useCachedSchedules } from "@/components/dashboard/checklist/use-cached-schedules";
 
 /** Category tints, mixed in CSS from `--cat` so they follow the theme. */
 const CAT_PILL =
@@ -133,6 +139,9 @@ async function fetchDueGroups(
   }
   return ((await res.json()) as { groups: DueChecklistGroup[] }).groups;
 }
+
+const CHECKED_MENU_ITEM =
+  "flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted";
 
 const ICON_BUTTON =
   "inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground";
@@ -180,6 +189,11 @@ function CategorySection({
   const [editLabelValue, setEditLabelValue] = useState("");
   const [scheduleCheckItem, setScheduleCheckItem] =
     useState<DailyChecklistItem | null>(null);
+  const [scheduleCheckMode, setScheduleCheckMode] = useState<"check" | "edit">(
+    "check",
+  );
+  /** Ticked row whose "uncheck or update payment" popover is open. */
+  const [checkedMenuId, setCheckedMenuId] = useState<string | null>(null);
   const [releasedAccount, setReleasedAccount] = useState<{
     item: DailyChecklistItem;
     parsed: ParsedReleasedLabel;
@@ -251,7 +265,6 @@ function CategorySection({
   );
 
   const checkedCount = items.filter((i) => i.is_checked).length;
-  const totals = useMemo(() => summarizeChecklist(items), [items]);
 
   const sorted = useMemo(
     () =>
@@ -289,9 +302,17 @@ function CategorySection({
   };
 
   const handleToggle = (item: DailyChecklistItem) => {
-    if (!item.is_checked) {
+    if (item.is_checked) {
+      // Ticked collection row: ask whether to just uncheck it or reopen the
+      // payment dialog (to undo or change what was recorded).
+      if (extractScheduleRefs(item.label).length > 0) {
+        setCheckedMenuId(item.id);
+        return;
+      }
+    } else {
       const refs = extractScheduleRefs(item.label);
       if (refs.length > 0) {
+        setScheduleCheckMode("check");
         setScheduleCheckItem(item);
         return;
       }
@@ -325,16 +346,30 @@ function CategorySection({
     [sorted, isReleasedCategory],
   );
 
+  const lineIds = useMemo(
+    () =>
+      rows.flatMap((r) => r.collection?.lines.map((l) => l.id) ?? []).sort(),
+    [rows],
+  );
+  const schedules = useCachedSchedules(lineIds);
+  const totals = useMemo(
+    () => summarizeChecklist(items, schedules),
+    [items, schedules],
+  );
+
   const groups = useMemo(
     () =>
       groupByBorrowerCategory(rows, (r) => r.item.label, borrowers).map(
         (group) => ({
           ...group,
           checked: group.rows.filter((r) => r.item.is_checked).length,
-          totals: summarizeChecklist(group.rows.map((r) => r.item)),
+          totals: summarizeChecklist(
+            group.rows.map((r) => r.item),
+            schedules,
+          ),
         }),
       ),
-    [rows, borrowers],
+    [rows, borrowers, schedules],
   );
 
   return (
@@ -577,35 +612,82 @@ function CategorySection({
                                     : "hover:bg-muted/30"
                                 }`}
                             >
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleToggle(item);
+                              <Popover
+                                open={checkedMenuId === item.id}
+                                onOpenChange={(open) => {
+                                  if (!open) setCheckedMenuId(null);
                                 }}
-                                title={item.is_checked ? "Uncheck" : "Check"}
-                                className={`mt-0.5 flex size-5 shrink-0
-                                  items-center justify-center rounded-full
-                                  border-2 p-0 transition-all duration-200 ${
-                                    item.is_checked
-                                      ? `border-emerald-500 bg-emerald-500
-                                        text-white`
-                                      : `border-muted-foreground/40
-                                        text-transparent
-                                        hover:border-emerald-400`
-                                  }`}
-                                aria-label={
-                                  item.is_checked ? "Uncheck" : "Check"
-                                }
                               >
-                                <Check className="size-2.5" strokeWidth={2} />
-                              </button>
+                                <PopoverAnchor asChild>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggle(item);
+                                    }}
+                                    title={
+                                      item.is_checked ? "Uncheck" : "Check"
+                                    }
+                                    className={`mt-0.5 flex size-5 shrink-0
+                                      items-center justify-center rounded-full
+                                      border-2 p-0 transition-all duration-200
+                                      ${
+                                        item.is_checked
+                                          ? `border-emerald-500 bg-emerald-500
+                                            text-white`
+                                          : `border-muted-foreground/40
+                                            text-transparent
+                                            hover:border-emerald-400`
+                                      }`}
+                                    aria-label={
+                                      item.is_checked ? "Uncheck" : "Check"
+                                    }
+                                  >
+                                    <Check
+                                      className="size-2.5"
+                                      strokeWidth={2}
+                                    />
+                                  </button>
+                                </PopoverAnchor>
+                                <PopoverContent
+                                  align="start"
+                                  className="w-56 gap-1 p-1"
+                                  // Rendered in a portal, but React still
+                                  // bubbles clicks to the row's toggle.
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCheckedMenuId(null);
+                                      onToggle(item);
+                                    }}
+                                    className={CHECKED_MENU_ITEM}
+                                  >
+                                    <Undo2 className="size-4" />
+                                    Uncheck item
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCheckedMenuId(null);
+                                      setScheduleCheckMode("edit");
+                                      setScheduleCheckItem(item);
+                                    }}
+                                    className={CHECKED_MENU_ITEM}
+                                  >
+                                    <Pencil className="size-4" />
+                                    Update payment status
+                                  </button>
+                                </PopoverContent>
+                              </Popover>
                               <div className="min-w-0 flex-1 overflow-hidden">
                                 {collection ? (
                                   <CollectionLabel
                                     model={collection}
                                     checked={item.is_checked}
                                     borrowers={borrowers}
+                                    schedules={schedules}
                                   />
                                 ) : (
                                   <span
@@ -775,11 +857,13 @@ function CategorySection({
 
       <ScheduleCheckDialog
         item={scheduleCheckItem}
+        mode={scheduleCheckMode}
         onClose={() => setScheduleCheckItem(null)}
         onConfirmed={() => {
           const item = scheduleCheckItem;
           setScheduleCheckItem(null);
-          if (item) onToggle(item);
+          // Editing a ticked row's payments leaves the tick as it is.
+          if (item && scheduleCheckMode === "check") onToggle(item);
         }}
       />
 
@@ -1442,7 +1526,18 @@ export default function DailyNotesWidget() {
     }
   };
 
-  const dayTotals = useMemo(() => summarizeChecklist(items), [items]);
+  const dayLineIds = useMemo(
+    () =>
+      items
+        .flatMap((i) => extractScheduleRefs(i.label).map((r) => r.id))
+        .sort(),
+    [items],
+  );
+  const daySchedules = useCachedSchedules(dayLineIds);
+  const dayTotals = useMemo(
+    () => summarizeChecklist(items, daySchedules),
+    [items, daySchedules],
+  );
   const doneCount = items.filter((i) => i.is_checked).length;
   const collectedPct =
     dayTotals.expected > 0

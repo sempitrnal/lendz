@@ -46,15 +46,29 @@ export function createMentionSpan(
   return span;
 }
 
-export type ChipTone = "neutral" | "overdue" | "loan" | "cash_advance";
+export type ChipTone =
+  | "neutral"
+  | "overdue"
+  | "loan"
+  | "cash_advance"
+  | "paid"
+  | "partial"
+  | "unpaid";
 
 const CHIP_TONES: Record<ChipTone, string> = {
   neutral: "border-border bg-muted text-muted-foreground",
   overdue:
     "border-rose-300/60 bg-rose-100 text-rose-700 dark:border-rose-700 dark:bg-rose-900/40 dark:text-rose-200",
-  loan: "lowercase border-violet-300/60 bg-violet-100 text-violet-800 dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-200",
+  // Sky, so it never reads as the violet "partial" state.
+  loan: "lowercase border-sky-300/60 bg-sky-100 text-sky-800 dark:border-sky-700 dark:bg-sky-900/40 dark:text-sky-200",
   cash_advance:
     "lowercase border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200",
+  paid: "border-emerald-300/60 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200",
+  // Violet, matching partial everywhere else (account page, payment dialog).
+  partial:
+    "border-violet-300/60 bg-violet-100 text-violet-800 dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-200",
+  unpaid:
+    "border-dashed border-orange-300 bg-transparent text-orange-700 dark:border-orange-700 dark:text-orange-300",
 };
 
 export function chipClass(tone: ChipTone) {

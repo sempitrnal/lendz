@@ -1,11 +1,13 @@
 import { supabase } from "@/lib/supabase/client";
 import {
   accountBalances,
+  amountPaidOnInstallment,
   remainingOnInstallment,
   type AccountBalanceInput,
   type ScheduleBalanceInput,
 } from "@/lib/payment-schedule/schedule-balances";
 import { extractScheduleRefs } from "@/lib/checklist/labels";
+import { overdueCutoffDateValue } from "@/lib/checklist/dates";
 import { readStored, writeStored } from "@/lib/offline/storage";
 import { getPendingOutboxCount } from "@/lib/offline/outbox";
 
@@ -67,6 +69,33 @@ function readMap<T>(key: string): Record<string, Stamped<T>> {
   return readStored<Record<string, Stamped<T>>>(key) ?? {};
 }
 
+// --- Change notifications (for UI reading the cache, e.g. line statuses) ---
+
+let version = 0;
+const listeners = new Set<() => void>();
+
+function notifyChange() {
+  version += 1;
+  listeners.forEach((l) => l());
+}
+
+/** For `useSyncExternalStore`: fires on writes here and in other tabs. */
+export function subscribeScheduleCache(listener: () => void) {
+  listeners.add(listener);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === SCHEDULES_KEY) notifyChange();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    listeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+export function scheduleCacheVersion() {
+  return version;
+}
+
 function mergeMap<T>(key: string, entries: Record<string, T>) {
   const now = Date.now();
   const map = readMap<T>(key);
@@ -77,6 +106,7 @@ function mergeMap<T>(key: string, entries: Record<string, T>) {
     if (now - value.cachedAt > KEEP_MS) delete map[id];
   }
   writeStored(key, map);
+  notifyChange();
 }
 
 function strip<T>(stamped: Stamped<T>): T {
@@ -301,15 +331,17 @@ export async function refreshCachedAccounts(
     const map = readMap<ScheduleDialogRow>(SCHEDULES_KEY);
     for (const id of gone) delete map[id];
     writeStored(SCHEDULES_KEY, map);
+    notifyChange();
   }
 }
 
 /**
- * Applies payments saved offline to the cached rows and summaries, mirroring
- * what the server actions will do once replayed. `amount` is what was paid
+ * Applies payments to the cached rows and summaries, mirroring what the
+ * server actions do: right after an online save (until the refresh lands) or
+ * for one queued offline (until it replays). `amount` is what was paid
  * toward each schedule (its full remaining balance when marked paid).
  */
-export function applyOfflinePayments(
+export function applyPaymentsToCache(
   payments: { scheduleId: string; amount: number }[],
 ) {
   const rows = new Map(
@@ -353,6 +385,51 @@ export function applyOfflinePayments(
       paidInstallments: Math.min(
         base.installmentCount,
         base.paidInstallments + (left <= 0 ? 1 : 0),
+      ),
+    };
+  }
+
+  cacheSchedules(changedRows);
+  mergeMap(SUMMARIES_KEY, changedSummaries);
+}
+
+/**
+ * Resets cached schedules to unpaid, mirroring `updateScheduleStatusAction`
+ * with a pending/overdue status (amount paid back to 0), and takes what they
+ * had paid back off their account summaries.
+ */
+export function undoPaymentsInCache(scheduleIds: string[]) {
+  if (scheduleIds.length === 0) return;
+  const summaries = readMap<AccountSummary>(SUMMARIES_KEY);
+  const changedRows: ScheduleDialogRow[] = [];
+  const changedSummaries: Record<string, AccountSummary> = {};
+
+  for (const row of readCachedSchedules(scheduleIds)) {
+    const paidBefore = amountPaidOnInstallment(row);
+    if (row.status !== "paid" && paidBefore <= 0) continue;
+    changedRows.push({
+      ...row,
+      amount_paid: 0,
+      remaining_amount: Math.max(0, Number(row.amount_due ?? 0)),
+      status: row.due_date < overdueCutoffDateValue() ? "overdue" : "pending",
+    });
+
+    const base =
+      changedSummaries[row.account_id] ??
+      (summaries[row.account_id] ? strip(summaries[row.account_id]) : null);
+    if (!base) continue;
+    const undone = Math.min(paidBefore, base.paid);
+    const paid = base.paid - undone;
+    const left = base.left + undone;
+    const total = paid + left;
+    changedSummaries[row.account_id] = {
+      ...base,
+      paid,
+      left,
+      pct: total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0,
+      paidInstallments: Math.max(
+        0,
+        base.paidInstallments - (row.status === "paid" ? 1 : 0),
       ),
     };
   }
