@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
+import { BORROWERS_SEARCH_KEY } from "@/hooks/use-borrowers-search";
 
 const REALTIME_TABLES = [
   "accounts",
@@ -49,6 +50,13 @@ export default function RealtimeProvider({
         (payload: unknown) => {
           console.log(`[realtime] ${table} change:`, payload);
           refresh();
+
+          // Mention dropdown, pill colors and checklist grouping read this list.
+          if (
+            ["borrowers", "borrower_categories", "categories"].includes(table)
+          ) {
+            queryClient.invalidateQueries({ queryKey: BORROWERS_SEARCH_KEY });
+          }
 
           const row = (payload as any)?.new ?? (payload as any)?.old ?? {};
           const borrowerId =

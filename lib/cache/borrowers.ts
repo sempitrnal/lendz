@@ -198,8 +198,7 @@ async function enrichBorrowerBatch(
   }
   // Chunks are each sorted; restore the global due_date order across them.
   scheduleRows.sort(
-    (a, b) =>
-      a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id),
+    (a, b) => a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id),
   );
 
   const schedules = scheduleRows;
@@ -584,7 +583,12 @@ export const getDeletedBorrowers = unstable_cache(
   { revalidate: 60, tags: ["deleted-borrowers"] },
 );
 
-async function fetchBorrowerSearchList() {
+/**
+ * Uncached on purpose: the client keeps this in React Query and refetches on
+ * realtime borrower/category changes, which can land before any server-side
+ * tag invalidation would.
+ */
+export async function getBorrowerSearchList() {
   const supabase = createSupabaseAdmin();
 
   const { data, error } = await supabase
@@ -599,12 +603,6 @@ async function fetchBorrowerSearchList() {
   if (error) throw error;
   return data ?? [];
 }
-
-export const getBorrowerSearchList = unstable_cache(
-  fetchBorrowerSearchList,
-  ["borrower-search-list"],
-  { revalidate: 60, tags: ["borrowers"] },
-);
 
 async function fetchAllDeletedAccounts() {
   const supabase = createSupabaseAdmin();
