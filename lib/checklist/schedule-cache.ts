@@ -266,6 +266,45 @@ export async function warmScheduleCache(labels: string[]) {
 }
 
 /**
+ * Re-downloads the saved rows and summaries for accounts that changed
+ * elsewhere (account page, another device), so the dialogs never reopen on
+ * stale numbers. `scheduleIds` covers schedule events whose row lacks an
+ * `account_id` (deletes). Accounts the device hasn't saved are skipped, and
+ * so is everything while offline edits are queued — the server copy would be
+ * missing them; their replay fires fresh events once synced.
+ */
+export async function refreshCachedAccounts(
+  accountIds: string[],
+  scheduleIds: string[] = [],
+) {
+  if ((await getPendingOutboxCount()) > 0) return;
+  const rows = readMap<ScheduleDialogRow>(SCHEDULES_KEY);
+  const accounts = new Set(accountIds);
+  for (const id of scheduleIds) {
+    if (rows[id]) accounts.add(rows[id].account_id);
+  }
+  const ids = Object.values(rows)
+    .filter((r) => accounts.has(r.account_id))
+    .map((r) => r.id);
+  if (ids.length === 0) return;
+
+  const [fresh] = await Promise.all([
+    fetchSchedules(ids),
+    ...Array.from({ length: Math.ceil(ids.length / 50) }, (_, i) =>
+      fetchAccountSummaries(ids.slice(i * 50, i * 50 + 50)),
+    ),
+  ]);
+  // Schedules deleted on the server would otherwise linger in the cache.
+  const kept = new Set(fresh.map((r) => r.id));
+  const gone = ids.filter((id) => !kept.has(id));
+  if (gone.length > 0) {
+    const map = readMap<ScheduleDialogRow>(SCHEDULES_KEY);
+    for (const id of gone) delete map[id];
+    writeStored(SCHEDULES_KEY, map);
+  }
+}
+
+/**
  * Applies payments saved offline to the cached rows and summaries, mirroring
  * what the server actions will do once replayed. `amount` is what was paid
  * toward each schedule (its full remaining balance when marked paid).

@@ -1,6 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/supabase/client", () => ({ supabase: {} }));
+/** What the mocked Supabase returns per table; `in` resolves the query. */
+const tables: Record<string, unknown[]> = {};
+const queried: string[] = [];
+vi.mock("@/lib/supabase/client", () => ({
+  supabase: {
+    from: (table: string) => {
+      const builder = {
+        select: () => builder,
+        in: () => {
+          queried.push(table);
+          return Promise.resolve({ data: tables[table] ?? [], error: null });
+        },
+      };
+      return builder;
+    },
+  },
+}));
+
+let pendingOutbox = 0;
+vi.mock("@/lib/offline/outbox", () => ({
+  getPendingOutboxCount: async () => pendingOutbox,
+}));
 
 const store = new Map<string, string>();
 vi.stubGlobal("localStorage", {
@@ -8,8 +29,12 @@ vi.stubGlobal("localStorage", {
   setItem: (k: string, v: string) => void store.set(k, v),
 });
 
-const { applyOfflinePayments, readCachedSchedules, readCachedSummaries } =
-  await import("@/lib/checklist/schedule-cache");
+const {
+  applyOfflinePayments,
+  readCachedSchedules,
+  readCachedSummaries,
+  refreshCachedAccounts,
+} = await import("@/lib/checklist/schedule-cache");
 
 const now = Date.now();
 const row = (id: string, amount_due: number, amount_paid = 0) => ({
@@ -25,6 +50,8 @@ const row = (id: string, amount_due: number, amount_paid = 0) => ({
 
 beforeEach(() => {
   store.clear();
+  queried.length = 0;
+  pendingOutbox = 0;
   store.set(
     "lendz-checklist-schedules",
     JSON.stringify({ s1: row("s1", 1000), s2: row("s2", 500, 200) }),
@@ -83,5 +110,69 @@ describe("applyOfflinePayments", () => {
   it("ignores schedules that are not cached", () => {
     applyOfflinePayments([{ scheduleId: "missing", amount: 50 }]);
     expect(readCachedSummaries(["s1"])?.acc.paid).toBe(2000);
+  });
+});
+
+describe("refreshCachedAccounts", () => {
+  const live = (paid: number) => {
+    // s1 now paid on the server, s2 deleted there.
+    tables.payment_schedules = [
+      {
+        ...row("s1", 1000),
+        amount_paid: paid,
+        remaining_amount: 1000 - paid,
+        status: "paid",
+      },
+    ];
+    tables.accounts = [
+      {
+        id: "acc",
+        type: "loan",
+        schedule_mode: "auto",
+        interest_type: null,
+        principal_amount: 1000,
+        interest_rate: 0,
+        payment_schedules: [
+          {
+            amount_due: 1000,
+            amount_paid: paid,
+            remaining_amount: 1000 - paid,
+            status: "paid",
+          },
+        ],
+      },
+    ];
+  };
+
+  it("re-downloads a changed account and drops deleted schedules", async () => {
+    live(1000);
+    await refreshCachedAccounts(["acc"]);
+    expect(readCachedSchedules(["s1", "s2"])).toEqual([
+      expect.objectContaining({ id: "s1", status: "paid", amount_paid: 1000 }),
+    ]);
+    expect(readCachedSummaries(["s1"])?.acc).toMatchObject({
+      paid: 1000,
+      left: 0,
+    });
+  });
+
+  it("finds the account from a cached schedule id (delete events)", async () => {
+    live(1000);
+    await refreshCachedAccounts([], ["s2"]);
+    expect(queried).toContain("payment_schedules");
+    expect(readCachedSchedules(["s2"])).toEqual([]);
+  });
+
+  it("skips accounts the device hasn't saved", async () => {
+    await refreshCachedAccounts(["other"]);
+    expect(queried).toEqual([]);
+  });
+
+  it("waits while offline edits are queued", async () => {
+    pendingOutbox = 1;
+    live(1000);
+    await refreshCachedAccounts(["acc"]);
+    expect(queried).toEqual([]);
+    expect(readCachedSchedules(["s2"])).toHaveLength(1);
   });
 });

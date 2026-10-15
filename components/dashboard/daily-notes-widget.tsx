@@ -854,15 +854,13 @@ export default function DailyNotesWidget() {
   const [loadedDate, setLoadedDate] = useState<string | null>(null);
 
   const loadCategories = async () => {
+    // Show the saved categories at once; the fetch below refreshes them.
     const cached = readCachedCategories();
-    if (!navigator.onLine && cached) {
-      setCategories(cached);
-      return;
-    }
+    if (cached) setCategories(cached);
+    if (!navigator.onLine && cached) return;
     const { categories: loaded, error } = await fetchChecklistCategories();
     if (error) {
-      if (cached) setCategories(cached);
-      else toast.error(error.message);
+      if (!cached) toast.error(error.message);
       return;
     }
     setCategories(loaded);
@@ -879,20 +877,25 @@ export default function DailyNotesWidget() {
       setItems(rows);
       setLoadedDate(day);
     };
+    // Show the saved day at once (no skeleton) and refresh it below.
     const cached = readCachedItems(targetDate);
+    if (cached) {
+      showItems(targetDate, cached);
+      if (withLoading) setLoading(false);
+    } else if (withLoading) {
+      setLoading(true);
+    }
     // Offline, or offline edits still waiting to sync: the local snapshot is
     // newer than what the server (or the SW's response cache) would return.
     if (cached && (!navigator.onLine || (await getPendingOutboxCount()) > 0)) {
-      showItems(targetDate, cached);
-      if (withLoading) setLoading(false);
       return;
     }
-    if (withLoading) setLoading(true);
     const { items: normalized, error } = await fetchChecklistItems(targetDate);
 
     if (error) {
-      if (cached) showItems(targetDate, cached);
-      else if (navigator.onLine) toast.error(error.message);
+      if (cached) {
+        // Already showing the saved copy.
+      } else if (navigator.onLine) toast.error(error.message);
       else showItems(targetDate, []);
       if (withLoading) setLoading(false);
       return;

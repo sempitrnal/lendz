@@ -23,6 +23,8 @@ import {
   actionWasQueued,
   loadAccountSummaries,
   loadSchedules,
+  readCachedSchedules,
+  readCachedSummaries,
   type AccountSummary,
   type ScheduleDialogRow,
 } from "@/lib/checklist/schedule-cache";
@@ -226,6 +228,7 @@ export function ScheduleCheckDialog({
     enabled: open && scheduleIds.length > 0,
     // Show cached numbers instantly but refresh each time the dialog opens.
     staleTime: 0,
+    placeholderData: () => readCachedSummaries(scheduleIds) ?? undefined,
   });
   const accountGroups = useMemo(() => {
     const groups = new Map<string, ScheduleDialogRow[]>();
@@ -247,29 +250,43 @@ export function ScheduleCheckDialog({
       return;
     }
     let cancelled = false;
-    setLoading(true);
-    loadSchedules(refs.map((r) => r.id)).then(
+    const ids = refs.map((r) => r.id);
+    const order = new Map(refs.map((r, i) => [r.id, i]));
+    const show = (data: ScheduleDialogRow[]) => {
+      const sorted = [...data].sort(
+        (a, b) =>
+          (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0) ||
+          a.due_date.localeCompare(b.due_date),
+      );
+      setRows(sorted);
+      // Keep any Paid/Partial already picked on the saved rows; untouched
+      // rows take the fresh remaining amount.
+      setChoices((prev) => {
+        const next: Record<string, ScheduleChoice> = {};
+        for (const r of sorted) {
+          next[r.id] = prev[r.id]?.status
+            ? prev[r.id]
+            : { status: null, amount: String(remainingOnInstallment(r)) };
+        }
+        return next;
+      });
+      setLoading(false);
+    };
+
+    // Saved rows show at once; the load below refreshes them.
+    const cached = readCachedSchedules(ids);
+    setChoices({});
+    if (cached.length > 0) show(cached);
+    else {
+      setRows([]);
+      setLoading(true);
+    }
+    loadSchedules(ids).then(
       (data) => {
-        if (cancelled) return;
-        const order = new Map(refs.map((r, i) => [r.id, i]));
-        const fetched = [...data].sort(
-          (a, b) =>
-            (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0) ||
-            a.due_date.localeCompare(b.due_date),
-        );
-        setRows(fetched);
-        const initial: Record<string, ScheduleChoice> = {};
-        fetched.forEach((r) => {
-          initial[r.id] = {
-            status: null,
-            amount: String(remainingOnInstallment(r)),
-          };
-        });
-        setChoices(initial);
-        setLoading(false);
+        if (!cancelled) show(data);
       },
       (err: unknown) => {
-        if (cancelled) return;
+        if (cancelled || cached.length > 0) return;
         toast.error(err instanceof Error ? err.message : String(err));
         setRows([]);
         setChoices({});
@@ -637,12 +654,21 @@ export function BulkPaidDialog({
     if (ids.length === 0) return;
     let cancelled = false;
     void (async () => {
-      setLoading(true);
-      let all: ScheduleDialogRow[] = [];
+      // Saved rows show at once; the load below refreshes them.
+      const cached = readCachedSchedules(ids);
+      if (cached.length > 0) {
+        setRows(cached);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+      let all = cached;
       try {
         all = await loadSchedules(ids);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : String(err));
+        if (cached.length === 0) {
+          toast.error(err instanceof Error ? err.message : String(err));
+        }
       }
       if (cancelled) return;
       setRows(all);

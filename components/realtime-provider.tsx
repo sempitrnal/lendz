@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
 import { BORROWERS_SEARCH_KEY } from "@/hooks/use-borrowers-search";
+import { refreshCachedAccounts } from "@/lib/checklist/schedule-cache";
 
 const REALTIME_TABLES = [
   "accounts",
@@ -30,6 +31,12 @@ export default function RealtimeProvider({
   const refreshTimerRef = useRef<number | null>(null);
   const pollRef = useRef<number | null>(null);
   const realtimeOk = useRef(false);
+  /** Accounts/schedules changed since the last offline-cache refresh. */
+  const staleRef = useRef({
+    accounts: new Set<string>(),
+    schedules: new Set<string>(),
+  });
+  const cacheTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const refresh = () => {
@@ -39,6 +46,25 @@ export default function RealtimeProvider({
       refreshTimerRef.current = window.setTimeout(() => {
         router.refresh();
       }, 300);
+    };
+
+    // Batch bursts (marking many schedules paid fires one event each) into a
+    // single refresh of the offline copy of the checklist's account data.
+    const markCacheStale = (table: string, row: Record<string, unknown>) => {
+      const stale = staleRef.current;
+      if (table === "accounts" && row.id) stale.accounts.add(String(row.id));
+      if (table === "payment_schedules") {
+        if (row.account_id) stale.accounts.add(String(row.account_id));
+        else if (row.id) stale.schedules.add(String(row.id));
+      }
+      if (cacheTimerRef.current) window.clearTimeout(cacheTimerRef.current);
+      cacheTimerRef.current = window.setTimeout(() => {
+        const accounts = [...stale.accounts];
+        const schedules = [...stale.schedules];
+        stale.accounts.clear();
+        stale.schedules.clear();
+        void refreshCachedAccounts(accounts, schedules).catch(() => {});
+      }, 1000);
     };
 
     const channel = supabase.channel("global-crud-realtime");
@@ -59,6 +85,14 @@ export default function RealtimeProvider({
           }
 
           const row = (payload as any)?.new ?? (payload as any)?.old ?? {};
+          if (table === "accounts" || table === "payment_schedules") {
+            // On DELETE `new` is `{}`, so fall back to `old` for the ids.
+            const { new: next, old: prev } = payload as {
+              new?: Record<string, unknown>;
+              old?: Record<string, unknown>;
+            };
+            markCacheStale(table, next?.id !== undefined ? next : (prev ?? {}));
+          }
           const borrowerId =
             row.borrower_id ??
             (table === "borrowers" ? row.id : undefined) ??
@@ -120,6 +154,8 @@ export default function RealtimeProvider({
       if (refreshTimerRef.current) {
         window.clearTimeout(refreshTimerRef.current);
       }
+      // The pending offline-cache refresh is left to fire: this effect re-runs
+      // on every navigation, and editing an account then moving on is common.
       if (pollRef.current) {
         window.clearInterval(pollRef.current);
       }
