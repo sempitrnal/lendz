@@ -49,11 +49,14 @@ type AccountFormProps = {
   borrowerName?: string;
 };
 
+/** Interest rate (%) a new account starts with. */
+const DEFAULT_INTEREST_RATE = 3.8;
+
 const emptyDefaults = (borrowerId: string): AccountFormValues => ({
   borrower_id: borrowerId,
   type: "loan",
   principal_amount: 0,
-  interest_rate: 0,
+  interest_rate: DEFAULT_INTEREST_RATE,
   term_months: 0,
   release_date: "",
   first_payment_date: "",
@@ -148,9 +151,7 @@ export default function AccountForm({
       : "",
   );
   const [interestRateText, setInterestRateText] = useState(
-    initialValues?.interest_rate !== undefined
-      ? String(initialValues.interest_rate)
-      : "",
+    String(initialValues?.interest_rate ?? DEFAULT_INTEREST_RATE),
   );
   const [termMonthsText, setTermMonthsText] = useState(
     initialValues?.term_months !== undefined
