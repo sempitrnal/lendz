@@ -19,20 +19,24 @@ export function borrowerDetailsQueryKey(borrowerId: string) {
   return ["borrower", borrowerId, "details"] as const;
 }
 
+export async function fetchBorrowerDetails(
+  borrowerId: string,
+): Promise<BorrowerDetailsResponse> {
+  const res = await fetch(`/api/borrowers/${borrowerId}/details`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? "Failed to fetch borrower details");
+  }
+  return res.json();
+}
+
 export function useBorrowerDetails(
   borrowerId: string,
   placeholderData?: BorrowerDetailsResponse,
 ) {
   return useQuery({
     queryKey: borrowerDetailsQueryKey(borrowerId),
-    queryFn: async (): Promise<BorrowerDetailsResponse> => {
-      const res = await fetch(`/api/borrowers/${borrowerId}/details`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Failed to fetch borrower details");
-      }
-      return res.json();
-    },
+    queryFn: () => fetchBorrowerDetails(borrowerId),
     staleTime: 5 * 60 * 1000, // 5 minutes
     placeholderData,
   });

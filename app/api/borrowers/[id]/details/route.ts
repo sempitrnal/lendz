@@ -215,6 +215,9 @@ export async function GET(
         })),
       totalDue: isFlatManual ? manualFlatTotal : totalPayment,
       totalPaid: amountPaid,
+      installmentCount: rows.length,
+      paidInstallments: rows.filter((row) => isInstallmentFullyPaid(row as any))
+        .length,
       term_months: account.term_months,
       term_installments: account.term_installments,
       schedule_mode: account.schedule_mode,
