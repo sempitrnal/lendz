@@ -54,7 +54,7 @@ async function fetchBorrowersPageData(
   let query = supabase
     .from("borrowers")
     .select(
-      `*, borrower_categories ( category:categories ( id, name, color ) )`,
+      `*, borrower_categories ( category:categories ( id, name, color ) ), borrower_notes ( count )`,
       { count: "exact" },
     )
     .is("deleted_at", null);
@@ -338,7 +338,7 @@ async function fetchAllBorrowersData() {
   const { data: borrowerRows, error: borrowerError } = await supabase
     .from("borrowers")
     .select(
-      `*, borrower_categories ( category:categories ( id, name, color ) )`,
+      `*, borrower_categories ( category:categories ( id, name, color ) ), borrower_notes ( count )`,
     )
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
@@ -710,7 +710,7 @@ async function fetchUpcomingBorrowersData(
   const [borrowerResult, scheduleResult] = await Promise.all([
     supabase
       .from("borrowers")
-      .select("*, borrower_categories(category:categories(id, name, color))")
+      .select("*, borrower_categories(category:categories(id, name, color)), borrower_notes(count)")
       .in("id", borrowerIds)
       .is("deleted_at", null),
     supabase

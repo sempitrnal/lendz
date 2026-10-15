@@ -1,5 +1,6 @@
 "use client";
 
+import { StickyNote } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { saveRecentBorrower } from "@/lib/recent-borrowers";
@@ -40,6 +41,7 @@ type BorrowerLike = {
   manual_total_paid?: number;
   manual_total_remaining?: number;
   manual_accounts_count?: number;
+  borrower_notes?: { count: number }[];
 };
 
 type BorrowerScheduleCardProps = {
@@ -60,6 +62,7 @@ type BorrowerScheduleCardProps = {
   manualTotalRemaining?: number;
   manualAccountsCount?: number;
   accountsCount?: number;
+  notesCount?: number;
   nextSchedule?: BorrowerScheduleCardSchedule | null;
   onVisit?: (borrower: {
     id: string;
@@ -194,6 +197,7 @@ export function buildBorrowerScheduleCardProps(
     manualTotalRemaining,
     manualAccountsCount,
     accountsCount,
+    notesCount: borrower.borrower_notes?.[0]?.count ?? 0,
     nextSchedule,
   };
 }
@@ -296,6 +300,7 @@ export default function BorrowerScheduleCard({
   manualTotalRemaining = 0,
   manualAccountsCount = 0,
   accountsCount,
+  notesCount = 0,
   nextSchedule,
   onVisit,
 }: BorrowerScheduleCardProps) {
@@ -347,15 +352,30 @@ export default function BorrowerScheduleCard({
         className="flex flex-col gap-1 border-b border-slate-100 p-3
           dark:border-border/50"
       >
-        <Link
-          href={borrowerId ? `/borrowers/${borrowerId}` : "#"}
-          prefetch
-          onClick={recordVisit}
-          className="dark:text-foreground block truncate text-lg tracking-tight
-            font-black text-slate-600 lowercase transition hover:opacity-70"
-        >
-          {name}
-        </Link>
+        <div className="flex min-w-0 items-center gap-2">
+          <Link
+            href={borrowerId ? `/borrowers/${borrowerId}` : "#"}
+            prefetch
+            onClick={recordVisit}
+            className="dark:text-foreground block min-w-0 truncate text-lg
+              tracking-tight font-black text-slate-600 lowercase transition
+              hover:opacity-70"
+          >
+            {name}
+          </Link>
+          {notesCount > 0 && (
+            <span
+              className="inline-flex shrink-0 items-center gap-1 rounded-full
+                border border-amber-300/70 bg-amber-50 px-1.5 py-0.5
+                text-[10px] font-bold text-amber-700 dark:border-amber-500/30
+                dark:bg-amber-950/40 dark:text-amber-300"
+              aria-label={`${notesCount} note${notesCount === 1 ? "" : "s"}`}
+            >
+              <StickyNote className="size-3" aria-hidden />
+              {notesCount}
+            </span>
+          )}
+        </div>
         {displayCategory && (
           <span
             className="dark:text-muted-foreground inline-flex items-center

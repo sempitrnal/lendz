@@ -50,6 +50,8 @@ export type Borrower = {
   overdue_total?: number;
   overdue_count?: number;
   accounts_count?: number;
+  /** PostgREST embedded count: `borrower_notes(count)` */
+  borrower_notes?: { count: number }[];
   account_schedules?: {
     account_id?: string;
     due_date: string;
