@@ -1253,11 +1253,17 @@ export default function BorrowerAccountsSection({
 
         <Dialog open={isNotesOpen} onOpenChange={setIsNotesOpen}>
           <DialogContent
-            className="top-0 h-[100svh] max-h-[100svh] max-w-full translate-y-0
-              rounded-none sm:top-1/2 sm:h-auto sm:max-h-[95svh] sm:max-w-5xl
-              sm:-translate-y-1/2 sm:rounded-xl"
+            // dvh tracks the visible viewport as mobile toolbars show/hide;
+            // svh is the smallest size and left a gap at the bottom.
+            className="top-[1dvh] h-[98dvh] max-h-[98dvh]
+              max-w-[calc(100%-1rem)] translate-y-0 gap-2 rounded-xl p-2 pt-3
+              sm:top-1/2 sm:h-[95dvh] sm:max-h-[95dvh] sm:max-w-5xl
+              sm:-translate-y-1/2 sm:gap-4 sm:p-6"
           >
-            <div className="mt-10 flex items-center justify-between">
+            {/* Shares the top row with the dialog's close button (top-right) */}
+            <div
+              className="flex min-h-8 items-center justify-between pr-10 pl-1"
+            >
               <DialogHeader className="">
                 <DialogTitle>
                   {selectedNote ? "Edit note" : "New note"}
