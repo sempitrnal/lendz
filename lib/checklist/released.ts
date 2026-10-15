@@ -20,6 +20,11 @@ const RENEW_AMOUNT =
 /** e.g. "(8) months", "12 MONTHS TO PAY", "6mos", "3 mo." */
 const TERM_TOKEN = /\(?\s*(\d+(?:\.\d+)?)\s*\)?\s*(?:months?|mos?)\b/i;
 
+/** e.g. "(2) gives", "3 gives", "1 give" */
+const GIVES_TOKEN = /\(?\s*(\d+)\s*\)?\s*gives?\b/i;
+/** e.g. "11/15" or "11/15/26" */
+const SLASH_DATE = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2}|\d{4}))?\b/g;
+
 function parseMmddyy(mm: string, dd: string, yy: string): string | null {
   const month = Number(mm);
   const day = Number(dd);
@@ -33,6 +38,31 @@ function parseMmddyy(mm: string, dd: string, yy: string): string | null {
     return null;
   }
   return `${year}-${mm}-${dd}`;
+}
+
+/**
+ * Pulls every M/D(/YY) date out of a label. A missing year resolves to the
+ * first occurrence on or after the checklist date.
+ */
+function parseSlashDates(rest: string, checklistDate: string): string[] {
+  const baseYear = Number(checklistDate.slice(0, 4));
+  const dates: string[] = [];
+  for (const m of rest.matchAll(SLASH_DATE)) {
+    const mm = m[1].padStart(2, "0");
+    const dd = m[2].padStart(2, "0");
+    let iso: string | null;
+    if (m[3]) {
+      const yy = m[3].slice(-2);
+      iso = parseMmddyy(mm, dd, yy);
+    } else {
+      iso = parseMmddyy(mm, dd, String(baseYear).slice(-2));
+      if (iso && iso < checklistDate) {
+        iso = parseMmddyy(mm, dd, String(baseYear + 1).slice(-2));
+      }
+    }
+    if (iso && !dates.includes(iso)) dates.push(iso);
+  }
+  return dates.sort();
 }
 
 /**
@@ -82,6 +112,16 @@ export function parseReleasedLabel(
     const first = parseMmddyy(dateMatch[1], dateMatch[2], dateMatch[3]);
     if (first && first >= checklistDate)
       initialValues.first_payment_date = first;
+  }
+
+  const givesMatch = GIVES_TOKEN.exec(rest);
+  const gives = givesMatch ? Number(givesMatch[1]) : 0;
+  if (gives > 0) {
+    // "(2) gives for 11/15 & 11/30": custom frequency, term = number of gives.
+    initialValues.payment_frequency = "custom";
+    initialValues.term_months = gives;
+    const [firstGive] = parseSlashDates(rest, checklistDate);
+    if (firstGive) initialValues.first_payment_date = firstGive;
   }
 
   return {

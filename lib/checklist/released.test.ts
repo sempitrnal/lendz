@@ -84,4 +84,26 @@ describe("parseReleasedLabel", () => {
     expect(parseReleasedLabel("john 1,000 c.a.", "2026-10-14")).toBeNull();
     expect(parseReleasedLabel(`${mention} c.a.`, "2026-10-14")).toBeNull();
   });
+
+  it("parses gives count and dates as a custom frequency", () => {
+    const r = parseReleasedLabel(
+      `${mention} 5,000-  c.a.  (2)  gives  for  11/15 & 11/30`,
+      "2026-10-15",
+    );
+    expect(r?.initialValues).toMatchObject({
+      type: "cash_advance",
+      principal_amount: 5000,
+      payment_frequency: "custom",
+      term_months: 2,
+      first_payment_date: "2026-11-15",
+    });
+  });
+
+  it("rolls dates already past into next year", () => {
+    const r = parseReleasedLabel(
+      `${mention} 1,000 c.a. 2 gives for 1/5 & 1/20`,
+      "2026-12-20",
+    );
+    expect(r?.initialValues.first_payment_date).toBe("2027-01-05");
+  });
 });
