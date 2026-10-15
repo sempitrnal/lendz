@@ -198,8 +198,9 @@ function AccountSummaryHeader({
                 ? `border-amber-300/60 bg-amber-100 text-amber-800
                   dark:border-amber-700 dark:bg-amber-900/40
                   dark:text-amber-200`
-                : `border-sky-300/60 bg-sky-100 text-sky-800 dark:border-sky-700
-                  dark:bg-sky-900/40 dark:text-sky-200`
+                : `border-violet-300/60 bg-violet-100 text-violet-800
+                  dark:border-violet-700 dark:bg-violet-900/40
+                  dark:text-violet-200`
             }`}
         >
           {summary.typeLabel}
