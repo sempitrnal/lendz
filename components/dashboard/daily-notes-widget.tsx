@@ -65,6 +65,16 @@ import {
 } from "@/lib/checklist/labels";
 import { summarizeChecklist } from "@/lib/checklist/totals";
 import {
+  fetchChecklistCategories,
+  fetchChecklistItems,
+  readCachedCategories,
+  readCachedItems,
+  wasQueuedOffline,
+  writeCachedCategories,
+  writeCachedItems,
+} from "@/lib/checklist/offline-cache";
+import { getPendingOutboxCount } from "@/lib/offline/outbox";
+import {
   formatLongDate,
   overdueCutoffDateValue,
   relativeDayLabel,
@@ -113,7 +123,13 @@ async function fetchDueGroups(
   const res = await fetch(
     `/api/checklist/due?date=${targetDate}&back=${CARRY_OVER_DAYS}`,
   );
-  if (!res.ok) throw new Error("Failed to load due collections");
+  if (!res.ok) {
+    throw new Error(
+      navigator.onLine
+        ? "Failed to load due collections"
+        : "Due collections for this day aren't saved offline — reconnect to populate",
+    );
+  }
   return ((await res.json()) as { groups: DueChecklistGroup[] }).groups;
 }
 
@@ -833,55 +849,55 @@ export default function DailyNotesWidget() {
   const [categories, setCategories] = useState<ChecklistCategory[]>([]);
   const [date, setDate] = useState(todayDateValue());
   const [loading, setLoading] = useState(true);
+  /** The date `items` currently belong to (null until the first load). */
+  const [loadedDate, setLoadedDate] = useState<string | null>(null);
 
   const loadCategories = async () => {
-    const { data, error } = await supabase
-      .from("daily_checklist_categories")
-      .select("id, name, color, sort_order")
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      toast.error(error.message);
+    const cached = readCachedCategories();
+    if (!navigator.onLine && cached) {
+      setCategories(cached);
       return;
     }
-    setCategories((data ?? []) as ChecklistCategory[]);
+    const { categories: loaded, error } = await fetchChecklistCategories();
+    if (error) {
+      if (cached) setCategories(cached);
+      else toast.error(error.message);
+      return;
+    }
+    setCategories(loaded);
+    writeCachedCategories(loaded);
   };
 
+  /** Bumped per load so a slow earlier load can't overwrite a newer day. */
+  const loadSeqRef = useRef(0);
+
   const loadItems = async (targetDate: string, withLoading = true) => {
+    const seq = ++loadSeqRef.current;
+    const showItems = (day: string, rows: DailyChecklistItem[]) => {
+      if (seq !== loadSeqRef.current) return;
+      setItems(rows);
+      setLoadedDate(day);
+    };
+    const cached = readCachedItems(targetDate);
+    // Offline, or offline edits still waiting to sync: the local snapshot is
+    // newer than what the server (or the SW's response cache) would return.
+    if (cached && (!navigator.onLine || (await getPendingOutboxCount()) > 0)) {
+      showItems(targetDate, cached);
+      if (withLoading) setLoading(false);
+      return;
+    }
     if (withLoading) setLoading(true);
-    const { data, error } = await supabase
-      .from("daily_checklist_items")
-      .select(
-        "id, checklist_date, label, is_checked, sort_order, created_at, category_id, daily_checklist_categories(id, name, color, sort_order)",
-      )
-      .eq("checklist_date", targetDate)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true });
+    const { items: normalized, error } = await fetchChecklistItems(targetDate);
 
     if (error) {
-      toast.error(error.message);
+      if (cached) showItems(targetDate, cached);
+      else if (navigator.onLine) toast.error(error.message);
+      else showItems(targetDate, []);
       if (withLoading) setLoading(false);
       return;
     }
 
-    const normalized = (data ?? []).map((row: Record<string, unknown>) => {
-      const cat = row.daily_checklist_categories as
-        | ChecklistCategory
-        | null
-        | unknown[];
-      return {
-        ...(row as DailyChecklistItem),
-        daily_checklist_categories:
-          Array.isArray(cat) && cat.length > 0
-            ? (cat[0] as ChecklistCategory)
-            : cat && !Array.isArray(cat)
-              ? (cat as ChecklistCategory)
-              : null,
-      };
-    }) as DailyChecklistItem[];
-
-    setItems(normalized);
+    showItems(targetDate, normalized);
     if (withLoading) setLoading(false);
   };
 
@@ -893,6 +909,30 @@ export default function DailyNotesWidget() {
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
+
+  // Keep the offline snapshot in step with every change, optimistic ones
+  // included. `loadedDate` lags `date` until the new day's items arrive, so
+  // the previous day's rows are never written under the new date.
+  useEffect(() => {
+    if (loadedDate) writeCachedItems(loadedDate, items);
+  }, [items, loadedDate]);
+
+  // Reload once the outbox has replayed offline edits, or on reconnect.
+  useEffect(() => {
+    const reload = () => {
+      void loadCategories();
+      void loadItems(date, false);
+    };
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "OUTBOX_RESULT") reload();
+    };
+    navigator.serviceWorker?.addEventListener("message", onMessage);
+    window.addEventListener("online", reload);
+    return () => {
+      navigator.serviceWorker?.removeEventListener("message", onMessage);
+      window.removeEventListener("online", reload);
+    };
+  }, [date]);
 
   const refreshTimerRef = useRef<number | null>(null);
 
@@ -946,7 +986,7 @@ export default function DailyNotesWidget() {
       .update({ label: newLabel })
       .eq("id", itemId)
       .then(({ error }: { error: { message: string } | null }) => {
-        if (error) {
+        if (error && !wasQueuedOffline(error)) {
           toast.error(error.message);
         }
       });
@@ -976,7 +1016,10 @@ export default function DailyNotesWidget() {
 
     setItems((prev) => [optimistic, ...prev]);
 
+    // The id is generated here so a row added offline keeps it once the
+    // outbox replays the insert, and later edits to it still match.
     const insertPayload: Record<string, unknown> = {
+      id: tempId,
       checklist_date: targetDate,
       label,
       is_checked: false,
@@ -992,6 +1035,7 @@ export default function DailyNotesWidget() {
       )
       .single();
 
+    if (wasQueuedOffline(error)) return;
     if (error) {
       toast.error(error.message);
       setItems((prev) => prev.filter((i) => i.id !== tempId));
@@ -1019,7 +1063,7 @@ export default function DailyNotesWidget() {
       .update({ is_checked: !item.is_checked })
       .eq("id", item.id)
       .then(({ error }: { error: { message: string } | null }) => {
-        if (error) {
+        if (error && !wasQueuedOffline(error)) {
           toast.error(error.message);
           setItems((prev) =>
             prev.map((row) =>
@@ -1045,7 +1089,7 @@ export default function DailyNotesWidget() {
       created_at: item.created_at,
       ...(item.category_id ? { category_id: item.category_id } : {}),
     });
-    if (error) {
+    if (error && !wasQueuedOffline(error)) {
       toast.error(error.message);
       setItems((prev) => prev.filter((i) => i.id !== item.id));
     }
@@ -1060,7 +1104,7 @@ export default function DailyNotesWidget() {
       .delete()
       .eq("id", id)
       .then(({ error }: { error: { message: string } | null }) => {
-        if (error) {
+        if (error && !wasQueuedOffline(error)) {
           toast.error(error.message);
           if (removed) setItems((prev) => [...prev, removed]);
         } else if (removed) {
@@ -1082,7 +1126,7 @@ export default function DailyNotesWidget() {
       .delete()
       .in("id", ids)
       .then(({ error }: { error: { message: string } | null }) => {
-        if (error) {
+        if (error && !wasQueuedOffline(error)) {
           toast.error(error.message);
           setItems((prev) => [
             ...prev,
@@ -1119,7 +1163,7 @@ export default function DailyNotesWidget() {
         category_id: item.category_id ?? null,
       })),
     );
-    if (error) {
+    if (error && !wasQueuedOffline(error)) {
       toast.error(error.message);
       const ids = new Set(rows.map((r) => r.id));
       setItems((prev) => prev.filter((i) => !ids.has(i.id)));
@@ -1137,7 +1181,7 @@ export default function DailyNotesWidget() {
       .update({ is_checked: true })
       .in("id", ids)
       .then(({ error }: { error: { message: string } | null }) => {
-        if (error) {
+        if (error && !wasQueuedOffline(error)) {
           toast.error(error.message);
           setItems((prev) =>
             prev.map((row) =>
@@ -1167,7 +1211,7 @@ export default function DailyNotesWidget() {
       .from("daily_checklist_items")
       .delete()
       .in("id", ids);
-    if (error) {
+    if (error && !wasQueuedOffline(error)) {
       toast.error(error.message);
       return;
     }
@@ -1217,7 +1261,10 @@ export default function DailyNotesWidget() {
     const minSort = itemsRef.current
       .filter((i) => i.category_id === categoryId)
       .reduce((min, i) => Math.min(min, i.sort_order), 0);
+    const createdAt = new Date().toISOString();
     const payload = labels.map((label, idx) => ({
+      id: crypto.randomUUID(),
+      created_at: createdAt,
       checklist_date: targetDate,
       label,
       is_checked: false,
@@ -1230,13 +1277,17 @@ export default function DailyNotesWidget() {
       .select(
         "id, checklist_date, label, is_checked, sort_order, created_at, category_id",
       );
-    if (error) {
+    const queued = wasQueuedOffline(error);
+    if (error && !queued) {
       toast.error(error.message);
       return;
     }
 
     const cat = categories.find((c) => c.id === categoryId) ?? null;
-    const created = ((data ?? []) as DailyChecklistItem[]).map((row) => ({
+    const createdRows = queued
+      ? payload.map((row) => ({ category_id: null, ...row }))
+      : (data ?? []);
+    const created = (createdRows as DailyChecklistItem[]).map((row) => ({
       ...row,
       daily_checklist_categories: cat,
     }));
@@ -1311,10 +1362,15 @@ export default function DailyNotesWidget() {
           .eq("id", u.id),
       ),
     );
-    const failed = results.find((r) => r.error);
+    const failed = results.find((r) => r.error && !wasQueuedOffline(r.error));
     if (failed?.error) toast.error(failed.error.message);
     const ok = new Map(
-      updates.filter((_, idx) => !results[idx].error).map((u) => [u.id, u]),
+      updates
+        .filter(
+          (_, idx) =>
+            !results[idx].error || wasQueuedOffline(results[idx].error),
+        )
+        .map((u) => [u.id, u]),
     );
     setItems((prev) =>
       prev.map((row) =>
@@ -1354,11 +1410,14 @@ export default function DailyNotesWidget() {
           .eq("id", r.id),
       ),
     );
-    const failed = results.find((r) => r.error);
+    const failed = results.find((r) => r.error && !wasQueuedOffline(r.error));
     if (failed?.error) toast.error(failed.error.message);
     const reverted = new Map(
       untouched
-        .filter((_, idx) => !results[idx].error)
+        .filter(
+          (_, idx) =>
+            !results[idx].error || wasQueuedOffline(results[idx].error),
+        )
         .map((r) => [r.id, r.previous]),
     );
     setItems((prev) =>
