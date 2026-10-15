@@ -270,6 +270,7 @@ export function AccountCard({
   onToggleSelect,
   expanded = true,
   onToggleExpand,
+  animateToggle = true,
 }: {
   account: AccountRow;
   isOpening: boolean;
@@ -284,6 +285,8 @@ export function AccountCard({
   /** A compact row when false; the full card when true. */
   expanded?: boolean;
   onToggleExpand?: (id: string) => void;
+  /** False swaps compact and full instantly, e.g. when restoring open cards. */
+  animateToggle?: boolean;
 }) {
   const amountLeftToPay = metrics?.amountLeftToPay ?? 0;
   const daysSinceRelease = metrics?.daysSinceRelease ?? 0;
@@ -300,27 +303,28 @@ export function AccountCard({
   const reduceMotion = useReducedMotion();
   // Compact row and full card share one easing and duration, so the height
   // hand-off between them is a straight blend rather than a jump.
-  const collapseMotion = reduceMotion
-    ? {}
-    : {
-        initial: { height: 0, opacity: 0 },
-        animate: {
-          height: "auto",
-          opacity: 1,
-          transition: {
-            height: { duration: 0.4, ease: EXPAND_EASE },
-            opacity: { duration: 0.28, delay: 0.08 },
+  const collapseMotion =
+    reduceMotion || !animateToggle
+      ? {}
+      : {
+          initial: { height: 0, opacity: 0 },
+          animate: {
+            height: "auto",
+            opacity: 1,
+            transition: {
+              height: { duration: 0.4, ease: EXPAND_EASE },
+              opacity: { duration: 0.28, delay: 0.08 },
+            },
           },
-        },
-        exit: {
-          height: 0,
-          opacity: 0,
-          transition: {
-            height: { duration: 0.4, ease: EXPAND_EASE },
-            opacity: { duration: 0.16 },
+          exit: {
+            height: 0,
+            opacity: 0,
+            transition: {
+              height: { duration: 0.4, ease: EXPAND_EASE },
+              opacity: { duration: 0.16 },
+            },
           },
-        },
-      };
+        };
   const isManual = account.schedule_mode === "manual";
   const isRolling = isManual && (account as any).interest_type === "rolling";
   const isPending = account.status === "pending";

@@ -13,7 +13,7 @@ import {
   Clock,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { formatDate } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -114,6 +114,43 @@ const GROUP_STYLES: Record<string, { icon: LucideIcon; badge: string }> = {
       "bg-cyan-50 text-cyan-700 ring-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-200 dark:ring-cyan-800",
   },
 };
+
+/** History-entry state key holding the scroll position to return to. */
+const SCROLL_STATE_KEY = "__lendzBorrowerScroll";
+
+/**
+ * Scrolls to `y` and holds it there for a moment: right after a back
+ * navigation the page is still settling (it can be shorter than `y` at first,
+ * and its height changes as it finishes rendering), which would otherwise
+ * clamp or shift the position. Gives up the instant the user scrolls or taps.
+ * Returns a cleanup that cancels it.
+ */
+function restoreScrollTo(y: number) {
+  const HOLD_MS = 1500;
+  const inputEvents = ["wheel", "touchstart", "keydown", "pointerdown"];
+  let frame = 0;
+  let stopped = false;
+  const stop = () => {
+    stopped = true;
+    cancelAnimationFrame(frame);
+    inputEvents.forEach((e) => window.removeEventListener(e, stop));
+  };
+  inputEvents.forEach((e) =>
+    window.addEventListener(e, stop, { passive: true }),
+  );
+  const startedAt = performance.now();
+  const hold = () => {
+    if (stopped) return;
+    if (Math.abs(window.scrollY - y) >= 1) window.scrollTo(0, y);
+    if (performance.now() - startedAt > HOLD_MS) {
+      stop();
+      return;
+    }
+    frame = requestAnimationFrame(hold);
+  };
+  hold();
+  return stop;
+}
 
 const cardVariants = {
   hidden: { opacity: 0, y: 12, scale: 0.98 },
@@ -271,6 +308,16 @@ export default function BorrowerAccountsSection({
 
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const handleOpenAccount = (id: string) => {
+    // Park the scroll position on this history entry, so coming back to it
+    // lands in the same place (a fresh visit has no such state).
+    try {
+      window.history.replaceState(
+        { ...window.history.state, [SCROLL_STATE_KEY]: window.scrollY },
+        "",
+      );
+    } catch {
+      // History unavailable — back just opens at the top
+    }
     setOpeningAccountId(id);
     router.push(`/accounts/${id}`);
   };
@@ -278,15 +325,51 @@ export default function BorrowerAccountsSection({
   const allAccountIds = (accounts ?? []).map((a) => a.id);
   const isAccountExpanded = (id: string) =>
     expandedIds ? expandedIds.has(id) : allAccountIds.length <= 2;
-  const toggleAccountExpanded = (id: string) =>
-    setExpandedIds((prev) => {
-      const next = new Set(
-        prev ?? (allAccountIds.length <= 2 ? allAccountIds : []),
-      );
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+
+  // Remember which cards are open for this tab, so coming back from an
+  // account page leaves them as they were. Restored before paint so the cards
+  // don't flash their default state first.
+  const expandedStorageKey = `lendz-expanded-accounts:${borrowerId}`;
+  const [stateRestored, setStateRestored] = useState(false);
+  /** Off until the user toggles a card, so restoring open cards is instant. */
+  const [animateToggles, setAnimateToggles] = useState(false);
+  useLayoutEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(expandedStorageKey);
+      if (raw) setExpandedIds(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      // Storage unavailable — fall back to the default layout
+    }
+    setStateRestored(true);
+  }, [expandedStorageKey]);
+  // Once the restored cards are laid out, return to where this history entry
+  // was left (or the top for a fresh visit), before anything is painted.
+  useLayoutEffect(() => {
+    if (!stateRestored) return;
+    const y = window.history.state?.[SCROLL_STATE_KEY];
+    if (typeof y !== "number") {
+      window.scrollTo(0, 0);
+      return;
+    }
+    return restoreScrollTo(y);
+  }, [stateRestored]);
+  const saveExpanded = (next: Set<string>) => {
+    setAnimateToggles(true);
+    setExpandedIds(next);
+    try {
+      sessionStorage.setItem(expandedStorageKey, JSON.stringify([...next]));
+    } catch {
+      // Storage unavailable — the choice just won't survive navigation
+    }
+  };
+  const toggleAccountExpanded = (id: string) => {
+    const next = new Set(
+      expandedIds ?? (allAccountIds.length <= 2 ? allAccountIds : []),
+    );
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    saveExpanded(next);
+  };
   const allExpanded =
     allAccountIds.length > 0 && allAccountIds.every(isAccountExpanded);
 
@@ -432,10 +515,6 @@ export default function BorrowerAccountsSection({
     router.prefetch(`/accounts/${id}`);
   };
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
   const summaryStats = useMemo(() => {
     if (!accounts || accounts.length === 0) return null;
     const totalLoaned = accounts.reduce(
@@ -568,9 +647,6 @@ export default function BorrowerAccountsSection({
     }
   };
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
   return (
     <>
       {borrower && (
@@ -641,7 +717,7 @@ export default function BorrowerAccountsSection({
             <button
               type="button"
               onClick={() =>
-                setExpandedIds(allExpanded ? new Set() : new Set(allAccountIds))
+                saveExpanded(allExpanded ? new Set() : new Set(allAccountIds))
               }
               className="inline-flex items-center gap-1.5 rounded-lg border
                 border-slate-300 bg-white px-3 py-1.5 text-xs font-bold
@@ -948,6 +1024,7 @@ export default function BorrowerAccountsSection({
                             selected={selectedAccountIds.has(account.id)}
                             onToggleSelect={toggleAccountSelection}
                             expanded={isAccountExpanded(account.id)}
+                            animateToggle={animateToggles}
                             onToggleExpand={toggleAccountExpanded}
                           />
                         </motion.div>
