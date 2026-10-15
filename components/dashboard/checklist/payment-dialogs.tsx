@@ -65,40 +65,80 @@ type SummaryAccountRow = AccountBalanceInput & {
   type: string | null;
 };
 
-/** Type + paid/left for the given accounts: two small parallel queries. */
-async function fetchAccountSummaries(
-  accountIds: string[],
-): Promise<Record<string, AccountSummary>> {
+const SUMMARY_ACCOUNT_COLUMNS =
+  "id, type, schedule_mode, interest_type, principal_amount, interest_rate";
+const SUMMARY_SCHEDULE_COLUMNS =
+  "amount_due, amount_paid, remaining_amount, status";
+
+type AccountWithSchedules = SummaryAccountRow & {
+  payment_schedules: ScheduleBalanceInput[] | null;
+};
+
+/**
+ * Accounts owning any of `scheduleIds`, each with all its schedules, in one
+ * round trip: `linked` is an empty inner embed that only filters the accounts.
+ * Needs nothing but the schedule ids, so it runs alongside the row fetch.
+ */
+async function fetchAccountsForSchedules(
+  scheduleIds: string[],
+): Promise<AccountWithSchedules[]> {
+  const { data, error } = await supabase
+    .from("accounts")
+    .select(
+      `${SUMMARY_ACCOUNT_COLUMNS}, payment_schedules(${SUMMARY_SCHEDULE_COLUMNS}), linked:payment_schedules!inner()`,
+    )
+    .in("linked.id", scheduleIds);
+  if (!error) return (data ?? []) as AccountWithSchedules[];
+
+  // Fallback if the embed form is rejected: resolve accounts first.
+  console.warn("account summary embed failed, falling back:", error.message);
+  const linked = await supabase
+    .from("payment_schedules")
+    .select("account_id")
+    .in("id", scheduleIds);
+  if (linked.error) throw new Error(linked.error.message);
+  const accountIds = [
+    ...new Set(
+      ((linked.data ?? []) as { account_id: string }[]).map(
+        (r) => r.account_id,
+      ),
+    ),
+  ];
+  if (accountIds.length === 0) return [];
   const [accountsRes, schedulesRes] = await Promise.all([
     supabase
       .from("accounts")
-      .select(
-        "id, type, schedule_mode, interest_type, principal_amount, interest_rate",
-      )
+      .select(SUMMARY_ACCOUNT_COLUMNS)
       .in("id", accountIds),
     supabase
       .from("payment_schedules")
-      .select("account_id, amount_due, amount_paid, remaining_amount, status")
+      .select(`account_id, ${SUMMARY_SCHEDULE_COLUMNS}`)
       .in("account_id", accountIds),
   ]);
   if (accountsRes.error) throw new Error(accountsRes.error.message);
   if (schedulesRes.error) throw new Error(schedulesRes.error.message);
-
-  const schedulesByAccount = new Map<string, ScheduleBalanceInput[]>();
+  const byAccount = new Map<string, ScheduleBalanceInput[]>();
   for (const row of (schedulesRes.data ?? []) as (ScheduleBalanceInput & {
     account_id: string;
   })[]) {
-    const list = schedulesByAccount.get(row.account_id) ?? [];
+    const list = byAccount.get(row.account_id) ?? [];
     list.push(row);
-    schedulesByAccount.set(row.account_id, list);
+    byAccount.set(row.account_id, list);
   }
+  return ((accountsRes.data ?? []) as SummaryAccountRow[]).map((a) => ({
+    ...a,
+    payment_schedules: byAccount.get(a.id) ?? [],
+  }));
+}
 
+/** Type + paid/left for every account behind the linked schedules. */
+async function fetchAccountSummaries(
+  scheduleIds: string[],
+): Promise<Record<string, AccountSummary>> {
+  const accounts = await fetchAccountsForSchedules(scheduleIds);
   const summaries: Record<string, AccountSummary> = {};
-  for (const account of (accountsRes.data ?? []) as SummaryAccountRow[]) {
-    const b = accountBalances(
-      account,
-      schedulesByAccount.get(account.id) ?? [],
-    );
+  for (const account of accounts) {
+    const b = accountBalances(account, account.payment_schedules ?? []);
     const isCashAdvance = account.type === "cash_advance";
     const base = isCashAdvance ? "cash advance" : "loan";
     const paid = b.amountPaid;
@@ -291,14 +331,13 @@ export function ScheduleCheckDialog({
   const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
   const open = refs.length > 0;
   const queryClient = useQueryClient();
-  const accountIds = useMemo(
-    () => [...new Set(rows.map((r) => r.account_id))].sort(),
-    [rows],
-  );
+  const scheduleIds = useMemo(() => refs.map((r) => r.id).sort(), [refs]);
   const { data: summaries, isPending: summariesPending } = useQuery({
-    queryKey: [ACCOUNT_SUMMARIES_KEY, ...accountIds],
-    queryFn: () => fetchAccountSummaries(accountIds),
-    enabled: open && accountIds.length > 0,
+    queryKey: [ACCOUNT_SUMMARIES_KEY, ...scheduleIds],
+    queryFn: () => fetchAccountSummaries(scheduleIds),
+    // Keyed on schedule ids (known immediately) so it runs in parallel with
+    // the row fetch instead of waiting for it.
+    enabled: open && scheduleIds.length > 0,
     // Show cached numbers instantly but refresh each time the dialog opens.
     staleTime: 0,
   });
