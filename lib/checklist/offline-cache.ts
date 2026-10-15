@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase/client";
 import { getPendingOutboxCount } from "@/lib/offline/outbox";
 import { todayDateValue } from "@/lib/checklist/dates";
+import { readStored, writeStored } from "@/lib/offline/storage";
+import { warmScheduleCache } from "@/lib/checklist/schedule-cache";
 import type {
   ChecklistCategory,
   DailyChecklistItem,
@@ -16,37 +18,20 @@ const ITEMS_PREFIX = "lendz-checklist-items:";
 /** Day snapshots older than this (by checklist date) are pruned. */
 const KEEP_DAYS = 45;
 
-function read<T>(key: string): T | null {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : null;
-  } catch {
-    return null;
-  }
-}
-
-function write(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Storage full or unavailable — the checklist still works online
-  }
-}
-
 export function readCachedCategories(): ChecklistCategory[] | null {
-  return read<ChecklistCategory[]>(CATEGORIES_KEY);
+  return readStored<ChecklistCategory[]>(CATEGORIES_KEY);
 }
 
 export function writeCachedCategories(categories: ChecklistCategory[]) {
-  write(CATEGORIES_KEY, categories);
+  writeStored(CATEGORIES_KEY, categories);
 }
 
 export function readCachedItems(date: string): DailyChecklistItem[] | null {
-  return read<DailyChecklistItem[]>(ITEMS_PREFIX + date);
+  return readStored<DailyChecklistItem[]>(ITEMS_PREFIX + date);
 }
 
 export function writeCachedItems(date: string, items: DailyChecklistItem[]) {
-  write(ITEMS_PREFIX + date, items);
+  writeStored(ITEMS_PREFIX + date, items);
   pruneOldDays();
 }
 
@@ -125,8 +110,9 @@ export async function fetchChecklistItems(date: string): Promise<{
 }
 
 /**
- * Snapshots categories and today's items so the checklist opens offline even
- * if it wasn't visited this session. Skipped while offline edits are queued,
+ * Snapshots categories, today's items and the schedules they link to, so the
+ * checklist and its payment dialogs open offline even if the checklist wasn't
+ * visited this session. Skipped while offline edits are queued,
  * since the server copy would be missing them.
  */
 export async function warmChecklistCache() {
@@ -137,5 +123,8 @@ export async function warmChecklistCache() {
     fetchChecklistItems(date),
   ]);
   if (!cats.error) writeCachedCategories(cats.categories);
-  if (!day.error) writeCachedItems(date, day.items);
+  if (!day.error) {
+    writeCachedItems(date, day.items);
+    await warmScheduleCache(day.items.map((i) => i.label));
+  }
 }

@@ -74,6 +74,7 @@ import {
   writeCachedItems,
 } from "@/lib/checklist/offline-cache";
 import { getPendingOutboxCount } from "@/lib/offline/outbox";
+import { warmScheduleCache } from "@/lib/checklist/schedule-cache";
 import {
   formatLongDate,
   overdueCutoffDateValue,
@@ -898,7 +899,11 @@ export default function DailyNotesWidget() {
     }
 
     showItems(targetDate, normalized);
-    if (withLoading) setLoading(false);
+    if (withLoading) {
+      setLoading(false);
+      // Ready the payment dialogs for this day in case the connection drops.
+      void warmScheduleCache(normalized.map((i) => i.label)).catch(() => {});
+    }
   };
 
   useEffect(() => {

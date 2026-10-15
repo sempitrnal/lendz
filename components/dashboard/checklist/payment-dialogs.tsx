@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
-import { supabase } from "@/lib/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -18,12 +17,16 @@ import {
   markSchedulesPaidAction,
   applyPartialPaymentAction,
 } from "@/lib/actions/schedules";
+import { remainingOnInstallment } from "@/lib/payment-schedule/schedule-balances";
 import {
-  accountBalances,
-  remainingOnInstallment,
-  type AccountBalanceInput,
-  type ScheduleBalanceInput,
-} from "@/lib/payment-schedule/schedule-balances";
+  applyOfflinePayments,
+  actionWasQueued,
+  loadAccountSummaries,
+  loadSchedules,
+  type AccountSummary,
+  type ScheduleDialogRow,
+} from "@/lib/checklist/schedule-cache";
+import { getPendingOutboxCount } from "@/lib/offline/outbox";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import {
   borrowerCategoryColor,
@@ -36,128 +39,9 @@ import { MentionPill } from "@/components/dashboard/checklist/checklist-label";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import type { DailyChecklistItem } from "@/lib/checklist/types";
 
-type ScheduleDialogRow = {
-  id: string;
-  account_id: string;
-  due_date: string;
-  amount_due: number;
-  amount_paid: number;
-  remaining_amount: number;
-  status: string;
-};
-
 type ScheduleChoice = { status: "paid" | "partial" | null; amount: string };
 
-type AccountSummary = {
-  typeLabel: string;
-  isCashAdvance: boolean;
-  paid: number;
-  left: number;
-  pct: number;
-  paidInstallments: number;
-  installmentCount: number;
-};
-
 const ACCOUNT_SUMMARIES_KEY = "checklist-account-summaries";
-
-type SummaryAccountRow = AccountBalanceInput & {
-  id: string;
-  type: string | null;
-};
-
-const SUMMARY_ACCOUNT_COLUMNS =
-  "id, type, schedule_mode, interest_type, principal_amount, interest_rate";
-const SUMMARY_SCHEDULE_COLUMNS =
-  "amount_due, amount_paid, remaining_amount, status";
-
-type AccountWithSchedules = SummaryAccountRow & {
-  payment_schedules: ScheduleBalanceInput[] | null;
-};
-
-/**
- * Accounts owning any of `scheduleIds`, each with all its schedules, in one
- * round trip: `linked` is an empty inner embed that only filters the accounts.
- * Needs nothing but the schedule ids, so it runs alongside the row fetch.
- */
-async function fetchAccountsForSchedules(
-  scheduleIds: string[],
-): Promise<AccountWithSchedules[]> {
-  const { data, error } = await supabase
-    .from("accounts")
-    .select(
-      `${SUMMARY_ACCOUNT_COLUMNS}, payment_schedules(${SUMMARY_SCHEDULE_COLUMNS}), linked:payment_schedules!inner()`,
-    )
-    .in("linked.id", scheduleIds);
-  if (!error) return (data ?? []) as AccountWithSchedules[];
-
-  // Fallback if the embed form is rejected: resolve accounts first.
-  console.warn("account summary embed failed, falling back:", error.message);
-  const linked = await supabase
-    .from("payment_schedules")
-    .select("account_id")
-    .in("id", scheduleIds);
-  if (linked.error) throw new Error(linked.error.message);
-  const accountIds = [
-    ...new Set(
-      ((linked.data ?? []) as { account_id: string }[]).map(
-        (r) => r.account_id,
-      ),
-    ),
-  ];
-  if (accountIds.length === 0) return [];
-  const [accountsRes, schedulesRes] = await Promise.all([
-    supabase
-      .from("accounts")
-      .select(SUMMARY_ACCOUNT_COLUMNS)
-      .in("id", accountIds),
-    supabase
-      .from("payment_schedules")
-      .select(`account_id, ${SUMMARY_SCHEDULE_COLUMNS}`)
-      .in("account_id", accountIds),
-  ]);
-  if (accountsRes.error) throw new Error(accountsRes.error.message);
-  if (schedulesRes.error) throw new Error(schedulesRes.error.message);
-  const byAccount = new Map<string, ScheduleBalanceInput[]>();
-  for (const row of (schedulesRes.data ?? []) as (ScheduleBalanceInput & {
-    account_id: string;
-  })[]) {
-    const list = byAccount.get(row.account_id) ?? [];
-    list.push(row);
-    byAccount.set(row.account_id, list);
-  }
-  return ((accountsRes.data ?? []) as SummaryAccountRow[]).map((a) => ({
-    ...a,
-    payment_schedules: byAccount.get(a.id) ?? [],
-  }));
-}
-
-/** Type + paid/left for every account behind the linked schedules. */
-async function fetchAccountSummaries(
-  scheduleIds: string[],
-): Promise<Record<string, AccountSummary>> {
-  const accounts = await fetchAccountsForSchedules(scheduleIds);
-  const summaries: Record<string, AccountSummary> = {};
-  for (const account of accounts) {
-    const b = accountBalances(account, account.payment_schedules ?? []);
-    const isCashAdvance = account.type === "cash_advance";
-    const base = isCashAdvance ? "cash advance" : "loan";
-    const paid = b.amountPaid;
-    const left = b.amountLeftToPay;
-    const total = paid + left;
-    summaries[account.id] = {
-      typeLabel: b.isManual
-        ? `${base} · manual ${b.isRolling ? "rolling" : "flat"}`
-        : base,
-      isCashAdvance,
-      paid,
-      left,
-      pct: total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0,
-      paidInstallments: b.paidInstallments,
-      installmentCount: b.installmentCount,
-    };
-  }
-  return summaries;
-}
 
 /** Fade + rise used to stagger account cards and schedule rows in on open. */
 const ENTER_ANIMATION =
@@ -334,7 +218,9 @@ export function ScheduleCheckDialog({
   const scheduleIds = useMemo(() => refs.map((r) => r.id).sort(), [refs]);
   const { data: summaries, isPending: summariesPending } = useQuery({
     queryKey: [ACCOUNT_SUMMARIES_KEY, ...scheduleIds],
-    queryFn: () => fetchAccountSummaries(scheduleIds),
+    queryFn: () => loadAccountSummaries(scheduleIds),
+    // Offline the cache answers; React Query would otherwise pause the fetch.
+    networkMode: "always",
     // Keyed on schedule ids (known immediately) so it runs in parallel with
     // the row fetch instead of waiting for it.
     enabled: open && scheduleIds.length > 0,
@@ -362,48 +248,34 @@ export function ScheduleCheckDialog({
     }
     let cancelled = false;
     setLoading(true);
-    supabase
-      .from("payment_schedules")
-      .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
-      )
-      .in(
-        "id",
-        refs.map((r) => r.id),
-      )
-      .then(
-        ({
-          data,
-          error,
-        }: {
-          data: ScheduleDialogRow[] | null;
-          error: { message: string } | null;
-        }) => {
-          if (cancelled) return;
-          if (error) {
-            toast.error(error.message);
-            setRows([]);
-            setChoices({});
-          } else {
-            const order = new Map(refs.map((r, i) => [r.id, i]));
-            const fetched = ((data ?? []) as ScheduleDialogRow[]).sort(
-              (a, b) =>
-                (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0) ||
-                a.due_date.localeCompare(b.due_date),
-            );
-            setRows(fetched);
-            const initial: Record<string, ScheduleChoice> = {};
-            fetched.forEach((r) => {
-              initial[r.id] = {
-                status: null,
-                amount: String(remainingOnInstallment(r)),
-              };
-            });
-            setChoices(initial);
-          }
-          setLoading(false);
-        },
-      );
+    loadSchedules(refs.map((r) => r.id)).then(
+      (data) => {
+        if (cancelled) return;
+        const order = new Map(refs.map((r, i) => [r.id, i]));
+        const fetched = [...data].sort(
+          (a, b) =>
+            (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0) ||
+            a.due_date.localeCompare(b.due_date),
+        );
+        setRows(fetched);
+        const initial: Record<string, ScheduleChoice> = {};
+        fetched.forEach((r) => {
+          initial[r.id] = {
+            status: null,
+            amount: String(remainingOnInstallment(r)),
+          };
+        });
+        setChoices(initial);
+        setLoading(false);
+      },
+      (err: unknown) => {
+        if (cancelled) return;
+        toast.error(err instanceof Error ? err.message : String(err));
+        setRows([]);
+        setChoices({});
+        setLoading(false);
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -420,8 +292,25 @@ export function ScheduleCheckDialog({
     }));
   };
 
+  /** What each chosen Paid/Partial puts toward its schedule. */
+  const chosenPayments = () =>
+    rows.flatMap((row) => {
+      const choice = choices[row.id];
+      if (!choice?.status || choice.status === row.status) return [];
+      if (choice.status === "paid") {
+        return row.status === "paid"
+          ? []
+          : [{ scheduleId: row.id, amount: remainingOnInstallment(row) }];
+      }
+      const amt = Number.parseFloat(choice.amount || "0");
+      return Number.isFinite(amt) && amt > 0
+        ? [{ scheduleId: row.id, amount: amt }]
+        : [];
+    });
+
   const handleConfirm = async () => {
     setSubmitting(true);
+    const queuedBefore = await getPendingOutboxCount();
     try {
       const paidIds = rows
         .filter(
@@ -451,6 +340,13 @@ export function ScheduleCheckDialog({
       toast.success("Payment schedule updated");
       onConfirmed();
     } catch (err) {
+      if (await actionWasQueued(queuedBefore)) {
+        // The service worker queued the action calls; show them as done.
+        applyOfflinePayments(chosenPayments());
+        queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
+        onConfirmed();
+        return;
+      }
       console.error("ScheduleCheckDialog confirm error:", err);
       toast.error("Failed to update payment schedule");
     } finally {
@@ -708,14 +604,6 @@ export function ScheduleCheckDialog({
   );
 }
 
-type BulkPaidRow = {
-  id: string;
-  amount_due: number | null;
-  amount_paid: number | null;
-  remaining_amount: number | null;
-  status: string;
-};
-
 /** Confirms marking every linked collection in a category paid at once. */
 export function BulkPaidDialog({
   items,
@@ -730,7 +618,7 @@ export function BulkPaidDialog({
 }) {
   const open = !!items && items.length > 0;
   const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
-  const [rows, setRows] = useState<BulkPaidRow[]>([]);
+  const [rows, setRows] = useState<ScheduleDialogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [paidDate, setPaidDate] = useState(todayDateValue());
@@ -750,17 +638,11 @@ export function BulkPaidDialog({
     let cancelled = false;
     void (async () => {
       setLoading(true);
-      const all: BulkPaidRow[] = [];
-      for (let i = 0; i < ids.length; i += 50) {
-        const { data, error } = await supabase
-          .from("payment_schedules")
-          .select("id, amount_due, amount_paid, remaining_amount, status")
-          .in("id", ids.slice(i, i + 50));
-        if (error) {
-          toast.error(error.message);
-          break;
-        }
-        all.push(...((data ?? []) as BulkPaidRow[]));
+      let all: ScheduleDialogRow[] = [];
+      try {
+        all = await loadSchedules(ids);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : String(err));
       }
       if (cancelled) return;
       setRows(all);
@@ -780,6 +662,7 @@ export function BulkPaidDialog({
   const handleConfirm = async () => {
     if (!items || !paidDate) return;
     setSubmitting(true);
+    const queuedBefore = await getPendingOutboxCount();
     try {
       const result = await markSchedulesPaidAction(ids, paidDate);
       new Set(
@@ -790,6 +673,17 @@ export function BulkPaidDialog({
       );
       onConfirmed(items.map((i) => i.id));
     } catch (err) {
+      if (await actionWasQueued(queuedBefore)) {
+        // Queued by the service worker; reflect it locally until it syncs.
+        applyOfflinePayments(
+          openRows.map((r) => ({
+            scheduleId: r.id,
+            amount: remainingOnInstallment(r),
+          })),
+        );
+        onConfirmed(items.map((i) => i.id));
+        return;
+      }
       console.error("BulkPaidDialog confirm error:", err);
       toast.error("Failed to mark as paid");
     } finally {
