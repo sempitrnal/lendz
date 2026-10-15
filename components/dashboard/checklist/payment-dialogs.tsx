@@ -119,6 +119,10 @@ async function fetchAccountSummaries(
   return summaries;
 }
 
+/** Fade + rise used to stagger account cards and schedule rows in on open. */
+const ENTER_ANIMATION =
+  "animate-in fade-in slide-in-from-bottom-2 fill-mode-both duration-300 ease-out motion-reduce:animate-none";
+
 type PendingPayment = {
   paidAmount: number;
   partialAmount: number;
@@ -174,6 +178,13 @@ function AccountSummaryHeader({
     summary.installmentCount,
     summary.paidInstallments + pending.installments,
   );
+  // Start empty so the bar fills on open instead of appearing pre-filled.
+  const [filled, setFilled] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setFilled(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const width = (amount: number) => `${filled ? share(amount) : 0}%`;
   const highlight = changed
     ? "font-semibold text-emerald-600 dark:text-emerald-400"
     : "";
@@ -218,15 +229,15 @@ function AccountSummaryHeader({
       >
         <div
           className="h-full bg-emerald-500 transition-[width] duration-500"
-          style={{ width: `${share(summary.paid)}%` }}
+          style={{ width: width(summary.paid) }}
         />
         <div
           className="h-full bg-emerald-500/30 transition-[width] duration-300"
-          style={{ width: `${share(paidAdded)}%` }}
+          style={{ width: width(paidAdded) }}
         />
         <div
           className="h-full bg-violet-500/35 transition-[width] duration-300"
-          style={{ width: `${share(partialAdded)}%` }}
+          style={{ width: width(partialAdded) }}
         />
       </div>
       <div
@@ -489,14 +500,15 @@ export function ScheduleCheckDialog({
                 Mark all paid
               </button>
             )}
-            {accountGroups.map((group) => {
+            {accountGroups.map((group, groupIndex) => {
               const summary = summaries?.[group.accountId] ?? null;
               return (
                 <div
                   key={group.accountId}
-                  className="dark:border-border dark:bg-card dark:divide-border
+                  className={`dark:border-border dark:bg-card dark:divide-border
                     divide-y divide-slate-200 rounded-lg border border-slate-200
-                    bg-white"
+                    bg-white ${ENTER_ANIMATION}`}
+                  style={{ animationDelay: `${groupIndex * 80}ms` }}
                 >
                   {summary ? (
                     <div className="p-3">
@@ -511,11 +523,17 @@ export function ScheduleCheckDialog({
                       <div className="h-1.5 animate-pulse rounded-full bg-muted" />
                     </div>
                   ) : null}
-                  {group.rows.map((row) => {
+                  {group.rows.map((row, rowIndex) => {
                     const choice = choices[row.id];
                     const chosen = choice?.status ?? null;
                     return (
-                      <div key={row.id} className="p-3">
+                      <div
+                        key={row.id}
+                        className={`p-3 ${ENTER_ANIMATION}`}
+                        style={{
+                          animationDelay: `${groupIndex * 80 + (rowIndex + 1) * 60}ms`,
+                        }}
+                      >
                         <div className="flex items-center justify-between gap-2">
                           <span
                             className="text-sm font-semibold text-slate-700
