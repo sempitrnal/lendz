@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { installmentDots } from "@/lib/payment-schedule/installment-dots";
 import {
   accountBalances,
   isInstallmentFullyPaid,
@@ -176,6 +177,7 @@ export async function GET(
       nextCollectionStatus: nextUnpaid?.status ?? null,
       nextUnpaidScheduleId: (nextUnpaid as any)?.id ?? null,
       nextCollections,
+      installments: installmentDots(rows as any),
       dueCollections,
       overdueCount: overdueRows.length,
       overdueTotal: overdueRows.reduce(

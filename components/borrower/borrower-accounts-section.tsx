@@ -8,6 +8,10 @@ import {
   Copy,
   RotateCcw,
   Trash2,
+  Landmark,
+  HandCoins,
+  Clock,
+  type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatDate } from "@/lib/utils";
@@ -41,6 +45,7 @@ import dynamic from "next/dynamic";
 const NotesCanvas = dynamic(() => import("./notes-canvas"), { ssr: false });
 import ActivateAccountDialog from "./activate-account-dialog";
 import { AccountCard } from "./account-card";
+import type { InstallmentDot } from "@/lib/payment-schedule/installment-dots";
 import { motion } from "framer-motion";
 import { StickyBorrowerStrip } from "./sticky-borrower-strip";
 import SortableNotesGrid from "./sortable-notes-grid";
@@ -58,6 +63,55 @@ const cardContainerVariants = {
   hidden: {},
   visible: {
     transition: { staggerChildren: 0.05 },
+  },
+};
+
+/** Badge colours and icon for each group heading on the borrower page. */
+const GROUP_STYLES: Record<string, { icon: LucideIcon; badge: string }> = {
+  loans: {
+    icon: Landmark,
+    badge:
+      "bg-violet-100 text-violet-800 ring-violet-200 dark:bg-violet-900/40 dark:text-violet-100 dark:ring-violet-800",
+  },
+  "manual flat loans": {
+    icon: Landmark,
+    badge:
+      "bg-lime-100 text-lime-800 ring-lime-200 dark:bg-lime-900/40 dark:text-lime-100 dark:ring-lime-800",
+  },
+  "manual rolling loans": {
+    icon: Landmark,
+    badge:
+      "bg-cyan-100 text-cyan-800 ring-cyan-200 dark:bg-cyan-900/40 dark:text-cyan-100 dark:ring-cyan-800",
+  },
+  "cash advances": {
+    icon: HandCoins,
+    badge:
+      "bg-amber-100 text-amber-800 ring-amber-200 dark:bg-amber-900/40 dark:text-amber-100 dark:ring-amber-800",
+  },
+  "manual flat cash advances": {
+    icon: HandCoins,
+    badge:
+      "bg-yellow-100 text-yellow-800 ring-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-100 dark:ring-yellow-800",
+  },
+  "manual rolling cash advances": {
+    icon: HandCoins,
+    badge:
+      "bg-teal-100 text-teal-800 ring-teal-200 dark:bg-teal-900/40 dark:text-teal-100 dark:ring-teal-800",
+  },
+  pending: {
+    icon: Clock,
+    badge:
+      "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-800",
+  },
+  "manual flat pending": {
+    icon: Clock,
+    badge:
+      "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:ring-emerald-800",
+  },
+  "manual rolling pending": {
+    icon: Clock,
+    badge:
+      "bg-cyan-50 text-cyan-700 ring-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-200 dark:ring-cyan-800",
   },
 };
 
@@ -109,6 +163,8 @@ export type AccountComputedMetrics = {
     amount_due: number;
     status: string;
   }[];
+  /** Every installment, for the schedule dots; absent in older cached data. */
+  installments?: InstallmentDot[];
   overdueCount: number;
   overdueTotal: number;
   overdueSchedules: { due_date: string; amount: number }[];
@@ -185,6 +241,12 @@ export default function BorrowerAccountsSection({
   );
   const [selectionMode, setSelectionMode] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  /**
+   * Which accounts show as the full card. Until the user expands or collapses
+   * something, one or two accounts open as full cards and more start as
+   * compact rows, so a long list stays short.
+   */
+  const [expandedIds, setExpandedIds] = useState<Set<string> | null>(null);
   const deleteNote = async (id: string) => {
     const confirmed = window.confirm("Delete this note?");
 
@@ -212,6 +274,21 @@ export default function BorrowerAccountsSection({
     setOpeningAccountId(id);
     router.push(`/accounts/${id}`);
   };
+
+  const allAccountIds = (accounts ?? []).map((a) => a.id);
+  const isAccountExpanded = (id: string) =>
+    expandedIds ? expandedIds.has(id) : allAccountIds.length <= 2;
+  const toggleAccountExpanded = (id: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(
+        prev ?? (allAccountIds.length <= 2 ? allAccountIds : []),
+      );
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const allExpanded =
+    allAccountIds.length > 0 && allAccountIds.every(isAccountExpanded);
 
   const toggleAccountSelection = (accountId: string) => {
     setSelectedAccountIds((prev) => {
@@ -560,6 +637,21 @@ export default function BorrowerAccountsSection({
             <Copy className="size-3.5" />
             copy amounts
           </button>
+          {accounts && accounts.length > 1 && (
+            <button
+              type="button"
+              onClick={() =>
+                setExpandedIds(allExpanded ? new Set() : new Set(allAccountIds))
+              }
+              className="inline-flex items-center gap-1.5 rounded-lg border
+                border-slate-300 bg-white px-3 py-1.5 text-xs font-bold
+                text-slate-600 shadow-sm transition hover:bg-slate-50
+                active:translate-y-px active:shadow-none dark:border-slate-700
+                dark:bg-card dark:text-slate-300 dark:hover:bg-slate-800/50"
+            >
+              {allExpanded ? "collapse all" : "expand all"}
+            </button>
+          )}
         </div>
 
         {summaryStats &&
@@ -804,18 +896,32 @@ export default function BorrowerAccountsSection({
                   whileInView="visible"
                   viewport={{ once: true, margin: "-60px" }}
                 >
-                  <div className="mt-10 mb-3 flex items-center gap-2">
+                  <div className="mt-10 mb-3 flex items-center gap-2.5">
                     <span
-                      className={`rounded-full border border-slate-300 font-black px-2.5 py-1 text-[10px]  ${accent}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${
+                        GROUP_STYLES[label]?.badge ?? accent
+                      }`}
                     >
+                      {(() => {
+                        const Icon = GROUP_STYLES[label]?.icon ?? Landmark;
+                        return <Icon className="size-3.5" aria-hidden />;
+                      })()}
                       {label}
                     </span>
-                    <span className="text-xs font-semibold text-slate-400">
-                      {group.length} account{group.length === 1 ? "" : "s"}
+                    <span
+                      className="rounded-full bg-slate-100 px-2 py-0.5
+                        text-[11px] font-bold text-slate-500 tabular-nums
+                        dark:bg-white/10 dark:text-slate-400"
+                      aria-label={`${group.length} account${
+                        group.length === 1 ? "" : "s"
+                      }`}
+                    >
+                      {group.length}
                     </span>
+                    <span className="h-px flex-1 bg-slate-200/80 dark:bg-border" />
                   </div>
                   <motion.div
-                    className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3"
+                    className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
                     variants={cardContainerVariants}
                   >
                     {group.map((account) => {
@@ -841,6 +947,8 @@ export default function BorrowerAccountsSection({
                             selectionMode={selectionMode}
                             selected={selectedAccountIds.has(account.id)}
                             onToggleSelect={toggleAccountSelection}
+                            expanded={isAccountExpanded(account.id)}
+                            onToggleExpand={toggleAccountExpanded}
                           />
                         </motion.div>
                       );

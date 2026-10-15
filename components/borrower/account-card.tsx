@@ -1,12 +1,253 @@
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown, ChevronUp } from "lucide-react";
 import { useState, SyntheticEvent, useRef } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { formatDate } from "@/lib/utils";
 import AccountCardMenu from "./account-card-menu";
 import {
   AccountRow,
   AccountComputedMetrics,
 } from "./borrower-accounts-section";
+import type { InstallmentDot } from "@/lib/payment-schedule/installment-dots";
+
+/** iOS-style ease: quick off the mark, long soft landing. */
+const EXPAND_EASE = [0.32, 0.72, 0, 1] as const;
+
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** `YYYY-MM-DD` split without going through `Date`, so no timezone shifts. */
+function ymd(iso: string) {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return { y, m: m - 1, d };
+}
+
+function shortDate(iso: string) {
+  const { m, d } = ymd(iso);
+  return `${MONTHS[m]} ${d}`;
+}
+
+/** Amounts to at most 2 decimals (profit is divided, so it can be 379.997). */
+const fmt = (n: number) =>
+  Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+function fmtTimeAgo(days: number) {
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.round(days / 7)}w ago`;
+  if (days < 365) return `${Math.round(days / 30)}mo ago`;
+  return `${Math.round(days / 365)}y ago`;
+}
+
+/** Header band and type chip colours per kind of account. */
+const TONES = {
+  violet: {
+    band: "bg-violet-100/70 dark:bg-violet-950/30",
+  },
+  amber: {
+    band: "bg-amber-50 dark:bg-amber-950/20",
+  },
+  lime: {
+    band: "bg-lime-100/70 dark:bg-lime-950/30",
+  },
+  cyan: {
+    band: "bg-cyan-100/70 dark:bg-cyan-950/30",
+  },
+} as const;
+
+const TILE_TONES = {
+  yellow: {
+    box: "border-yellow-200/80 bg-yellow-100 dark:border-yellow-900/40 dark:bg-yellow-900/25",
+    label: "text-yellow-800/80 dark:text-yellow-200/70",
+    value: "text-[#556477] dark:text-yellow-100",
+  },
+  emerald: {
+    box: "border-emerald-200/80 bg-emerald-100/80 dark:border-emerald-900/40 dark:bg-emerald-900/25",
+    label: "text-emerald-800/80 dark:text-emerald-200/70",
+    value: "text-[#048863] dark:text-emerald-200",
+  },
+  teal: {
+    box: "border-teal-200/80 bg-teal-100/80 dark:border-teal-900/40 dark:bg-teal-900/25",
+    label: "text-teal-800/80 dark:text-teal-200/70",
+    value: "text-[#0e857b] dark:text-teal-200",
+  },
+} as const;
+
+function StatTile({
+  label,
+  value,
+  tone,
+  index = 0,
+}: {
+  label: string;
+  value: string;
+  tone: keyof typeof TILE_TONES;
+  index?: number;
+}) {
+  const t = TILE_TONES[tone];
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.div
+      className={`min-w-0 rounded-xl border px-2.5 py-1.5 ${t.box}`}
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.32,
+        ease: [0.32, 0.72, 0, 1],
+        delay: 0.1 + index * 0.05,
+      }}
+    >
+      <p className={`truncate text-[10px] font-semibold ${t.label}`}>{label}</p>
+      <p
+        className={`truncate text-sm font-black tracking-tight tabular-nums
+          ${t.value}`}
+      >
+        ₱{value}
+      </p>
+    </motion.div>
+  );
+}
+
+/** The dots cover at most this many of the installments still to complete. */
+const MAX_DOTS = 6;
+
+function dotClasses(state: InstallmentDot["state"], isNext: boolean) {
+  if (state === "partial")
+    return "border-2 border-[#b9a8d8] bg-[#ece5f7] dark:border-[#6b5a8c] dark:bg-[#322a44]";
+  if (state === "overdue")
+    return "border-2 border-rose-400 bg-rose-100 dark:border-rose-500 dark:bg-rose-900/40";
+  if (isNext)
+    return "border-2 border-yellow-400 bg-yellow-50 dark:border-yellow-500 dark:bg-yellow-900/30";
+  return "border-2 border-slate-300 dark:border-slate-600";
+}
+
+/** The next installments not yet fully paid, and how many more follow them. */
+function upcomingDots(installments: InstallmentDot[]) {
+  const incomplete = installments.filter((i) => i.state !== "paid");
+  return {
+    shown: incomplete.slice(0, MAX_DOTS),
+    more: Math.max(0, incomplete.length - MAX_DOTS),
+  };
+}
+
+/** One dot per upcoming installment: partial, overdue, the next one, later ones. */
+function ScheduleDots({
+  installments,
+  nextDate,
+}: {
+  installments: InstallmentDot[];
+  nextDate: string | null;
+}) {
+  const reduceMotion = useReducedMotion();
+  const { shown } = upcomingDots(installments);
+  const paid = installments.filter((i) => i.state === "paid").length;
+
+  if (shown.length === 0) {
+    return (
+      <div
+        className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold
+          text-emerald-700 dark:text-emerald-300"
+      >
+        <Check className="size-3.5" strokeWidth={3} />
+        all installments paid
+      </div>
+    );
+  }
+
+  const nextIndex = (() => {
+    const exact = shown.findIndex(
+      (i) => i.state === "pending" && nextDate && i.due_date === nextDate,
+    );
+    return exact >= 0 ? exact : shown.findIndex((i) => i.state === "pending");
+  })();
+  const title = (i: InstallmentDot) =>
+    `${formatDate(i.due_date)} · ${
+      i.state === "partial"
+        ? `₱${fmt(i.amount_paid)} of ₱${fmt(i.amount_due)} paid`
+        : `${i.state} · ₱${fmt(i.amount_due)}`
+    }`;
+
+  return (
+    <div
+      role="img"
+      aria-label={`${paid} of ${installments.length} installments paid; next ${shown.length} shown`}
+      className="mt-2 grid gap-1"
+      style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr))` }}
+    >
+      {shown.map((i, idx) => (
+        <motion.div
+          key={i.due_date + idx}
+          title={title(i)}
+          className="text-center"
+          initial={reduceMotion ? false : { opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{
+            type: "spring",
+            stiffness: 520,
+            damping: 26,
+            delay: 0.16 + idx * 0.04,
+          }}
+        >
+          <div
+            className={`mx-auto size-[26px] rounded-full ${dotClasses( i.state,
+            idx === nextIndex, )}`}
+          />
+          <p
+            className={`mt-1 text-[10px] tabular-nums ${
+              idx === nextIndex
+                ? "font-bold text-slate-700 dark:text-slate-200"
+                : "text-slate-400 dark:text-slate-500"
+            }`}
+          >
+            {shortDate(i.due_date)}
+          </p>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+/** Paid and part-paid shares of the contract, for the progress bar. */
+function ProgressBar({
+  paidPct,
+  partialPct,
+  className = "h-2",
+}: {
+  paidPct: number;
+  partialPct: number;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex overflow-hidden rounded-full bg-slate-100
+        dark:bg-slate-800 ${className}`}
+      role="progressbar"
+      aria-valuenow={Math.round(paidPct + partialPct)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <div
+        className="h-full bg-emerald-400 transition-all duration-500"
+        style={{ width: `${paidPct}%` }}
+      />
+      <div
+        className="h-full bg-[#cbbbe6] transition-all duration-500
+          dark:bg-[#5a4a78]"
+        style={{ width: `${partialPct}%` }}
+      />
+    </div>
+  );
+}
 
 export function AccountCard({
   account,
@@ -19,6 +260,8 @@ export function AccountCard({
   selectionMode,
   selected,
   onToggleSelect,
+  expanded = true,
+  onToggleExpand,
 }: {
   account: AccountRow;
   isOpening: boolean;
@@ -30,34 +273,97 @@ export function AccountCard({
   selectionMode?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
+  /** A compact row when false; the full card when true. */
+  expanded?: boolean;
+  onToggleExpand?: (id: string) => void;
 }) {
   const amountLeftToPay = metrics?.amountLeftToPay ?? 0;
-  const profitToMake = metrics?.profitToMake ?? 0;
   const daysSinceRelease = metrics?.daysSinceRelease ?? 0;
   const profitPerSchedule = metrics?.profitPerSchedule ?? 0;
   const totalDue = metrics?.totalDue ?? 0;
   const totalPaid = metrics?.totalPaid ?? 0;
-  const progressPct =
-    totalDue > 0 ? Math.min(100, Math.round((totalPaid / totalDue) * 100)) : 0;
   const overdueCount = metrics?.overdueCount ?? 0;
   const overdueTotal = metrics?.overdueTotal ?? 0;
   const [overdueExpanded, setOverdueExpanded] = useState(overdueCount <= 6);
+  // Must be declared up here: the Partials block below returns early when
+  // there are none, so a hook inside it changes the hook count between renders.
+  const [partialsExpanded, setPartialsExpanded] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reduceMotion = useReducedMotion();
+  // Compact row and full card share one easing and duration, so the height
+  // hand-off between them is a straight blend rather than a jump.
+  const collapseMotion = reduceMotion
+    ? {}
+    : {
+        initial: { height: 0, opacity: 0 },
+        animate: {
+          height: "auto",
+          opacity: 1,
+          transition: {
+            height: { duration: 0.4, ease: EXPAND_EASE },
+            opacity: { duration: 0.28, delay: 0.08 },
+          },
+        },
+        exit: {
+          height: 0,
+          opacity: 0,
+          transition: {
+            height: { duration: 0.4, ease: EXPAND_EASE },
+            opacity: { duration: 0.16 },
+          },
+        },
+      };
   const isManual = account.schedule_mode === "manual";
   const isRolling = isManual && (account as any).interest_type === "rolling";
-  const freq = account.payment_frequency;
+  const isPending = account.status === "pending";
+  const isCashAdvance = account.type === "cash_advance";
+  const hasOverdue = overdueCount > 0;
   const termMonths = Number(metrics?.term_months) || 1;
-  function fmtCompact(n: number) {
-    if (n < 1000) return n.toLocaleString();
-    const k = n / 1000;
-    return `${k >= 100 ? k.toFixed(0) : k.toFixed(1)}k`;
-  }
-  function fmtTimeAgo(days: number) {
-    if (days < 7) return `${days}d ago`;
-    if (days < 30) return `${Math.round(days / 7)}w ago`;
-    if (days < 365) return `${Math.round(days / 30)}mo ago`;
-    return `${Math.round(days / 365)}y ago`;
-  }
+
+  const installments = metrics?.installments ?? [];
+  const useDots = !isManual && !isPending && installments.length > 0;
+  const paidInstallments = installments.filter(
+    (i) => i.state === "paid",
+  ).length;
+  const { more: moreDots } = upcomingDots(installments);
+  const partialPaid = installments
+    .filter((i) => i.state === "partial")
+    .reduce((sum, i) => sum + i.amount_paid, 0);
+  const pct = (n: number) =>
+    totalDue > 0 ? Math.min(100, (n / totalDue) * 100) : 0;
+  const partialPct = Math.min(pct(partialPaid), pct(totalPaid));
+  const paidPct = Math.max(0, pct(totalPaid) - partialPct);
+  const progressPct = Math.round(pct(totalPaid));
+
+  const showCollections = !isPending && (!isManual || isRolling);
+  const nextPending =
+    metrics?.nextCollections?.find((nc) => nc.status === "pending") ?? null;
+  const partials =
+    metrics?.nextCollections?.filter((nc) => nc.status === "partial") ?? [];
+  const hasFooter =
+    (showCollections && (nextPending || partials.length > 0)) || hasOverdue;
+
+  const metaText = isPending
+    ? "pending"
+    : [
+        account.interest_rate != null ? `${account.interest_rate}%` : null,
+        isManual ? "manual" : account.payment_frequency,
+        isManual ? null : `${termMonths}mo`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+  const releaseYmd = account.release_date?.slice(0, 10) ?? null;
+  const release = releaseYmd ? ymd(releaseYmd) : null;
+  const tone = isManual
+    ? isRolling
+      ? "cyan"
+      : "lime"
+    : isCashAdvance
+      ? "amber"
+      : "violet";
+  const releasedAgo =
+    daysSinceRelease > 0 ? fmtTimeAgo(daysSinceRelease) : "today";
+
   function tryOpenAccount(e: SyntheticEvent) {
     if (isOpening) return;
     if ((e.target as HTMLElement).closest("[data-prevent-account-open]")) {
@@ -67,6 +373,11 @@ export function AccountCard({
       e.preventDefault();
       e.stopPropagation();
       onToggleSelect?.(account.id);
+      return;
+    }
+    // A compact row expands in place; the full card opens the account.
+    if (!expanded && onToggleExpand) {
+      onToggleExpand(account.id);
       return;
     }
     onOpen(account.id);
@@ -86,56 +397,59 @@ export function AccountCard({
     }
   }
 
-  const isCashAdvance = account.type === "cash_advance";
-  const hasOverdue = overdueCount > 0;
-
-  const typeLabel = isManual
-    ? isRolling
-      ? "rolling"
-      : "flat"
-    : isCashAdvance
-      ? "ca"
-      : "loan";
-  const typeBadgeBg = isManual
-    ? isRolling
-      ? "bg-cyan-200 text-cyan-900 dark:bg-cyan-800 dark:text-cyan-100"
-      : "bg-lime-200 text-lime-900 dark:bg-lime-800 dark:text-lime-100"
-    : isCashAdvance
-      ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
-      : "bg-violet-200 text-violet-900 dark:bg-violet-800 dark:text-violet-100";
-
-  const statusColors =
+  const statusDot =
     account.status === "active"
-      ? {
-          bg: "bg-emerald-100",
-          text: "text-emerald-700",
-          border: "border-emerald-200",
-          darkBg: "dark:bg-emerald-800",
-          darkText: "dark:text-emerald-100",
-          darkBorder: "dark:border-[#020617]",
-        }
+      ? "bg-emerald-500"
       : account.status === "pending"
-        ? {
-            bg: "bg-amber-100",
-            text: "text-amber-700",
-            border: "border-amber-200",
-            darkBg: "dark:bg-amber-800",
-            darkText: "dark:text-amber-100",
-            darkBorder: "dark:border-[#020617]",
-          }
-        : {
-            bg: "bg-slate-100",
-            text: "text-slate-600",
-            border: "border-slate-200",
-            darkBg: "dark:bg-slate-700",
-            darkText: "dark:text-slate-100",
-            darkBorder: "dark:border-[#020617]",
-          };
+        ? "bg-amber-400"
+        : "bg-slate-400";
+  const statusText =
+    account.status === "active"
+      ? "text-emerald-700 dark:text-emerald-300"
+      : account.status === "pending"
+        ? "text-amber-700 dark:text-amber-300"
+        : "text-slate-500 dark:text-slate-400";
+
+  const selectionBox = (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggleSelect?.(account.id);
+      }}
+      className={`flex size-5 items-center justify-center rounded border
+        transition-colors ${
+          selected
+            ? `border-slate-900 bg-slate-900 dark:border-border
+              dark:bg-amber-400`
+            : "border-slate-300 bg-white dark:border-border dark:bg-card"
+        }`}
+      aria-label={selected ? "Deselect account" : "Select account"}
+    >
+      {selected && (
+        <svg
+          className="size-3 text-white dark:text-slate-600"
+          viewBox="0 0 14 14"
+          fill="none"
+        >
+          <path
+            d="M2 7L5.5 10.5L12 3.5"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </button>
+  );
 
   return (
     <motion.div
-      className={`relative overflow-hidden rounded-lg shadow-sm border border-border
-        bg-white transition-all duration-200 dark:border- dark:bg-card
+      className={`relative overflow-hidden rounded-lg border border-slate-200
+        bg-white
+        shadow-[0_1px_3px_rgba(15,23,42,0.08),0_8px_20px_-10px_rgba(15,23,42,0.18)]
+        transition-all duration-200 dark:border-border dark:bg-card
         ${isOpening ? "scale-[0.98] opacity-60" : ""}
         ${selectionMode && selected ? "ring ring-blue-600 dark:ring-amber-400" : ""}`}
       whileHover={
@@ -175,390 +489,518 @@ export function AccountCard({
             return;
           }
           e.preventDefault();
-          onOpen(account.id);
+          if (!expanded && onToggleExpand) onToggleExpand(account.id);
+          else onOpen(account.id);
         }}
         aria-disabled={isOpening}
         aria-busy={isOpening}
-        aria-label="Open account"
+        aria-expanded={onToggleExpand ? expanded : undefined}
+        aria-label={expanded ? "Open account" : "Expand account"}
         className="dark:focus-visible:ring-border w-full min-w-0 cursor-pointer
-          px-4 py-3 text-left outline-none focus-visible:ring-2
+          text-left outline-none focus-visible:ring-2
           focus-visible:ring-slate-300 focus-visible:ring-offset-2"
       >
-        {/* Header */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span
-              className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-black
-                tracking-wide uppercase ${typeBadgeBg}`}
+        <AnimatePresence initial={false}>
+          {!expanded ? (
+            <motion.div
+              key="compact"
+              {...collapseMotion}
+              className="overflow-hidden"
             >
-              {typeLabel}
-            </span>
-            {account.status !== "pending" && (
-              <span
-                className="text-[11px] font-bold text-slate-500
-                  dark:text-slate-400"
-              >
-                {account.interest_rate}%
-              </span>
-            )}
-          </div>
-          <span
-            className={`shrink-0 rounded-full mr-3 translate-y-[4px] px-2.5
-              py-0.5 text-[8px] font-black uppercase ${statusColors.bg}
-              ${statusColors.text}`}
-          >
-            {account.status}
-          </span>
-        </div>
-
-        {/* Principal */}
-        <div className="mt-1.5">
-          <span
-            className="text-2xl font-black tracking-tight text-slate-600
-              tabular-nums dark:text-foreground"
-          >
-            ₱{Number(account.principal_amount ?? 0).toLocaleString()}
-          </span>
-          <span
-            className="ml-1.5 text-[11px] font-medium text-slate-500
-              dark:text-muted-foreground"
-          >
-            {account.status === "pending"
-              ? "pending"
-              : !isManual
-                ? `${account.payment_frequency} · ${account.term_months}mo`
-                : isRolling
-                  ? "manual"
-                  : "manual"}
-          </span>
-        </div>
-
-        {/* Release date */}
-        {account.release_date && (
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <span
-              className="rounded-md bg-sky-100 px-2 py-0.5 text-[10px] font-bold
-                tracking-wide text-sky-800 dark:bg-sky-900/30 dark:text-sky-300"
-            >
-              {formatDate(account.release_date)}
-            </span>
-            {daysSinceRelease > 0 && (
-              <span
-                className="text-[11px] font-medium text-slate-500
-                  dark:text-muted-foreground"
-              >
-                released {fmtTimeAgo(daysSinceRelease)}
-              </span>
-            )}
-          </div>
-        )}
-
-        {account.status === "pending" && onActivate && (
-          <button
-            type="button"
-            data-prevent-account-open
-            onClick={() => onActivate(account)}
-            className="mt-2.5 inline-flex items-center gap-1 rounded-md border
-              border-slate-900/30 bg-emerald-50 px-3 py-1.5 text-[11px]
-              font-bold text-emerald-800 transition hover:bg-emerald-100
-              active:translate-y-px dark:border-border/50 dark:bg-emerald-900/30
-              dark:text-emerald-300"
-          >
-            activate
-          </button>
-        )}
-
-        {/* Metrics */}
-        {account.status !== "pending" && (
-          <div className="mt-3 grid w-full grid-cols-3 gap-2">
-            <div
-              className="flex flex-col items-center justify-center rounded-xl
-                border border-rose-100/70 bg-linear-to-br from-rose-50/60
-                to-rose-100/70 p-3 dark:border-rose-900/20 dark:from-rose-950/30
-                dark:to-rose-900/20"
-            >
-              <p
-                className="text-[14px] font-bold tracking-wide text-rose-700/60
-                  lowercase dark:text-rose-200/70"
-              >
-                Remaining
-              </p>
-              <p
-                className="text-sm font-black tracking-tight text-rose-400
-                  tabular-nums dark:text-rose-300/80"
-              >
-                ₱{Number(amountLeftToPay).toLocaleString()}
-              </p>
-            </div>
-            <div
-              className="flex flex-col items-center justify-center rounded-xl
-                border border-emerald-100 bg-linear-to-br from-[#f2fffa]
-                to-emerald-100 p-3 dark:border-emerald-900/30
-                dark:from-emerald-950/30 dark:to-emerald-900/30"
-            >
-              <p
-                className="text-[14px] font-bold tracking-wide
-                  text-emerald-700/80 lowercase dark:text-emerald-200/70"
-              >
-                {isManual ? "Paid" : "Collected"}
-              </p>
-              <p
-                className="text-sm font-black tracking-tight text-[#599c82]
-                  dark:text-emerald-200/80 tabular-nums"
-              >
-                ₱
-                {totalPaid >= 100000
-                  ? fmtCompact(totalPaid)
-                  : Number(totalPaid).toLocaleString()}
-              </p>
-            </div>
-            <div
-              className="flex flex-col items-center justify-center rounded-xl
-                border border-violet-100 bg-linear-to-br from-violet-50/60
-                to-violet-100/70 p-3 dark:border-[#2b2636] dark:from-[#15121b]
-                dark:to-[#211d2a]"
-            >
-              <p
-                className="text-[14px] font-bold tracking-wide text-[#6f537b]
-                  dark:text-[#996bac] lowercase"
-              >
-                ginansya
-              </p>
-              <p
-                className="text-sm font-black tracking-tight text-[#6f537b]
-                  dark:text-[#996bac] tabular-nums"
-              >
-                ₱{Number(profitPerSchedule).toLocaleString()}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Progress */}
-        {totalDue > 0 && (
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="font-medium text-slate-400 dark:text-slate-500">
-                Progress
-              </span>
-              <span
-                className="font-bold text-slate-700 tabular-nums
-                  dark:text-slate-300"
-              >
-                {progressPct}%
-              </span>
-            </div>
-            <div
-              className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100
-                dark:bg-slate-800"
-              role="progressbar"
-              aria-valuenow={progressPct}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
-              <div
-                className="h-full bg-emerald-400 transition-all duration-500"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Collections */}
-        {account.status !== "pending" && (!isManual || isRolling) && (
-          <>
-            {/* Next pending */}
-            {(() => {
-              const nextPending =
-                metrics?.nextCollections?.find(
-                  (nc) => nc.status === "pending",
-                ) ?? null;
-              if (!nextPending) return null;
-              return (
-                <div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-border/50 dark:bg-card">
-                  <span className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase dark:text-muted-foreground">
-                    next
-                  </span>
-                  <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                    {formatDate(nextPending.due_date)}
-                  </span>
-                  <span className="text-[11px] font-bold text-slate-600 tabular-nums dark:text-slate-100">
-                    ₱{nextPending.amount.toLocaleString()}
-                  </span>
-                  <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[8px] font-black uppercase text-amber-700 dark:bg-amber-800 dark:text-amber-100">
-                    pending
-                  </span>
-                </div>
-              );
-            })()}
-
-            {/* Partials */}
-            {(() => {
-              const partials =
-                metrics?.nextCollections?.filter(
-                  (nc) => nc.status === "partial",
-                ) ?? [];
-              if (partials.length === 0) return null;
-              const [expanded, setExpanded] = useState(false);
-              const visible = expanded ? partials : partials.slice(0, 3);
-              const hidden = partials.length - visible.length;
-              return (
-                <div className="mt-3 space-y-1.5">
-                  <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
-                    Partials
-                  </p>
-                  {visible.map((p, i) => (
+              {/* Compact row */}
+              <div className="flex items-center gap-3 px-4 py-3">
+                {release && (
+                  <div
+                    className="w-11 shrink-0 self-start overflow-hidden
+                      rounded-lg border border-slate-200 text-center
+                      dark:border-border"
+                    title={`Released ${formatDate(releaseYmd)}`}
+                  >
                     <div
-                      key={i}
-                      className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 dark:border-border/50 dark:bg-card"
+                      className="bg-sky-100 py-px text-[9px] font-bold
+                        text-sky-800 dark:bg-sky-900/40 dark:text-sky-200"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                          {formatDate(p.due_date)}
+                      {MONTHS[release.m]}
+                    </div>
+                    <div
+                      className="py-0.5 text-lg leading-tight font-black
+                        text-slate-700 tabular-nums dark:text-foreground"
+                    >
+                      {release.d}
+                    </div>
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <span
+                        className="truncate text-base font-black tracking-tight
+                          text-slate-700 tabular-nums dark:text-foreground"
+                      >
+                        ₱{fmt(Number(account.principal_amount ?? 0))}
+                      </span>
+                      {isPending && (
+                        <span
+                          className="text-[11px] font-bold text-amber-700
+                            dark:text-amber-300"
+                        >
+                          pending
                         </span>
-                        <span className="text-[11px] font-bold text-slate-700 tabular-nums dark:text-slate-200">
-                          ₱{p.amount.toLocaleString()}
+                      )}
+                    </div>
+                    {!isPending && (
+                      <p className="flex shrink-0 items-center gap-1.5 text-sm">
+                        <span
+                          className="rounded-md bg-yellow-100 px-1.5 py-0.5
+                            font-black tracking-tight text-slate-600
+                            tabular-nums dark:bg-yellow-900/30
+                            dark:text-yellow-100"
+                        >
+                          ₱{fmt(amountLeftToPay)}
                         </span>
-                        {p.amount_due > p.amount && (
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                            of ₱{p.amount_due.toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                      <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[8px] font-black uppercase text-purple-700 dark:bg-purple-800 dark:text-purple-100">
-                        partial
+                        <span
+                          className="font-medium text-slate-500
+                            dark:text-slate-400"
+                        >
+                          left
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                  {!isPending && totalDue > 0 && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <ProgressBar
+                        paidPct={paidPct}
+                        partialPct={partialPct}
+                        className="h-1.5 flex-1"
+                      />
+                      <span
+                        className="w-8 text-right text-[11px] font-bold
+                          text-slate-500 tabular-nums dark:text-slate-400"
+                      >
+                        {progressPct}%
                       </span>
                     </div>
-                  ))}
-                  {hidden > 0 && (
-                    <button
-                      type="button"
-                      data-prevent-account-open
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpanded((v) => !v);
-                      }}
-                      className="flex w-full items-center justify-center gap-1 rounded-lg py-1.5 text-[10px] font-bold text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/5"
+                  )}
+                  {(release || (!isPending && (hasOverdue || nextPending))) && (
+                    <div
+                      className="mt-1.5 flex items-center justify-between gap-3
+                        text-[11px] text-slate-500 dark:text-slate-400"
                     >
-                      <span>{expanded ? "Show less" : `+${hidden} more`}</span>
-                      <ChevronDown
-                        className={`size-3 transition-transform ${expanded ? "rotate-180" : ""}`}
-                      />
-                    </button>
+                      <span className="truncate">
+                        {release && `released ${releasedAgo}`}
+                      </span>
+                      {!isPending &&
+                        (hasOverdue ? (
+                          <span
+                            className="shrink-0 font-bold text-rose-600
+                              dark:text-rose-300"
+                          >
+                            {overdueCount} overdue
+                          </span>
+                        ) : nextPending ? (
+                          <span className="shrink-0">
+                            next {shortDate(nextPending.due_date)}
+                          </span>
+                        ) : null)}
+                    </div>
                   )}
                 </div>
-              );
-            })()}
-          </>
-        )}
-
-        {/* Overdue alert */}
-        {hasOverdue && (
-          <div
-            className="mt-3 overflow-hidden rounded-lg border border-slate-200
-              bg-white dark:border-border/50 dark:bg-card"
-          >
-            <button
-              type="button"
-              data-prevent-account-open
-              onClick={() => setOverdueExpanded((v) => !v)}
-              className="flex w-full items-center gap-2 px-3 py-2"
-            >
-              <div
-                className="flex size-5 shrink-0 items-center justify-center
-                  rounded-full bg-rose-100 text-[10px] font-bold text-rose-700
-                  dark:bg-rose-800 dark:text-rose-100"
-              >
-                {overdueCount}
+                {selectionMode ? (
+                  <div data-prevent-account-open>{selectionBox}</div>
+                ) : (
+                  <ChevronDown
+                    className="size-4 shrink-0 text-slate-400"
+                    aria-hidden
+                  />
+                )}
               </div>
-              <span
-                className="text-[11px] font-bold text-rose-700
-                  dark:text-rose-300"
-              >
-                overdue
-              </span>
-              <span
-                className="ml-auto text-[11px] font-bold text-rose-700
-                  tabular-nums dark:text-rose-300"
-              >
-                ₱{overdueTotal.toLocaleString()}
-              </span>
-              <ChevronDown
-                className={`size-3.5 text-rose-400 transition-transform
-                dark:text-rose-400 ${overdueExpanded ? "rotate-180" : ""}`}
-              />
-            </button>
-            <div
-              className={`grid transition-[grid-template-rows] duration-200
-              ${overdueExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="expanded"
+              {...collapseMotion}
+              className="overflow-hidden"
             >
-              <div className="overflow-hidden">
-                <div className="space-y-1 px-3 pb-2">
-                  {(metrics?.overdueSchedules ?? []).map((os, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between text-[11px]"
+              <div className="px-4 py-3">
+                {/* Header band: type, principal and release date */}
+                <div
+                  className={`-mx-4 -mt-3 px-4 pt-3 pb-3 ${TONES[tone].band}`}
+                >
+                  <div className="flex items-center gap-2 pr-9">
+                    <span
+                      className="min-w-0 truncate text-[11px] font-medium
+                        text-slate-600 dark:text-slate-300"
                     >
-                      <span className="text-slate-500 dark:text-slate-300">
-                        {formatDate(os.due_date)}
-                      </span>
+                      {metaText}
+                    </span>
+                    <span className="flex-1" />
+                    <span
+                      className={`flex shrink-0 items-center gap-1.5 text-[11px]
+                        font-semibold ${statusText}`}
+                    >
                       <span
-                        className="font-black text-red-700 dark:text-red-100"
+                        className={`size-[7px] rounded-full ${statusDot}`}
+                      />
+                      {account.status}
+                    </span>
+                    {onToggleExpand && (
+                      <button
+                        type="button"
+                        data-prevent-account-open
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleExpand(account.id);
+                        }}
+                        aria-label="Collapse"
+                        className="-mr-1 shrink-0 rounded p-1 text-slate-500
+                          transition hover:bg-white/60 dark:hover:bg-white/10"
                       >
-                        ₱{os.amount.toLocaleString()}
-                      </span>
+                        <ChevronUp className="size-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mt-2 flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className="text-[11px] font-medium text-slate-600
+                          dark:text-slate-300"
+                      >
+                        principal
+                      </p>
+                      <p
+                        className="truncate text-[28px] leading-none font-black
+                          tracking-tight text-[#556477] tabular-nums
+                          dark:text-foreground"
+                      >
+                        ₱{fmt(Number(account.principal_amount ?? 0))}
+                      </p>
                     </div>
-                  ))}
+                    {release && (
+                      <div className="flex shrink-0 items-center gap-2">
+                        <div className="text-right">
+                          <p
+                            className="text-[11px] font-medium text-slate-600
+                              dark:text-slate-300"
+                          >
+                            released
+                          </p>
+                          <p
+                            className="text-[13px] font-bold text-[#556477]
+                              dark:text-slate-100"
+                          >
+                            {releasedAgo}
+                          </p>
+                        </div>
+                        <div
+                          className="w-11 shrink-0 overflow-hidden rounded-lg
+                            border border-sky-200 bg-white text-center
+                            dark:border-sky-900/50 dark:bg-card"
+                        >
+                          <div
+                            className="bg-sky-200 py-px text-[9px] font-bold
+                              text-sky-900 dark:bg-sky-900/50 dark:text-sky-100"
+                          >
+                            {MONTHS[release.m]}
+                          </div>
+                          <div
+                            className="py-0.5 text-lg leading-tight font-black
+                              text-[#556477] tabular-nums dark:text-foreground"
+                          >
+                            {release.d}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {isPending && onActivate && (
+                  <button
+                    type="button"
+                    data-prevent-account-open
+                    onClick={() => onActivate(account)}
+                    className="mt-3 inline-flex items-center gap-1 rounded-md
+                      border border-slate-900/30 bg-emerald-50 px-3 py-1.5
+                      text-[11px] font-bold text-emerald-800 transition
+                      hover:bg-emerald-100 active:translate-y-px
+                      dark:border-border/50 dark:bg-emerald-900/30
+                      dark:text-emerald-300"
+                  >
+                    activate
+                  </button>
+                )}
+
+                {/* Where the account stands */}
+                {(!isPending || totalDue > 0) && (
+                  <div className="mt-3 space-y-2.5">
+                    {!isPending && (
+                      <div className="grid grid-cols-3 gap-2">
+                        <StatTile
+                          label="left"
+                          value={fmt(amountLeftToPay)}
+                          tone="yellow"
+                          index={0}
+                        />
+                        <StatTile
+                          label={isManual ? "paid" : "collected"}
+                          value={fmt(totalPaid)}
+                          tone="emerald"
+                          index={1}
+                        />
+                        <StatTile
+                          label="ginansya"
+                          value={fmt(profitPerSchedule)}
+                          tone="teal"
+                          index={2}
+                        />
+                      </div>
+                    )}
+
+                    {useDots ? (
+                      <div>
+                        <div
+                          className="flex items-center justify-between
+                            text-[11px] font-semibold text-slate-600
+                            dark:text-slate-300"
+                        >
+                          <span>
+                            {paidInstallments} of {installments.length} paid
+                          </span>
+                          <span className="tabular-nums">
+                            {moreDots > 0 && `+${moreDots} more · `}
+                            {progressPct}%
+                          </span>
+                        </div>
+                        <ScheduleDots
+                          installments={installments}
+                          nextDate={
+                            metrics?.nextCollectionDate?.slice(0, 10) ?? null
+                          }
+                        />
+                      </div>
+                    ) : (
+                      totalDue > 0 && (
+                        <div>
+                          <div
+                            className="mb-1.5 flex justify-end text-[11px]
+                              font-semibold text-slate-600 tabular-nums
+                              dark:text-slate-300"
+                          >
+                            {progressPct}%
+                          </div>
+                          <ProgressBar
+                            paidPct={paidPct}
+                            partialPct={partialPct}
+                          />
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+                {/* Upcoming */}
+                {hasFooter && (
+                  <div
+                    className="mt-2.5 space-y-2 border-t border-slate-100 pt-2.5
+                      dark:border-border/40"
+                  >
+                    {showCollections && nextPending && (
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="text-[10px] font-semibold tracking-wider
+                            text-slate-400 uppercase dark:text-muted-foreground"
+                        >
+                          next
+                        </span>
+                        <span
+                          className="text-[12px] font-bold text-slate-700
+                            dark:text-slate-200"
+                        >
+                          {formatDate(nextPending.due_date)}
+                        </span>
+                        <span
+                          className="rounded-full bg-yellow-100 px-2.5 py-0.5
+                            text-[9px] font-black text-yellow-800 uppercase
+                            dark:bg-yellow-900/40 dark:text-yellow-200"
+                        >
+                          pending
+                        </span>
+                        <span className="flex-1" />
+                        <span
+                          className="text-[13px] font-bold text-slate-700
+                            tabular-nums dark:text-slate-100"
+                        >
+                          ₱{fmt(nextPending.amount)}
+                        </span>
+                      </div>
+                    )}
+
+                    {showCollections &&
+                      partials.length > 0 &&
+                      (() => {
+                        const visible = partialsExpanded
+                          ? partials
+                          : partials.slice(0, 3);
+                        const hidden = partials.length - visible.length;
+                        return (
+                          <div className="space-y-1.5">
+                            <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                              Partials
+                            </p>
+                            {visible.map((p, i) => (
+                              <div
+                                key={i}
+                                className="flex items-center justify-between gap-2"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[12px] font-bold text-slate-500 dark:text-slate-400">
+                                    {formatDate(p.due_date)}
+                                  </span>
+                                  <span className="text-[12px] font-bold text-slate-700 tabular-nums dark:text-slate-200">
+                                    ₱{fmt(p.amount)}
+                                  </span>
+                                  {p.amount_due > p.amount && (
+                                    <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                                      of ₱{fmt(p.amount_due)}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="rounded-full border border-[#e6def2] bg-[#f6f2fb] px-2.5 py-0.5 text-[9px] font-black text-[#8a7aa8] uppercase dark:border-[#3b3449] dark:bg-[#251f2e] dark:text-[#bcaed6]">
+                                  partial
+                                </span>
+                              </div>
+                            ))}
+                            {hidden > 0 && (
+                              <button
+                                type="button"
+                                data-prevent-account-open
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPartialsExpanded((v) => !v);
+                                }}
+                                className="flex w-full items-center justify-center gap-1 rounded-lg py-1.5 text-[10px] font-bold text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/5"
+                              >
+                                <span>
+                                  {partialsExpanded
+                                    ? "Show less"
+                                    : `+${hidden} more`}
+                                </span>
+                                <ChevronDown
+                                  className={`size-3 transition-transform ${partialsExpanded ? "rotate-180" : ""}`}
+                                />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                    {hasOverdue && (
+                      <div
+                        className="overflow-hidden rounded-lg bg-rose-50
+                          dark:bg-rose-950/30"
+                      >
+                        <button
+                          type="button"
+                          data-prevent-account-open
+                          onClick={() => setOverdueExpanded((v) => !v)}
+                          className="flex w-full items-center gap-2 px-3 py-2"
+                        >
+                          <div
+                            className="flex size-5 shrink-0 items-center
+                              justify-center rounded-full bg-rose-100
+                              text-[10px] font-bold text-rose-700
+                              dark:bg-rose-800 dark:text-rose-100"
+                          >
+                            {overdueCount}
+                          </div>
+                          <span
+                            className="text-[12px] font-bold text-rose-700
+                              dark:text-rose-300"
+                          >
+                            overdue
+                          </span>
+                          <span
+                            className="ml-auto text-[12px] font-bold
+                              text-rose-700 tabular-nums dark:text-rose-300"
+                          >
+                            ₱{fmt(overdueTotal)}
+                          </span>
+                          <ChevronDown
+                            className={`size-3.5 text-rose-400
+                              transition-transform
+                              ${overdueExpanded ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                        <div
+                          className={`grid transition-[grid-template-rows]
+                            duration-200 ${
+                              overdueExpanded
+                                ? "grid-rows-[1fr]"
+                                : "grid-rows-[0fr]"
+                            }`}
+                        >
+                          <div className="overflow-hidden">
+                            <div className="space-y-1 px-3 pb-2">
+                              {(metrics?.overdueSchedules ?? []).map(
+                                (os, i) => (
+                                  <div
+                                    key={i}
+                                    className="flex items-center justify-between
+                                      text-[12px]"
+                                  >
+                                    <span
+                                      className="text-slate-500
+                                        dark:text-slate-300"
+                                    >
+                                      {formatDate(os.due_date)}
+                                    </span>
+                                    <span
+                                      className="font-black text-red-700
+                                        tabular-nums dark:text-red-100"
+                                    >
+                                      ₱{fmt(os.amount)}
+                                    </span>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {selectionMode ? (
-        <div className="absolute top-3 right-3" data-prevent-account-open>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleSelect?.(account.id);
-            }}
-            className={`flex size-5 items-center justify-center rounded border
-              transition-colors ${
-                selected
-                  ? `border-slate-900 bg-slate-900 dark:border-border
-                    dark:bg-amber-400`
-                  : "border-slate-300 bg-white dark:border-border dark:bg-card"
-              }`}
-            aria-label={selected ? "Deselect account" : "Select account"}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="menu"
+            className="absolute top-3 right-3"
+            data-prevent-account-open
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.12 } }}
+            transition={{ duration: 0.25, delay: 0.12 }}
           >
-            {selected && (
-              <svg
-                className="size-3 text-white dark:text-slate-600"
-                viewBox="0 0 14 14"
-                fill="none"
-              >
-                <path
-                  d="M2 7L5.5 10.5L12 3.5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+            {selectionMode ? (
+              selectionBox
+            ) : (
+              <AccountCardMenu
+                accountId={account.id}
+                borrowerId={account.borrower_id}
+                onEdit={() => onEdit(account)}
+              />
             )}
-          </button>
-        </div>
-      ) : (
-        <div className="absolute top-3 right-3" data-prevent-account-open>
-          <AccountCardMenu
-            accountId={account.id}
-            borrowerId={account.borrower_id}
-            onEdit={() => onEdit(account)}
-          />
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

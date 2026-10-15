@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 import { computeBorrowerNextCollectionById } from "@/lib/compute-borrower-next-collection";
 import type { Borrower } from "@/components/borrower/borrower-list";
+import { installmentDots } from "@/lib/payment-schedule/installment-dots";
 import {
   amountPaidOnInstallment,
   isInstallmentFullyPaid,
@@ -535,6 +536,7 @@ async function fetchBorrowerAccountsWithSchedules(borrowerId: string) {
         nextCollectionStatus: nextUnpaid?.status ?? null,
         nextUnpaidScheduleId: nextUnpaid?.id ?? null,
         nextCollections,
+        installments: installmentDots(rows),
         overdueCount: overdueRows.length,
         overdueTotal: overdueRows.reduce(
           (sum, row) => sum + remainingOnInstallment(row),
@@ -710,7 +712,9 @@ async function fetchUpcomingBorrowersData(
   const [borrowerResult, scheduleResult] = await Promise.all([
     supabase
       .from("borrowers")
-      .select("*, borrower_categories(category:categories(id, name, color)), borrower_notes(count)")
+      .select(
+        "*, borrower_categories(category:categories(id, name, color)), borrower_notes(count)",
+      )
       .in("id", borrowerIds)
       .is("deleted_at", null),
     supabase
