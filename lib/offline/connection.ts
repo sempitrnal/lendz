@@ -9,6 +9,9 @@ export const SLOW_RTT_MS = 1500;
 export const RECOVER_RTT_MS = 900;
 export const PROBE_TIMEOUT_MS = 4000;
 const PROBE_INTERVAL_MS = 15_000;
+/** While the connection isn't good, check this often so a reconnect is
+ * noticed (and the queue flushed) within a few seconds. */
+const RECOVERY_PROBE_MS = 3_000;
 
 export type ProbeResult = { ok: boolean; ms: number; timedOut: boolean };
 
@@ -87,10 +90,7 @@ export function getConnectionQuality(): ConnectionQuality {
  * the page was in the middle of, so callers check this first.
  */
 export function isConnectionGood(): boolean {
-  return (
-    (typeof navigator === "undefined" || navigator.onLine) &&
-    state.quality === "good"
-  );
+  return state.quality === "good";
 }
 
 /** The app's current idea of the connection: good, slow or offline. */
@@ -144,12 +144,20 @@ export function startConnectionMonitor(): () => void {
       navigator as Navigator & { connection?: { effectiveType?: string } }
     ).connection?.effectiveType;
 
-    const result = onLine
-      ? await probe()
-      : { ok: false, ms: 0, timedOut: false };
+    // Probe even when the browser says it's offline: phones often keep
+    // saying so for a while after the network is back, and a reply that
+    // actually arrives is the better witness.
+    const result = await probe();
     if (stopped) return;
-    const reading = classifyProbe(before, result, { onLine, effectiveType });
-    setState(nextConnectionState(state, reading, { immediate: !onLine }));
+    const reading = classifyProbe(before, result, {
+      onLine: result.ok ? undefined : onLine,
+      effectiveType,
+    });
+    setState(
+      nextConnectionState(state, reading, {
+        immediate: !onLine && !result.ok,
+      }),
+    );
     tellWorker({ type: "CONNECTION", quality: state.quality });
 
     // After a change of heart, take a second reading soon rather than
@@ -169,7 +177,18 @@ export function startConnectionMonitor(): () => void {
   };
 
   const onEvent = () => void run(true);
-  const interval = setInterval(() => void run(false), PROBE_INTERVAL_MS);
+  // Unhurried while all is well, brisk while it isn't.
+  let loopTimer: ReturnType<typeof setTimeout> | undefined;
+  const loop = async () => {
+    await run(false);
+    if (stopped) return;
+    const settled = state.quality === "good" && !state.pending;
+    loopTimer = setTimeout(
+      () => void loop(),
+      settled ? PROBE_INTERVAL_MS : RECOVERY_PROBE_MS,
+    );
+  };
+  loopTimer = setTimeout(() => void loop(), PROBE_INTERVAL_MS);
   window.addEventListener("online", onEvent);
   window.addEventListener("offline", onEvent);
   document.addEventListener("visibilitychange", onEvent);
@@ -180,7 +199,7 @@ export function startConnectionMonitor(): () => void {
 
   return () => {
     stopped = true;
-    clearInterval(interval);
+    clearTimeout(loopTimer);
     clearTimeout(stableTimer);
     window.removeEventListener("online", onEvent);
     window.removeEventListener("offline", onEvent);

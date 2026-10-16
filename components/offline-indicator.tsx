@@ -15,7 +15,6 @@ import {
   WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useOnline } from "@/hooks/use-online";
 import {
   isConnectionGood,
   useConnectionQuality,
@@ -46,7 +45,6 @@ const GLASS =
   "border border-border/70 bg-card/85 shadow-lg shadow-black/10 backdrop-blur-xl supports-[backdrop-filter]:bg-card/70 dark:shadow-black/30";
 
 export function OfflineIndicator() {
-  const isOnline = useOnline();
   const quality = useConnectionQuality();
   const reduceMotion = useReducedMotion();
   const router = useRouter();
@@ -151,7 +149,9 @@ export function OfflineIndicator() {
   };
 
   // What the pill says, most urgent first.
-  const offline = !isOnline || quality === "offline";
+  // The connection monitor probes for real, so it outranks the browser's
+  // online flag, which phones are slow to flip back.
+  const offline = quality === "offline";
 
   // While changes are waiting and the connection is good, keep nudging the
   // worker; a replay that lost a race or hit a blip would otherwise sit until
