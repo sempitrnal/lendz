@@ -331,15 +331,26 @@ async function enqueueOutbox(request) {
 // An entry that keeps getting a server error is parked after this many tries
 // so it can't block everything queued behind it.
 const MAX_REPLAY_ATTEMPTS = 3;
+const REPLAY_TIMEOUT_MS = 20000;
 let replaying = false;
+let replayAgain = false;
 
 async function replayOutbox() {
   // Several things ask for a replay at once (sync manager, visibility, the
-  // connection monitor). Two running together would send entries twice.
-  if (replaying) return;
+  // connection monitor). Two running together would send entries twice, so
+  // a request that arrives mid-replay runs once more when this one is done.
+  if (replaying) {
+    replayAgain = true;
+    return;
+  }
   replaying = true;
   try {
-    await replayOutboxOnce();
+    do {
+      replayAgain = false;
+      await replayOutboxOnce();
+    } while (replayAgain);
+  } catch {
+    // Retried on the next trigger
   } finally {
     replaying = false;
   }
@@ -383,14 +394,24 @@ async function replayOutboxOnce() {
   for (const entry of entries) {
     if (entry.failed) continue; // parked; the user can retry or clear it
     try {
-      const response = await fetch(
-        new Request(entry.url, {
-          method: entry.method,
-          headers: entry.headers,
-          body: entry.body,
-          credentials: "include",
-        }),
-      );
+      // A request that hangs on a half-alive link must not hold the replay
+      // lock forever, so it gets a deadline.
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REPLAY_TIMEOUT_MS);
+      let response;
+      try {
+        response = await fetch(
+          new Request(entry.url, {
+            method: entry.method,
+            headers: entry.headers,
+            body: entry.body,
+            credentials: "include",
+            signal: controller.signal,
+          }),
+        );
+      } finally {
+        clearTimeout(timer);
+      }
       if (response.status >= 500) {
         const { key, ...stored } = entry;
         const attempts = (stored.attempts ?? 0) + 1;

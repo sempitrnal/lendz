@@ -124,6 +124,20 @@ export function OfflineIndicator() {
 
   // What the pill says, most urgent first.
   const offline = !isOnline || quality === "offline";
+
+  // While changes are waiting and the connection is good, keep nudging the
+  // worker; a replay that lost a race or hit a blip would otherwise sit until
+  // the next 15-minute check.
+  useEffect(() => {
+    if (pending === 0 || offline) return;
+    const nudge = () => {
+      if (isConnectionGood()) replay();
+    };
+    nudge();
+    const id = window.setInterval(nudge, 8000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, offline]);
   const content = offline
     ? {
         key: "offline",
