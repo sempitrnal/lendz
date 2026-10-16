@@ -1,3 +1,5 @@
+import { summarizeOutbox, type QueuedTask } from "@/lib/offline/outbox-labels";
+
 const OUTBOX_DB = "lendz-outbox";
 const OUTBOX_STORE = "requests";
 
@@ -34,19 +36,49 @@ async function withStore<T>(
   }
 }
 
-/** Entries waiting to be sent, and ones parked after repeated server errors. */
-export async function getOutboxStatus(): Promise<{
+/** A checklist item's label from any locally saved day, for naming tasks. */
+function checklistLabel(id: string): string | undefined {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith("lendz-checklist-items:")) continue;
+      const items = JSON.parse(localStorage.getItem(key) ?? "[]") as {
+        id: string;
+        label: string;
+      }[];
+      const hit = items.find((item) => item.id === id);
+      if (hit) return hit.label;
+    }
+  } catch {
+    // Storage unavailable
+  }
+  return undefined;
+}
+
+export type OutboxStatus = {
   pending: number;
   failed: number;
-}> {
+  /** What's queued, oldest first, named for people. */
+  tasks: QueuedTask[];
+};
+
+/** Entries waiting to be sent, and ones parked after repeated server errors. */
+export async function getOutboxStatus(): Promise<OutboxStatus> {
   try {
     const entries = await withStore<OutboxEntry[]>("readonly", (s) =>
       s.getAll(),
     );
     const failed = entries.filter((e) => e.failed).length;
-    return { pending: entries.length - failed, failed };
+    return {
+      pending: entries.length - failed,
+      failed,
+      tasks: summarizeOutbox(
+        entries as unknown as Parameters<typeof summarizeOutbox>[0],
+        checklistLabel,
+      ),
+    };
   } catch {
-    return { pending: 0, failed: 0 };
+    return { pending: 0, failed: 0, tasks: [] };
   }
 }
 
