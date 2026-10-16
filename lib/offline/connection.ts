@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { requestOutboxReplay } from "@/lib/offline/outbox";
 
 export type ConnectionQuality = "good" | "slow" | "offline";
 
@@ -161,7 +162,7 @@ export function startConnectionMonitor(): () => void {
       clearTimeout(stableTimer);
       stableTimer = setTimeout(() => {
         if (state.quality !== "good") return;
-        tellWorker({ type: "REPLAY_OUTBOX" });
+        void requestOutboxReplay();
         tellWorker({ type: "RESUME_PREFETCH" });
       }, 1200);
     }

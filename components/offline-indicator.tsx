@@ -14,6 +14,7 @@ import {
 import {
   clearOutbox,
   getOutboxStatus,
+  requestOutboxReplay,
   retryFailedOutbox,
 } from "@/lib/offline/outbox";
 import { clearAllPendingAccounts } from "@/lib/offline/pending-accounts";
@@ -92,10 +93,7 @@ export function OfflineIndicator() {
     return () => document.removeEventListener("pointerdown", close);
   }, [menuOpen]);
 
-  const replay = () =>
-    navigator.serviceWorker?.ready
-      .then((reg) => reg.active?.postMessage({ type: "REPLAY_OUTBOX" }))
-      .catch(() => {});
+  const replay = () => void requestOutboxReplay();
 
   const retryFailed = async () => {
     await retryFailedOutbox();

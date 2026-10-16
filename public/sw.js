@@ -333,6 +333,27 @@ async function enqueueOutbox(request) {
 const MAX_REPLAY_ATTEMPTS = 3;
 const REPLAY_TIMEOUT_MS = 20000;
 let replaying = false;
+// The page hands over its current access token with each replay request, so
+// a write queued long ago doesn't go out with a token that has expired.
+let replayAccessToken = null;
+
+function replayRequest(entry, signal) {
+  const url = new URL(entry.url);
+  const sameOrigin = url.origin === self.location.origin;
+  const headers = { ...entry.headers };
+  if (!sameOrigin && replayAccessToken && headers.authorization) {
+    headers.authorization = `Bearer ${replayAccessToken}`;
+  }
+  return new Request(entry.url, {
+    method: entry.method,
+    headers,
+    body: entry.body,
+    // Supabase answers CORS with a wildcard origin, which browsers refuse for
+    // a credentialed request; it authenticates by header anyway.
+    credentials: sameOrigin ? "include" : "omit",
+    signal,
+  });
+}
 let replayAgain = false;
 
 async function replayOutbox() {
@@ -400,15 +421,7 @@ async function replayOutboxOnce() {
       const timer = setTimeout(() => controller.abort(), REPLAY_TIMEOUT_MS);
       let response;
       try {
-        response = await fetch(
-          new Request(entry.url, {
-            method: entry.method,
-            headers: entry.headers,
-            body: entry.body,
-            credentials: "include",
-            signal: controller.signal,
-          }),
-        );
+        response = await fetch(replayRequest(entry, controller.signal));
       } finally {
         clearTimeout(timer);
       }
@@ -477,6 +490,9 @@ self.addEventListener("message", (event) => {
   } else if (type === "RESUME_PREFETCH") {
     event.waitUntil(drainPrefetchQueue());
   } else if (type === "REPLAY_OUTBOX") {
+    if (typeof event.data.accessToken === "string") {
+      replayAccessToken = event.data.accessToken;
+    }
     event.waitUntil(replayOutbox());
   }
 });

@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useOnline } from "@/hooks/use-online";
 import { warmChecklistCache } from "@/lib/checklist/offline-cache";
+import { requestOutboxReplay } from "@/lib/offline/outbox";
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often to check while app is open
 const LAST_SYNC_HASH_KEY = "lendz-offline-sync-hash";
@@ -67,7 +68,7 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
 
     const tick = async () => {
       // Flush the mutation outbox and resume any interrupted prefetch pass
-      postToWorker({ type: "REPLAY_OUTBOX" });
+      void requestOutboxReplay();
       postToWorker({ type: "RESUME_PREFETCH" });
       void warmChecklistCache().catch(() => {});
 
@@ -117,7 +118,7 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
       if (document.visibilityState === "hidden") {
         postToWorker({ type: "PAUSE_PREFETCH" });
       } else {
-        postToWorker({ type: "REPLAY_OUTBOX" });
+        void requestOutboxReplay();
         postToWorker({ type: "RESUME_PREFETCH" });
       }
     };

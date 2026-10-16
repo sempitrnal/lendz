@@ -84,3 +84,31 @@ export async function retryFailedOutbox(): Promise<void> {
     db.close();
   }
 }
+
+/**
+ * Asks the service worker to send what's queued now, passing along the
+ * current access token so old writes don't replay with an expired one.
+ */
+export async function requestOutboxReplay() {
+  if (!("serviceWorker" in navigator)) return;
+  let accessToken: string | undefined;
+  try {
+    // Loaded lazily so modules that only ask for a replay stay light.
+    const { supabase } = await import("@/lib/supabase/client");
+    const { data } = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 4000),
+      ),
+    ]);
+    accessToken = data.session?.access_token;
+  } catch {
+    // Replay with the tokens stored on each entry
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    reg.active?.postMessage({ type: "REPLAY_OUTBOX", accessToken });
+  } catch {
+    // No worker
+  }
+}
