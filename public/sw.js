@@ -333,7 +333,9 @@ self.addEventListener("message", (event) => {
     const urls = event.data.urls;
     if (!Array.isArray(urls)) return;
     event.waitUntil(
-      seedPrefetchQueue(urls, event.data.hash).then(() => drainPrefetchQueue()),
+      seedPrefetchQueue(urls, event.data.hash, event.data.force === true).then(
+        () => drainPrefetchQueue(),
+      ),
     );
   } else if (type === "RESUME_PREFETCH") {
     event.waitUntil(drainPrefetchQueue());
@@ -395,7 +397,7 @@ function getQueuedUrls(db) {
 // changed, but only URLs missing from the cache are queued: new entities
 // get fetched, already-cached pages are left alone, and URLs that failed a
 // previous pass are retried for free since they're simply absent.
-async function seedPrefetchQueue(urls, hash) {
+async function seedPrefetchQueue(urls, hash, force = false) {
   const db = await openPrefetchDb();
   try {
     const meta = await getPrefetchMeta(db);
@@ -403,7 +405,10 @@ async function seedPrefetchQueue(urls, hash) {
 
     const cache = await caches.open(PAGES_CACHE);
     const cached = new Set((await cache.keys()).map((r) => r.url));
+    // `force` (a new app version) refetches everything: cached pages from the
+    // old version would otherwise keep serving the old UI offline.
     const missing = urls.filter((url) => {
+      if (force) return true;
       const absolute = new URL(url, self.location.origin).toString();
       if (!cached.has(absolute)) return true;
       if (absolute.includes("/api/")) return false;
@@ -428,6 +433,7 @@ async function seedPrefetchQueue(urls, hash) {
           key: "current",
           hash,
           total: missing.length,
+          force,
         });
         return tx;
       })(),
@@ -493,7 +499,13 @@ async function drainPrefetchQueue() {
             .objectStore(PREFETCH_META)
             .delete("current").transaction,
         );
-        notifyClients({ type: "PREFETCH_DONE", hash: meta.hash });
+        notifyClients({
+          type: "PREFETCH_DONE",
+          hash: meta.hash,
+          // Lets the page tell a worker that honoured `force` from an older
+          // one that ignored it.
+          forced: meta.force === true,
+        });
       }
     } finally {
       db.close();

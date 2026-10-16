@@ -7,6 +7,9 @@ import { warmChecklistCache } from "@/lib/checklist/offline-cache";
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often to check while app is open
 const LAST_SYNC_HASH_KEY = "lendz-offline-sync-hash";
+/** The app version the cached pages were last downloaded for. */
+const SYNCED_BUILD_KEY = "lendz-offline-synced-build";
+const BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? "dev";
 
 const STATIC_ROUTES = [
   "/offline",
@@ -46,6 +49,8 @@ function postToWorker(message: Record<string, unknown>) {
 export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
   const isOnline = useOnline();
   const pendingHash = useRef<string | null>(null);
+  /** True while a pass that must replace old-build pages is outstanding. */
+  const needsForce = useRef(false);
 
   useEffect(() => {
     if (!enabled || !isOnline) return;
@@ -57,7 +62,12 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
     // empty — until then each tick re-posts the list and the drain resumes.
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === "PREFETCH_DONE" && event.data.hash) {
+        // A worker from before this build ignores `force`, so its "done"
+        // doesn't count: leave it unrecorded and the next tick asks again.
+        if (needsForce.current && !event.data.forced) return;
         localStorage.setItem(LAST_SYNC_HASH_KEY, String(event.data.hash));
+        localStorage.setItem(SYNCED_BUILD_KEY, BUILD_ID);
+        needsForce.current = false;
         if (pendingHash.current === event.data.hash) {
           pendingHash.current = null;
         }
@@ -97,11 +107,20 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
         // Visited pages refresh themselves via the SW's network-first
         // strategy, so periodic full recaches would just burn Supabase
         // requests re-rendering pages nobody looks at.
-        const listHash = hashUrlList(urls);
-        if (localStorage.getItem(LAST_SYNC_HASH_KEY) === listHash) return;
+        // The build is part of the hash so a new deploy always starts a pass,
+        // and `force` makes that pass replace pages cached by the old build.
+        const listHash = hashUrlList([BUILD_ID, ...urls]);
+        if (
+          localStorage.getItem(LAST_SYNC_HASH_KEY) === listHash &&
+          localStorage.getItem(SYNCED_BUILD_KEY) === BUILD_ID
+        ) {
+          return;
+        }
 
         pendingHash.current = listHash;
-        postToWorker({ type: "PREFETCH_URLS", urls, hash: listHash });
+        const force = localStorage.getItem(SYNCED_BUILD_KEY) !== BUILD_ID;
+        needsForce.current = force;
+        postToWorker({ type: "PREFETCH_URLS", urls, hash: listHash, force });
       } catch {
         // Queries failed — retry on next tick
       }
