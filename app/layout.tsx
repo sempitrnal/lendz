@@ -5,6 +5,7 @@ import MobileTopBar from "@/components/mobile-top-bar";
 import { ScrollRestoration } from "@/components/scroll-restoration";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 import { OfflineSyncManager } from "@/components/offline-sync-manager";
+import { ConnectionMonitor } from "@/components/connection-monitor";
 import { OfflineIndicator } from "@/components/offline-indicator";
 import { ThemeProvider } from "./providers";
 import "./globals.css";
@@ -53,6 +54,7 @@ export default async function RootLayout({
             <ScrollRestoration />
           </Suspense>
           <ServiceWorkerRegistrar />
+          <ConnectionMonitor />
           <OfflineSyncManager enabled={Boolean(user)} />
           <OfflineIndicator />
 

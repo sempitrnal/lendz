@@ -26,6 +26,11 @@ const PREFETCH_STALL_MS = 25000;
 // With a saved copy of a page, stop waiting on a slow network after this long.
 const STALE_AFTER_MS = 5000;
 
+// The page's reading of the connection ("good" | "slow" | "offline"), sent by
+// its monitor. While it isn't "good" the worker queues edits instead of
+// sending them and serves saved copies instead of waiting on the network.
+let connectionQuality = "good";
+
 let prefetchDraining = false;
 // Bumped to retire a running drain (pause, or a stalled one being replaced).
 let prefetchToken = 0;
@@ -70,6 +75,11 @@ self.addEventListener("fetch", (event) => {
 
   if (!url.protocol.startsWith("http")) return;
 
+  // The connection probe is timed by the page: never cache or queue it.
+  if (url.origin === self.location.origin && url.pathname === "/api/ping") {
+    return;
+  }
+
   // Non-GET: queue mutations that fail while offline instead of dropping them
   if (request.method !== "GET") {
     if (isQueueableMutation(request, url)) {
@@ -95,7 +105,7 @@ self.addEventListener("fetch", (event) => {
       url.pathname.startsWith("/rest/v1/") ||
       url.pathname.startsWith("/storage/v1/")
     ) {
-      event.respondWith(networkFirst(request, DATA_CACHE));
+      event.respondWith(networkFirst(request, DATA_CACHE, event));
     }
     return;
   }
@@ -156,11 +166,16 @@ async function networkFirstPage(request, event) {
     if (!cached) return await fetchFresh();
 
     // A saved copy exists: a stalled connection (common right after the phone
-    // was backgrounded) must not hold the page hostage. Show the saved copy
-    // if the network hasn't answered in a few seconds, and let the request
-    // keep going to refresh the cache.
+    // was backgrounded) must not hold the page hostage. When the connection
+    // isn't good, show the saved copy straight away; otherwise give the
+    // network a few seconds first. Either way the request keeps going to
+    // refresh the cache.
     const fresh = fetchFresh();
     fresh.catch(() => {});
+    if (connectionQuality !== "good") {
+      event?.waitUntil?.(fresh.catch(() => {}));
+      return cached;
+    }
     const winner = await Promise.race([
       fresh,
       new Promise((resolve) => setTimeout(() => resolve(null), STALE_AFTER_MS)),
@@ -186,17 +201,36 @@ async function networkFirstPage(request, event) {
   }
 }
 
-async function networkFirst(request, cacheName) {
+async function networkFirst(request, cacheName, event) {
   const cache = await caches.open(cacheName);
 
-  try {
+  const fetchFresh = async () => {
     const response = await fetch(request);
     if (response.ok && !response.redirected) {
       await safePut(cache, request, response.clone());
     }
     return response;
+  };
+
+  const cached = await cache.match(request);
+  try {
+    if (!cached) return await fetchFresh();
+
+    // Same as pages: with a saved copy, don't sit on a slow network.
+    const fresh = fetchFresh();
+    fresh.catch(() => {});
+    if (connectionQuality !== "good") {
+      event?.waitUntil?.(fresh.catch(() => {}));
+      return cached;
+    }
+    const winner = await Promise.race([
+      fresh,
+      new Promise((resolve) => setTimeout(() => resolve(null), STALE_AFTER_MS)),
+    ]);
+    if (winner) return winner;
+    event?.waitUntil?.(fresh.catch(() => {}));
+    return cached;
   } catch {
-    const cached = await cache.match(request);
     if (cached) return cached;
 
     if (request.mode === "navigate") {
@@ -231,21 +265,29 @@ function isQueueableMutation(request, url) {
   return false;
 }
 
+async function queueRequest(clone) {
+  try {
+    await enqueueOutbox(clone);
+    notifyClients({ type: "OUTBOX_QUEUED" });
+  } catch {
+    // IndexedDB unavailable — fall through to plain failure
+  }
+  return new Response(JSON.stringify({ offline_queued: true }), {
+    status: 503,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 async function fetchOrQueue(request) {
   const clone = request.clone();
+  // Slow or offline: don't send it at all. Sending over a bad link risks it
+  // landing twice (once now, once on replay) or hanging; queued, it goes out
+  // exactly once when the connection is good again.
+  if (connectionQuality !== "good") return queueRequest(clone);
   try {
     return await fetch(request);
   } catch {
-    try {
-      await enqueueOutbox(clone);
-      notifyClients({ type: "OUTBOX_QUEUED" });
-    } catch {
-      // IndexedDB unavailable — fall through to plain failure
-    }
-    return new Response(JSON.stringify({ offline_queued: true }), {
-      status: 503,
-      headers: { "Content-Type": "application/json" },
-    });
+    return queueRequest(clone);
   }
 }
 
@@ -365,6 +407,9 @@ self.addEventListener("message", (event) => {
     event.waitUntil(
       seedPrefetchQueue(urls, event.data.hash).then(() => drainPrefetchQueue()),
     );
+  } else if (type === "CONNECTION") {
+    const q = event.data.quality;
+    connectionQuality = q === "slow" || q === "offline" ? q : "good";
   } else if (type === "PAUSE_PREFETCH") {
     pausePrefetch();
   } else if (type === "RESUME_PREFETCH") {
