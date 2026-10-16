@@ -387,11 +387,8 @@ export default function AccountForm({
       toast.info(
         "Saved offline — the account will be created when your connection is back.",
       );
-      try {
-        router.refresh();
-      } catch {
-        // Offline refresh can fail; the pending copy is already stored
-      }
+      // No router.refresh() here: offline it can turn into a full page reload
+      // that wipes out whatever happens next (like ticking the checklist item).
       if (redirectOnCreate) router.push(`/borrowers/${values.borrower_id}`);
       onSuccess?.();
       return;

@@ -4,11 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { CloudUpload, SignalLow, WifiOff } from "lucide-react";
+import { CloudUpload, SignalLow, TriangleAlert, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { useOnline } from "@/hooks/use-online";
-import { useConnectionQuality } from "@/lib/offline/connection";
-import { getPendingOutboxCount } from "@/lib/offline/outbox";
+import {
+  isConnectionGood,
+  useConnectionQuality,
+} from "@/lib/offline/connection";
+import {
+  clearOutbox,
+  getOutboxStatus,
+  retryFailedOutbox,
+} from "@/lib/offline/outbox";
+import { clearAllPendingAccounts } from "@/lib/offline/pending-accounts";
 
 export function OfflineIndicator() {
   const isOnline = useOnline();
@@ -16,14 +24,16 @@ export function OfflineIndicator() {
   const reduceMotion = useReducedMotion();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [pending, setPending] = useState(0);
+  const [{ pending, failed }, setOutbox] = useState({ pending: 0, failed: 0 });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const [caching, setCaching] = useState<{
     done: number;
     total: number;
   } | null>(null);
 
   const refreshCount = useCallback(() => {
-    getPendingOutboxCount().then(setPending);
+    getOutboxStatus().then(setOutbox);
   }, []);
 
   useEffect(() => {
@@ -69,6 +79,49 @@ export function OfflineIndicator() {
     };
   }, [refreshCount, queryClient, router]);
 
+  // Close the menu when something else is tapped.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement).closest("[data-queue-menu]")) {
+        setMenuOpen(false);
+        setConfirmClear(false);
+      }
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [menuOpen]);
+
+  const replay = () =>
+    navigator.serviceWorker?.ready
+      .then((reg) => reg.active?.postMessage({ type: "REPLAY_OUTBOX" }))
+      .catch(() => {});
+
+  const retryFailed = async () => {
+    await retryFailedOutbox();
+    refreshCount();
+    void replay();
+    toast.info("Trying the stuck changes again.");
+  };
+
+  const clearQueue = async () => {
+    if (!confirmClear) {
+      setConfirmClear(true);
+      return;
+    }
+    const count = pending + failed;
+    await clearOutbox();
+    clearAllPendingAccounts();
+    refreshCount();
+    setMenuOpen(false);
+    setConfirmClear(false);
+    toast.success(
+      `Cleared ${count} queued change${count === 1 ? "" : "s"} from this device.`,
+    );
+    queryClient.invalidateQueries();
+    if (isConnectionGood()) router.refresh();
+  };
+
   // What the pill says, most urgent first.
   const offline = !isOnline || quality === "offline";
   const content = offline
@@ -96,56 +149,153 @@ export function OfflineIndicator() {
             icon: <CloudUpload className="size-3.5" />,
             text: `Syncing ${pending} change${pending === 1 ? "" : "s"}…`,
           }
-        : caching
+        : failed > 0
           ? {
-              key: "caching",
-              icon: <CloudUpload className="size-3.5" />,
-              text: `Caching pages ${caching.done}/${caching.total}…`,
+              key: "failed",
+              icon: <TriangleAlert className="size-3.5" />,
+              text: `${failed} change${failed === 1 ? "" : "s"} couldn't sync`,
             }
-          : null;
+          : caching
+            ? {
+                key: "caching",
+                icon: <CloudUpload className="size-3.5" />,
+                text: `Caching pages ${caching.done}/${caching.total}…`,
+              }
+            : null;
+  // Only a pill that is about queued changes opens the menu.
+  const interactive = pending > 0 || failed > 0;
 
   // Appears and leaves with a soft slide, and the words crossfade as the state
   // changes, so a connection that wobbles never makes the pill jump.
   return (
-    <AnimatePresence>
-      {content && (
-        <motion.div
-          key="status-pill"
-          role="status"
-          layout
-          initial={reduceMotion ? false : { opacity: 0, y: 14, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={
-            reduceMotion
-              ? undefined
-              : {
-                  opacity: 0,
-                  y: 10,
-                  scale: 0.97,
-                  transition: { duration: 0.2 },
-                }
-          }
-          transition={{ type: "spring", stiffness: 380, damping: 32 }}
-          className="fixed bottom-16 right-4 z-50 flex items-center gap-2
-            overflow-hidden rounded-full border-2 border-slate-900 bg-amber-100
-            px-3 py-1.5 text-xs font-bold text-slate-900
-            shadow-[3px_3px_0px_0px_#0f172a] sm:bottom-4"
-        >
-          <AnimatePresence mode="popLayout" initial={false}>
-            <motion.span
-              key={content.key}
-              className="flex items-center gap-2"
-              initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
-              transition={{ duration: 0.2 }}
-            >
-              {content.icon}
-              <span>{content.text}</span>
-            </motion.span>
-          </AnimatePresence>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div
+      data-queue-menu
+      className="fixed right-4 bottom-16 z-50 flex flex-col items-end gap-2
+        sm:bottom-4"
+    >
+      <AnimatePresence>
+        {menuOpen && interactive && (
+          <motion.div
+            key="queue-menu"
+            initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={
+              reduceMotion
+                ? undefined
+                : { opacity: 0, y: 6, transition: { duration: 0.15 } }
+            }
+            transition={{ type: "spring", stiffness: 420, damping: 34 }}
+            className="w-64 rounded-2xl border-2 border-slate-900 bg-white p-3
+              text-slate-900 shadow-[3px_3px_0px_0px_#0f172a] dark:bg-slate-900
+              dark:text-slate-100"
+          >
+            <p className="text-xs font-bold">
+              {pending} waiting
+              {failed > 0 ? ` · ${failed} couldn't sync` : ""}
+            </p>
+            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+              These edits are saved on this device and haven&apos;t reached the
+              server yet.
+            </p>
+            <div className="mt-3 flex flex-col gap-1.5">
+              {pending > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void replay()}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5
+                    text-left text-xs font-semibold hover:bg-slate-50
+                    dark:border-slate-700 dark:hover:bg-slate-800"
+                >
+                  Sync now
+                </button>
+              )}
+              {failed > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void retryFailed()}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5
+                    text-left text-xs font-semibold hover:bg-slate-50
+                    dark:border-slate-700 dark:hover:bg-slate-800"
+                >
+                  Try the stuck ones again
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void clearQueue()}
+                className={`rounded-lg border px-3 py-1.5 text-left text-xs
+                font-semibold transition-colors ${
+                  confirmClear
+                    ? "border-rose-500 bg-rose-500 text-white"
+                    : `border-rose-300 text-rose-700 hover:bg-rose-50
+                      dark:border-rose-800 dark:text-rose-300
+                      dark:hover:bg-rose-950/40`
+                }`}
+              >
+                {confirmClear
+                  ? `Tap again to discard ${pending + failed} change${pending + failed === 1 ? "" : "s"}`
+                  : "Clear queue"}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {content && (
+          <motion.div
+            key="status-pill"
+            role={interactive ? "button" : "status"}
+            tabIndex={interactive ? 0 : undefined}
+            aria-expanded={interactive ? menuOpen : undefined}
+            onClick={() => {
+              if (!interactive) return;
+              setMenuOpen((v) => !v);
+              setConfirmClear(false);
+            }}
+            onKeyDown={(e) => {
+              if (interactive && (e.key === "Enter" || e.key === " ")) {
+                e.preventDefault();
+                setMenuOpen((v) => !v);
+                setConfirmClear(false);
+              }
+            }}
+            layout
+            initial={reduceMotion ? false : { opacity: 0, y: 14, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={
+              reduceMotion
+                ? undefined
+                : {
+                    opacity: 0,
+                    y: 10,
+                    scale: 0.97,
+                    transition: { duration: 0.2 },
+                  }
+            }
+            transition={{ type: "spring", stiffness: 380, damping: 32 }}
+            className={`flex items-center gap-2 overflow-hidden rounded-full
+            border-2 border-slate-900 bg-amber-100 px-3 py-1.5 text-xs font-bold
+            text-slate-900 shadow-[3px_3px_0px_0px_#0f172a] ${
+              interactive ? "cursor-pointer" : ""
+            }`}
+          >
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={content.key}
+                className="flex items-center gap-2"
+                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
+              >
+                {content.icon}
+                <span>{content.text}</span>
+              </motion.span>
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

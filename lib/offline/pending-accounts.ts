@@ -65,3 +65,17 @@ export function subscribePendingAccounts(listener: () => void) {
     window.removeEventListener("storage", listener);
   };
 }
+
+/** Forgets every locally kept pending account (used when the queue is cleared). */
+export function clearAllPendingAccounts() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key?.startsWith("lendz-pending-accounts:"))
+        localStorage.removeItem(key);
+    }
+  } catch {
+    // Storage unavailable
+  }
+  window.dispatchEvent(new Event(EVENT));
+}

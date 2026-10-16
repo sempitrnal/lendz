@@ -79,6 +79,7 @@ import {
   writeCachedItems,
 } from "@/lib/checklist/offline-cache";
 import { getPendingOutboxCount } from "@/lib/offline/outbox";
+import { isConnectionGood } from "@/lib/offline/connection";
 import { warmScheduleCache } from "@/lib/checklist/schedule-cache";
 import {
   formatLongDate,
@@ -896,7 +897,7 @@ function CategorySection({
                   setReleasedAccount(null);
                   onToggle(item);
                   await invalidateBorrowerDetails(parsed.borrowerId);
-                  router.refresh();
+                  if (isConnectionGood()) router.refresh();
                 }}
               />
               <Button

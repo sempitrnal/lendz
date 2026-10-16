@@ -80,6 +80,18 @@ export function getConnectionQuality(): ConnectionQuality {
   return state.quality;
 }
 
+/**
+ * Whether a server round trip is worth trying. `router.refresh()` on a dead
+ * or crawling link can end in a full page reload, which throws away whatever
+ * the page was in the middle of, so callers check this first.
+ */
+export function isConnectionGood(): boolean {
+  return (
+    (typeof navigator === "undefined" || navigator.onLine) &&
+    state.quality === "good"
+  );
+}
+
 /** The app's current idea of the connection: good, slow or offline. */
 export function useConnectionQuality(): ConnectionQuality {
   return useSyncExternalStore(subscribe, getConnectionQuality, () => "good");

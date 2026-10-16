@@ -328,7 +328,33 @@ async function enqueueOutbox(request) {
   }
 }
 
+// An entry that keeps getting a server error is parked after this many tries
+// so it can't block everything queued behind it.
+const MAX_REPLAY_ATTEMPTS = 3;
+let replaying = false;
+
 async function replayOutbox() {
+  // Several things ask for a replay at once (sync manager, visibility, the
+  // connection monitor). Two running together would send entries twice.
+  if (replaying) return;
+  replaying = true;
+  try {
+    await replayOutboxOnce();
+  } finally {
+    replaying = false;
+  }
+}
+
+function updateOutboxEntry(db, key, value) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(OUTBOX_STORE, "readwrite");
+    tx.objectStore(OUTBOX_STORE).put(value, key);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function replayOutboxOnce() {
   const db = await openOutboxDb();
   let entries;
   try {
@@ -355,6 +381,7 @@ async function replayOutbox() {
   let synced = 0;
   let failed = 0;
   for (const entry of entries) {
+    if (entry.failed) continue; // parked; the user can retry or clear it
     try {
       const response = await fetch(
         new Request(entry.url, {
@@ -365,6 +392,20 @@ async function replayOutbox() {
         }),
       );
       if (response.status >= 500) {
+        const { key, ...stored } = entry;
+        const attempts = (stored.attempts ?? 0) + 1;
+        if (attempts >= MAX_REPLAY_ATTEMPTS) {
+          // Keeps failing (e.g. a server action from an older deploy): park
+          // it and carry on, instead of blocking the queue behind it forever.
+          await updateOutboxEntry(db, key, {
+            ...stored,
+            attempts,
+            failed: true,
+          });
+          failed += 1;
+          continue;
+        }
+        await updateOutboxEntry(db, key, { ...stored, attempts });
         break; // Server down — retry later, preserve remaining order
       }
       await deleteOutboxEntry(db, entry.key);

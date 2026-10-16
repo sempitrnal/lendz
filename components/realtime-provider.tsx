@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
 import { BORROWERS_SEARCH_KEY } from "@/hooks/use-borrowers-search";
 import { refreshCachedAccounts } from "@/lib/checklist/schedule-cache";
+import { isConnectionGood } from "@/lib/offline/connection";
 
 const REALTIME_TABLES = [
   "accounts",
@@ -44,7 +45,8 @@ export default function RealtimeProvider({
         window.clearTimeout(refreshTimerRef.current);
       }
       refreshTimerRef.current = window.setTimeout(() => {
-        router.refresh();
+        // On a dead or crawling link a refresh can end in a full page reload.
+        if (isConnectionGood()) router.refresh();
       }, 300);
     };
 
@@ -121,13 +123,14 @@ export default function RealtimeProvider({
     });
 
     const onVisible = () => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === "visible" && isConnectionGood()) {
         router.refresh();
       }
     };
     document.addEventListener("visibilitychange", onVisible);
 
-    const onOnline = () => refresh();
+    // Give the connection monitor a moment to confirm the link is good again.
+    const onOnline = () => window.setTimeout(refresh, 1500);
     window.addEventListener("online", onOnline);
 
     // Fallback polling for pages where schedule/borrower data must stay current
