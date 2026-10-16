@@ -12,14 +12,12 @@ const SHARED_TAGS = [
   "next-collection",
 ];
 
-// Schedules become overdue only after a 1-day grace period past due_date.
+// No grace period: a pending schedule becomes overdue as soon as its
+// due_date is before today (Manila), i.e. on the first run after it passes.
 function overdueCutoff() {
-  const manilaToday = new Date().toLocaleDateString("en-CA", {
+  return new Date().toLocaleDateString("en-CA", {
     timeZone: "Asia/Manila",
   });
-  const cutoff = new Date(`${manilaToday}T00:00:00Z`);
-  cutoff.setUTCDate(cutoff.getUTCDate() - 1);
-  return cutoff.toISOString().slice(0, 10);
 }
 
 export async function markOverdueSchedules() {

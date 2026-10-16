@@ -435,7 +435,7 @@ export function ScheduleCheckDialog({
           }
         }),
         // Same reset as the account page's "pending": clears what was paid
-        // and its payment records. Past the grace day it is overdue instead.
+        // and its payment records. Once past its due date it is overdue instead.
         ...undoRows.map((row) => {
           const fd = new FormData();
           fd.set("scheduleId", row.id);

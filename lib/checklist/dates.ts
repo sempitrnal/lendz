@@ -2,10 +2,12 @@ export function todayDateValue() {
   return new Date().toLocaleDateString("en-CA");
 }
 
+/**
+ * Schedules due before this date count as overdue (no grace period), matching
+ * the overnight job that flips pending schedules to overdue.
+ */
 export function overdueCutoffDateValue() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toLocaleDateString("en-CA");
+  return todayDateValue();
 }
 
 function parseDateValue(value: string) {
