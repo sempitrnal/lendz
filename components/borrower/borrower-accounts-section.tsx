@@ -1208,6 +1208,10 @@ export default function BorrowerAccountsSection({
                   <motion.div
                     key={account.id}
                     variants={cardVariants}
+                    // Each row animates itself: one added after the section
+                    // has scrolled into view would otherwise stay hidden.
+                    initial="hidden"
+                    animate="visible"
                     className="flex items-center gap-3 rounded-lg border
                       border-slate-200 bg-slate-50 px-3 py-2 opacity-60
                       grayscale transition-all duration-200
