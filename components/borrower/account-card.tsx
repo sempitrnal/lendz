@@ -378,14 +378,16 @@ export function AccountCard({
     }
   }
 
-  const statusDot =
-    account.status === "active"
+  const statusDot = account.pendingSync
+    ? "bg-sky-400"
+    : account.status === "active"
       ? "bg-emerald-500"
       : account.status === "pending"
         ? "bg-amber-400"
         : "bg-slate-400";
-  const statusText =
-    account.status === "active"
+  const statusText = account.pendingSync
+    ? "text-sky-700 dark:text-sky-300"
+    : account.status === "active"
       ? "text-emerald-700 dark:text-emerald-300"
       : account.status === "pending"
         ? "text-amber-700 dark:text-amber-300"
@@ -515,8 +517,17 @@ export function AccountCard({
                           pending
                         </span>
                       )}
+                      {account.pendingSync && (
+                        <span
+                          className="rounded-full bg-sky-100 px-2 py-0.5
+                            text-[10px] font-bold text-sky-700
+                            dark:bg-sky-900/40 dark:text-sky-200"
+                        >
+                          syncing
+                        </span>
+                      )}
                     </div>
-                    {!isPending && (
+                    {!isPending && !account.pendingSync && (
                       <p className="flex shrink-0 items-center gap-1.5 text-sm">
                         <span
                           className="rounded-md bg-yellow-100 px-1.5 py-0.5
@@ -613,7 +624,7 @@ export function AccountCard({
                       <span
                         className={`size-[7px] rounded-full ${statusDot}`}
                       />
-                      {account.status}
+                      {account.pendingSync ? "syncing…" : account.status}
                     </span>
                     {onToggleExpand && (
                       <button
@@ -689,7 +700,7 @@ export function AccountCard({
                 )}
 
                 {/* Where the account stands */}
-                {(!isPending || totalDue > 0) && (
+                {(!isPending || totalDue > 0) && !account.pendingSync && (
                   <div className="mt-3 space-y-2.5">
                     {!isPending && (
                       <div className="grid grid-cols-3 gap-2">

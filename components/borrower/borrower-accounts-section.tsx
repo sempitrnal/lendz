@@ -46,6 +46,12 @@ const NotesCanvas = dynamic(() => import("./notes-canvas"), { ssr: false });
 import ActivateAccountDialog from "./activate-account-dialog";
 import { AccountCard } from "./account-card";
 import type { InstallmentDot } from "@/lib/payment-schedule/installment-dots";
+import {
+  prunePendingAccounts,
+  readPendingAccounts,
+  subscribePendingAccounts,
+  type PendingAccount,
+} from "@/lib/offline/pending-accounts";
 import { motion } from "framer-motion";
 import { StickyBorrowerStrip } from "./sticky-borrower-strip";
 import SortableNotesGrid from "./sortable-notes-grid";
@@ -183,6 +189,8 @@ export type AccountRow = AccountEditableRow & {
   first_payment_date: string | null;
   deleted_at?: string | null;
   created_at?: string | null;
+  /** Created while offline or on a slow connection; not on the server yet. */
+  pendingSync?: boolean;
 };
 export type AccountComputedMetrics = {
   amountLeftToPay: number;
@@ -223,7 +231,7 @@ type BorrowerAccountsSectionProps = {
 
 export default function BorrowerAccountsSection({
   borrowerId,
-  accounts,
+  accounts: serverAccounts,
   borrower,
   initialMetrics,
   deletedAccounts = [],
@@ -241,6 +249,32 @@ export default function BorrowerAccountsSection({
   }, []);
   const router = useRouter();
   const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
+
+  // Accounts created offline show up right away, tagged as syncing, until the
+  // server's own list includes them.
+  const [pendingAccounts, setPendingAccounts] = useState<PendingAccount[]>([]);
+  useEffect(() => {
+    const load = () => setPendingAccounts(readPendingAccounts(borrowerId));
+    load();
+    return subscribePendingAccounts(load);
+  }, [borrowerId]);
+  useEffect(() => {
+    if (serverAccounts) {
+      prunePendingAccounts(
+        borrowerId,
+        new Set(serverAccounts.map((a) => a.id)),
+      );
+    }
+  }, [serverAccounts, borrowerId]);
+  const accounts = useMemo(() => {
+    if (!serverAccounts) return serverAccounts;
+    const have = new Set(serverAccounts.map((a) => a.id));
+    const extra = pendingAccounts.filter((p) => !have.has(p.id));
+    return extra.length > 0
+      ? [...serverAccounts, ...(extra as unknown as AccountRow[])]
+      : serverAccounts;
+  }, [serverAccounts, pendingAccounts]);
+
   const {
     data: queryData,
     isLoading: isQueryLoading,
@@ -258,7 +292,7 @@ export default function BorrowerAccountsSection({
             contact: borrower.contact,
             created_at: (borrower as any).created_at ?? "",
           },
-          accounts: (accounts as any[]) ?? [],
+          accounts: (serverAccounts as any[]) ?? [],
           metrics: (initialMetrics as any) ?? {},
         }
       : undefined,

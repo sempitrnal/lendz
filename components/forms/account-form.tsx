@@ -20,6 +20,8 @@ import {
   formFieldLabelClassName,
 } from "@/lib/form-field-classes";
 import { supabase } from "@/lib/supabase/client";
+import { wasQueuedOffline } from "@/lib/checklist/offline-cache";
+import { addPendingAccount } from "@/lib/offline/pending-accounts";
 import { Button } from "@/components/ui/button";
 import { Wallet, CheckCircle2 } from "lucide-react";
 import { buildSchedulesPayload } from "@/lib/payment-schedule/build-payload";
@@ -258,19 +260,38 @@ export default function AccountForm({
     }
 
     const isCustomFreq = values.payment_frequency === "custom";
-    const { data: account, error } = await supabase
+    // The id is made here, not by the database, so the schedules and the
+    // calendar event can point at the account even when the insert is only
+    // queued (slow or no connection) and nothing comes back.
+    const accountPayload = {
+      id: crypto.randomUUID(),
+      ...values,
+      first_payment_date: values.first_payment_date || null,
+      term_months: values.term_months || null,
+      term_installments: isCustomFreq ? values.term_months : null,
+      release_date: values.release_date || null,
+    };
+    const { data: inserted, error } = await supabase
       .from("accounts")
-      .insert({
-        ...values,
-        first_payment_date: values.first_payment_date || null,
-        term_months: values.term_months || null,
-        term_installments: isCustomFreq ? values.term_months : null,
-        release_date: values.release_date || null,
-      })
+      .insert(accountPayload)
       .select()
       .single();
 
-    if (error || !account) {
+    // Queued requests replay in order once the connection is good, so the
+    // account goes first and what depends on it follows.
+    let queued = wasQueuedOffline(error);
+    const account = queued ? accountPayload : inserted;
+    // Server actions (audit log, revalidation) can't run offline either; they
+    // were queued too, so a failure there only matters when we're online.
+    const settle = async (fn: () => Promise<unknown>) => {
+      try {
+        await fn();
+      } catch (err) {
+        if (!queued) throw err;
+      }
+    };
+
+    if ((error && !queued) || !account) {
       triggerHaptic("error");
       toast.error(error?.message ?? "Could not create account.");
       return;
@@ -287,7 +308,8 @@ export default function AccountForm({
           amount: values.principal_amount,
           status: "scheduled",
         });
-      if (evtError) {
+      if (wasQueuedOffline(evtError)) queued = true;
+      else if (evtError) {
         triggerHaptic("warning");
         toast.error(
           "Account created but calendar event failed: " + evtError.message,
@@ -302,7 +324,8 @@ export default function AccountForm({
         .from("payment_schedules")
         .insert(schedules);
 
-      if (scheduleError) {
+      if (wasQueuedOffline(scheduleError)) queued = true;
+      else if (scheduleError) {
         triggerHaptic("error");
         toast.error(scheduleError.message);
         return;
@@ -330,29 +353,49 @@ export default function AccountForm({
           remaining_amount: firstDue,
           status: "pending",
         });
-      if (scheduleError) {
+      if (wasQueuedOffline(scheduleError)) queued = true;
+      else if (scheduleError) {
         triggerHaptic("error");
         toast.error(scheduleError.message);
         return;
       }
     }
 
-    await logAuditAction(
-      "account.created",
-      "account",
-      account.id,
-      `Account created (${values.type}, ₱${values.principal_amount.toLocaleString()})`,
-      {
-        type: values.type,
-        principal: values.principal_amount,
-        interest_rate: values.interest_rate,
-        schedule_mode: values.schedule_mode,
-        interest_type: values.interest_type,
-        status: values.status,
-      },
-      account.id,
+    await settle(() =>
+      logAuditAction(
+        "account.created",
+        "account",
+        account.id,
+        `Account created (${values.type}, ₱${values.principal_amount.toLocaleString()})`,
+        {
+          type: values.type,
+          principal: values.principal_amount,
+          interest_rate: values.interest_rate,
+          schedule_mode: values.schedule_mode,
+          interest_type: values.interest_type,
+          status: values.status,
+        },
+        account.id,
+      ),
     );
     reset(emptyDefaults(borrowerId));
+    if (queued) {
+      // Show it on the borrower page now; it's replaced by the real row once
+      // the queued requests have gone through.
+      addPendingAccount(values.borrower_id, accountPayload);
+      triggerHaptic("success");
+      toast.info(
+        "Saved offline — the account will be created when your connection is back.",
+      );
+      try {
+        router.refresh();
+      } catch {
+        // Offline refresh can fail; the pending copy is already stored
+      }
+      if (redirectOnCreate) router.push(`/borrowers/${values.borrower_id}`);
+      onSuccess?.();
+      return;
+    }
     const msg =
       values.status === "pending"
         ? "Pending account created. A calendar event was scheduled for activation."
@@ -377,30 +420,42 @@ export default function AccountForm({
           <div className="mt-1 flex flex-col gap-1 text-sm">
             {borrowerName ? (
               <div className="flex items-center gap-2">
-                <span className="text-green-700 dark:text-green-300">Borrower</span>
+                <span className="text-green-700 dark:text-green-300">
+                  Borrower
+                </span>
                 <span className="font-semibold">{borrowerName}</span>
               </div>
             ) : null}
             <div className="flex items-center gap-2">
-              <span className="text-green-700 dark:text-green-300">Principal</span>
+              <span className="text-green-700 dark:text-green-300">
+                Principal
+              </span>
               <span className="font-semibold">
                 {formatMoney(values.principal_amount)}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-green-700 dark:text-green-300">Type</span>
-              <span className="rounded-full bg-green-200 px-2 py-0.5 text-xs font-medium text-green-900 dark:bg-green-900 dark:text-green-100">
+              <span
+                className="rounded-full bg-green-200 px-2 py-0.5 text-xs
+                  font-medium text-green-900 dark:bg-green-900
+                  dark:text-green-100"
+              >
                 {values.type === "cash_advance" ? "Cash advance" : "Loan"}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-green-700 dark:text-green-300">Release date</span>
+              <span className="text-green-700 dark:text-green-300">
+                Release date
+              </span>
               <span className="font-semibold">
                 {formatDate(values.release_date)}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-green-700 dark:text-green-300">First payment</span>
+              <span className="text-green-700 dark:text-green-300">
+                First payment
+              </span>
               <span className="font-semibold">
                 {formatDate(values.first_payment_date)}
               </span>
@@ -410,7 +465,7 @@ export default function AccountForm({
       });
     }
 
-    await revalidateBorrowerDetailPage(values.borrower_id);
+    await settle(() => revalidateBorrowerDetailPage(values.borrower_id));
     router.refresh();
     if (!isEdit && redirectOnCreate) {
       router.push(`/borrowers/${values.borrower_id}`);
