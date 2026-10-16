@@ -46,7 +46,10 @@ export function OfflineIndicator() {
         router.refresh();
       } else if (data?.type === "PREFETCH_PROGRESS") {
         setCaching({ done: data.done, total: data.total });
-      } else if (data?.type === "PREFETCH_DONE") {
+      } else if (
+        data?.type === "PREFETCH_DONE" ||
+        data?.type === "PREFETCH_PAUSED"
+      ) {
         setCaching(null);
       }
     };

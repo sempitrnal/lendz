@@ -7,9 +7,6 @@ import { warmChecklistCache } from "@/lib/checklist/offline-cache";
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often to check while app is open
 const LAST_SYNC_HASH_KEY = "lendz-offline-sync-hash";
-/** The app version the cached pages were last downloaded for. */
-const SYNCED_BUILD_KEY = "lendz-offline-synced-build";
-const BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? "dev";
 
 const STATIC_ROUTES = [
   "/offline",
@@ -49,8 +46,6 @@ function postToWorker(message: Record<string, unknown>) {
 export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
   const isOnline = useOnline();
   const pendingHash = useRef<string | null>(null);
-  /** True while a pass that must replace old-build pages is outstanding. */
-  const needsForce = useRef(false);
 
   useEffect(() => {
     if (!enabled || !isOnline) return;
@@ -62,12 +57,7 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
     // empty — until then each tick re-posts the list and the drain resumes.
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === "PREFETCH_DONE" && event.data.hash) {
-        // A worker from before this build ignores `force`, so its "done"
-        // doesn't count: leave it unrecorded and the next tick asks again.
-        if (needsForce.current && !event.data.forced) return;
         localStorage.setItem(LAST_SYNC_HASH_KEY, String(event.data.hash));
-        localStorage.setItem(SYNCED_BUILD_KEY, BUILD_ID);
-        needsForce.current = false;
         if (pendingHash.current === event.data.hash) {
           pendingHash.current = null;
         }
@@ -107,20 +97,11 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
         // Visited pages refresh themselves via the SW's network-first
         // strategy, so periodic full recaches would just burn Supabase
         // requests re-rendering pages nobody looks at.
-        // The build is part of the hash so a new deploy always starts a pass,
-        // and `force` makes that pass replace pages cached by the old build.
-        const listHash = hashUrlList([BUILD_ID, ...urls]);
-        if (
-          localStorage.getItem(LAST_SYNC_HASH_KEY) === listHash &&
-          localStorage.getItem(SYNCED_BUILD_KEY) === BUILD_ID
-        ) {
-          return;
-        }
+        const listHash = hashUrlList(urls);
+        if (localStorage.getItem(LAST_SYNC_HASH_KEY) === listHash) return;
 
         pendingHash.current = listHash;
-        const force = localStorage.getItem(SYNCED_BUILD_KEY) !== BUILD_ID;
-        needsForce.current = force;
-        postToWorker({ type: "PREFETCH_URLS", urls, hash: listHash, force });
+        postToWorker({ type: "PREFETCH_URLS", urls, hash: listHash });
       } catch {
         // Queries failed — retry on next tick
       }
@@ -128,9 +109,24 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
 
     tick();
     const interval = setInterval(tick, CHECK_INTERVAL_MS);
+
+    // Backgrounding the app freezes in-flight downloads. Stop them cleanly
+    // when the page is hidden (what's left stays queued) and pick the queue
+    // back up the moment it's visible again.
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        postToWorker({ type: "PAUSE_PREFETCH" });
+      } else {
+        postToWorker({ type: "REPLAY_OUTBOX" });
+        postToWorker({ type: "RESUME_PREFETCH" });
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       cancelled = true;
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
       navigator.serviceWorker.removeEventListener("message", onMessage);
     };
   }, [enabled, isOnline]);

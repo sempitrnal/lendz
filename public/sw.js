@@ -16,9 +16,21 @@ const OUTBOX_STORE = "requests";
 const PREFETCH_DB = "lendz-prefetch";
 const PREFETCH_QUEUE = "queue";
 const PREFETCH_META = "meta";
-const PREFETCH_CONCURRENCY = 4;
+const PREFETCH_CONCURRENCY = 2;
+// A prefetch request that hasn't finished by then is dropped (and stays
+// queued), so a connection the phone froze in the background can't hang the
+// pass or keep holding a slot that page loads need.
+const PREFETCH_TIMEOUT_MS = 20000;
+// A drain with no progress for this long is treated as dead and replaced.
+const PREFETCH_STALL_MS = 25000;
+// With a saved copy of a page, stop waiting on a slow network after this long.
+const STALE_AFTER_MS = 5000;
 
 let prefetchDraining = false;
+// Bumped to retire a running drain (pause, or a stalled one being replaced).
+let prefetchToken = 0;
+let prefetchProgressAt = 0;
+let prefetchAbort = new AbortController();
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -126,7 +138,7 @@ async function networkFirstPage(request, event) {
   const cache = await caches.open(PAGES_CACHE);
   const key = pageCacheKey(request);
 
-  try {
+  const fetchFresh = async () => {
     let response = null;
     if (event?.preloadResponse) {
       response = await event.preloadResponse.catch(() => null);
@@ -137,8 +149,26 @@ async function networkFirstPage(request, event) {
       await safePut(cache, key, response.clone());
     }
     return response;
+  };
+
+  const cached = await cache.match(key);
+  try {
+    if (!cached) return await fetchFresh();
+
+    // A saved copy exists: a stalled connection (common right after the phone
+    // was backgrounded) must not hold the page hostage. Show the saved copy
+    // if the network hasn't answered in a few seconds, and let the request
+    // keep going to refresh the cache.
+    const fresh = fetchFresh();
+    fresh.catch(() => {});
+    const winner = await Promise.race([
+      fresh,
+      new Promise((resolve) => setTimeout(() => resolve(null), STALE_AFTER_MS)),
+    ]);
+    if (winner) return winner;
+    event?.waitUntil?.(fresh.catch(() => {}));
+    return cached;
   } catch {
-    const cached = await cache.match(key);
     if (cached) return cached;
 
     if (request.mode === "navigate") {
@@ -333,10 +363,10 @@ self.addEventListener("message", (event) => {
     const urls = event.data.urls;
     if (!Array.isArray(urls)) return;
     event.waitUntil(
-      seedPrefetchQueue(urls, event.data.hash, event.data.force === true).then(
-        () => drainPrefetchQueue(),
-      ),
+      seedPrefetchQueue(urls, event.data.hash).then(() => drainPrefetchQueue()),
     );
+  } else if (type === "PAUSE_PREFETCH") {
+    pausePrefetch();
   } else if (type === "RESUME_PREFETCH") {
     event.waitUntil(drainPrefetchQueue());
   } else if (type === "REPLAY_OUTBOX") {
@@ -397,7 +427,7 @@ function getQueuedUrls(db) {
 // changed, but only URLs missing from the cache are queued: new entities
 // get fetched, already-cached pages are left alone, and URLs that failed a
 // previous pass are retried for free since they're simply absent.
-async function seedPrefetchQueue(urls, hash, force = false) {
+async function seedPrefetchQueue(urls, hash) {
   const db = await openPrefetchDb();
   try {
     const meta = await getPrefetchMeta(db);
@@ -405,10 +435,7 @@ async function seedPrefetchQueue(urls, hash, force = false) {
 
     const cache = await caches.open(PAGES_CACHE);
     const cached = new Set((await cache.keys()).map((r) => r.url));
-    // `force` (a new app version) refetches everything: cached pages from the
-    // old version would otherwise keep serving the old UI offline.
     const missing = urls.filter((url) => {
-      if (force) return true;
       const absolute = new URL(url, self.location.origin).toString();
       if (!cached.has(absolute)) return true;
       if (absolute.includes("/api/")) return false;
@@ -433,7 +460,6 @@ async function seedPrefetchQueue(urls, hash, force = false) {
           key: "current",
           hash,
           total: missing.length,
-          force,
         });
         return tx;
       })(),
@@ -448,15 +474,56 @@ async function seedPrefetchQueue(urls, hash, force = false) {
 // fetched, so a killed worker resumes on activate instead of restarting.
 // Entries whose fetch throws (e.g. went offline) stay queued for the next
 // drain; each entry is attempted at most once per drain call.
+/** Stops the running pass cleanly; what's left stays queued for RESUME. */
+function pausePrefetch() {
+  prefetchAbort.abort();
+  prefetchAbort = new AbortController();
+  prefetchToken += 1;
+  prefetchDraining = false;
+  notifyClients({ type: "PREFETCH_PAUSED" });
+}
+
+// fetch that gives up on timeout or when the pass is paused.
+async function fetchBounded(url, init, signal) {
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  signal.addEventListener("abort", onAbort);
+  const timer = setTimeout(() => controller.abort(), PREFETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      // Page loads come first; this is background work.
+      priority: "low",
+    });
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
+// Always re-fetches and overwrites — this is the periodic recache, not just
+// a fill-missing pass. Each URL is removed from the persisted queue once
+// fetched, so a killed worker resumes on activate instead of restarting.
+// Entries whose fetch throws (e.g. went offline, timed out, paused) stay
+// queued for the next drain; each entry is attempted at most once per drain
+// call. A drain that stops making progress is replaced rather than waited on.
 async function drainPrefetchQueue() {
-  if (prefetchDraining) return;
+  if (prefetchDraining && Date.now() - prefetchProgressAt < PREFETCH_STALL_MS) {
+    return;
+  }
+  const token = ++prefetchToken;
+  const signal = prefetchAbort.signal;
+  const stale = () => token !== prefetchToken || signal.aborted;
   prefetchDraining = true;
+  prefetchProgressAt = Date.now();
   try {
     const db = await openPrefetchDb();
     const cache = await caches.open(PAGES_CACHE);
     const attempted = new Set();
     try {
       for (;;) {
+        if (stale()) return;
         const meta = await getPrefetchMeta(db);
         const queued = await getQueuedUrls(db);
         const total = meta?.total ?? queued.length;
@@ -467,11 +534,13 @@ async function drainPrefetchQueue() {
         notifyClients({ type: "PREFETCH_PROGRESS", done, total });
 
         for (let i = 0; i < remaining.length; i += PREFETCH_CONCURRENCY) {
+          if (stale()) return;
           await Promise.all(
             remaining.slice(i, i + PREFETCH_CONCURRENCY).map(async (entry) => {
               attempted.add(entry.url);
               try {
-                await prefetchOne(cache, entry.url);
+                await prefetchOne(cache, entry.url, signal);
+                if (stale()) return;
                 await idbDone(
                   db
                     .transaction(PREFETCH_QUEUE, "readwrite")
@@ -480,10 +549,12 @@ async function drainPrefetchQueue() {
                 );
                 done += 1;
               } catch {
-                // Network failed — leave queued for the next drain
+                // Network failed, timed out or was paused — leave queued
               }
+              prefetchProgressAt = Date.now();
             }),
           );
+          if (stale()) return;
           notifyClients({ type: "PREFETCH_PROGRESS", done, total });
         }
       }
@@ -492,7 +563,7 @@ async function drainPrefetchQueue() {
       // behind failed mid-pass and stay queued for the next drain.
       const leftover = await getQueuedUrls(db);
       const meta = await getPrefetchMeta(db);
-      if (leftover.length === 0 && meta) {
+      if (!stale() && leftover.length === 0 && meta) {
         await idbDone(
           db
             .transaction(PREFETCH_META, "readwrite")
@@ -502,10 +573,11 @@ async function drainPrefetchQueue() {
         notifyClients({
           type: "PREFETCH_DONE",
           hash: meta.hash,
-          // Lets the page tell a worker that honoured `force` from an older
-          // one that ignored it.
-          forced: meta.force === true,
         });
+      } else if (!stale() && leftover.length > 0) {
+        // Some requests failed or timed out; the pass isn't complete, so the
+        // page's progress pill shouldn't keep claiming it is running.
+        notifyClients({ type: "PREFETCH_PAUSED" });
       }
     } finally {
       db.close();
@@ -513,22 +585,28 @@ async function drainPrefetchQueue() {
   } catch {
     // IndexedDB unavailable — nothing to resume
   } finally {
-    prefetchDraining = false;
+    // Only the current drain may clear the flag (a replaced one must not).
+    if (token === prefetchToken) prefetchDraining = false;
   }
 }
 
-async function prefetchOne(cache, url) {
+async function prefetchOne(cache, url, signal) {
   const absolute = new URL(url, self.location.origin).toString();
-  const response = await fetch(url, { credentials: "same-origin" });
+  const response = await fetchBounded(
+    url,
+    { credentials: "same-origin" },
+    signal,
+  );
   if (response.ok && !response.redirected) {
     await safePut(cache, pageCacheKey(new Request(absolute)), response.clone());
   }
   // Warm the RSC payload too so client-side navigation works offline
   if (!absolute.includes("/api/")) {
-    const rscResponse = await fetch(url, {
-      credentials: "same-origin",
-      headers: { rsc: "1" },
-    });
+    const rscResponse = await fetchBounded(
+      url,
+      { credentials: "same-origin", headers: { rsc: "1" } },
+      signal,
+    );
     if (rscResponse.ok && !rscResponse.redirected) {
       await safePut(
         cache,
