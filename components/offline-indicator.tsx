@@ -136,7 +136,6 @@ export function OfflineIndicator() {
     nudge();
     const id = window.setInterval(nudge, 8000);
     return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending, offline]);
   const content = offline
     ? {
