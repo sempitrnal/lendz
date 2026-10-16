@@ -30,6 +30,8 @@ export async function revalidateBorrowerDetailPage(borrowerId: string) {
   updateTag(`borrower-${borrowerId}`);
   updateTag("borrower-accounts");
   updateTag(`borrower-accounts-${borrowerId}`);
+  // The page's "recently deleted" list has its own cache.
+  updateTag("deleted-accounts");
   updateTag("accounts-page");
   updateTag("dashboard");
   updateTag("next-collection");
