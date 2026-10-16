@@ -12,6 +12,8 @@ const PROBE_INTERVAL_MS = 15_000;
 /** While the connection isn't good, check this often so a reconnect is
  * noticed (and the queue flushed) within a few seconds. */
 const RECOVERY_PROBE_MS = 3_000;
+/** How soon a reading that disagrees with the current state is rechecked. */
+const CONFIRM_PROBE_MS = 1_000;
 
 export type ProbeResult = { ok: boolean; ms: number; timedOut: boolean };
 
@@ -67,6 +69,8 @@ export function nextConnectionState(
 // --- Shared store ---
 
 let state: ConnectionState = INITIAL_CONNECTION_STATE;
+/** When a probe last got a reply (ms since epoch). */
+let lastProbeOkAt = 0;
 const listeners = new Set<() => void>();
 
 function setState(next: ConnectionState) {
@@ -90,7 +94,12 @@ export function getConnectionQuality(): ConnectionQuality {
  * the page was in the middle of, so callers check this first.
  */
 export function isConnectionGood(): boolean {
-  return state.quality === "good";
+  // The browser's offline flag can lag behind a reconnect, so a recent
+  // successful probe outranks it; with neither, trust the flag.
+  const browserOffline =
+    typeof navigator !== "undefined" && navigator.onLine === false;
+  const probedRecently = Date.now() - lastProbeOkAt < 20_000;
+  return state.quality === "good" && (!browserOffline || probedRecently);
 }
 
 /** The app's current idea of the connection: good, slow or offline. */
@@ -136,7 +145,7 @@ export function startConnectionMonitor(): () => void {
   let stopped = false;
   let stableTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const run = async (burst = false) => {
+  const run = async () => {
     if (stopped || document.visibilityState === "hidden") return;
     const before = state.quality;
     const onLine = navigator.onLine;
@@ -149,6 +158,7 @@ export function startConnectionMonitor(): () => void {
     // actually arrives is the better witness.
     const result = await probe();
     if (stopped) return;
+    if (result.ok) lastProbeOkAt = Date.now();
     const reading = classifyProbe(before, result, {
       onLine: result.ok ? undefined : onLine,
       effectiveType,
@@ -159,10 +169,6 @@ export function startConnectionMonitor(): () => void {
       }),
     );
     tellWorker({ type: "CONNECTION", quality: state.quality });
-
-    // After a change of heart, take a second reading soon rather than
-    // waiting out the whole interval.
-    if (burst && state.pending) setTimeout(() => void run(false), 700);
 
     if (before !== "good" && state.quality === "good") {
       // Back to good: let it prove stable for a moment, then flush what was
@@ -176,26 +182,31 @@ export function startConnectionMonitor(): () => void {
     }
   };
 
-  const onEvent = () => void run(true);
-  // Unhurried while all is well, brisk while it isn't.
+  // Unhurried while all is well, brisk while it isn't. Every reading
+  // reschedules the next one, so a reading that finds trouble (e.g. the
+  // offline event) switches to the brisk pace at once.
   let loopTimer: ReturnType<typeof setTimeout> | undefined;
-  const loop = async () => {
-    await run(false);
+  const schedule = () => {
     if (stopped) return;
-    const settled = state.quality === "good" && !state.pending;
-    loopTimer = setTimeout(
-      () => void loop(),
-      settled ? PROBE_INTERVAL_MS : RECOVERY_PROBE_MS,
-    );
+    clearTimeout(loopTimer);
+    // A reading that disagrees is confirmed quickly; trouble is rechecked
+    // briskly; all-well is checked at a leisurely pace.
+    const delay = state.pending
+      ? CONFIRM_PROBE_MS
+      : state.quality === "good"
+        ? PROBE_INTERVAL_MS
+        : RECOVERY_PROBE_MS;
+    loopTimer = setTimeout(() => void run().then(schedule), delay);
   };
-  loopTimer = setTimeout(() => void loop(), PROBE_INTERVAL_MS);
+  const onEvent = () => void run().then(schedule);
+  // First reading now, so an app opened offline starts checking right away.
+  onEvent();
   window.addEventListener("online", onEvent);
   window.addEventListener("offline", onEvent);
   document.addEventListener("visibilitychange", onEvent);
   const connection = (navigator as Navigator & { connection?: EventTarget })
     .connection;
   connection?.addEventListener("change", onEvent);
-  void run(true);
 
   return () => {
     stopped = true;

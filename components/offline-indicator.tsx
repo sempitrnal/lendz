@@ -31,6 +31,7 @@ import {
   clearAllPendingAccounts,
   dropSyncedPendingAccounts,
   pendingAccountBorrowerIds,
+  takeBorrowersForRefresh,
 } from "@/lib/offline/pending-accounts";
 import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
 import { cn } from "@/lib/utils";
@@ -68,14 +69,27 @@ export function OfflineIndicator() {
   } | null>(null);
 
   const refreshCount = useCallback(() => {
-    getOutboxStatus().then(setOutbox);
+    getOutboxStatus().then((status) => {
+      setOutbox(status);
+      // Nothing left to act on: close the menu so it doesn't pop back open
+      // the next time something is queued.
+      if (status.pending + status.failed === 0) {
+        setMenuOpen(false);
+        setConfirmClear(false);
+      }
+    });
   }, []);
 
   // Once queued writes land, the server's cached borrower pages still show
   // the old lists, so bust them for every borrower that had an account made
   // offline, then refetch and drop the local copies that have gone through.
   const afterSync = useCallback(async () => {
-    const borrowerIds = pendingAccountBorrowerIds();
+    const borrowerIds = [
+      ...new Set([
+        ...pendingAccountBorrowerIds(),
+        ...takeBorrowersForRefresh(),
+      ]),
+    ];
     await Promise.all(
       borrowerIds.map((id) => revalidateBorrowerDetailPage(id).catch(() => {})),
     );

@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase/client";
 import { logAuditAction } from "@/app/actions/audit";
 import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
+import { wasQueuedOffline } from "@/lib/checklist/offline-cache";
+import { markBorrowerForRefresh } from "@/lib/offline/pending-accounts";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,6 +79,15 @@ export default function AccountCardMenu({
         .update({ deleted_at: new Date().toISOString() })
         .eq("id", accountId);
 
+      if (wasQueuedOffline(error)) {
+        // Goes out with the rest of the queue; the page refreshes after.
+        markBorrowerForRefresh(borrowerId);
+        setDeleteModalOpen(false);
+        toast.info(
+          "Saved offline — the account will be deleted when you're back online.",
+        );
+        return;
+      }
       if (error) {
         alert(error.message);
         return;

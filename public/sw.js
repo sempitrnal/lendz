@@ -425,7 +425,9 @@ async function replayOutboxOnce() {
       } finally {
         clearTimeout(timer);
       }
-      if (response.status >= 500) {
+      // A 401 is an expired login, not a rejected change: hold on to it like
+      // a server error until the page hands over a fresh token.
+      if (response.status >= 500 || response.status === 401) {
         const { key, ...stored } = entry;
         const attempts = (stored.attempts ?? 0) + 1;
         if (attempts >= MAX_REPLAY_ATTEMPTS) {
@@ -443,8 +445,10 @@ async function replayOutboxOnce() {
         break; // Server down — retry later, preserve remaining order
       }
       await deleteOutboxEntry(db, entry.key);
-      if (response.ok) synced += 1;
-      else failed += 1; // 4xx = permanently rejected, drop it
+      // 409: an earlier attempt already landed (it timed out on our side but
+      // reached the server), so it counts as synced.
+      if (response.ok || response.status === 409) synced += 1;
+      else failed += 1; // other 4xx = permanently rejected, drop it
     } catch {
       break; // Still offline — keep the rest queued
     }

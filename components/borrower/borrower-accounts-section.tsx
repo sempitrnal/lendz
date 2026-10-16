@@ -32,6 +32,7 @@ import {
 } from "../ui/dialog";
 import { BorrowerSummary } from "./borrower-detail-view";
 import { supabase } from "@/lib/supabase/client";
+import { wasQueuedOffline } from "@/lib/checklist/offline-cache";
 import {
   revalidateBorrowerDetailPage,
   revalidateDeletedPage,
@@ -49,6 +50,7 @@ import type { InstallmentDot } from "@/lib/payment-schedule/installment-dots";
 import {
   prunePendingAccounts,
   readPendingAccounts,
+  markBorrowerForRefresh,
   subscribePendingAccounts,
   wasMadeOffline,
   type PendingAccount,
@@ -454,6 +456,14 @@ export default function BorrowerAccountsSection({
         .update({ deleted_at: new Date().toISOString() })
         .in("id", ids);
 
+      if (wasQueuedOffline(error)) {
+        markBorrowerForRefresh(borrowerId);
+        clearSelection();
+        toast.info(
+          `Saved offline — ${ids.length} account${ids.length === 1 ? "" : "s"} will be deleted when you're back online.`,
+        );
+        return;
+      }
       if (error) {
         toast.error(error.message);
         return;

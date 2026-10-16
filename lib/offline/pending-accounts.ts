@@ -128,3 +128,22 @@ export function dropSyncedPendingAccounts(stillQueued: Set<string>) {
     if (next.length !== current.length) write(borrowerId, next);
   }
 }
+
+const STALE_KEY = "lendz-borrowers-to-refresh";
+
+/**
+ * Remembers a borrower whose page needs a server refresh once queued changes
+ * land (e.g. an account deleted offline), since the change itself can't
+ * refresh anything while it waits.
+ */
+export function markBorrowerForRefresh(borrowerId: string) {
+  const ids = readStored<string[]>(STALE_KEY) ?? [];
+  if (!ids.includes(borrowerId)) writeStored(STALE_KEY, [...ids, borrowerId]);
+}
+
+/** Borrowers whose pages should be refreshed after a sync; clears the list. */
+export function takeBorrowersForRefresh(): string[] {
+  const ids = readStored<string[]>(STALE_KEY) ?? [];
+  if (ids.length > 0) writeStored(STALE_KEY, []);
+  return ids;
+}
