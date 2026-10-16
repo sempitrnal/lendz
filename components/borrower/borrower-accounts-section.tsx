@@ -258,23 +258,6 @@ export default function BorrowerAccountsSection({
     load();
     return subscribePendingAccounts(load);
   }, [borrowerId]);
-  useEffect(() => {
-    if (serverAccounts) {
-      prunePendingAccounts(
-        borrowerId,
-        new Set(serverAccounts.map((a) => a.id)),
-      );
-    }
-  }, [serverAccounts, borrowerId]);
-  const accounts = useMemo(() => {
-    if (!serverAccounts) return serverAccounts;
-    const have = new Set(serverAccounts.map((a) => a.id));
-    const extra = pendingAccounts.filter((p) => !have.has(p.id));
-    return extra.length > 0
-      ? [...serverAccounts, ...(extra as unknown as AccountRow[])]
-      : serverAccounts;
-  }, [serverAccounts, pendingAccounts]);
-
   const {
     data: queryData,
     isLoading: isQueryLoading,
@@ -297,6 +280,32 @@ export default function BorrowerAccountsSection({
         }
       : undefined,
   );
+  // The fetched list is fresher than the server-rendered one (that one sits in
+  // a server cache), so an account made offline counts as arrived once either
+  // has it, and the fetched copy fills in when the rendered list lacks it.
+  const fetchedAccounts = queryData?.accounts as AccountRow[] | undefined;
+  useEffect(() => {
+    if (!serverAccounts && !fetchedAccounts) return;
+    prunePendingAccounts(
+      borrowerId,
+      new Set([
+        ...(serverAccounts ?? []).map((a) => a.id),
+        ...(fetchedAccounts ?? []).map((a) => a.id),
+      ]),
+    );
+  }, [serverAccounts, fetchedAccounts, borrowerId]);
+  const accounts = useMemo(() => {
+    if (!serverAccounts) return serverAccounts;
+    const have = new Set(serverAccounts.map((a) => a.id));
+    const fetchedExtra = (fetchedAccounts ?? []).filter((a) => !have.has(a.id));
+    fetchedExtra.forEach((a) => have.add(a.id));
+    const pendingExtra = pendingAccounts.filter((p) => !have.has(p.id));
+    const extra = [
+      ...fetchedExtra,
+      ...(pendingExtra as unknown as AccountRow[]),
+    ];
+    return extra.length > 0 ? [...serverAccounts, ...extra] : serverAccounts;
+  }, [serverAccounts, fetchedAccounts, pendingAccounts]);
   const { resolvedTheme } = useTheme();
   const notes = (queryData?.notes ?? []) as any[];
   const accountMetricsById = (queryData?.metrics ??

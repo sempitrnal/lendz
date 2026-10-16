@@ -22,11 +22,17 @@ import {
 import {
   clearOutbox,
   getOutboxStatus,
+  getQueuedAccountIds,
   requestOutboxReplay,
   retryFailedOutbox,
 } from "@/lib/offline/outbox";
 import type { QueuedTask } from "@/lib/offline/outbox-labels";
-import { clearAllPendingAccounts } from "@/lib/offline/pending-accounts";
+import {
+  clearAllPendingAccounts,
+  dropSyncedPendingAccounts,
+  pendingAccountBorrowerIds,
+} from "@/lib/offline/pending-accounts";
+import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
 import { cn } from "@/lib/utils";
 
 type Tone = "slate" | "amber" | "sky" | "rose" | "violet";
@@ -65,6 +71,19 @@ export function OfflineIndicator() {
     getOutboxStatus().then(setOutbox);
   }, []);
 
+  // Once queued writes land, the server's cached borrower pages still show
+  // the old lists, so bust them for every borrower that had an account made
+  // offline, then refetch and drop the local copies that have gone through.
+  const afterSync = useCallback(async () => {
+    const borrowerIds = pendingAccountBorrowerIds();
+    await Promise.all(
+      borrowerIds.map((id) => revalidateBorrowerDetailPage(id).catch(() => {})),
+    );
+    await queryClient.invalidateQueries().catch(() => {});
+    dropSyncedPendingAccounts(await getQueuedAccountIds());
+    if (isConnectionGood()) router.refresh();
+  }, [queryClient, router]);
+
   useEffect(() => {
     refreshCount();
 
@@ -85,8 +104,7 @@ export function OfflineIndicator() {
             `${data.failed} offline change${data.failed === 1 ? "" : "s"} couldn't be synced.`,
           );
         }
-        queryClient.invalidateQueries();
-        router.refresh();
+        void afterSync();
       } else if (data?.type === "PREFETCH_PROGRESS") {
         setCaching({ done: data.done, total: data.total });
       } else if (
@@ -106,7 +124,7 @@ export function OfflineIndicator() {
       window.removeEventListener("online", refreshCount);
       window.removeEventListener("offline", refreshCount);
     };
-  }, [refreshCount, queryClient, router]);
+  }, [refreshCount, afterSync]);
 
   // Close the menu when something else is tapped.
   useEffect(() => {

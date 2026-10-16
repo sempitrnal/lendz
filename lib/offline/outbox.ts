@@ -144,3 +144,36 @@ export async function requestOutboxReplay() {
     // No worker
   }
 }
+
+/** Ids of accounts whose create request is still in the outbox. */
+export async function getQueuedAccountIds(): Promise<Set<string>> {
+  const ids = new Set<string>();
+  try {
+    const entries = await withStore<OutboxEntry[]>("readonly", (s) =>
+      s.getAll(),
+    );
+    for (const entry of entries) {
+      const url = String(entry.url ?? "");
+      if (entry.method !== "POST" || !/\/rest\/v1\/accounts(\?|$)/.test(url))
+        continue;
+      try {
+        const raw = entry.body as ArrayBuffer | string | null | undefined;
+        const text =
+          typeof raw === "string"
+            ? raw
+            : raw
+              ? new TextDecoder().decode(raw)
+              : "";
+        const body = JSON.parse(text) as { id?: string } | { id?: string }[];
+        for (const row of Array.isArray(body) ? body : [body]) {
+          if (row?.id) ids.add(row.id);
+        }
+      } catch {
+        // Unreadable body
+      }
+    }
+  } catch {
+    // No outbox
+  }
+  return ids;
+}

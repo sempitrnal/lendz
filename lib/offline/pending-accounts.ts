@@ -79,3 +79,32 @@ export function clearAllPendingAccounts() {
   }
   window.dispatchEvent(new Event(EVENT));
 }
+
+/** Borrowers that have accounts waiting locally. */
+export function pendingAccountBorrowerIds(): string[] {
+  const ids: string[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith("lendz-pending-accounts:")) {
+        const borrowerId = key.slice("lendz-pending-accounts:".length);
+        if (readPendingAccounts(borrowerId).length > 0) ids.push(borrowerId);
+      }
+    }
+  } catch {
+    // Storage unavailable
+  }
+  return ids;
+}
+
+/**
+ * Drops local copies whose create request has left the outbox (it went
+ * through, or was rejected); the server's list takes over from here.
+ */
+export function dropSyncedPendingAccounts(stillQueued: Set<string>) {
+  for (const borrowerId of pendingAccountBorrowerIds()) {
+    const current = readPendingAccounts(borrowerId);
+    const next = current.filter((a) => stillQueued.has(a.id));
+    if (next.length !== current.length) write(borrowerId, next);
+  }
+}
