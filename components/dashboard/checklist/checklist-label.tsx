@@ -223,7 +223,15 @@ export function CollectionLabel({
     const row = schedules?.get(line.id);
     const state = lineState(row);
     const settled = state === "paid" || (checked && state === null);
-    return { line, row, state, settled };
+    // Past due isn't the same as overdue: the app marks a schedule overdue a
+    // day after its due date, and partly paid ones stay partial. Go by the
+    // schedule's own status; only when it isn't known on this device does the
+    // date decide.
+    const overdue =
+      !settled &&
+      line.daysOverdue > 0 &&
+      (row ? row.status === "overdue" : true);
+    return { line, row, state, settled, overdue };
   });
   const allSettled = lines.every((l) => l.settled);
   return (
@@ -240,7 +248,7 @@ export function CollectionLabel({
           />
         ) : null}
         <div className="space-y-1">
-          {lines.map(({ line, row, state, settled }) => (
+          {lines.map(({ line, row, state, settled, overdue }) => (
             <div
               key={line.id}
               className={`flex flex-wrap items-center gap-1.5 text-xs ${
@@ -256,15 +264,9 @@ export function CollectionLabel({
                   {peso(line.amount)}
                 </span>
               )}
-              <span
-                className={chipClass(
-                  line.daysOverdue > 0 && !settled ? "overdue" : "neutral",
-                )}
-              >
+              <span className={chipClass(overdue ? "overdue" : "neutral")}>
                 {formatShortDate(line.due_date).toLowerCase()}
-                {line.daysOverdue > 0 && !settled
-                  ? ` · ${line.daysOverdue}d overdue`
-                  : ""}
+                {overdue ? ` · ${line.daysOverdue}d overdue` : ""}
               </span>
               <span
                 className={chipClass(
