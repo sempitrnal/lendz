@@ -26,7 +26,27 @@ export function readPendingAccounts(borrowerId: string): PendingAccount[] {
   );
 }
 
+/** Ids made offline this session whose local copy has since been dropped. */
+const arrived = new Set<string>();
+
+/** Whether this device made the account offline (still waiting or landed). */
+export function wasMadeOffline(id: string): boolean {
+  return arrived.has(id) || pendingAccountIdSet().has(id);
+}
+
+function pendingAccountIdSet(): Set<string> {
+  const ids = new Set<string>();
+  for (const borrowerId of pendingAccountBorrowerIds()) {
+    for (const a of readPendingAccounts(borrowerId)) ids.add(a.id);
+  }
+  return ids;
+}
+
 function write(borrowerId: string, accounts: PendingAccount[]) {
+  const kept = new Set(accounts.map((a) => a.id));
+  for (const a of readPendingAccounts(borrowerId)) {
+    if (!kept.has(a.id)) arrived.add(a.id);
+  }
   writeStored(keyFor(borrowerId), accounts);
   window.dispatchEvent(new Event(EVENT));
 }

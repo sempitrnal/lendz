@@ -50,6 +50,7 @@ import {
   prunePendingAccounts,
   readPendingAccounts,
   subscribePendingAccounts,
+  wasMadeOffline,
   type PendingAccount,
 } from "@/lib/offline/pending-accounts";
 import { motion } from "framer-motion";
@@ -280,9 +281,11 @@ export default function BorrowerAccountsSection({
         }
       : undefined,
   );
-  // The fetched list is fresher than the server-rendered one (that one sits in
-  // a server cache), so an account made offline counts as arrived once either
-  // has it, and the fetched copy fills in when the rendered list lacks it.
+  // An account made offline counts as arrived once either the rendered list
+  // or the fetched one has it (the rendered one sits in a server cache), and
+  // the fetched copy stands in until the rendered list catches up. Only for
+  // those accounts: anything else the fetched list has may just be stale,
+  // like an account that was deleted a moment ago.
   const fetchedAccounts = queryData?.accounts as AccountRow[] | undefined;
   useEffect(() => {
     if (!serverAccounts && !fetchedAccounts) return;
@@ -297,7 +300,9 @@ export default function BorrowerAccountsSection({
   const accounts = useMemo(() => {
     if (!serverAccounts) return serverAccounts;
     const have = new Set(serverAccounts.map((a) => a.id));
-    const fetchedExtra = (fetchedAccounts ?? []).filter((a) => !have.has(a.id));
+    const fetchedExtra = (fetchedAccounts ?? []).filter(
+      (a) => wasMadeOffline(a.id) && !have.has(a.id),
+    );
     fetchedExtra.forEach((a) => have.add(a.id));
     const pendingExtra = pendingAccounts.filter((p) => !have.has(p.id));
     const extra = [
