@@ -8,6 +8,9 @@ import {
   AccountComputedMetrics,
 } from "./borrower-accounts-section";
 import type { InstallmentDot } from "@/lib/payment-schedule/installment-dots";
+import { accountTone, TILE_TONES, TONES } from "@/lib/account-tones";
+import { CalendarTile } from "@/components/calendar-tile";
+import { todayDateValue } from "@/lib/checklist/dates";
 
 /** iOS-style ease: quick off the mark, long soft landing. */
 const EXPAND_EASE = [0.32, 0.72, 0, 1] as const;
@@ -48,40 +51,6 @@ function fmtTimeAgo(days: number) {
   if (days < 365) return `${Math.round(days / 30)}mo ago`;
   return `${Math.round(days / 365)}y ago`;
 }
-
-/** Header band and type chip colours per kind of account. */
-const TONES = {
-  violet: {
-    band: "bg-violet-100/70 dark:bg-violet-950/30",
-  },
-  amber: {
-    band: "bg-amber-50 dark:bg-amber-950/20",
-  },
-  lime: {
-    band: "bg-lime-100/70 dark:bg-lime-950/30",
-  },
-  cyan: {
-    band: "bg-cyan-100/70 dark:bg-cyan-950/30",
-  },
-} as const;
-
-const TILE_TONES = {
-  yellow: {
-    box: "border-yellow-200/80 bg-yellow-100 dark:border-yellow-900/40 dark:bg-yellow-900/25",
-    label: "text-yellow-800/80 dark:text-yellow-200/70",
-    value: "text-[#556477] dark:text-yellow-100",
-  },
-  emerald: {
-    box: "border-emerald-200/80 bg-emerald-100/80 dark:border-emerald-900/40 dark:bg-emerald-900/25",
-    label: "text-emerald-800/80 dark:text-emerald-200/70",
-    value: "text-[#048863] dark:text-emerald-200",
-  },
-  teal: {
-    box: "border-teal-200/80 bg-teal-100/80 dark:border-teal-900/40 dark:bg-teal-900/25",
-    label: "text-teal-800/80 dark:text-teal-200/70",
-    value: "text-[#0e857b] dark:text-teal-200",
-  },
-} as const;
 
 function StatTile({
   label,
@@ -366,15 +335,15 @@ export function AccountCard({
         .join(" · ");
   const releaseYmd = account.release_date?.slice(0, 10) ?? null;
   const release = releaseYmd ? ymd(releaseYmd) : null;
-  const tone = isManual
-    ? isRolling
-      ? "cyan"
-      : "lime"
-    : isCashAdvance
-      ? "amber"
-      : "violet";
+  const tone = accountTone({ isManual, isRolling, isCashAdvance });
   const releasedAgo =
     daysSinceRelease > 0 ? fmtTimeAgo(daysSinceRelease) : "today";
+  // The tile only shows month and day, so a release from another year says
+  // the year in the text beside it.
+  const releasedYear =
+    release && release.y !== Number(todayDateValue().slice(0, 4))
+      ? release.y
+      : null;
 
   function tryOpenAccount(e: SyntheticEvent) {
     if (isOpening) return;
@@ -521,26 +490,13 @@ export function AccountCard({
             >
               {/* Compact row */}
               <div className="flex items-center gap-3 px-4 py-3">
-                {release && (
-                  <div
-                    className="w-11 shrink-0 self-start overflow-hidden
-                      rounded-lg border border-slate-200 text-center
-                      dark:border-border"
+                {release && releaseYmd && (
+                  <CalendarTile
+                    date={releaseYmd}
+                    className="self-start border-slate-200 dark:border-border"
+                    bandClassName="bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200"
                     title={`Released ${formatDate(releaseYmd)}`}
-                  >
-                    <div
-                      className="bg-sky-100 py-px text-[9px] font-bold
-                        text-sky-800 dark:bg-sky-900/40 dark:text-sky-200"
-                    >
-                      {MONTHS[release.m]}
-                    </div>
-                    <div
-                      className="py-0.5 text-lg leading-tight font-black
-                        text-slate-700 tabular-nums dark:text-foreground"
-                    >
-                      {release.d}
-                    </div>
-                  </div>
+                  />
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-3">
@@ -600,7 +556,10 @@ export function AccountCard({
                         text-[11px] text-slate-500 dark:text-slate-400"
                     >
                       <span className="truncate">
-                        {release && `released ${releasedAgo}`}
+                        {release &&
+                          `released ${
+                            releasedYear ? `${releasedYear} · ` : ""
+                          }${releasedAgo}`}
                       </span>
                       {!isPending &&
                         (hasOverdue ? (
@@ -689,14 +648,16 @@ export function AccountCard({
                         ₱{fmt(Number(account.principal_amount ?? 0))}
                       </p>
                     </div>
-                    {release && (
+                    {release && releaseYmd && (
                       <div className="flex shrink-0 items-center gap-2">
                         <div className="text-right">
                           <p
                             className="text-[11px] font-medium text-slate-600
                               dark:text-slate-300"
                           >
-                            released
+                            {releasedYear
+                              ? `released ${releasedYear}`
+                              : "released"}
                           </p>
                           <p
                             className="text-[13px] font-bold text-[#556477]
@@ -705,24 +666,7 @@ export function AccountCard({
                             {releasedAgo}
                           </p>
                         </div>
-                        <div
-                          className="w-11 shrink-0 overflow-hidden rounded-lg
-                            border border-sky-200 bg-white text-center
-                            dark:border-sky-900/50 dark:bg-card"
-                        >
-                          <div
-                            className="bg-sky-200 py-px text-[9px] font-bold
-                              text-sky-900 dark:bg-sky-900/50 dark:text-sky-100"
-                          >
-                            {MONTHS[release.m]}
-                          </div>
-                          <div
-                            className="py-0.5 text-lg leading-tight font-black
-                              text-[#556477] tabular-nums dark:text-foreground"
-                          >
-                            {release.d}
-                          </div>
-                        </div>
+                        <CalendarTile date={releaseYmd} />
                       </div>
                     )}
                   </div>

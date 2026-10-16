@@ -11,7 +11,7 @@ import AddSchedulesPanel from "@/components/add-schedules-panel";
 import { ScheduleSelectionProvider } from "@/components/schedule-selection-provider";
 import { ScheduleCheckbox } from "@/components/schedule-checkbox";
 import { ScheduleDesktopActions } from "@/components/schedule-desktop-actions";
-import { ProgressRing } from "@/components/account/progress-ring";
+import { AccountSummaryCard } from "@/components/account/account-summary-card";
 import { ScheduleTimeline } from "@/components/account/schedule-timeline";
 import { ScheduleEditBar } from "@/components/schedule-edit-bar";
 import { ScheduleDeleteButton } from "@/components/schedule-delete-button";
@@ -519,74 +519,13 @@ export default async function AccountDetailPage({
       />
 
       <section className="mx-auto max-w-3xl px-4 pt-4 xl:max-w-6xl">
-        <div
-          className="flex items-center gap-5 rounded-2xl border border-slate-200
-            bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-        >
-          <ProgressRing percent={progressPct} />
-          <div className="min-w-0 flex-1">
-            <p
-              className="text-xs font-bold uppercase tracking-wide
-                text-slate-400"
-            >
-              Progress
-            </p>
-            <p
-              className="mt-1 text-2xl font-extrabold text-slate-900
-                dark:text-slate-100"
-            >
-              {formatMoney(amountPaid)}
-              <span className="text-sm font-semibold text-slate-400">
-                {" "}
-                / {formatMoney(totalPayment)}
-              </span>
-            </p>
-            <div className="mt-3 grid grid-cols-3 gap-3">
-              <div>
-                <p
-                  className="text-[10px] font-bold uppercase tracking-wide
-                    text-slate-400"
-                >
-                  Remaining
-                </p>
-                <p
-                  className="text-sm font-bold text-slate-900
-                    dark:text-slate-100"
-                >
-                  {formatMoney(amountLeft)}
-                </p>
-              </div>
-              <div>
-                <p
-                  className="text-[10px] font-bold uppercase tracking-wide
-                    text-slate-400"
-                >
-                  Profit
-                </p>
-                <p
-                  className="text-sm font-bold text-emerald-600
-                    dark:text-emerald-400"
-                >
-                  {formatMoney(profit)}
-                </p>
-              </div>
-              <div>
-                <p
-                  className="text-[10px] font-bold uppercase tracking-wide
-                    text-slate-400"
-                >
-                  Rate
-                </p>
-                <p
-                  className="text-sm font-bold text-slate-900
-                    dark:text-slate-100"
-                >
-                  {interestRate}%
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <AccountSummaryCard
+          principal={principal}
+          releaseDate={accountRow.release_date ?? null}
+          amountLeft={amountLeft}
+          amountPaid={amountPaid}
+          progressPct={progressPct}
+        />
       </section>
 
       <div className="max-w-8xl px-2 relative mx-auto overflow-visible pb-16">
