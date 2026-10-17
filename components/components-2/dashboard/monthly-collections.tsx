@@ -53,8 +53,16 @@ export function MonthlyCollections({
     },
   ];
 
+  const collectedWidth = Math.min(collectedPct, 100);
+  const soFarWidth = Math.min(Math.max(soFarPct, collectedPct), 100);
+
   return (
-    <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+    <section
+      className="relative overflow-hidden rounded-xl border border-amber-200/70
+        bg-linear-to-br from-amber-50 via-card to-emerald-50 p-6 shadow-sm
+        dark:border-border dark:from-amber-500/10 dark:via-card
+        dark:to-emerald-500/10"
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SectionHeading
           icon={PiggyBank}
@@ -63,8 +71,9 @@ export function MonthlyCollections({
           subtitle="How this month is tracking"
         />
         <span
-          className="rounded-full border border-border bg-secondary px-3 py-1
-            text-sm font-medium text-secondary-foreground"
+          className="rounded-full border border-amber-300/60 bg-white/70 px-3
+            py-1 text-sm font-medium text-amber-800 dark:border-amber-500/30
+            dark:bg-amber-500/10 dark:text-amber-300"
         >
           {currentMonth.label}
         </span>
@@ -85,10 +94,10 @@ export function MonthlyCollections({
           </div>
           <p
             className={cn(
-              "shrink-0 rounded-full px-2.5 py-1 text-sm font-medium",
+              "shrink-0 rounded-full px-2.5 py-1 text-sm font-semibold",
               collectedPct >= 100
-                ? "bg-primary text-primary-foreground"
-                : "bg-primary/10 text-primary",
+                ? "bg-emerald-600 text-white"
+                : `bg-emerald-500/15 text-emerald-700 dark:text-emerald-400`,
             )}
           >
             {collectedPct >= 100 ? "🎉 " : ""}
@@ -96,22 +105,55 @@ export function MonthlyCollections({
           </p>
         </div>
 
+        {/* Two layers from the left: what's due so far, and on top what's collected. */}
         <div
-          className="mt-4 h-3 w-full overflow-hidden rounded-full bg-secondary"
+          className="relative mt-4 h-4 w-full overflow-hidden rounded-full
+            bg-white/80 ring-1 ring-black/5 ring-inset dark:bg-white/10
+            dark:ring-white/5"
+          role="progressbar"
+          aria-label="Collected this month"
+          aria-valuenow={collectedPct}
+          aria-valuemin={0}
+          aria-valuemax={100}
         >
-          <div className="dash-grow flex h-full">
-            <div
-              className="h-full rounded-full bg-linear-to-r from-primary/70
-                to-primary"
-              style={{ width: `${collectedPct}%` }}
+          <div
+            className="dash-grow absolute inset-y-0 left-0 rounded-full
+              bg-amber-300/70 bg-[repeating-linear-gradient(-45deg,transparent_0_6px,rgb(255_255_255/0.35)_6px_12px)]
+              dark:bg-amber-400/40"
+            style={{ width: `${soFarWidth}%` }}
+          />
+          <div
+            className="dash-grow absolute inset-y-0 left-0 rounded-full
+              bg-linear-to-r from-emerald-400 to-emerald-600 shadow-sm"
+            style={{ width: `${collectedWidth}%` }}
+          />
+        </div>
+        <div
+          className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs
+            text-muted-foreground"
+        >
+          <span className="flex items-center gap-1.5">
+            <span
+              className="size-2.5 rounded-full bg-emerald-500"
               aria-hidden="true"
             />
-            <div
-              className="h-full bg-primary/40"
-              style={{ width: `${Math.max(soFarPct - collectedPct, 0)}%` }}
+            collected
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              className="size-2.5 rounded-full bg-amber-300 dark:bg-amber-400/60"
               aria-hidden="true"
             />
-          </div>
+            due so far · {soFarPct}%
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              className="size-2.5 rounded-full bg-white ring-1 ring-black/10
+                dark:bg-white/10 dark:ring-white/10"
+              aria-hidden="true"
+            />
+            rest of month
+          </span>
         </div>
       </div>
 
@@ -120,12 +162,13 @@ export function MonthlyCollections({
           <div
             key={stat.label}
             className={cn(
-              "rounded-lg border p-3",
+              "rounded-lg border p-3 shadow-xs",
               stat.tone === "primary"
-                ? "border-primary/20 bg-primary/5"
+                ? `border-emerald-500/25 bg-emerald-50/80
+                  dark:bg-emerald-500/10`
                 : stat.tone === "accent"
-                  ? "border-amber-500/20 bg-amber-500/5"
-                  : "border-transparent bg-secondary/60",
+                  ? "border-amber-500/25 bg-amber-50/80 dark:bg-amber-500/10"
+                  : "border-black/5 bg-white/70 dark:border-white/5 dark:bg-white/5",
             )}
           >
             <dt className="text-xs font-medium lowercase text-muted-foreground">
@@ -135,7 +178,7 @@ export function MonthlyCollections({
               className={
                 "mt-1 text-lg font-semibold tracking-tight " +
                 (stat.tone === "primary"
-                  ? "text-primary"
+                  ? "text-emerald-700 dark:text-emerald-400"
                   : stat.tone === "accent"
                     ? "text-amber-700 dark:text-amber-400"
                     : "text-card-foreground")

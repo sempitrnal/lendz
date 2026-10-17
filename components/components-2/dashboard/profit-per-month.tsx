@@ -64,8 +64,21 @@ function ChartTooltip({
   );
 }
 
+/** Month tiles go green → amber → rose as less of the expected profit came in. */
+function percentTone(m: MonthlyProfit) {
+  if (m.isFuture)
+    return "border-black/5 bg-white/60 text-muted-foreground dark:border-white/5 dark:bg-white/5";
+  if (m.isCurrent)
+    return "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300";
+  if (m.percent >= 80)
+    return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  if (m.percent >= 60)
+    return "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  return "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300";
+}
+
 export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
-  const [range, setRange] = useState<RangeOption>(12);
+  const [range, setRange] = useState<RangeOption>(6);
   const data = profitPerMonth.slice(-range);
   const barSize = range === 6 ? 32 : 18;
   const gradId = useId();
@@ -85,11 +98,16 @@ export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
   );
 
   return (
-    <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+    <section
+      className="rounded-xl border border-emerald-100 bg-linear-to-br
+        from-emerald-50/60 via-card to-teal-50/60 p-6 shadow-sm
+        dark:border-border dark:from-emerald-500/5 dark:via-card
+        dark:to-teal-500/5"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <SectionHeading
           icon={Coins}
-          tint="sky"
+          tint="emerald"
           title="profit per month"
           subtitle="Interest collected vs expected"
         />
@@ -200,16 +218,14 @@ export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
         {data.map((m) => (
           <div
             key={m.key}
-            className="rounded-lg bg-secondary/60 px-1 py-1.5 text-center"
+            className={cn(
+              "rounded-lg border px-1 py-1.5 text-center",
+              percentTone(m),
+            )}
             title={`${m.month}: ${m.percent}% of expected profit collected`}
           >
-            <p className="text-[11px] font-medium text-muted-foreground">
-              {m.short}
-            </p>
-            <p
-              className="text-xs font-semibold text-card-foreground
-                tabular-nums"
-            >
+            <p className="text-[11px] font-medium opacity-75">{m.short}</p>
+            <p className="text-xs font-semibold tabular-nums">
               {m.isFuture ? "—" : `${m.percent}%`}
             </p>
           </div>
