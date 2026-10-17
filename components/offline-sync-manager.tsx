@@ -5,9 +5,27 @@ import { supabase } from "@/lib/supabase/client";
 import { useOnline } from "@/hooks/use-online";
 import { warmChecklistCache } from "@/lib/checklist/offline-cache";
 import { requestOutboxReplay } from "@/lib/offline/outbox";
+import { readStored, writeStored } from "@/lib/offline/storage";
+import { urlsToRefresh, type OfflineManifest } from "@/lib/offline/route-diff";
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often to check while app is open
 const LAST_SYNC_HASH_KEY = "lendz-offline-sync-hash";
+/** Route fingerprints of the app version the cached pages were saved from. */
+const SYNCED_MANIFEST_KEY = "lendz-offline-manifest";
+/** Written after each build by scripts/offline-manifest.mjs. */
+const MANIFEST_URL = "/_next/static/offline-manifest.json";
+
+/** This deploy's manifest, or null (dev, or not reachable right now). */
+async function fetchManifest(): Promise<OfflineManifest | null> {
+  try {
+    const res = await fetch(MANIFEST_URL, { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as OfflineManifest;
+    return data?.buildId && data.routes ? data : null;
+  } catch {
+    return null;
+  }
+}
 
 const STATIC_ROUTES = [
   "/offline",
@@ -47,6 +65,8 @@ function postToWorker(message: Record<string, unknown>) {
 export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
   const isOnline = useOnline();
   const pendingHash = useRef<string | null>(null);
+  /** The new version a pass is updating the saved pages to, if any. */
+  const pendingManifest = useRef<OfflineManifest | null>(null);
 
   useEffect(() => {
     if (!enabled || !isOnline) return;
@@ -58,6 +78,14 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
     // empty — until then each tick re-posts the list and the drain resumes.
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === "PREFETCH_DONE" && event.data.hash) {
+        const manifest = pendingManifest.current;
+        if (manifest) {
+          // A worker from before this change ignores `refresh`, so its
+          // "done" doesn't mean the pages were updated: ask again next tick.
+          if (!event.data.refreshed) return;
+          writeStored(SYNCED_MANIFEST_KEY, { ...manifest, assets: [] });
+          pendingManifest.current = null;
+        }
         localStorage.setItem(LAST_SYNC_HASH_KEY, String(event.data.hash));
         if (pendingHash.current === event.data.hash) {
           pendingHash.current = null;
@@ -94,15 +122,37 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
           ),
         ];
 
-        // Prefetch only when the route list changed (new entity or route).
-        // Visited pages refresh themselves via the SW's network-first
+        // A new app version re-downloads only the pages whose route code
+        // changed (and the new JS/CSS they need); everything else keeps its
+        // saved copy. Without a manifest (dev) versions aren't tracked.
+        const manifest = await fetchManifest();
+        if (cancelled) return;
+        const synced = readStored<OfflineManifest>(SYNCED_MANIFEST_KEY);
+        const newVersion =
+          manifest !== null && manifest.buildId !== synced?.buildId;
+        const refresh = newVersion ? urlsToRefresh(urls, manifest, synced) : [];
+
+        // Otherwise prefetch only when the route list changed (new entity or
+        // route). Visited pages refresh themselves via the SW's network-first
         // strategy, so periodic full recaches would just burn Supabase
         // requests re-rendering pages nobody looks at.
-        const listHash = hashUrlList(urls);
-        if (localStorage.getItem(LAST_SYNC_HASH_KEY) === listHash) return;
+        const listHash = hashUrlList([manifest?.buildId ?? "", ...urls]);
+        if (
+          !newVersion &&
+          localStorage.getItem(LAST_SYNC_HASH_KEY) === listHash
+        ) {
+          return;
+        }
 
         pendingHash.current = listHash;
-        postToWorker({ type: "PREFETCH_URLS", urls, hash: listHash });
+        pendingManifest.current = newVersion ? manifest : null;
+        postToWorker({
+          type: "PREFETCH_URLS",
+          urls,
+          hash: listHash,
+          refresh,
+          assets: manifest?.assets ?? null,
+        });
       } catch {
         // Queries failed — retry on next tick
       }

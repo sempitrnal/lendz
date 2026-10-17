@@ -88,6 +88,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // The build's offline manifest changes with every deploy: always fresh.
+  if (url.pathname === "/_next/static/offline-manifest.json") return;
+
   // Cache-first: Next.js static chunks and public assets
   if (
     url.pathname.startsWith("/_next/static/") ||
@@ -484,7 +487,12 @@ self.addEventListener("message", (event) => {
     const urls = event.data.urls;
     if (!Array.isArray(urls)) return;
     event.waitUntil(
-      seedPrefetchQueue(urls, event.data.hash).then(() => drainPrefetchQueue()),
+      seedPrefetchQueue(
+        urls,
+        event.data.hash,
+        event.data.refresh,
+        event.data.assets,
+      ).then(() => drainPrefetchQueue()),
     );
   } else if (type === "CONNECTION") {
     const q = event.data.quality;
@@ -554,7 +562,12 @@ function getQueuedUrls(db) {
 // changed, but only URLs missing from the cache are queued: new entities
 // get fetched, already-cached pages are left alone, and URLs that failed a
 // previous pass are retried for free since they're simply absent.
-async function seedPrefetchQueue(urls, hash) {
+//
+// `refresh` (a new app version) lists pages whose route code changed: those are
+// fetched again even when cached. `assets` is every static file of the new
+// version: missing ones are fetched so pages work offline, and once the pass
+// completes, cached files no longer in the list are dropped.
+async function seedPrefetchQueue(urls, hash, refresh, assets) {
   const db = await openPrefetchDb();
   try {
     const meta = await getPrefetchMeta(db);
@@ -562,7 +575,9 @@ async function seedPrefetchQueue(urls, hash) {
 
     const cache = await caches.open(PAGES_CACHE);
     const cached = new Set((await cache.keys()).map((r) => r.url));
+    const refreshSet = new Set(Array.isArray(refresh) ? refresh : []);
     const missing = urls.filter((url) => {
+      if (refreshSet.has(url)) return true;
       const absolute = new URL(url, self.location.origin).toString();
       if (!cached.has(absolute)) return true;
       if (absolute.includes("/api/")) return false;
@@ -571,12 +586,22 @@ async function seedPrefetchQueue(urls, hash) {
       return !cached.has(rscKey.toString());
     });
 
+    let missingAssets = [];
+    if (Array.isArray(assets)) {
+      const staticCache = await caches.open(STATIC_CACHE);
+      const have = new Set(
+        (await staticCache.keys()).map((r) => new URL(r.url).pathname),
+      );
+      missingAssets = assets.filter((path) => !have.has(path));
+    }
+
     await idbDone(
       (() => {
         const tx = db.transaction(PREFETCH_QUEUE, "readwrite");
         const store = tx.objectStore(PREFETCH_QUEUE);
         store.clear();
         for (const url of missing) store.put({ url });
+        for (const url of missingAssets) store.put({ url, kind: "asset" });
         return tx;
       })(),
     );
@@ -586,7 +611,11 @@ async function seedPrefetchQueue(urls, hash) {
         tx.objectStore(PREFETCH_META).put({
           key: "current",
           hash,
-          total: missing.length,
+          total: missing.length + missingAssets.length,
+          // Lets the page tell this worker (which understood `refresh`) from
+          // an older one that ignored it.
+          refreshed: Array.isArray(refresh),
+          assets: Array.isArray(assets) ? assets : null,
         });
         return tx;
       })(),
@@ -666,7 +695,11 @@ async function drainPrefetchQueue() {
             remaining.slice(i, i + PREFETCH_CONCURRENCY).map(async (entry) => {
               attempted.add(entry.url);
               try {
-                await prefetchOne(cache, entry.url, signal);
+                if (entry.kind === "asset") {
+                  await prefetchAsset(entry.url, signal);
+                } else {
+                  await prefetchOne(cache, entry.url, signal);
+                }
                 if (stale()) return;
                 await idbDone(
                   db
@@ -697,9 +730,11 @@ async function drainPrefetchQueue() {
             .objectStore(PREFETCH_META)
             .delete("current").transaction,
         );
+        if (Array.isArray(meta.assets)) await pruneStaticCache(meta.assets);
         notifyClients({
           type: "PREFETCH_DONE",
           hash: meta.hash,
+          refreshed: meta.refreshed === true,
         });
       } else if (!stale() && leftover.length > 0) {
         // Some requests failed or timed out; the pass isn't complete, so the
@@ -714,6 +749,39 @@ async function drainPrefetchQueue() {
   } finally {
     // Only the current drain may clear the flag (a replaced one must not).
     if (token === prefetchToken) prefetchDraining = false;
+  }
+}
+
+// A static file of the new version (content-hashed, so never refetched).
+async function prefetchAsset(url, signal) {
+  const response = await fetchBounded(
+    url,
+    { credentials: "same-origin" },
+    signal,
+  );
+  if (!response.ok) {
+    // Gone from the server (an older deploy's file): nothing to keep.
+    if (response.status === 404) return;
+    throw new Error(`asset ${response.status}`);
+  }
+  const cache = await caches.open(STATIC_CACHE);
+  await safePut(cache, new Request(url), response);
+}
+
+// Drops build files the current version no longer uses; without this the
+// static cache grows with every deploy.
+async function pruneStaticCache(assets) {
+  try {
+    const keep = new Set(assets);
+    const cache = await caches.open(STATIC_CACHE);
+    for (const request of await cache.keys()) {
+      const path = new URL(request.url).pathname;
+      if (path.startsWith("/_next/static/") && !keep.has(path)) {
+        await cache.delete(request);
+      }
+    }
+  } catch {
+    // Pruning is housekeeping; never fail the pass over it
   }
 }
 
