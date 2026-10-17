@@ -251,7 +251,7 @@ export function CollectionLabel({
           {lines.map(({ line, row, state, settled, overdue }) => (
             <div
               key={line.id}
-              className={`flex flex-wrap items-center gap-1.5 text-xs ${
+              className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-xs ${
                 settled ? "opacity-60" : ""
               }`}
             >
@@ -264,15 +264,24 @@ export function CollectionLabel({
                   {peso(line.amount)}
                 </span>
               )}
-              <span className={chipClass(overdue ? "overdue" : "neutral")}>
+              <span className="text-muted-foreground tabular-nums">
                 {formatShortDate(line.due_date).toLowerCase()}
-                {overdue ? ` · ${line.daysOverdue}d overdue` : ""}
               </span>
-              <span
-                className={chipClass(
-                  line.type === "cash_advance" ? "cash_advance" : "loan",
-                )}
-              >
+              {overdue && (
+                <span className={chipClass("overdue")}>
+                  {line.daysOverdue}d late
+                </span>
+              )}
+              {/* Type as a quiet dot + word; the color alone tells loan from ca. */}
+              <span className="inline-flex items-center gap-1 text-muted-foreground">
+                <span
+                  aria-hidden="true"
+                  className={`size-1.5 rounded-full ${
+                    line.type === "cash_advance"
+                      ? "bg-amber-400"
+                      : "bg-violet-400"
+                  }`}
+                />
                 {line.type === "cash_advance" ? "ca" : "loan"}
               </span>
               {state === "paid" && (

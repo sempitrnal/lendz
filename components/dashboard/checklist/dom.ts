@@ -22,8 +22,8 @@ export function isNearWhite(color: string) {
 /** Tint derived from a `#rrggbb` category color; text stays neutral for contrast. */
 export function categoryTintStyle(color: string) {
   return {
-    backgroundColor: `${color}24`,
-    borderColor: isNearWhite(color) ? NEAR_WHITE_BORDER : `${color}80`,
+    backgroundColor: `${color}1f`,
+    borderColor: isNearWhite(color) ? NEAR_WHITE_BORDER : `${color}4d`,
   };
 }
 
@@ -55,23 +55,25 @@ export type ChipTone =
   | "partial"
   | "unpaid";
 
+// Borderless, low-saturation tints: the row should read at a glance, with
+// only "overdue" carrying real color.
 const CHIP_TONES: Record<ChipTone, string> = {
-  neutral: "border-border bg-muted text-muted-foreground",
+  neutral: "border-transparent bg-muted text-muted-foreground",
   overdue:
-    "border-rose-300/60 bg-rose-100 text-rose-700 dark:border-rose-700 dark:bg-rose-900/40 dark:text-rose-200",
-  loan: "lowercase border-violet-300/60 bg-violet-100 text-violet-800 dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-200",
+    "border-transparent bg-rose-500/10 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300",
+  loan: "lowercase border-transparent bg-violet-500/10 text-violet-700 dark:text-violet-300",
   cash_advance:
-    "lowercase border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200",
-  paid: "border-emerald-300/60 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200",
+    "lowercase border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  paid: "border-transparent bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
   // Muted pastel lavender, softer than the loan chip so the two read apart.
   partial:
-    "border-[#e6def2] bg-[#f6f2fb] text-[#8a7aa8] dark:border-[#3b3449] dark:bg-[#251f2e] dark:text-[#bcaed6]",
+    "border-transparent bg-[#f6f2fb] text-[#8a7aa8] dark:bg-[#251f2e] dark:text-[#bcaed6]",
   unpaid:
     "border-dashed border-orange-300 bg-transparent text-orange-700 dark:border-orange-700 dark:text-orange-300",
 };
 
 export function chipClass(tone: ChipTone) {
-  return `inline-block rounded border px-1.5 py-0.5 align-middle text-[11px] font-semibold leading-none ${CHIP_TONES[tone]}`;
+  return `inline-block rounded-full border px-2 py-0.5 align-middle text-[11px] font-medium leading-none ${CHIP_TONES[tone]}`;
 }
 
 export function badgeClassFor(href: string): string | null {
