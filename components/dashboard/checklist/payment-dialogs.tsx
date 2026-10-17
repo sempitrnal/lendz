@@ -61,7 +61,7 @@ const hasPayment = (row: ScheduleDialogRow) =>
 const ACCOUNT_SUMMARIES_KEY = "checklist-account-summaries";
 
 /** Each schedule is its own card; paid/part-paid ones get a soft glow. */
-const SCHEDULE_CARD = {
+export const SCHEDULE_CARD = {
   plain: "border-slate-200 bg-white dark:border-border dark:bg-card",
   paid: "border-emerald-300/70 bg-emerald-50/80 shadow-[inset_0_0_18px_-6px_rgba(16,185,129,0.55)] dark:border-emerald-700/60 dark:bg-emerald-400/[0.07] dark:shadow-[inset_0_0_18px_-6px_rgba(52,211,153,0.45)]",
   partial:
@@ -85,19 +85,19 @@ const STATE_LABEL: Record<ScheduleState, string> = {
   unpaid: "unpaid",
 };
 
-const ACTION_BUTTON =
+export const ACTION_BUTTON =
   "cursor-pointer rounded-md border px-2 py-1.5 text-sm font-semibold lowercase transition";
 
-const PAID_TEXT = {
+export const PAID_TEXT = {
   paid: "font-semibold text-emerald-700 dark:text-emerald-300",
   partial: "font-semibold text-violet-700 dark:text-violet-300",
 } as const;
 
 /** Fade + rise used to stagger account cards and schedule rows in on open. */
-const ENTER_ANIMATION =
+export const ENTER_ANIMATION =
   "animate-in fade-in slide-in-from-bottom-2 fill-mode-both duration-300 ease-out motion-reduce:animate-none";
 
-type PendingPayment = {
+export type PendingPayment = {
   paidAmount: number;
   partialAmount: number;
   installments: number;
@@ -146,7 +146,7 @@ function pendingPayment(
   };
 }
 
-function AccountSummaryHeader({
+export function AccountSummaryHeader({
   summary,
   pending,
 }: {

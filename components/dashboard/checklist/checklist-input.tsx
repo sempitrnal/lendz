@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
+import { Plus } from "lucide-react";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import {
   createBadgeSpan,
@@ -23,12 +24,16 @@ import {
   setCaretOffset,
 } from "@/components/dashboard/checklist/dom";
 import {
+  borrowerCategoryColor,
   formatShortDate,
   parseExistingNext,
   rewriteNextBlock,
+  type BorrowerNextData,
+  type ManualFlatAccount,
   type NextCollectionItem,
 } from "@/lib/checklist/labels";
 import { overdueCutoffDateValue } from "@/lib/checklist/dates";
+import { ManualPaymentDialog } from "@/components/dashboard/checklist/manual-payment-dialog";
 
 /** Room the /next dropdown wants under the input before it opens above. */
 const NEXT_MIN_SPACE = 260;
@@ -116,9 +121,7 @@ export type ChecklistInputProps = {
   showPesoButton?: boolean;
   autoFocus?: boolean;
   className?: string;
-  getBorrowerNextAmounts?: (
-    borrowerId: string,
-  ) => Promise<NextCollectionItem[]>;
+  getBorrowerNextAmounts?: (borrowerId: string) => Promise<BorrowerNextData>;
 };
 
 export const ChecklistInput = forwardRef<
@@ -153,6 +156,13 @@ export const ChecklistInput = forwardRef<
     const [nextItems, setNextItems] = useState<NextCollectionItem[]>([]);
     const [nextIndex, setNextIndex] = useState(0);
     const [nextSelected, setNextSelected] = useState<Set<number>>(new Set());
+    const [nextManual, setNextManual] = useState<ManualFlatAccount[]>([]);
+    /** Manual account whose "add payment" dialog is open over the list. */
+    const [manualFormAccount, setManualFormAccount] =
+      useState<ManualFlatAccount | null>(null);
+    // Read by the outside-click handler, which is bound once.
+    const manualDialogOpenRef = useRef(false);
+    manualDialogOpenRef.current = manualFormAccount !== null;
     const nextTokenStartRef = useRef<number | null>(null);
     const tokenlessRef = useRef(false);
     const nextDropdownRef = useRef<HTMLDivElement>(null);
@@ -193,6 +203,8 @@ export const ChecklistInput = forwardRef<
     useEffect(() => {
       const handler = (e: MouseEvent) => {
         const target = e.target as Node;
+        // Clicks in the add-payment dialog keep the /next list underneath.
+        if (manualDialogOpenRef.current) return;
         if (
           wrapperRef.current &&
           !wrapperRef.current.contains(target) &&
@@ -358,6 +370,64 @@ export const ChecklistInput = forwardRef<
       onChange?.(el.textContent ?? "");
     };
 
+    /** Borrower's open collections merged with the ones already in the text. */
+    const loadNextItems = async (borrowerId: string, el: HTMLElement) => {
+      const fetched = await getBorrowerNextAmounts!(borrowerId);
+      const present = parseExistingNext(serializeContent(el));
+      const presentIds = new Set(present.map((p) => p.id));
+      const fetchedIds = new Set(fetched.items.map((f) => f.id));
+      const items = [
+        ...fetched.items.map((f) => ({ ...f, existing: presentIds.has(f.id) })),
+        ...present.filter((p) => !fetchedIds.has(p.id)),
+      ].sort(
+        (a, b) =>
+          a.due_date.localeCompare(b.due_date) || a.type.localeCompare(b.type),
+      );
+      return { items, manualAccounts: fetched.manualAccounts };
+    };
+
+    const manualBorrower = useMemo(() => {
+      if (!manualFormAccount) return null;
+      const b = borrowers.find(
+        (x) => x.id === lastMentionedBorrowerRef.current,
+      );
+      return b
+        ? {
+            id: b.id,
+            name: `${b.first_name} ${b.last_name}`.trim(),
+            color: borrowerCategoryColor(b),
+          }
+        : null;
+    }, [manualFormAccount, borrowers]);
+
+    /** After a manual payment is saved: reload the list, keep what was ticked. */
+    const handleManualSaved = async () => {
+      setManualFormAccount(null);
+      const borrowerId = lastMentionedBorrowerRef.current;
+      const el = innerRef.current;
+      if (!borrowerId || !el) return;
+      const keepIds = new Set(
+        nextItems.filter((_, i) => nextSelected.has(i)).map((i) => i.id),
+      );
+      setNextLoading(true);
+      try {
+        const { items, manualAccounts } = await loadNextItems(borrowerId, el);
+        setNextItems(items);
+        setNextManual(manualAccounts);
+        setNextSelected(
+          new Set(
+            items.flatMap((item, i) =>
+              item.existing || keepIds.has(item.id) ? [i] : [],
+            ),
+          ),
+        );
+      } catch (err) {
+        console.error("refresh next items error:", err);
+      } finally {
+        setNextLoading(false);
+      }
+    };
+
     const openNextDropdown = async (matchStart: number | null) => {
       const borrowerId = lastMentionedBorrowerRef.current;
       if (!getBorrowerNextAmounts || !borrowerId) return;
@@ -372,29 +442,21 @@ export const ChecklistInput = forwardRef<
       setNextPortal(portal);
       setNextAnchor(measureNextAnchor(el, nextOpenUpRef.current, portal));
       setNextItems([]);
+      setNextManual([]);
+      setManualFormAccount(null);
       setNextSelected(new Set());
       setNextIndex(0);
       setNextLoading(true);
       setNextOpen(true);
       try {
-        const fetched = await getBorrowerNextAmounts(borrowerId);
-        const present = parseExistingNext(serializeContent(el));
-        const presentIds = new Set(present.map((p) => p.id));
-        const fetchedIds = new Set(fetched.map((f) => f.id));
-        const items = [
-          ...fetched.map((f) => ({ ...f, existing: presentIds.has(f.id) })),
-          ...present.filter((p) => !fetchedIds.has(p.id)),
-        ].sort(
-          (a, b) =>
-            a.due_date.localeCompare(b.due_date) ||
-            a.type.localeCompare(b.type),
-        );
-        if (!items.length) {
+        const { items, manualAccounts } = await loadNextItems(borrowerId, el);
+        if (!items.length && !manualAccounts.length) {
           setNextOpen(false);
           if (!tokenlessRef.current) replaceNextToken(null);
           toast.info("No pending collections");
         } else {
           setNextItems(items);
+          setNextManual(manualAccounts);
           setNextSelected(
             new Set(items.flatMap((item, i) => (item.existing ? [i] : []))),
           );
@@ -593,7 +655,11 @@ export const ChecklistInput = forwardRef<
           setNextOpen(false);
           return;
         }
-        if (nextLoading || !nextItems.length) return;
+        if (nextLoading || !nextItems.length) {
+          // Only manual accounts listed: Enter shouldn't submit the note.
+          if (e.key === "Enter") e.preventDefault();
+          return;
+        }
         const count = nextItems.length + (nextItems.length > 1 ? 1 : 0);
         if (e.key === "ArrowDown") {
           e.preventDefault();
@@ -767,7 +833,8 @@ export const ChecklistInput = forwardRef<
           </div>
         )}
         {nextOpen &&
-          (nextLoading || nextItems.length > 0) &&
+          !manualFormAccount &&
+          (nextLoading || nextItems.length > 0 || nextManual.length > 0) &&
           nextAnchor &&
           createPortal(
             <div
@@ -907,6 +974,17 @@ export const ChecklistInput = forwardRef<
                                 >
                                   {item.type === "cash_advance" ? "CA" : "Loan"}
                                 </span>
+                                {item.manual && (
+                                  <span
+                                    className="rounded border
+                                      border-slate-300/60 bg-slate-100 px-1
+                                      py-px text-[8px] font-semibold lowercase
+                                      text-slate-600 dark:border-border
+                                      dark:bg-muted dark:text-muted-foreground"
+                                  >
+                                    manual
+                                  </span>
+                                )}
                                 {isOverdue && (
                                   <span
                                     className="rounded border border-rose-300/60
@@ -930,39 +1008,102 @@ export const ChecklistInput = forwardRef<
                         </Fragment>
                       );
                     })}
+                    {nextManual.length > 0 && (
+                      <div>
+                        <div
+                          className="px-2 pb-1 pt-2 text-[10px] font-bold
+                            tracking-wide text-slate-400 uppercase
+                            dark:text-muted-foreground"
+                        >
+                          Manual flat accounts
+                        </div>
+                        {nextManual.map((account) => (
+                          <div
+                            key={account.id}
+                            className="flex items-center justify-between gap-2
+                              px-2 py-2 text-sm"
+                          >
+                            <span className="min-w-0">
+                              <span
+                                className="block font-medium text-slate-700
+                                  dark:text-foreground"
+                              >
+                                {account.type === "cash_advance"
+                                  ? "Cash Advance"
+                                  : "Loan"}
+                                {account.release_date
+                                  ? ` · ${formatShortDate(account.release_date.slice(0, 10))}`
+                                  : ""}
+                              </span>
+                              <span
+                                className="block text-xs text-slate-500
+                                  dark:text-muted-foreground"
+                              >
+                                ₱{account.remaining.toLocaleString()} left
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => setManualFormAccount(account)}
+                              className="flex shrink-0 items-center gap-1
+                                rounded-md border border-border/60 px-2 py-1
+                                text-xs font-medium text-slate-700
+                                hover:bg-slate-50 dark:text-foreground
+                                dark:hover:bg-muted/50"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Add payment
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div
-                    className="mt-0.5 shrink-0 border-t border-border/50 p-0.5"
-                  >
-                    <button
-                      type="button"
-                      disabled={
-                        nextSelected.size === 0 &&
-                        !nextItems.some((item) => item.existing)
-                      }
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        if (!isMobile) innerRef.current?.focus();
-                        insertNextItems(
-                          nextItems.filter((_, i) => nextSelected.has(i)),
-                        );
-                      }}
-                      className="w-full rounded-md bg-slate-900 px-2 py-1.5
-                        text-sm font-medium text-white transition-opacity
-                        disabled:opacity-40 dark:bg-slate-100
-                        dark:text-slate-900"
+                  {nextItems.length > 0 && (
+                    <div
+                      className="mt-0.5 shrink-0 border-t border-border/50
+                        p-0.5"
                     >
-                      {nextItems.some((item) => item.existing)
-                        ? "Update"
-                        : "Insert"}
-                      {nextSelected.size > 0 ? ` (${nextSelected.size})` : ""}
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        disabled={
+                          nextSelected.size === 0 &&
+                          !nextItems.some((item) => item.existing)
+                        }
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          if (!isMobile) innerRef.current?.focus();
+                          insertNextItems(
+                            nextItems.filter((_, i) => nextSelected.has(i)),
+                          );
+                        }}
+                        className="w-full rounded-md bg-slate-900 px-2 py-1.5
+                          text-sm font-medium text-white transition-opacity
+                          disabled:opacity-40 dark:bg-slate-100
+                          dark:text-slate-900"
+                      >
+                        {nextItems.some((item) => item.existing)
+                          ? "Update"
+                          : "Insert"}
+                        {nextSelected.size > 0 ? ` (${nextSelected.size})` : ""}
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>,
             nextPortal ?? document.body,
           )}
+        <ManualPaymentDialog
+          account={manualFormAccount}
+          borrower={manualBorrower}
+          onClose={() => {
+            setManualFormAccount(null);
+            if (!isMobile) innerRef.current?.focus();
+          }}
+          onSaved={() => void handleManualSaved()}
+        />
       </div>
     );
   },

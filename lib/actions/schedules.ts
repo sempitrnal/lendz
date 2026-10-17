@@ -530,3 +530,89 @@ export async function addSchedulesAction(
   revalidateScheduleCaches(accountId);
   return {};
 }
+
+/**
+ * Adds one schedule to a manual account, optionally with money already on it
+ * (paid or partial), from the daily notes `/next` flow.
+ */
+export async function addManualScheduleAction(
+  accountId: string,
+  input: {
+    due_date: string;
+    amount_due: number;
+    status: ScheduleStatus;
+    amount_paid?: number;
+    paid_date?: string | null;
+  },
+): Promise<{ id?: string; error?: string }> {
+  const due = Math.round(Number(input.amount_due) * 100) / 100;
+  if (!accountId || !input.due_date || !(due > 0)) {
+    return { error: "Amount and due date are required" };
+  }
+  if (!scheduleStatuses.includes(input.status)) {
+    return { error: "Invalid status" };
+  }
+  const paid =
+    input.status === "paid"
+      ? due
+      : input.status === "partial"
+        ? Math.min(due, Math.max(0, Number(input.amount_paid ?? 0)))
+        : 0;
+  if (input.status === "partial" && !(paid > 0 && paid < due)) {
+    return { error: "Partial amount must be between 0 and the amount due" };
+  }
+  const paidDate = paid > 0 ? input.paid_date || null : null;
+
+  const sb = await createSupabaseServer();
+  const { data: account } = await sb
+    .from("accounts")
+    .select("id, schedule_mode")
+    .eq("id", accountId)
+    .single();
+  if (!account) return { error: "Account not found" };
+  if (account.schedule_mode !== "manual") {
+    return { error: "Only manual accounts take hand-added schedules" };
+  }
+
+  const { data: row, error } = await sb
+    .from("payment_schedules")
+    .insert({
+      account_id: accountId,
+      due_date: input.due_date,
+      amount_due: due,
+      amount_paid: paid,
+      remaining_amount: due - paid,
+      status: input.status,
+      paid_date: paidDate,
+    })
+    .select("id")
+    .single();
+  if (error || !row) return { error: error?.message ?? "Insert failed" };
+
+  if (paid > 0) {
+    await sb.from("schedule_payments").insert({
+      schedule_id: row.id,
+      amount: paid,
+      payment_date: paidDate,
+    });
+  }
+
+  await logAudit({
+    action: "schedule.added",
+    entity_type: "payment_schedule",
+    entity_id: row.id,
+    account_id: accountId,
+    description: `Schedule added (due ${input.due_date}, ₱${due.toLocaleString()}, ${input.status})`,
+    metadata: {
+      scheduleId: row.id,
+      due_date: input.due_date,
+      amount_due: due,
+      amount_paid: paid,
+      status: input.status,
+      paid_date: paidDate,
+    },
+  });
+
+  revalidateScheduleCaches(accountId);
+  return { id: row.id as string };
+}

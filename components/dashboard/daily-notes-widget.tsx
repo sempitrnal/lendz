@@ -66,6 +66,8 @@ import {
   extractScheduleRefs,
   parseExistingNext,
   rewriteNextBlock,
+  type BorrowerNextData,
+  type ManualFlatAccount,
   type NextCollectionItem,
 } from "@/lib/checklist/labels";
 import { summarizeChecklist } from "@/lib/checklist/totals";
@@ -217,22 +219,36 @@ function CategorySection({
   const { data: borrowers = [] } = useBorrowersSearch();
 
   const getBorrowerNextAmounts = useCallback(
-    async (borrowerId: string): Promise<NextCollectionItem[]> => {
+    async (borrowerId: string): Promise<BorrowerNextData> => {
+      const empty: BorrowerNextData = { items: [], manualAccounts: [] };
       try {
         const res = await fetch(`/api/borrowers/${borrowerId}/details`);
-        if (!res.ok) return [];
+        if (!res.ok) return empty;
         const data = (await res.json()) as {
           accounts: Array<Record<string, unknown>>;
           metrics: Record<string, Record<string, unknown>>;
         };
         const items: NextCollectionItem[] = [];
+        const manualAccounts: ManualFlatAccount[] = [];
         for (const a of data.accounts) {
-          if (
-            a.schedule_mode === "manual" ||
-            (a.type !== "loan" && a.type !== "cash_advance")
-          )
-            continue;
+          if (a.type !== "loan" && a.type !== "cash_advance") continue;
+          const isManual = a.schedule_mode === "manual";
+          // Rolling manual accounts roll their own next schedule on payment.
+          if (isManual && a.interest_type === "rolling") continue;
+          if (isManual && a.status === "pending") continue;
           const m = data.metrics[a.id as string];
+          if (isManual) {
+            const remaining = Number(m?.amountLeftToPay ?? 0);
+            if (remaining > 0) {
+              manualAccounts.push({
+                id: String(a.id),
+                type: String(a.type),
+                total: Number(m?.totalDue ?? 0),
+                remaining,
+                release_date: (a.release_date as string | null) ?? null,
+              });
+            }
+          }
           const collections =
             (m?.dueCollections as NextCollectionItem[] | undefined) ?? [];
           for (const c of collections) {
@@ -244,6 +260,7 @@ function CategorySection({
               due_date,
               amount,
               type: String(a.type ?? ""),
+              ...(isManual ? { manual: true } : {}),
             });
           }
         }
@@ -257,9 +274,9 @@ function CategorySection({
           if (byDate !== 0) return byDate;
           return a.type.localeCompare(b.type);
         });
-        return items;
+        return { items, manualAccounts };
       } catch {
-        return [];
+        return empty;
       }
     },
     [],

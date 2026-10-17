@@ -325,6 +325,24 @@ export type NextCollectionItem = {
   type: string;
   /** Already present in the text being edited (pre-checked in the dropdown). */
   existing?: boolean;
+  /** Comes from a manual-schedule account (schedules added by hand). */
+  manual?: boolean;
+};
+
+/** A manual flat account the `/next` dropdown can add a schedule to. */
+export type ManualFlatAccount = {
+  id: string;
+  type: string;
+  /** Contract total (principal plus flat interest). */
+  total: number;
+  /** What is still owed on the contract. */
+  remaining: number;
+  release_date: string | null;
+};
+
+export type BorrowerNextData = {
+  items: NextCollectionItem[];
+  manualAccounts: ManualFlatAccount[];
 };
 
 export type CollectionRowLine = NextCollectionItem & {
