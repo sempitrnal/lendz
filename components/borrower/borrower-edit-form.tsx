@@ -18,7 +18,7 @@ import {
 } from "@/lib/form-field-classes";
 import { formatContactNumber } from "@/lib/format-contact-number";
 import { supabase } from "@/lib/supabase/client";
-import { fetchCategoriesAction } from "@/lib/actions/categories";
+import { fetchCategories } from "@/lib/categories/fetch-categories";
 import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
 import { useEffect, useState } from "react";
 import { isDarkColor } from "@/lib/utils";
@@ -78,11 +78,14 @@ export default function BorrowerEditForm({
   } = register("contact");
 
   useEffect(() => {
-    fetchCategoriesAction().then((rows) => {
-      setCategories(
-        rows.map((c) => ({ id: c.id, name: c.name, color: c.color ?? "" })),
-      );
-    });
+    fetchCategories()
+      .then((rows) => {
+        setCategories(
+          rows.map((c) => ({ id: c.id, name: c.name, color: c.color ?? "" })),
+        );
+      })
+      // Offline with nothing saved yet: the picker just stays empty.
+      .catch(() => {});
   }, []);
 
   const onSubmit = async (values: BorrowerFormValues) => {

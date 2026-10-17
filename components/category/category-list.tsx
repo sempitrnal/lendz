@@ -17,7 +17,7 @@ import {
   formFieldLabelClassName,
 } from "@/lib/form-field-classes";
 import { supabase } from "@/lib/supabase/client";
-import { fetchCategoriesAction } from "@/lib/actions/categories";
+import { fetchCategories } from "@/lib/categories/fetch-categories";
 import CategoryCard from "./category-card";
 
 type Count = {
@@ -61,7 +61,7 @@ export default function CategoryList() {
 
   const loadCategories = async () => {
     try {
-      const rows = await fetchCategoriesAction();
+      const rows = await fetchCategories();
       setCategories(rows as Category[]);
     } catch {
       setCategories([]);

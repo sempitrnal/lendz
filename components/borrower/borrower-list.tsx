@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import { fetchCategoriesAction } from "@/lib/actions/categories";
+import { fetchCategories } from "@/lib/categories/fetch-categories";
 import { useSeedBorrowersSearch } from "@/hooks/use-borrowers-search";
 import {
   RECENT_BORROWERS_CHANGED,
@@ -227,11 +227,14 @@ export default function BorrowersList({
   >([]);
 
   useEffect(() => {
-    fetchCategoriesAction().then((rows) => {
-      setCategories(
-        rows.map((c) => ({ id: c.id, name: c.name, color: c.color })),
-      );
-    });
+    fetchCategories()
+      .then((rows) => {
+        setCategories(
+          rows.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+        );
+      })
+      // Offline with nothing saved yet: the picker just stays empty.
+      .catch(() => {});
   }, []);
 
   const safeBorrowers = (allBorrowers as Borrower[] | undefined) ?? [];

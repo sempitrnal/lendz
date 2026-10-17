@@ -47,6 +47,15 @@ self.addEventListener("install", (event) => {
   );
 });
 
+// An update is installing: stop this worker's prefetch pass, which would
+// otherwise keep it busy and hold the new version back until the pass ends.
+// The queue stays saved and the new worker picks it up when it activates.
+self.registration.addEventListener("updatefound", () => {
+  if (self.registration.installing && self.registration.active) {
+    pausePrefetch();
+  }
+});
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -90,6 +99,12 @@ self.addEventListener("fetch", (event) => {
 
   // The build's offline manifest changes with every deploy: always fresh.
   if (url.pathname === "/_next/static/offline-manifest.json") return;
+
+  // Router prefetches (`<Link>` warming the next page) answer with partial
+  // payloads. Saved under the page's key they would replace the full copy
+  // that offline navigation needs, so they go straight to the network; when
+  // that fails the router just navigates normally.
+  if (request.headers.has("next-router-prefetch")) return;
 
   // Cache-first: Next.js static chunks and public assets
   if (
@@ -189,6 +204,12 @@ async function networkFirstPage(request, event) {
   } catch {
     if (cached) return cached;
 
+    // A page with a query string (a calendar month, `?focus=` on an account)
+    // is only saved if it was visited: offline, its plain page beats the
+    // offline screen.
+    const plain = await cache.match(withoutQuery(key));
+    if (plain) return plain;
+
     if (request.mode === "navigate") {
       const offline = await caches.match(OFFLINE_URL);
       if (offline) return offline;
@@ -202,6 +223,15 @@ async function networkFirstPage(request, event) {
       { status: 503, headers: { "Content-Type": "application/json" } },
     );
   }
+}
+
+/** The same page cache key without its query string (RSC marker kept). */
+function withoutQuery(key) {
+  const url = new URL(key.url);
+  const isRsc = url.searchParams.has("__sw_rsc");
+  url.search = "";
+  if (isRsc) url.searchParams.set("__sw_rsc", "1");
+  return new Request(url.toString());
 }
 
 async function networkFirst(request, cacheName, event) {
@@ -492,6 +522,7 @@ self.addEventListener("message", (event) => {
         event.data.hash,
         event.data.refresh,
         event.data.assets,
+        event.data.prune === true,
       ).then(() => drainPrefetchQueue()),
     );
   } else if (type === "CONNECTION") {
@@ -563,15 +594,31 @@ function getQueuedUrls(db) {
 // get fetched, already-cached pages are left alone, and URLs that failed a
 // previous pass are retried for free since they're simply absent.
 //
-// `refresh` (a new app version) lists pages whose route code changed: those are
-// fetched again even when cached. `assets` is every static file of the new
-// version: missing ones are fetched so pages work offline, and once the pass
-// completes, cached files no longer in the list are dropped.
-async function seedPrefetchQueue(urls, hash, refresh, assets) {
+// `refresh` lists pages to fetch again even when cached (a new app version
+// refreshes them all: each saved page carries the build it came from, and
+// the router reloads into an old build's page when they don't match).
+// `assets` is every static file of the new version: missing ones are fetched
+// so pages work offline, and once the pass completes, cached files no longer
+// in the list are dropped. With `prune`, saved pages outside `urls` (other
+// query strings, deleted records) are dropped then too: they're from the old
+// build.
+async function seedPrefetchQueue(urls, hash, refresh, assets, prune) {
   const db = await openPrefetchDb();
   try {
     const meta = await getPrefetchMeta(db);
     if (meta && meta.hash === hash) return;
+    // Already finished this exact pass (the page missed the news, e.g. it
+    // reloaded right then): say so again instead of downloading it all over.
+    const done = await idbRequest(
+      db
+        .transaction(PREFETCH_META, "readonly")
+        .objectStore(PREFETCH_META)
+        .get("done"),
+    );
+    if (!meta && done?.hash === hash) {
+      notifyClients({ ...done, type: "PREFETCH_DONE" });
+      return;
+    }
 
     const cache = await caches.open(PAGES_CACHE);
     const cached = new Set((await cache.keys()).map((r) => r.url));
@@ -616,6 +663,7 @@ async function seedPrefetchQueue(urls, hash, refresh, assets) {
           // an older one that ignored it.
           refreshed: Array.isArray(refresh),
           assets: Array.isArray(assets) ? assets : null,
+          keep: prune ? urls : null,
         });
         return tx;
       })(),
@@ -724,18 +772,24 @@ async function drainPrefetchQueue() {
       const leftover = await getQueuedUrls(db);
       const meta = await getPrefetchMeta(db);
       if (!stale() && leftover.length === 0 && meta) {
-        await idbDone(
-          db
-            .transaction(PREFETCH_META, "readwrite")
-            .objectStore(PREFETCH_META)
-            .delete("current").transaction,
-        );
         if (Array.isArray(meta.assets)) await pruneStaticCache(meta.assets);
-        notifyClients({
-          type: "PREFETCH_DONE",
+        if (Array.isArray(meta.keep)) await prunePagesCache(meta.keep);
+        const done = {
+          key: "done",
           hash: meta.hash,
           refreshed: meta.refreshed === true,
-        });
+          pruned: Array.isArray(meta.keep),
+        };
+        await idbDone(
+          (() => {
+            const tx = db.transaction(PREFETCH_META, "readwrite");
+            const store = tx.objectStore(PREFETCH_META);
+            store.delete("current");
+            store.put(done);
+            return tx;
+          })(),
+        );
+        notifyClients({ ...done, type: "PREFETCH_DONE" });
       } else if (!stale() && leftover.length > 0) {
         // Some requests failed or timed out; the pass isn't complete, so the
         // page's progress pill shouldn't keep claiming it is running.
@@ -782,6 +836,24 @@ async function pruneStaticCache(assets) {
     }
   } catch {
     // Pruning is housekeeping; never fail the pass over it
+  }
+}
+
+// Drops saved pages that aren't in this version's list. The offline page is
+// cached on install and always kept.
+async function prunePagesCache(urls) {
+  try {
+    const keep = new Set(
+      [...urls, OFFLINE_URL].map((u) => new URL(u, self.location.origin).href),
+    );
+    const cache = await caches.open(PAGES_CACHE);
+    for (const request of await cache.keys()) {
+      const url = new URL(request.url);
+      url.searchParams.delete("__sw_rsc");
+      if (!keep.has(url.href)) await cache.delete(request);
+    }
+  } catch {
+    // Housekeeping; never fail the pass over it
   }
 }
 

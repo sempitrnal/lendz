@@ -1,18 +1,28 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useOnline } from "@/hooks/use-online";
 import { warmChecklistCache } from "@/lib/checklist/offline-cache";
 import { requestOutboxReplay } from "@/lib/offline/outbox";
 import { readStored, writeStored } from "@/lib/offline/storage";
-import { urlsToRefresh, type OfflineManifest } from "@/lib/offline/route-diff";
+
+/** Written after each build by scripts/offline-manifest.mjs. */
+type OfflineManifest = {
+  buildId: string;
+  /** Every static file of the build (`/_next/static/...`). */
+  assets: string[];
+};
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often to check while app is open
 const LAST_SYNC_HASH_KEY = "lendz-offline-sync-hash";
-/** Route fingerprints of the app version the cached pages were saved from. */
+/** The app version the saved pages were last brought up to. */
 const SYNCED_MANIFEST_KEY = "lendz-offline-manifest";
-/** Written after each build by scripts/offline-manifest.mjs. */
+/**
+ * The pass bringing saved pages up to a new version: its hash and build.
+ * Stored (not just in memory) so a reload mid-pass still recognises its end.
+ */
+const PENDING_VERSION_KEY = "lendz-offline-pending-version";
 const MANIFEST_URL = "/_next/static/offline-manifest.json";
 
 /** This deploy's manifest, or null (dev, or not reachable right now). */
@@ -21,7 +31,7 @@ async function fetchManifest(): Promise<OfflineManifest | null> {
     const res = await fetch(MANIFEST_URL, { cache: "no-store" });
     if (!res.ok) return null;
     const data = (await res.json()) as OfflineManifest;
-    return data?.buildId && data.routes ? data : null;
+    return data?.buildId && Array.isArray(data.assets) ? data : null;
   } catch {
     return null;
   }
@@ -47,6 +57,16 @@ const STATIC_ROUTES = [
   "/test-account",
 ];
 
+/** Calendar months saved for offline: two back, three ahead. */
+function calendarMonthUrls(now = new Date()): string[] {
+  const urls: string[] = [];
+  for (let offset = -2; offset <= 3; offset++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    urls.push(`/calendar?year=${d.getFullYear()}&month=${d.getMonth() + 1}`);
+  }
+  return urls;
+}
+
 function hashUrlList(urls: string[]): string {
   const joined = urls.join("|");
   let hash = 5381;
@@ -64,9 +84,6 @@ function postToWorker(message: Record<string, unknown>) {
 
 export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
   const isOnline = useOnline();
-  const pendingHash = useRef<string | null>(null);
-  /** The new version a pass is updating the saved pages to, if any. */
-  const pendingManifest = useRef<OfflineManifest | null>(null);
 
   useEffect(() => {
     if (!enabled || !isOnline) return;
@@ -78,18 +95,20 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
     // empty — until then each tick re-posts the list and the drain resumes.
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === "PREFETCH_DONE" && event.data.hash) {
-        const manifest = pendingManifest.current;
-        if (manifest) {
-          // A worker from before this change ignores `refresh`, so its
-          // "done" doesn't mean the pages were updated: ask again next tick.
-          if (!event.data.refreshed) return;
-          writeStored(SYNCED_MANIFEST_KEY, { ...manifest, assets: [] });
-          pendingManifest.current = null;
+        const hash = String(event.data.hash);
+        const pending = readStored<{ hash: string; buildId: string }>(
+          PENDING_VERSION_KEY,
+        );
+        // Only the pass started for the new version can mark it synced: a
+        // pass from before the deploy finishing now left old pages behind.
+        // A worker from before this change ignores `refresh`/`prune`, so its
+        // "done" doesn't count either: ask again next tick.
+        if (pending?.hash === hash) {
+          if (!event.data.refreshed || !event.data.pruned) return;
+          writeStored(SYNCED_MANIFEST_KEY, { buildId: pending.buildId });
+          localStorage.removeItem(PENDING_VERSION_KEY);
         }
-        localStorage.setItem(LAST_SYNC_HASH_KEY, String(event.data.hash));
-        if (pendingHash.current === event.data.hash) {
-          pendingHash.current = null;
-        }
+        localStorage.setItem(LAST_SYNC_HASH_KEY, hash);
       }
     };
     navigator.serviceWorker.addEventListener("message", onMessage);
@@ -111,9 +130,12 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
 
         const urls = [
           ...STATIC_ROUTES,
+          ...calendarMonthUrls(),
           "/api/borrowers",
+          "/api/categories",
           ...(borrowers ?? []).flatMap((b: { id: string }) => [
             `/borrowers/${b.id}`,
+            `/borrowers/${b.id}/edit`,
             `/api/borrowers/${b.id}/details`,
           ]),
           ...(accounts ?? []).map((a: { id: string }) => `/accounts/${a.id}`),
@@ -122,15 +144,20 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
           ),
         ];
 
-        // A new app version re-downloads only the pages whose route code
-        // changed (and the new JS/CSS they need); everything else keeps its
-        // saved copy. Without a manifest (dev) versions aren't tracked.
+        // A new app version re-downloads every saved page (and the JS/CSS
+        // they need). Each page carries the build it was saved from, and the
+        // router turns a mismatch into a full reload of that old page, old
+        // code and all, so none can be kept. Saved pages outside the list
+        // are dropped once the pass is done. Without a manifest (dev)
+        // versions aren't tracked.
         const manifest = await fetchManifest();
         if (cancelled) return;
         const synced = readStored<OfflineManifest>(SYNCED_MANIFEST_KEY);
         const newVersion =
           manifest !== null && manifest.buildId !== synced?.buildId;
-        const refresh = newVersion ? urlsToRefresh(urls, manifest, synced) : [];
+        const refresh = newVersion
+          ? urls.filter((url) => !url.startsWith("/api/"))
+          : [];
 
         // Otherwise prefetch only when the route list changed (new entity or
         // route). Visited pages refresh themselves via the SW's network-first
@@ -144,14 +171,19 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
           return;
         }
 
-        pendingHash.current = listHash;
-        pendingManifest.current = newVersion ? manifest : null;
+        if (newVersion) {
+          writeStored(PENDING_VERSION_KEY, {
+            hash: listHash,
+            buildId: manifest.buildId,
+          });
+        }
         postToWorker({
           type: "PREFETCH_URLS",
           urls,
           hash: listHash,
           refresh,
           assets: manifest?.assets ?? null,
+          prune: newVersion,
         });
       } catch {
         // Queries failed — retry on next tick
