@@ -29,7 +29,7 @@ import {
   parseExistingNext,
   rewriteNextBlock,
   type BorrowerNextData,
-  type ManualFlatAccount,
+  type ManualAccount,
   type NextCollectionItem,
 } from "@/lib/checklist/labels";
 import { overdueCutoffDateValue } from "@/lib/checklist/dates";
@@ -122,6 +122,12 @@ export type ChecklistInputProps = {
   autoFocus?: boolean;
   className?: string;
   getBorrowerNextAmounts?: (borrowerId: string) => Promise<BorrowerNextData>;
+  /**
+   * Called with a finished label (the text with its `/next` token swapped
+   * for the paid line) after a manual payment is saved from the dropdown.
+   * Without it the dropdown just reloads.
+   */
+  onManualPayment?: (label: string) => void;
 };
 
 export const ChecklistInput = forwardRef<
@@ -139,6 +145,7 @@ export const ChecklistInput = forwardRef<
       autoFocus = false,
       className,
       getBorrowerNextAmounts,
+      onManualPayment,
     },
     ref,
   ) => {
@@ -156,10 +163,10 @@ export const ChecklistInput = forwardRef<
     const [nextItems, setNextItems] = useState<NextCollectionItem[]>([]);
     const [nextIndex, setNextIndex] = useState(0);
     const [nextSelected, setNextSelected] = useState<Set<number>>(new Set());
-    const [nextManual, setNextManual] = useState<ManualFlatAccount[]>([]);
+    const [nextManual, setNextManual] = useState<ManualAccount[]>([]);
     /** Manual account whose "add payment" dialog is open over the list. */
     const [manualFormAccount, setManualFormAccount] =
-      useState<ManualFlatAccount | null>(null);
+      useState<ManualAccount | null>(null);
     // Read by the outside-click handler, which is bound once.
     const manualDialogOpenRef = useRef(false);
     manualDialogOpenRef.current = manualFormAccount !== null;
@@ -400,12 +407,27 @@ export const ChecklistInput = forwardRef<
         : null;
     }, [manualFormAccount, borrowers]);
 
-    /** After a manual payment is saved: reload the list, keep what was ticked. */
-    const handleManualSaved = async () => {
+    /**
+     * After a manual payment is saved: hand the paid line to `onManualPayment`
+     * when there is one, otherwise reload the list and keep what was ticked.
+     */
+    const handleManualSaved = async (payment: NextCollectionItem) => {
       setManualFormAccount(null);
       const borrowerId = lastMentionedBorrowerRef.current;
       const el = innerRef.current;
       if (!borrowerId || !el) return;
+      if (onManualPayment) {
+        const label = rewriteNextBlock(serializeContent(el), [payment]).trim();
+        setNextOpen(false);
+        setNextItems([]);
+        setNextManual([]);
+        setNextSelected(new Set());
+        el.innerHTML = "";
+        lastMentionedBorrowerRef.current = null;
+        onChange?.("");
+        onManualPayment(label);
+        return;
+      }
       const keepIds = new Set(
         nextItems.filter((_, i) => nextSelected.has(i)).map((i) => i.id),
       );
@@ -1015,7 +1037,7 @@ export const ChecklistInput = forwardRef<
                             tracking-wide text-slate-400 uppercase
                             dark:text-muted-foreground"
                         >
-                          Manual flat accounts
+                          Manual accounts
                         </div>
                         {nextManual.map((account) => (
                           <div
@@ -1034,6 +1056,15 @@ export const ChecklistInput = forwardRef<
                                 {account.release_date
                                   ? ` · ${formatShortDate(account.release_date.slice(0, 10))}`
                                   : ""}
+                                <span
+                                  className="ml-1.5 rounded border
+                                    border-slate-300/60 bg-slate-100 px-1 py-px
+                                    align-middle text-[8px] font-semibold
+                                    lowercase text-slate-600 dark:border-border
+                                    dark:bg-muted dark:text-muted-foreground"
+                                >
+                                  {account.rolling ? "rolling" : "flat"}
+                                </span>
                               </span>
                               <span
                                 className="block text-xs text-slate-500
@@ -1102,7 +1133,7 @@ export const ChecklistInput = forwardRef<
             setManualFormAccount(null);
             if (!isMobile) innerRef.current?.focus();
           }}
-          onSaved={() => void handleManualSaved()}
+          onSaved={(payment) => void handleManualSaved(payment)}
         />
       </div>
     );

@@ -329,20 +329,29 @@ export type NextCollectionItem = {
   manual?: boolean;
 };
 
-/** A manual flat account the `/next` dropdown can add a schedule to. */
-export type ManualFlatAccount = {
+/** A manual account the `/next` dropdown can record a payment on. */
+export type ManualAccount = {
   id: string;
   type: string;
-  /** Contract total (principal plus flat interest). */
-  total: number;
-  /** What is still owed on the contract. */
+  /** Paid so far. */
+  paid: number;
+  /** What is still owed. */
   remaining: number;
   release_date: string | null;
+  /**
+   * Rolling accounts pay their open schedule; what's left of it rolls into a
+   * new one with interest. Flat accounts get a new paid schedule instead.
+   */
+  rolling?: {
+    interestRate: number;
+    /** The open schedule a payment goes against (null when none is open). */
+    open: { id: string; due_date: string; amount: number } | null;
+  };
 };
 
 export type BorrowerNextData = {
   items: NextCollectionItem[];
-  manualAccounts: ManualFlatAccount[];
+  manualAccounts: ManualAccount[];
 };
 
 export type CollectionRowLine = NextCollectionItem & {

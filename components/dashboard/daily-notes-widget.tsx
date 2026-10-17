@@ -67,7 +67,7 @@ import {
   parseExistingNext,
   rewriteNextBlock,
   type BorrowerNextData,
-  type ManualFlatAccount,
+  type ManualAccount,
   type NextCollectionItem,
 } from "@/lib/checklist/labels";
 import { summarizeChecklist } from "@/lib/checklist/totals";
@@ -171,6 +171,7 @@ function CategorySection({
     label: string,
     categoryId: string | null,
     date: string,
+    checked?: boolean,
   ) => Promise<void>;
   onToggle: (item: DailyChecklistItem) => void;
   onDelete: (id: string) => void;
@@ -229,28 +230,41 @@ function CategorySection({
           metrics: Record<string, Record<string, unknown>>;
         };
         const items: NextCollectionItem[] = [];
-        const manualAccounts: ManualFlatAccount[] = [];
+        const manualAccounts: ManualAccount[] = [];
         for (const a of data.accounts) {
           if (a.type !== "loan" && a.type !== "cash_advance") continue;
           const isManual = a.schedule_mode === "manual";
-          // Rolling manual accounts roll their own next schedule on payment.
-          if (isManual && a.interest_type === "rolling") continue;
           if (isManual && a.status === "pending") continue;
           const m = data.metrics[a.id as string];
+          const collections =
+            (m?.dueCollections as NextCollectionItem[] | undefined) ?? [];
           if (isManual) {
             const remaining = Number(m?.amountLeftToPay ?? 0);
             if (remaining > 0) {
+              const open = collections.find((c) => Number(c.amount) > 0);
               manualAccounts.push({
                 id: String(a.id),
                 type: String(a.type),
-                total: Number(m?.totalDue ?? 0),
+                paid: Number(m?.totalPaid ?? 0),
                 remaining,
                 release_date: (a.release_date as string | null) ?? null,
+                ...(a.interest_type === "rolling"
+                  ? {
+                      rolling: {
+                        interestRate: Number(a.interest_rate ?? 0),
+                        open: open
+                          ? {
+                              id: String(open.id),
+                              due_date: String(open.due_date).slice(0, 10),
+                              amount: Number(open.amount),
+                            }
+                          : null,
+                      },
+                    }
+                  : {}),
               });
             }
           }
-          const collections =
-            (m?.dueCollections as NextCollectionItem[] | undefined) ?? [];
           for (const c of collections) {
             const amount = Number(c.amount ?? 0);
             const due_date = String(c.due_date ?? "").slice(0, 10);
@@ -519,6 +533,10 @@ function CategorySection({
                 placeholder={`Add item${category ? ` to ${category.name}` : ""}…`}
                 borrowers={borrowers}
                 getBorrowerNextAmounts={getBorrowerNextAmounts}
+                // The payment is already recorded, so its row goes in ticked.
+                onManualPayment={(label) =>
+                  void onAdd(label, category?.id ?? null, date, true)
+                }
                 showPesoButton
               />
             </div>
@@ -1106,6 +1124,7 @@ export default function DailyNotesWidget() {
     label: string,
     categoryId: string | null,
     targetDate: string,
+    checked = false,
   ) => {
     const catItems = items.filter((i) => i.category_id === categoryId);
     const minSort = catItems.reduce((min, i) => Math.min(min, i.sort_order), 0);
@@ -1117,7 +1136,7 @@ export default function DailyNotesWidget() {
       id: tempId,
       checklist_date: targetDate,
       label,
-      is_checked: false,
+      is_checked: checked,
       sort_order: newSort,
       created_at: new Date().toISOString(),
       category_id: categoryId,
@@ -1132,7 +1151,7 @@ export default function DailyNotesWidget() {
       id: tempId,
       checklist_date: targetDate,
       label,
-      is_checked: false,
+      is_checked: checked,
       sort_order: newSort,
     };
     if (categoryId) insertPayload.category_id = categoryId;

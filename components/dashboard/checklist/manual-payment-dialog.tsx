@@ -11,10 +11,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { addManualScheduleAction } from "@/lib/actions/schedules";
+import {
+  addManualScheduleAction,
+  applyPartialPaymentAction,
+} from "@/lib/actions/schedules";
 import {
   formatShortDate,
-  type ManualFlatAccount,
+  type ManualAccount,
+  type NextCollectionItem,
 } from "@/lib/checklist/labels";
 import { todayDateValue } from "@/lib/checklist/dates";
 import type { AccountSummary } from "@/lib/checklist/schedule-cache";
@@ -148,9 +152,11 @@ function DateChoice({
 }
 
 /**
- * Records a payment on a manual flat account from the daily notes `/next`
- * dropdown: amount and the date it was paid, saved as a paid schedule due
- * that day. Styled after the update payment status dialog.
+ * Records a payment on a manual account from the daily notes `/next`
+ * dropdown: amount and the date it was paid. Flat accounts get a paid
+ * schedule due that day; rolling accounts pay their open schedule and the
+ * rest rolls over with interest. Styled after the update payment status
+ * dialog.
  */
 export function ManualPaymentDialog({
   account,
@@ -158,11 +164,11 @@ export function ManualPaymentDialog({
   onClose,
   onSaved,
 }: {
-  account: ManualFlatAccount | null;
+  account: ManualAccount | null;
   borrower: { id: string; name: string; color: string | null } | null;
   onClose: () => void;
   /** Called with the new schedule once it is saved. */
-  onSaved: (schedule: { id: string }) => void;
+  onSaved: (schedule: NextCollectionItem) => void;
 }) {
   return (
     <Dialog
@@ -193,10 +199,10 @@ function ManualPaymentBody({
   onClose,
   onSaved,
 }: {
-  account: ManualFlatAccount;
+  account: ManualAccount;
   borrower: { id: string; name: string; color: string | null } | null;
   onClose: () => void;
-  onSaved: (schedule: { id: string }) => void;
+  onSaved: (schedule: NextCollectionItem) => void;
 }) {
   const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
   const [amount, setAmount] = useState("");
@@ -205,15 +211,25 @@ function ManualPaymentBody({
 
   const paid = Number.parseFloat(amount || "0");
   const amountOk = Number.isFinite(paid) && paid > 0;
+  /** Rolling with an open schedule: the payment goes against it. */
+  const open = account.rolling?.open ?? null;
+  const rate = account.rolling?.interestRate ?? 0;
+  // A rolling payment can't exceed the open schedule (the rest would be lost).
+  const overOpen = open !== null && amountOk && paid > open.amount;
   const overRemaining = amountOk && paid > account.remaining;
-  const canSave = amountOk && !submitting;
+  const rollover = open && amountOk ? Math.max(0, open.amount - paid) : 0;
+  const nextDue = Math.round(rollover * (1 + rate / 100) * 100) / 100;
+  const canSave = amountOk && !overOpen && !submitting;
 
   const isCashAdvance = account.type === "cash_advance";
   const summary: AccountSummary = {
     typeLabel: isCashAdvance ? "cash advance" : "loan",
     isCashAdvance,
-    paid: Math.max(0, account.total - account.remaining),
-    left: account.remaining,
+    paid: account.paid,
+    // Rolling: the interest on what rolls over is added to what's left.
+    left:
+      account.remaining +
+      (open && amountOk && !overOpen ? nextDue - rollover : 0),
     pct: 0,
     paidInstallments: 0,
     installmentCount: 0,
@@ -230,6 +246,26 @@ function ManualPaymentBody({
     if (!canSave) return;
     setSubmitting(true);
     try {
+      if (open) {
+        const fd = new FormData();
+        fd.set("scheduleId", open.id);
+        fd.set("paymentAmount", String(paid));
+        fd.set("paymentDate", paidDate);
+        await applyPartialPaymentAction(fd);
+        if (borrower) invalidateBorrowerDetails(borrower.id);
+        toast.success(
+          rollover > 0
+            ? `₱${paid.toLocaleString()} paid · ₱${nextDue.toLocaleString()} rolls over`
+            : `₱${paid.toLocaleString()} payment recorded`,
+        );
+        onSaved({
+          id: open.id,
+          due_date: open.due_date,
+          amount: paid,
+          type: account.type,
+        });
+        return;
+      }
       const result = await addManualScheduleAction(account.id, {
         due_date: paidDate,
         amount_due: paid,
@@ -242,7 +278,12 @@ function ManualPaymentBody({
       }
       if (borrower) invalidateBorrowerDetails(borrower.id);
       toast.success(`₱${paid.toLocaleString()} payment recorded`);
-      onSaved({ id: result.id });
+      onSaved({
+        id: result.id,
+        due_date: paidDate,
+        amount: paid,
+        type: account.type,
+      });
     } catch (err) {
       console.error("ManualPaymentDialog confirm error:", err);
       toast.error("Couldn't add the payment");
@@ -271,7 +312,8 @@ function ManualPaymentBody({
             ) : null}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Record a payment on this manual flat{" "}
+            Record a payment on this manual{" "}
+            {account.rolling ? "rolling" : "flat"}{" "}
             {isCashAdvance ? "cash advance" : "loan"}
             {account.release_date
               ? ` released ${formatShortDate(account.release_date.slice(0, 10))}`
@@ -310,9 +352,28 @@ function ManualPaymentBody({
                 value={amount}
                 onChange={setAmount}
                 autoFocus
-                hint={`of ₱${account.remaining.toLocaleString()} left`}
-                warn={overRemaining}
+                hint={
+                  open
+                    ? `of ₱${open.amount.toLocaleString()} due`
+                    : `of ₱${account.remaining.toLocaleString()} left`
+                }
+                warn={open ? overOpen : overRemaining}
               />
+              {open && amountOk ? (
+                <p
+                  className={`mt-1.5 text-xs tabular-nums ${
+                    overOpen
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-muted-foreground"
+                    }`}
+                >
+                  {overOpen
+                    ? `At most ₱${open.amount.toLocaleString()}, the amount due on ${formatShortDate(open.due_date)}`
+                    : rollover > 0
+                      ? `₱${rollover.toLocaleString()} rolls over to ₱${nextDue.toLocaleString()} (+${rate}%)`
+                      : `Clears the ${formatShortDate(open.due_date)} schedule`}
+                </p>
+              ) : null}
             </div>
 
             <DateChoice
