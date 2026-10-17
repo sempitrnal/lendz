@@ -1,4 +1,8 @@
+import { PiggyBank } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { formatPeso, type CurrentMonthData } from "@/lib/dashboard-data";
+import { SectionHeading } from "./section-heading";
+import { CelebrateWhen } from "./celebrate-when";
 
 export function MonthlyCollections({
   currentMonth,
@@ -52,12 +56,12 @@ export function MonthlyCollections({
   return (
     <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-card-foreground">
-            monthly collections
-          </h2>
-          <p className="text-sm text-muted-foreground">{currentMonth.label}</p>
-        </div>
+        <SectionHeading
+          icon={PiggyBank}
+          tint="amber"
+          title="monthly collections"
+          subtitle="How this month is tracking"
+        />
         <span
           className="rounded-full border border-border bg-secondary px-3 py-1
             text-sm font-medium text-secondary-foreground"
@@ -79,7 +83,15 @@ export function MonthlyCollections({
               {formatPeso(currentMonth.toCollectThisMonth)}
             </p>
           </div>
-          <p className="text-sm font-medium text-primary">
+          <p
+            className={cn(
+              "shrink-0 rounded-full px-2.5 py-1 text-sm font-medium",
+              collectedPct >= 100
+                ? "bg-primary text-primary-foreground"
+                : "bg-primary/10 text-primary",
+            )}
+          >
+            {collectedPct >= 100 ? "🎉 " : ""}
             {collectedPct}% collected
           </p>
         </div>
@@ -87,9 +99,10 @@ export function MonthlyCollections({
         <div
           className="mt-4 h-3 w-full overflow-hidden rounded-full bg-secondary"
         >
-          <div className="flex h-full">
+          <div className="dash-grow flex h-full">
             <div
-              className="h-full bg-primary"
+              className="h-full rounded-full bg-linear-to-r from-primary/70
+                to-primary"
               style={{ width: `${collectedPct}%` }}
               aria-hidden="true"
             />
@@ -104,7 +117,17 @@ export function MonthlyCollections({
 
       <dl className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((stat) => (
-          <div key={stat.label} className={`rounded-lg bg-slate-200/30 dark:bg-slate-800/30 p-3`}>
+          <div
+            key={stat.label}
+            className={cn(
+              "rounded-lg border p-3",
+              stat.tone === "primary"
+                ? "border-primary/20 bg-primary/5"
+                : stat.tone === "accent"
+                  ? "border-amber-500/20 bg-amber-500/5"
+                  : "border-transparent bg-secondary/60",
+            )}
+          >
             <dt className="text-xs font-medium lowercase text-muted-foreground">
               {stat.label}
             </dt>
@@ -114,7 +137,7 @@ export function MonthlyCollections({
                 (stat.tone === "primary"
                   ? "text-primary"
                   : stat.tone === "accent"
-                    ? "text-accent-foreground"
+                    ? "text-amber-700 dark:text-amber-400"
                     : "text-card-foreground")
               }
             >
@@ -123,6 +146,10 @@ export function MonthlyCollections({
           </div>
         ))}
       </dl>
+      <CelebrateWhen
+        when={collectedPct >= 100}
+        onceKey={`collected-${currentMonth.label}`}
+      />
     </section>
   );
 }

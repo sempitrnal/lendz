@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { logPageView } from "@/lib/audit";
 import { getAllPaymentSchedules } from "@/lib/cache/schedules";
@@ -448,15 +449,30 @@ export default async function Dashboard({
     timeZone: TZ,
   });
 
+  const hour = Number(
+    now.toLocaleString("en-US", { hour: "numeric", hour12: false, timeZone: TZ }),
+  );
+  const greeting =
+    hour < 12 ? "good morning" : hour < 18 ? "good afternoon" : "good evening";
+
+  // Stagger index for the entrance animation, in reading order.
+  const rise = (i: number) => ({ "--rise-i": i }) as CSSProperties;
+
   return (
-    <main className="mx-auto px-4 py-6 pb-20 lg:px-8">
-      <div className="flex items-start justify-between gap-4">
+    <main className="relative isolate mx-auto px-4 py-6 pb-20 lg:px-8">
+      {/* Faint brand-colored glow behind the header; decorative only. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64
+          bg-[radial-gradient(60%_100%_at_15%_0%,color-mix(in_oklch,var(--primary)_14%,transparent),transparent)]"
+      />
+      <div className="dash-rise flex items-start justify-between gap-4">
         <div>
           <p
             className="text-xs font-semibold uppercase tracking-wider
               text-muted-foreground"
           >
-            {formattedToday}
+            {formattedToday} · {greeting} 👋
           </p>
           <h1
             className="mt-1 text-2xl font-black lowercase text-slate-600
@@ -479,27 +495,41 @@ export default async function Dashboard({
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
-          <CashFlowForecast weeks={cashFlow} />
+          <div className="dash-rise" style={rise(5)}>
+            <CashFlowForecast weeks={cashFlow} />
+          </div>
           <div className="flex items-center gap-2 pt-2">
             <MonthPicker currentMonth={activeMonth} />
           </div>
-          <MonthlyCollections currentMonth={currentMonth} />
-          <ProfitPerMonth profitPerMonth={profitPerMonth} />
-          <LoansReleased months={profitPerMonth} />
+          <div className="dash-rise" style={rise(6)}>
+            <MonthlyCollections currentMonth={currentMonth} />
+          </div>
+          <div className="dash-rise" style={rise(7)}>
+            <ProfitPerMonth profitPerMonth={profitPerMonth} />
+          </div>
+          <div className="dash-rise" style={rise(8)}>
+            <LoansReleased months={profitPerMonth} />
+          </div>
           {profitPerCategory.length > 0 && (
-            <ProfitPerCategory profitPerCategory={profitPerCategory} />
+            <div className="dash-rise" style={rise(9)}>
+              <ProfitPerCategory profitPerCategory={profitPerCategory} />
+            </div>
           )}
         </div>
         <div className="space-y-6">
-          <OverdueAging
-            total={summary.overdue}
-            buckets={overdueBuckets.map((b) => ({
-              ...b,
-              amount: Math.round(b.amount),
-            }))}
-            topBorrowers={topOverdueBorrowers}
-          />
-          <SidePanel dueThisMonthSchedules={dueThisMonthCount} />
+          <div className="dash-rise" style={rise(6)}>
+            <OverdueAging
+              total={summary.overdue}
+              buckets={overdueBuckets.map((b) => ({
+                ...b,
+                amount: Math.round(b.amount),
+              }))}
+              topBorrowers={topOverdueBorrowers}
+            />
+          </div>
+          <div className="dash-rise" style={rise(7)}>
+            <SidePanel dueThisMonthSchedules={dueThisMonthCount} />
+          </div>
         </div>
       </div>
     </main>

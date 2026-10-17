@@ -1,4 +1,6 @@
+import { Tags } from "lucide-react";
 import { formatPeso, type ProfitCategoryItem } from "@/lib/dashboard-data";
+import { SectionHeading } from "./section-heading";
 
 export function ProfitPerCategory({
   profitPerCategory,
@@ -7,15 +9,14 @@ export function ProfitPerCategory({
 }) {
   return (
     <section
-      className="rounded-xl border border-border bg-card p-6 shadow-sm
-        text-slate-600"
+      className="rounded-xl border border-border bg-card p-6 shadow-sm"
     >
-      <h2 className="text-lg font-semibold text-card-foreground">
-        profit per category
-      </h2>
-      <p className="text-sm text-muted-foreground">
-        Ranked by profit this month
-      </p>
+      <SectionHeading
+        icon={Tags}
+        tint="emerald"
+        title="profit per category"
+        subtitle="Ranked by profit this month"
+      />
 
       <ul className="mt-5 divide-y divide-border">
         {profitPerCategory.map((cat) => {
@@ -48,8 +49,11 @@ export function ProfitPerCategory({
                   bg-secondary"
               >
                 <div
-                  className="h-full rounded-full bg-[#82cead] dark:bg-[#ade5c5]"
-                  style={{ width: `${collectedPct}%` }}
+                  className="dash-grow h-full rounded-full opacity-85"
+                  style={{
+                    width: `${collectedPct}%`,
+                    backgroundColor: cat.color ?? "var(--chart-2)",
+                  }}
                   aria-hidden="true"
                 />
               </div>

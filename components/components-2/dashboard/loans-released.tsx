@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { HandCoins } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -11,11 +12,14 @@ import {
   YAxis,
 } from "recharts";
 import { formatPeso, type MonthlyProfit } from "@/lib/dashboard-data";
+import { SectionHeading } from "./section-heading";
 import {
+  BarGradient,
   HeadlineStat,
   RangeToggle,
   TooltipCard,
   axisTick,
+  chartCursor,
   pesoAxisTick,
   type RangeOption,
 } from "./chart-bits";
@@ -49,6 +53,7 @@ export function LoansReleased({ months }: { months: MonthlyProfit[] }) {
   const [range, setRange] = useState<RangeOption>(12);
   const data = months.slice(-range);
   const barSize = range === 6 ? 32 : 18;
+  const gradId = useId();
 
   const total = data.reduce((s, m) => s + m.released, 0);
   const count = data.reduce((s, m) => s + m.releasedCount, 0);
@@ -57,14 +62,12 @@ export function LoansReleased({ months }: { months: MonthlyProfit[] }) {
   return (
     <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-card-foreground">
-            loans released
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Principal lent out per month
-          </p>
-        </div>
+        <SectionHeading
+          icon={HandCoins}
+          tint="violet"
+          title="loans released"
+          subtitle="Principal lent out per month"
+        />
         <RangeToggle value={range} onChange={setRange} />
       </div>
 
@@ -85,6 +88,7 @@ export function LoansReleased({ months }: { months: MonthlyProfit[] }) {
       <div className="mt-5 h-52 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+            <BarGradient id={gradId} color="var(--chart-2)" />
             <CartesianGrid
               vertical={false}
               stroke="var(--border)"
@@ -105,14 +109,15 @@ export function LoansReleased({ months }: { months: MonthlyProfit[] }) {
               tickFormatter={pesoAxisTick}
             />
             <Tooltip
-              cursor={{ fill: "var(--secondary)" }}
+              cursor={chartCursor}
               content={<ChartTooltip />}
             />
             <Bar
               dataKey="released"
-              fill="var(--chart-2)"
-              radius={[4, 4, 0, 0]}
+              fill={`url(#${gradId})`}
+              radius={[6, 6, 0, 0]}
               barSize={barSize}
+              animationDuration={700}
             />
           </BarChart>
         </ResponsiveContainer>

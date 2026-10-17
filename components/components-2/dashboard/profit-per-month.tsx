@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { Coins } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -12,11 +13,14 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { formatPeso, type MonthlyProfit } from "@/lib/dashboard-data";
+import { SectionHeading } from "./section-heading";
 import {
+  BarGradient,
   HeadlineStat,
   RangeToggle,
   TooltipCard,
   axisTick,
+  chartCursor,
   pesoAxisTick,
   type RangeOption,
 } from "./chart-bits";
@@ -64,6 +68,7 @@ export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
   const [range, setRange] = useState<RangeOption>(12);
   const data = profitPerMonth.slice(-range);
   const barSize = range === 6 ? 32 : 18;
+  const gradId = useId();
 
   const total = data.reduce((s, m) => s + m.actual, 0);
   const totalExpected = data.reduce((s, m) => s + m.expected, 0);
@@ -82,14 +87,12 @@ export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
   return (
     <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-card-foreground">
-            profit per month
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Interest collected vs expected
-          </p>
-        </div>
+        <SectionHeading
+          icon={Coins}
+          tint="sky"
+          title="profit per month"
+          subtitle="Interest collected vs expected"
+        />
         <RangeToggle value={range} onChange={setRange} />
       </div>
 
@@ -146,6 +149,7 @@ export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
             margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
             barGap={-barSize}
           >
+            <BarGradient id={gradId} color="var(--primary)" />
             <CartesianGrid
               vertical={false}
               stroke="var(--border)"
@@ -166,21 +170,22 @@ export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
               tickFormatter={pesoAxisTick}
             />
             <Tooltip
-              cursor={{ fill: "var(--secondary)" }}
+              cursor={chartCursor}
               content={<ChartTooltip />}
             />
             <Bar
               dataKey="expected"
               fill="var(--border)"
-              radius={[4, 4, 0, 0]}
+              radius={[6, 6, 0, 0]}
               barSize={barSize}
               isAnimationActive={false}
             />
             <Bar
               dataKey="actual"
-              fill="var(--primary)"
-              radius={[4, 4, 0, 0]}
+              fill={`url(#${gradId})`}
+              radius={[6, 6, 0, 0]}
               barSize={barSize}
+              animationDuration={700}
             />
           </BarChart>
         </ResponsiveContainer>

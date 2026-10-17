@@ -5,6 +5,7 @@ import {
   type OverdueBorrower,
   type OverdueBucket,
 } from "@/lib/dashboard-data";
+import { SectionHeading } from "./section-heading";
 
 // Older debt is riskier, so the bars darken from amber to deep rose.
 const BUCKET_BAR = [
@@ -28,15 +29,7 @@ export function OverdueAging({
 
   return (
     <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-      <div className="flex items-center gap-2">
-        <AlertTriangle
-          className="size-5 text-rose-600 dark:text-rose-400"
-          aria-hidden="true"
-        />
-        <h2 className="text-lg font-semibold text-card-foreground">
-          overdue aging
-        </h2>
-      </div>
+      <SectionHeading icon={AlertTriangle} tint="rose" title="overdue aging" />
 
       {total <= 0 ? (
         <div
@@ -75,7 +68,7 @@ export function OverdueAging({
                     bg-secondary"
                 >
                   <div
-                    className={`h-full rounded-full ${BUCKET_BAR[i]}`}
+                    className={`dash-grow h-full rounded-full ${BUCKET_BAR[i]}`}
                     style={{ width: `${(b.amount / max) * 100}%` }}
                     aria-hidden="true"
                   />

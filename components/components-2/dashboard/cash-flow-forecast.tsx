@@ -10,7 +10,17 @@ import {
   YAxis,
 } from "recharts";
 import { formatPeso, type CashFlowWeek } from "@/lib/dashboard-data";
-import { HeadlineStat, TooltipCard, axisTick, pesoAxisTick } from "./chart-bits";
+import { useId } from "react";
+import { Banknote } from "lucide-react";
+import {
+  BarGradient,
+  HeadlineStat,
+  TooltipCard,
+  axisTick,
+  chartCursor,
+  pesoAxisTick,
+} from "./chart-bits";
+import { SectionHeading } from "./section-heading";
 
 function ChartTooltip({
   active,
@@ -41,15 +51,16 @@ export function CashFlowForecast({ weeks }: { weeks: CashFlowWeek[] }) {
   const total = weeks.reduce((s, w) => s + w.expected, 0);
   const next4 = weeks.slice(0, 4).reduce((s, w) => s + w.expected, 0);
   const thisWeek = weeks[0];
+  const gradId = useId();
 
   return (
     <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-card-foreground">
-        incoming cash
-      </h2>
-      <p className="text-sm text-muted-foreground">
-        Unpaid dues for the next {weeks.length} weeks (overdue not included)
-      </p>
+      <SectionHeading
+        icon={Banknote}
+        tint="emerald"
+        title="incoming cash"
+        subtitle={`Unpaid dues for the next ${weeks.length} weeks (overdue not included)`}
+      />
 
       <div className="mt-5 grid grid-cols-3 gap-4">
         <HeadlineStat
@@ -70,6 +81,7 @@ export function CashFlowForecast({ weeks }: { weeks: CashFlowWeek[] }) {
             data={weeks}
             margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
           >
+            <BarGradient id={gradId} color="var(--primary)" />
             <CartesianGrid
               vertical={false}
               stroke="var(--border)"
@@ -90,14 +102,15 @@ export function CashFlowForecast({ weeks }: { weeks: CashFlowWeek[] }) {
               tickFormatter={pesoAxisTick}
             />
             <Tooltip
-              cursor={{ fill: "var(--secondary)" }}
+              cursor={chartCursor}
               content={<ChartTooltip />}
             />
             <Bar
               dataKey="expected"
-              fill="var(--primary)"
-              radius={[4, 4, 0, 0]}
+              fill={`url(#${gradId})`}
+              radius={[6, 6, 0, 0]}
               maxBarSize={36}
+              animationDuration={700}
             />
           </BarChart>
         </ResponsiveContainer>
