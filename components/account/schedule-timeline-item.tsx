@@ -1,8 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  motion,
+  AnimatePresence,
+  animate,
+  useDragControls,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+} from "framer-motion";
+import { ChevronDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScheduleSelection } from "@/components/schedule-selection-provider";
 import { ScheduleCheckbox } from "@/components/schedule-checkbox";
@@ -45,6 +53,10 @@ const STATE_STYLES: Record<
   },
 };
 
+/** How far a row slides left: the 56px delete tile plus a small gap. */
+const SWIPE_WIDTH = 68;
+const SNAP = { type: "spring", stiffness: 500, damping: 40 } as const;
+
 const SUB_TONES = {
   slate: "text-slate-500 dark:text-slate-400",
   emerald: "text-emerald-700 dark:text-emerald-300",
@@ -72,6 +84,8 @@ export type ScheduleTimelineItemProps = {
   actions?: React.ReactNode;
   history?: React.ReactNode;
   defaultOpen?: boolean;
+  /** Enables swipe-left to reveal a delete button. */
+  onDelete?: () => void;
 };
 
 export function ScheduleTimelineItem({
@@ -91,6 +105,7 @@ export function ScheduleTimelineItem({
   actions,
   history,
   defaultOpen,
+  onDelete,
 }: ScheduleTimelineItemProps) {
   const { isEditing, isSelected, toggleId } = useScheduleSelection();
   const selected = isSelected(scheduleId);
@@ -100,7 +115,42 @@ export function ScheduleTimelineItem({
 
   const hasExpand = Boolean(actions || history);
 
+  const canSwipe = Boolean(onDelete) && !isEditing;
+  const rowRef = useRef<HTMLLIElement>(null);
+  const dragControls = useDragControls();
+  const x = useMotionValue(0);
+  // The row tints are see-through, so the red layer only shows once it moves.
+  const actionOpacity = useTransform(x, [-SWIPE_WIDTH, -12, 0], [1, 0, 0]);
+  const [revealed, setRevealed] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  /** Set while a drag is in progress so the click that ends it is ignored. */
+  const draggedRef = useRef(false);
+
+  function snap(open: boolean) {
+    setRevealed(open);
+    if (!open) setConfirming(false);
+    void animate(x, open ? -SWIPE_WIDTH : 0, SNAP);
+  }
+
+  // A tap anywhere else closes an open row.
+  useEffect(() => {
+    if (!revealed) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (rowRef.current?.contains(e.target as Node)) return;
+      setRevealed(false);
+      setConfirming(false);
+      void animate(x, 0, SNAP);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [revealed, x]);
+
   function handleTap() {
+    if (draggedRef.current) return;
+    if (revealed) {
+      snap(false);
+      return;
+    }
     if (isEditing) {
       toggleId(scheduleId);
       return;
@@ -114,11 +164,70 @@ export function ScheduleTimelineItem({
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 400, damping: 32 }}
       id={id}
+      ref={rowRef}
       className="relative"
     >
-      <div
+      {onDelete ? (
+        <motion.div
+          style={{ opacity: actionOpacity }}
+          className="absolute top-0 right-0 flex w-14 justify-end pt-3"
+          aria-hidden={!revealed}
+        >
+          <motion.button
+            type="button"
+            tabIndex={revealed ? 0 : -1}
+            onClick={() => {
+              if (!confirming) {
+                setConfirming(true);
+                return;
+              }
+              snap(false);
+              onDelete();
+            }}
+            animate={confirming && !reduceMotion ? { scale: [1, 1.08, 1] } : {}}
+            transition={{ duration: 0.25 }}
+            aria-label={confirming ? "Confirm delete" : "Delete schedule"}
+            className={cn(
+              `flex size-14 flex-col items-center justify-center gap-0.5
+                rounded-2xl border text-[9px] font-black tracking-wide uppercase
+                shadow-sm transition-colors duration-200`,
+              confirming
+                ? `border-rose-600 bg-rose-600 text-white dark:border-rose-500
+                  dark:bg-rose-600`
+                : `border-rose-200 bg-rose-50 text-rose-600
+                  dark:border-rose-900/60 dark:bg-rose-950/40
+                  dark:text-rose-300`,
+            )}
+          >
+            <Trash2 className="size-4" />
+            {confirming ? "confirm" : "delete"}
+          </motion.button>
+        </motion.div>
+      ) : null}
+      <motion.div
+        drag={canSwipe ? "x" : false}
+        dragControls={dragControls}
+        dragListener={false}
+        dragConstraints={{ left: -SWIPE_WIDTH, right: 0 }}
+        dragElastic={{ left: 0.15, right: 0 }}
+        dragMomentum={false}
+        style={{ x }}
+        onDragStart={() => {
+          draggedRef.current = true;
+        }}
+        onDragEnd={(_, info) => {
+          snap(
+            info.offset.x < -SWIPE_WIDTH / 2 ||
+              (info.velocity.x < -400 && info.offset.x < 0),
+          );
+          // Let the click that ends the drag pass before taps count again.
+          setTimeout(() => {
+            draggedRef.current = false;
+          }, 0);
+        }}
         className={cn(
-          "overflow-hidden rounded-2xl border transition-colors duration-200",
+          `relative overflow-hidden rounded-2xl border transition-colors
+          duration-200`,
           isNext
             ? `border-2 border-sky-300 bg-sky-50/50 dark:border-sky-700
               dark:bg-sky-950/20`
@@ -128,6 +237,10 @@ export function ScheduleTimelineItem({
       >
         <div
           onClick={handleTap}
+          onPointerDown={(e) => {
+            if (canSwipe) dragControls.start(e);
+          }}
+          style={canSwipe ? { touchAction: "pan-y" } : undefined}
           className={cn(
             "flex items-center gap-3 px-3.5 py-3",
             (isEditing || hasExpand) && "cursor-pointer",
@@ -241,7 +354,7 @@ export function ScheduleTimelineItem({
             ) : null}
           </AnimatePresence>
         ) : null}
-      </div>
+      </motion.div>
     </motion.li>
   );
 }

@@ -11,4 +11,8 @@ export type ScheduleOptimisticAction =
       type: "payment";
       scheduleId: string;
       payment: SchedulePayment;
+    }
+  | {
+      type: "delete";
+      scheduleId: string;
     };

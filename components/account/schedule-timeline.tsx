@@ -1,6 +1,8 @@
 "use client";
 
-import { Fragment, useOptimistic, useState } from "react";
+import { Fragment, useOptimistic, useState, useTransition } from "react";
+import { toast } from "sonner";
+import { triggerHaptic } from "@/lib/haptics";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   CalendarClock,
@@ -54,6 +56,13 @@ function scheduleOptimisticReducer(
   state: OptimisticState,
   action: ScheduleOptimisticAction,
 ): OptimisticState {
+  if (action.type === "delete") {
+    return {
+      ...state,
+      schedules: state.schedules.filter((s) => s.id !== action.scheduleId),
+    };
+  }
+
   if (action.type === "status") {
     return {
       ...state,
@@ -191,7 +200,23 @@ export function ScheduleTimeline({
   );
   const { isEditing } = useScheduleSelection();
   const reduceMotion = useReducedMotion();
+  const [, startDelete] = useTransition();
   const all = optimistic.schedules;
+
+  /** Swipe-to-delete: the row leaves at once, the server catches up. */
+  function handleDelete(scheduleId: string) {
+    startDelete(async () => {
+      addOptimistic({ type: "delete", scheduleId });
+      try {
+        await deleteSchedule(scheduleId);
+        triggerHaptic("success");
+        toast.success("Schedule deleted");
+      } catch {
+        triggerHaptic("error");
+        toast.error("Failed to delete schedule");
+      }
+    });
+  }
   const total = all.length;
   const nextIndex = all.findIndex(
     (s) => s.status === "pending" || s.status === "overdue",
@@ -346,6 +371,7 @@ export function ScheduleTimeline({
         note={schedule.note}
         actions={actions}
         history={history}
+        onDelete={() => handleDelete(schedule.id)}
       />
     );
   }
