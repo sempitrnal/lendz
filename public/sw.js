@@ -1,4 +1,6 @@
-const CACHE_VERSION = "v5";
+// Bumping this wipes every saved page and file on the next deploy, so the
+// app re-downloads them all from the new build.
+const CACHE_VERSION = "v6";
 const STATIC_CACHE = `lendz-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `lendz-pages-${CACHE_VERSION}`;
 const DATA_CACHE = `lendz-data-${CACHE_VERSION}`;
@@ -857,21 +859,37 @@ async function prunePagesCache(urls) {
   }
 }
 
+/** Pages the sync list saves under several query strings. */
+const KEEPS_QUERY_VARIANTS = new Set(["/calendar"]);
+
+// Marks offline-sync downloads so the server can skip page-view audits for
+// them (PREFETCH_HEADER in lib/audit.ts).
+const PREFETCH_HEADERS = { "x-lendz-prefetch": "1" };
+
 async function prefetchOne(cache, url, signal) {
   const absolute = new URL(url, self.location.origin).toString();
   const response = await fetchBounded(
     url,
-    { credentials: "same-origin" },
+    { credentials: "same-origin", headers: PREFETCH_HEADERS },
     signal,
   );
   if (response.ok && !response.redirected) {
+    // Drop every saved variant of this page first (`?focus=` copies from
+    // visits, and the RSC payload refetched just below). Offline, an exact
+    // query match beats the plain page, so a variant left behind would keep
+    // showing an old build's page. Calendar months are saved by query on
+    // purpose, so that page keeps its variants.
+    const { pathname, search } = new URL(absolute);
+    if (!search && !KEEPS_QUERY_VARIANTS.has(pathname)) {
+      await cache.delete(new Request(absolute), { ignoreSearch: true });
+    }
     await safePut(cache, pageCacheKey(new Request(absolute)), response.clone());
   }
   // Warm the RSC payload too so client-side navigation works offline
   if (!absolute.includes("/api/")) {
     const rscResponse = await fetchBounded(
       url,
-      { credentials: "same-origin", headers: { rsc: "1" } },
+      { credentials: "same-origin", headers: { ...PREFETCH_HEADERS, rsc: "1" } },
       signal,
     );
     if (rscResponse.ok && !rscResponse.redirected) {

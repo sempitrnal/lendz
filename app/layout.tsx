@@ -11,7 +11,7 @@ import { ThemeProvider } from "./providers";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { getSignedInUserId } from "@/lib/supabase/session";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -37,10 +37,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const signedIn = (await getSignedInUserId()) !== null;
 
   return (
     <html
@@ -55,13 +52,13 @@ export default async function RootLayout({
           </Suspense>
           <ServiceWorkerRegistrar />
           <ConnectionMonitor />
-          <OfflineSyncManager enabled={Boolean(user)} />
+          <OfflineSyncManager enabled={signedIn} />
           <OfflineIndicator />
 
           <PageTransition>{children}</PageTransition>
 
           <Suspense fallback={null}>
-            <MobileTopBar isLoggedIn={Boolean(user)} />
+            <MobileTopBar isLoggedIn={signedIn} />
           </Suspense>
           <Toaster />
         </ThemeProvider>

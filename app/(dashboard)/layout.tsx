@@ -1,4 +1,5 @@
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { getSignedInUserId } from "@/lib/supabase/session";
 import { isDemoMode } from "@/lib/demo";
 import { redirect } from "next/navigation";
 import SiteHeader from "@/components/site-header";
@@ -12,13 +13,9 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createSupabaseServer();
+  const userId = await getSignedInUserId();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!userId) {
     redirect("/login");
   }
 
@@ -35,7 +32,7 @@ export default async function DashboardLayout({
   return (
     <>
       <SidebarNav />
-      <SiteHeader isLoggedIn={Boolean(user)} logoutAction={logout} />
+      <SiteHeader isLoggedIn logoutAction={logout} />
       <BottomNav />
       <main
         className="mt-10 flex-1 py-6 sm:mt-0 md:py-0

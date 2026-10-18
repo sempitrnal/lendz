@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
 import { getAllCategories } from "@/lib/cache/categories";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { getSignedInUserId } from "@/lib/supabase/session";
 
 /**
  * Every category, as a GET so the service worker can save it for offline (a
  * server action is a POST, which offline gets queued like an edit).
  */
 export async function GET() {
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  if (!(await getSignedInUserId())) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
   try {

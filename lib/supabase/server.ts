@@ -38,6 +38,12 @@ export async function createSupabaseServer() {
       error: null,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (client.auth as any).getClaims = async () => ({
+      data: { claims: { sub: DEMO_USER.id, role: "authenticated" } },
+      error: null,
+    });
+
     // signOut is a no-op in demo; there is no session to terminate.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (client.auth as any).signOut = async () => ({ error: null });

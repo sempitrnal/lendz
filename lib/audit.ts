@@ -1,4 +1,8 @@
+import { headers } from "next/headers";
 import { createSupabaseServer } from "@/lib/supabase/server";
+
+/** Sent by the service worker on its offline-sync downloads (see public/sw.js). */
+export const PREFETCH_HEADER = "x-lendz-prefetch";
 
 export type AuditAction =
   | "schedule.status_changed"
@@ -42,6 +46,9 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
 }
 
 export async function logPageView(path: string): Promise<void> {
+  // The offline sync re-downloads pages nobody is looking at; those aren't
+  // views, and logging them would add a write (and a log line) per page.
+  if ((await headers()).has(PREFETCH_HEADER)) return;
   await logAudit({
     action: "page.viewed",
     entity_type: "page",
