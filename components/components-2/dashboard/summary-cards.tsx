@@ -113,9 +113,7 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
               shadow-sm transition-[translate,box-shadow] duration-200
               hover:-translate-y-0.5 hover:shadow-md sm:p-5`,
               hero
-                ? `border-primary bg-primary text-primary-foreground dark:border-white/15
-                  dark:bg-secondary dark:bg-linear-to-br dark:from-white/10 dark:to-white/4
-                  dark:text-foreground`
+                ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-card",
               card.className,
             )}
@@ -126,7 +124,7 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
               className={cn(
                 "pointer-events-none absolute -top-10 -right-10 size-32 rounded-full",
                 hero
-                  ? "bg-primary-foreground/10 dark:bg-white/5"
+                  ? "bg-primary-foreground/10"
                   : `bg-linear-to-bl ${tint!.glow} to-transparent`,
               )}
             />
@@ -135,7 +133,7 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
                 className={cn(
                   "text-sm font-medium lowercase",
                   hero
-                  ? "text-primary-foreground/80 dark:text-muted-foreground"
+                  ? "text-primary-foreground/80"
                   : "text-muted-foreground",
                 )}
               >
@@ -144,7 +142,7 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
               <span
                 className={cn(
                   "flex size-8 shrink-0 items-center justify-center rounded-lg",
-                  hero ? "bg-primary-foreground/15 dark:bg-white/10" : tint!.badge,
+                  hero ? "bg-primary-foreground/15" : tint!.badge,
                 )}
               >
                 <card.icon className="size-4" aria-hidden="true" />
@@ -155,7 +153,7 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
                 `relative mt-3 truncate text-2xl font-semibold tracking-tight
                 tabular-nums 2xl:text-3xl`,
                 hero
-                  ? "text-primary-foreground dark:text-foreground"
+                  ? "text-primary-foreground"
                   : card.tone === "danger"
                     ? "text-rose-600 dark:text-rose-400"
                     : "text-card-foreground",
@@ -174,7 +172,7 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
                 className={cn(
                   "leading-snug",
                   hero
-                    ? "text-primary-foreground/80 dark:text-muted-foreground"
+                    ? "text-primary-foreground/80"
                     : card.tone === "positive"
                       ? "font-medium text-primary"
                       : "text-muted-foreground",
