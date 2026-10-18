@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { QuickActionsButton } from "@/components/quick-actions";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -35,13 +36,11 @@ function isActivePath(pathname: string | null, href: string): boolean {
 const PRIMARY_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "dashboard", Icon: LayoutDashboard },
   { href: "/daily-checklist", label: "checklist", Icon: ClipboardCheck },
-
   { href: "/borrowers", label: "borrowers", Icon: Users },
-  { href: "/due-this-month", label: "due", Icon: CalendarClock },
 ];
 
 const ALL_ITEMS: NavItem[] = [
-  ...PRIMARY_ITEMS.slice(0, 3),
+  ...PRIMARY_ITEMS,
   { href: "/due-this-month", label: "due this month", Icon: CalendarClock },
   { href: "/calendar", label: "calendar", Icon: CalendarDays },
   { href: "/categories", label: "categories", Icon: Tag },
@@ -107,6 +106,8 @@ export default function BottomNav() {
               </Link>
             );
           })}
+
+          <QuickActionsButton />
 
           {/* More / menu */}
           <button
