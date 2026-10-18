@@ -5,7 +5,10 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Utangz",
     short_name: "Utangz",
     description: "Lending management made simple",
-    start_url: "/",
+    // Signed-in users land here anyway; "/" only redirects, and a redirect
+    // is never saved for offline, so opening the app offline would always
+    // start on the offline screen.
+    start_url: "/dashboard",
     display: "standalone",
     background_color: "#fffefa",
     theme_color: "#000000",

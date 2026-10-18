@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { WifiOff } from "lucide-react";
 
 export const metadata = {
@@ -28,7 +27,9 @@ export default function OfflinePage() {
           This page hasn&rsquo;t been cached yet. Pages you&rsquo;ve visited
           before are still available — reconnect to sync everything else.
         </p>
-        <Link
+        {/* A plain link on purpose: a full page load goes straight to the
+            saved dashboard even if this page's scripts didn't load. */}
+        <a
           href="/dashboard"
           className="mt-6 inline-block rounded-lg border-2 border-slate-900
             bg-emerald-300 px-4 py-2 text-sm font-bold text-slate-900
@@ -36,7 +37,7 @@ export default function OfflinePage() {
             hover:-translate-y-0.5"
         >
           Go to dashboard
-        </Link>
+        </a>
       </div>
     </main>
   );

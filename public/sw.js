@@ -27,11 +27,39 @@ const PREFETCH_TIMEOUT_MS = 20000;
 const PREFETCH_STALL_MS = 25000;
 // With a saved copy of a page, stop waiting on a slow network after this long.
 const STALE_AFTER_MS = 5000;
+// With no saved copy, give up on a hung request after this long (a dead
+// connection often hangs instead of failing) and show the offline fallback.
+const NO_COPY_TIMEOUT_MS = 15000;
+// ...or this long when the connection is already known to be bad.
+const NO_COPY_TIMEOUT_BAD_MS = 4000;
 
 // The page's reading of the connection ("good" | "slow" | "offline"), sent by
 // its monitor. While it isn't "good" the worker queues edits instead of
 // sending them and serves saved copies instead of waiting on the network.
-let connectionQuality = "good";
+// A restarted worker hasn't heard from the page yet: start from the browser's
+// own flag rather than assuming all is well.
+let connectionQuality = self.navigator.onLine === false ? "offline" : "good";
+
+function connectionIsGood() {
+  return connectionQuality === "good" && self.navigator.onLine !== false;
+}
+
+/** Rejects if `promise` hasn't settled within `ms`. */
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
 
 let prefetchDraining = false;
 // Bumped to retire a running drain (pause, or a stalled one being replaced).
@@ -75,7 +103,13 @@ self.addEventListener("activate", (event) => {
           : undefined,
       )
       .then(() => self.clients.claim())
-      .then(() => drainPrefetchQueue()),
+      // Resume downloads without holding activation open: until activate
+      // finishes, the browser can hold every request the app makes, and a
+      // whole pass takes minutes. The page re-sends RESUME_PREFETCH on each
+      // sync tick and when it comes back to the foreground anyway.
+      .then(() => {
+        void drainPrefetchQueue();
+      }),
   );
 });
 
@@ -183,7 +217,14 @@ async function networkFirstPage(request, event) {
 
   const cached = await cache.match(key);
   try {
-    if (!cached) return await fetchFresh();
+    if (!cached) {
+      const fresh = fetchFresh();
+      fresh.catch(() => {});
+      return await withTimeout(
+        fresh,
+        connectionIsGood() ? NO_COPY_TIMEOUT_MS : NO_COPY_TIMEOUT_BAD_MS,
+      );
+    }
 
     // A saved copy exists: a stalled connection (common right after the phone
     // was backgrounded) must not hold the page hostage. When the connection
@@ -192,7 +233,7 @@ async function networkFirstPage(request, event) {
     // refresh the cache.
     const fresh = fetchFresh();
     fresh.catch(() => {});
-    if (connectionQuality !== "good") {
+    if (!connectionIsGood()) {
       event?.waitUntil?.(fresh.catch(() => {}));
       return cached;
     }
@@ -249,12 +290,19 @@ async function networkFirst(request, cacheName, event) {
 
   const cached = await cache.match(request);
   try {
-    if (!cached) return await fetchFresh();
+    if (!cached) {
+      const fresh = fetchFresh();
+      fresh.catch(() => {});
+      return await withTimeout(
+        fresh,
+        connectionIsGood() ? NO_COPY_TIMEOUT_MS : NO_COPY_TIMEOUT_BAD_MS,
+      );
+    }
 
     // Same as pages: with a saved copy, don't sit on a slow network.
     const fresh = fetchFresh();
     fresh.catch(() => {});
-    if (connectionQuality !== "good") {
+    if (!connectionIsGood()) {
       event?.waitUntil?.(fresh.catch(() => {}));
       return cached;
     }
@@ -318,7 +366,7 @@ async function fetchOrQueue(request) {
   // Slow or offline: don't send it at all. Sending over a bad link risks it
   // landing twice (once now, once on replay) or hanging; queued, it goes out
   // exactly once when the connection is good again.
-  if (connectionQuality !== "good") return queueRequest(clone);
+  if (!connectionIsGood()) return queueRequest(clone);
   try {
     return await fetch(request);
   } catch {
