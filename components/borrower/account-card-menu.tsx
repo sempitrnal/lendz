@@ -10,6 +10,14 @@ import { logAuditAction } from "@/app/actions/audit";
 import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
 import { wasQueuedOffline } from "@/lib/checklist/offline-cache";
 import { markBorrowerForRefresh } from "@/lib/offline/pending-accounts";
+import { isConnectionGood } from "@/lib/offline/connection";
+import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
+import {
+  latestRevision,
+  paymentsSince,
+  revertToRevision,
+  type AccountRevision,
+} from "@/lib/accounts/revisions";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -42,6 +50,54 @@ export default function AccountCardMenu({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
+  // "Revert last update": the snapshot to restore, and how many payments
+  // recorded since then the revert would remove.
+  const [revert, setRevert] = useState<{
+    revision: AccountRevision | null;
+    laterPayments: number;
+    loading: boolean;
+  } | null>(null);
+  const [isReverting, setIsReverting] = useState(false);
+
+  async function openRevert() {
+    if (!isConnectionGood()) {
+      toast.error("Reverting needs a good connection — try again online.");
+      return;
+    }
+    setRevert({ revision: null, laterPayments: 0, loading: true });
+    const revision = await latestRevision(accountId);
+    const laterPayments = revision
+      ? await paymentsSince(accountId, revision).catch(() => 0)
+      : 0;
+    setRevert({ revision, laterPayments, loading: false });
+  }
+
+  async function confirmRevert() {
+    const revision = revert?.revision;
+    if (!revision) return;
+    setIsReverting(true);
+    try {
+      await revertToRevision(revision);
+      await logAuditAction(
+        "account.updated",
+        "account",
+        accountId,
+        `Account reverted to ${new Date(revision.created_at).toLocaleString()}`,
+        { revertedRevision: revision.id },
+        accountId,
+      );
+      await invalidateBorrowerDetails(borrowerId);
+      await revalidateBorrowerDetailPage(borrowerId);
+      setRevert(null);
+      toast.success("Account reverted.");
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Revert failed.");
+    } finally {
+      setIsReverting(false);
+    }
+  }
 
   useEffect(() => {
     function onPointerDown(event: PointerEvent) {
@@ -125,7 +181,7 @@ export default function AccountCardMenu({
             <MoreVertical className="size-5 cursor-pointer" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-32">
+        <DropdownMenuContent align="end" className="w-44">
           {onEdit ? (
             <DropdownMenuItem
               className="cursor-pointer focus:bg-slate-100 focus:text-slate-900"
@@ -138,6 +194,15 @@ export default function AccountCardMenu({
               Edit
             </DropdownMenuItem>
           ) : null}
+          <DropdownMenuItem
+            className="cursor-pointer focus:bg-slate-100 focus:text-slate-900"
+            onClick={(e) => {
+              e.stopPropagation();
+              void openRevert();
+            }}
+          >
+            Revert last update
+          </DropdownMenuItem>
           <DropdownMenuItem
             variant="destructive"
             className="cursor-pointer"
@@ -183,6 +248,63 @@ export default function AccountCardMenu({
           </button>
         </div>
       ) : null} */}
+      <Dialog
+        open={revert !== null}
+        onOpenChange={(o) => !o && !isReverting && setRevert(null)}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Revert last update</DialogTitle>
+          </DialogHeader>
+          <DialogDescription asChild>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              {revert?.loading ? (
+                <p>Looking for the last saved version…</p>
+              ) : revert?.revision ? (
+                <>
+                  <p>
+                    Puts this account back the way it was on{" "}
+                    <span className="font-medium text-foreground">
+                      {new Date(revert.revision.created_at).toLocaleString()}
+                    </span>
+                    : its terms, {revert.revision.schedules.length} schedules
+                    with their statuses, and{" "}
+                    {revert.revision.payments.length} recorded payments.
+                  </p>
+                  {revert.laterPayments > 0 && (
+                    <p className="font-medium text-rose-600 dark:text-rose-400">
+                      {revert.laterPayments} payment
+                      {revert.laterPayments === 1 ? "" : "s"} recorded since
+                      then will be removed.
+                    </p>
+                  )}
+                  <p>You can revert the revert afterwards.</p>
+                </>
+              ) : (
+                <p>
+                  There&apos;s no saved version of this account yet. One is
+                  saved each time the account is edited.
+                </p>
+              )}
+            </div>
+          </DialogDescription>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={isReverting}
+              onClick={() => setRevert(null)}
+            >
+              Cancel
+            </Button>
+            {revert?.revision && (
+              <Button disabled={isReverting} onClick={confirmRevert}>
+                {isReverting ? "Reverting..." : "Revert"}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>

@@ -26,6 +26,14 @@ import { Button } from "@/components/ui/button";
 import { Wallet, CheckCircle2 } from "lucide-react";
 import { buildSchedulesPayload } from "@/lib/payment-schedule/build-payload";
 import { deriveBimonthlyAnchors } from "@/lib/payment-schedule/bimonthly-legacy";
+import {
+  planReschedule,
+  summarizeCarry,
+  type ExistingSchedule,
+  type RescheduleMode,
+} from "@/lib/payment-schedule/reschedule";
+import { snapshotAccount } from "@/lib/accounts/revisions";
+import { isConnectionGood } from "@/lib/offline/connection";
 
 function ordinalSuffix(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -179,11 +187,81 @@ export default function AccountForm({
     }
   }, [releaseDateValue, setValue]);
 
+  // Editing: what the existing schedules already have paid, so the form can
+  // offer to keep those payments when the dates change.
+  const [rescheduleMode, setRescheduleMode] =
+    useState<RescheduleMode>("carry");
+  const [carried, setCarried] = useState<{
+    paid: number;
+    partial: number;
+  } | null>(null);
+  useEffect(() => {
+    if (!isEdit || !accountId) return;
+    let cancelled = false;
+    supabase
+      .from("payment_schedules")
+      .select("id, due_date, amount_due, amount_paid, status")
+      .eq("account_id", accountId)
+      .then(({ data }: { data: ExistingSchedule[] | null }) => {
+        if (!cancelled && data) {
+          setCarried(summarizeCarry(data as ExistingSchedule[]));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, accountId]);
+
   const onSubmit = async (values: AccountFormValues) => {
     const schedulesPayload = (id: string) => buildSchedulesPayload(id, values);
 
     if (isEdit && accountId) {
       const isCustomFreq = values.payment_frequency === "custom";
+      const regenerate = values.schedule_mode === "auto";
+
+      // Rewriting schedules needs the current rows and a backup first, so it
+      // can't be queued offline.
+      if (regenerate && !isConnectionGood()) {
+        triggerHaptic("error");
+        toast.error("Editing schedules needs a good connection — try again online.");
+        return;
+      }
+
+      // Back up the account, its schedules and payments so this edit can be
+      // reverted. Required when schedules change; best effort otherwise.
+      let existing: ExistingSchedule[] = [];
+      try {
+        const state = await snapshotAccount(accountId, "account.updated");
+        existing = state.schedules as unknown as ExistingSchedule[];
+      } catch (err) {
+        if (regenerate) {
+          triggerHaptic("error");
+          toast.error(err instanceof Error ? err.message : "Backup failed.");
+          return;
+        }
+      }
+
+      const today = new Date().toLocaleDateString("en-CA", {
+        timeZone: "Asia/Manila",
+      });
+      const plan = regenerate
+        ? planReschedule(
+            existing,
+            schedulesPayload(accountId),
+            rescheduleMode,
+            today,
+          )
+        : null;
+      if (plan && plan.blocked.length > 0) {
+        triggerHaptic("error");
+        toast.error(
+          `The new terms have ${plan.blocked.length} fewer installment${
+            plan.blocked.length === 1 ? "" : "s"
+          } than the payments already made. Lengthen the term, or choose "Start over".`,
+        );
+        return;
+      }
+
       const { error: updateError } = await supabase
         .from("accounts")
         .update({
@@ -210,27 +288,39 @@ export default function AccountForm({
         return;
       }
 
-      if (values.schedule_mode === "auto") {
-        const { data: delData, error: delError } = await supabase
-          .from("payment_schedules")
-          .delete()
-          .eq("account_id", accountId)
-          .select();
-        console.log(delError, delData);
-        if (delError) {
-          triggerHaptic("error");
-          toast.error(delError.message);
-          return;
+      if (plan) {
+        // Existing rows move in place (ids, payments and checklist links
+        // stay); extra installments are added; unpaid leftovers removed.
+        const steps: Array<() => PromiseLike<{ error: { message: string } | null }>> = [];
+        if (plan.updates.length) {
+          steps.push(() =>
+            supabase
+              .from("payment_schedules")
+              .upsert(
+                plan.updates.map((u) => ({ ...u, account_id: accountId })),
+                { onConflict: "id" },
+              ),
+          );
         }
-
-        const schedules = schedulesPayload(accountId);
-        const { error: insertError } = await supabase
-          .from("payment_schedules")
-          .insert(schedules);
-        if (insertError) {
-          triggerHaptic("error");
-          toast.error(insertError.message);
-          return;
+        if (plan.deletes.length) {
+          steps.push(() =>
+            supabase.from("payment_schedules").delete().in("id", plan.deletes),
+          );
+        }
+        if (plan.inserts.length) {
+          steps.push(() =>
+            supabase.from("payment_schedules").insert(plan.inserts),
+          );
+        }
+        for (const step of steps) {
+          const { error } = await step();
+          if (error) {
+            triggerHaptic("error");
+            toast.error(
+              `${error.message} — use "Revert last update" on the account to undo.`,
+            );
+            return;
+          }
         }
       }
       await logAuditAction(
@@ -1094,6 +1184,66 @@ export default function AccountForm({
           </div>
         </>
       )}
+
+      {isEdit &&
+        !isManual &&
+        carried &&
+        carried.paid + carried.partial > 0 && (
+          <fieldset className="space-y-2">
+            <legend className={formFieldLabelClassName}>
+              Existing payments
+            </legend>
+            {(
+              [
+                {
+                  mode: "carry",
+                  title: "Keep them on the new dates",
+                  hint: `${carried.paid} paid${
+                    carried.partial ? ` and ${carried.partial} partial` : ""
+                  } installment${
+                    carried.paid + carried.partial === 1 ? "" : "s"
+                  } move in order (1st to 1st, 2nd to 2nd) with their payments.`,
+                },
+                {
+                  mode: "reset",
+                  title: "Start over",
+                  hint: "Every installment starts unpaid; recorded payments are removed.",
+                },
+              ] as const
+            ).map((option) => (
+              <label
+                key={option.mode}
+                className={`flex cursor-pointer gap-3 rounded-xl border p-3
+                  transition ${
+                    rescheduleMode === option.mode
+                      ? "border-primary bg-primary/5"
+                      : "border-border"
+                  }`}
+              >
+                <input
+                  type="radio"
+                  name="reschedule-mode"
+                  className="mt-1 accent-[var(--primary)]"
+                  checked={rescheduleMode === option.mode}
+                  onChange={() => setRescheduleMode(option.mode)}
+                />
+                <span>
+                  <span className="block text-sm font-semibold">
+                    {option.title}
+                    {option.mode === "carry" && (
+                      <span className="ml-1.5 text-xs font-medium text-primary">
+                        recommended
+                      </span>
+                    )}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    {option.hint}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
 
       <Button
         type="submit"
