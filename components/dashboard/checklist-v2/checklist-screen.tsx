@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import { useCachedSchedules } from "@/components/dashboard/checklist/use-cached-schedules";
@@ -18,6 +19,9 @@ import {
   rowName,
 } from "@/components/dashboard/checklist-v2/collect-row";
 import { useQuickPay } from "@/components/dashboard/checklist-v2/use-quick-pay";
+import { Sheet } from "@/components/dashboard/checklist-v2/sheet";
+import { PaySheet } from "@/components/dashboard/checklist-v2/pay-sheet";
+import { EditPaymentsSheet } from "@/components/dashboard/checklist-v2/edit-payments-sheet";
 import { todayDateValue } from "@/lib/checklist/dates";
 import { extractScheduleRefs, NO_BORROWERS } from "@/lib/checklist/labels";
 import { buildRowView, type RowView } from "@/lib/checklist/row-state";
@@ -68,13 +72,13 @@ function ChecklistDay({ today }: { today: string }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   /**
    * The row sheet asked for (pay, edit payments, partial, note, row menu).
-   * Only recorded here for now: Task 12 renders the pay and edit-payments
-   * sheets from it and Task 14 the note and row-menu sheets, so until then
-   * those taps open nothing.
+   * The pay and edit-payments sheets render from it below; "note" and "more"
+   * are only recorded for now: Task 14 renders the note and row-menu sheets,
+   * so until then those requests open nothing.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- read by the sheets Tasks 12 and 14 add
   const [rowSheet, setRowSheet] = useState<RowSheetRequest | null>(null);
   const sheetSeq = useRef(0);
+  const router = useRouter();
 
   const { items, loading, releasedId, waitingIds, flashIds, setChecked } =
     useChecklistItems(date);
@@ -115,6 +119,28 @@ function ChecklistDay({ today }: { today: string }) {
   const summary = useMemo(() => summarizeRows(rows), [rows]);
   const counts = useMemo(() => filterCounts(rows), [rows]);
 
+  const requestSheet = (kind: RowRequest, itemId: string) => {
+    sheetSeq.current += 1;
+    setRowSheet({ kind, itemId, seq: sheetSeq.current });
+  };
+  const closeSheet = () => setRowSheet(null);
+  /** The row the open sheet is about, kept live as payments land. */
+  const sheetRow = rowSheet
+    ? (rows.find((r) => r.item.id === rowSheet.itemId) ?? null)
+    : null;
+  const payOpen =
+    !!sheetRow?.model &&
+    (rowSheet?.kind === "openPay" ||
+      rowSheet?.kind === "payRow" ||
+      rowSheet?.kind === "partial");
+  const editOpen = !!sheetRow?.model && rowSheet?.kind === "editPayments";
+  const openBorrower = (row: RowView) => {
+    const id = row.model?.borrower?.id;
+    if (!id) return;
+    closeSheet();
+    router.push(`/borrowers/${id}`);
+  };
+
   const rowsApi: CollectRowsApi = {
     swipedId,
     onSwiped: (itemId, open) =>
@@ -132,8 +158,7 @@ function ChecklistDay({ today }: { today: string }) {
     flashIds,
     onRequest: (row, kind) => {
       setSwipedId(null);
-      sheetSeq.current += 1;
-      setRowSheet({ kind, itemId: row.item.id, seq: sheetSeq.current });
+      requestSheet(kind, row.item.id);
     },
     onPayAll: (row: RowView) =>
       void quickPay(
@@ -197,6 +222,41 @@ function ChecklistDay({ today }: { today: string }) {
           </div>
         </div>
       )}
+
+      <Sheet open={payOpen} onClose={closeSheet} label="Record payment">
+        {payOpen && sheetRow && rowSheet && (
+          <PaySheet
+            key={rowSheet.seq}
+            row={sheetRow}
+            startPartial={rowSheet.kind === "partial"}
+            setChecked={setChecked}
+            onClose={closeSheet}
+            onEditRecorded={() =>
+              requestSheet("editPayments", sheetRow.item.id)
+            }
+            onOpenBorrower={() => openBorrower(sheetRow)}
+            // The gesture-free path to the row menu (Note, Edit item,
+            // Remove; the spec's open question 2). Only recorded here:
+            // Task 14 renders the row-menu sheet from this request.
+            onMore={() => requestSheet("more", sheetRow.item.id)}
+          />
+        )}
+      </Sheet>
+      <Sheet
+        open={editOpen}
+        onClose={closeSheet}
+        label="Edit recorded payments"
+      >
+        {editOpen && sheetRow && rowSheet && (
+          <EditPaymentsSheet
+            key={rowSheet.seq}
+            row={sheetRow}
+            setChecked={setChecked}
+            onClose={closeSheet}
+            onOpenBorrower={() => openBorrower(sheetRow)}
+          />
+        )}
+      </Sheet>
     </div>
   );
 }

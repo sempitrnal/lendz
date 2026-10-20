@@ -12,6 +12,7 @@ import { buildQuickPay } from "@/lib/checklist/quick-pay";
 import { overdueCutoffDateValue, todayDateValue } from "@/lib/checklist/dates";
 import type { RowView } from "@/lib/checklist/row-state";
 import { peso } from "@/components/dashboard/checklist-v2/header";
+import { recordInSteps } from "@/components/dashboard/checklist-v2/record-steps";
 
 /** The pay toast and its Undo (Global Constraints: 6000 ms for pay). */
 const PAY_TOAST_MS = 6000;
@@ -79,28 +80,28 @@ export function useQuickPay(
       const undo = async () => {
         // Never let the reset race the pay it takes back.
         if (!paid || (await paid) === "failed") return;
-        const undone = await recordPayments({
-          ...base,
-          plan: quick.undo,
-          failureMessage: "Couldn't undo — the payment is still recorded",
-        });
-        if (undone === "failed") return; // still paid: keep the tick
-        if (tick) setChecked([itemId], false);
-        // The reset deletes every payment on the installment; put back what
-        // was there before this pay, after the reset has gone through.
-        if (quick.restore.payments.length > 0) {
-          const restored = quick.restore.payments.reduce(
-            (sum, p) => sum + p.amount,
-            0,
-          );
-          await recordPayments({
-            ...base,
+        const restored = quick.restore.payments.reduce(
+          (sum, p) => sum + p.amount,
+          0,
+        );
+        // The reset deletes every payment on the installment; the restore
+        // then puts back what was there before this pay.
+        await recordInSteps(recordPayments, base, [
+          {
+            plan: quick.undo,
+            failureMessage: "Couldn't undo — the payment is still recorded",
+            // Still paid after a refusal: the tick stays.
+            onDone: () => {
+              if (tick) setChecked([itemId], false);
+            },
+          },
+          {
             plan: quick.restore,
             failureMessage: `Couldn't put back the earlier ${peso(
               restored,
             )} payment — re-enter it`,
-          });
-        }
+          },
+        ]);
       };
 
       paid = recordPayments({

@@ -5,7 +5,7 @@ import {
 } from "@/lib/checklist/payment-plan";
 import type { LineState } from "@/lib/checklist/row-state";
 import type { ScheduleDialogRow } from "@/lib/checklist/schedule-cache";
-import { amountPaidOnInstallment } from "@/lib/payment-schedule/schedule-balances";
+import { buildResetAndRestore } from "@/lib/checklist/payment-reset";
 
 export type QuickPay = {
   /** Marks every targeted installment paid (what is left of it). */
@@ -63,29 +63,9 @@ export function buildQuickPay(
 
   const paidNow = new Set(pay.paidIds);
   const paidTargets = targets.filter((t) => paidNow.has(t.id));
-  const undo = buildPaymentPlan(
+  // Undo resets what was paid, then puts back what was on it before.
+  const { reset: undo, restore } = buildResetAndRestore(
     paidTargets,
-    choices("undo", [...paidNow]),
-    overdueCutoff,
-  );
-
-  // What was already on each installment, re-applied to its reset copy.
-  const before = paidTargets
-    .map((t) => ({ row: t, paid: amountPaidOnInstallment(t) }))
-    .filter((b) => b.paid > 0);
-  const restore = buildPaymentPlan(
-    before.map(({ row }) => ({
-      ...row,
-      status: "pending",
-      amount_paid: 0,
-      remaining_amount: row.amount_due,
-    })),
-    Object.fromEntries(
-      before.map(({ row, paid }) => [
-        row.id,
-        { status: "partial", amount: String(paid) },
-      ]),
-    ),
     overdueCutoff,
   );
 
