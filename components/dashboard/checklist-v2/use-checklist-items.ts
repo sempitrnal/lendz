@@ -43,8 +43,14 @@ export type ChecklistItemsApi = {
   waitingIds: Set<string>;
   /** Item ids that just changed from elsewhere (another device or tab); cleared after about 2.5 s. */
   flashIds: Set<string>;
+  /**
+   * Adds the rows at once and resolves with them once the insert is saved or
+   * queued offline (`onOutcome` says which); [] when it fails (an error toast
+   * shows and the rows go).
+   */
   addItems(
     rows: { label: string; categoryId: string | null; checked?: boolean }[],
+    onOutcome?: (outcome: "saved" | "queued") => void,
   ): Promise<DailyChecklistItem[]>;
   setLabel(id: string, label: string): void;
   setChecked(ids: string[], checked: boolean): void;
@@ -347,6 +353,7 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
   const addItems = useCallback(
     async (
       rows: { label: string; categoryId: string | null; checked?: boolean }[],
+      onOutcome?: (outcome: "saved" | "queued") => void,
     ): Promise<DailyChecklistItem[]> => {
       if (rows.length === 0) return [];
       const targetDate = date;
@@ -387,6 +394,7 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
 
       if (wasQueuedOffline(error)) {
         markWaiting(ids);
+        onOutcome?.("queued");
         return created;
       }
       if (error) {
@@ -395,6 +403,7 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
         updateDay(targetDate, (prev) => prev.filter((i) => !drop.has(i.id)));
         return [];
       }
+      onOutcome?.("saved");
 
       const saved = new Map((data ?? []).map((row) => [row.id, row]));
       const result = created.map((row) => {

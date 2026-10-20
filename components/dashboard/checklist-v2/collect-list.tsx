@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronUp, Undo2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import { groupByBorrowerCategory } from "@/lib/checklist/labels";
@@ -71,6 +72,8 @@ export function CollectList({
   borrowers,
   isToday,
   api,
+  populating,
+  onPopulate,
 }: {
   /** Every Collect row of the day (unfiltered). */
   rows: RowView[];
@@ -78,6 +81,10 @@ export function CollectList({
   borrowers: BorrowerSearchItem[];
   isToday: boolean;
   api: CollectRowsApi;
+  /** A populate is under way: the empty list's button waits. */
+  populating: boolean;
+  /** Populate due, the empty list's big button. */
+  onPopulate(): void;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const toggle = (key: string) =>
@@ -115,6 +122,14 @@ export function CollectList({
             Pull in everyone who&apos;s due {isToday ? "today" : "this day"} or
             running late.
           </p>
+          <Button
+            size="lg"
+            className="mt-4 h-11 px-6"
+            disabled={populating}
+            onClick={onPopulate}
+          >
+            {populating ? "Populating…" : "Populate due"}
+          </Button>
         </div>
       </div>
     );

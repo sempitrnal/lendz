@@ -26,8 +26,11 @@ export type RecordPaymentsInput = {
   onApplied?: () => void;
   /** After a refusal, once the local result is put back. */
   onFailed?: () => void;
-  /** The error toast after a refusal; defaults to the payment one. */
-  failureMessage?: string;
+  /**
+   * The error toast after a refusal; defaults to the payment one. null shows
+   * none: the caller reports the outcome itself (a bulk Undo sums them up).
+   */
+  failureMessage?: string | null;
 };
 
 const DEFAULT_FAILURE_MESSAGE =
@@ -95,7 +98,7 @@ export function useRecordPayments() {
       void refreshCachedAccounts(accountIds).catch(() => {});
       queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
       onFailed?.();
-      toast.error(failureMessage);
+      if (failureMessage !== null) toast.error(failureMessage);
       return "failed";
     }
   };

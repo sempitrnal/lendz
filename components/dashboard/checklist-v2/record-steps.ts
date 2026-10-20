@@ -8,7 +8,8 @@ type RecordPayments = (
 
 export type PaymentStep = {
   plan: PaymentPlan;
-  failureMessage?: string;
+  /** null: no error toast, the caller reports the refusal itself. */
+  failureMessage?: string | null;
   onApplied?(): void;
   onFailed?(): void;
   /** Once the step is saved or queued, before the next one starts. */

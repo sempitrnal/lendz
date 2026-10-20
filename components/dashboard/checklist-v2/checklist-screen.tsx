@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -28,8 +34,29 @@ import {
   RowMenuSheet,
   rowBorrower,
 } from "@/components/dashboard/checklist-v2/row-sheets";
+import {
+  BulkPaidSheet,
+  ListMenuSheet,
+} from "@/components/dashboard/checklist-v2/list-menu-sheets";
+import { useBulkPaid } from "@/components/dashboard/checklist-v2/use-bulk-paid";
 import type { AddMode } from "@/lib/checklist/add-sheet";
-import type { DailyChecklistItem } from "@/lib/checklist/types";
+import type {
+  DailyChecklistItem,
+  DueChecklistGroup,
+} from "@/lib/checklist/types";
+import { selectPopulateLabels } from "@/lib/checklist/populate";
+import { bulkPaidRows } from "@/lib/checklist/bulk-paid";
+import {
+  addedBorrowersText,
+  clearedItemsText,
+  dueGroupsErrorText,
+  dueGroupsUrl,
+  NOTHING_NEW_TO_ADD,
+  NOTHING_TO_UNDO_POPULATE,
+  planUndoPopulate,
+  QUEUED_SUFFIX,
+  undoPopulateText,
+} from "@/lib/checklist/list-menu";
 import { todayDateValue } from "@/lib/checklist/dates";
 import { extractScheduleRefs, NO_BORROWERS } from "@/lib/checklist/labels";
 import { buildRowView, type RowView } from "@/lib/checklist/row-state";
@@ -42,8 +69,45 @@ import { tabOf, type ChecklistTab } from "@/lib/checklist/categories";
 
 const noopSubscribe = () => () => {};
 
-/** The remove toast and its Undo (Global Constraints: 6000 ms for remove). */
+/** The remove and clear toasts and their Undo (Global Constraints: 6000 ms). */
 const REMOVE_TOAST_MS = 6000;
+/** The populate toast and its Undo (Global Constraints: 8000 ms). */
+const POPULATE_TOAST_MS = 8000;
+
+/**
+ * The due collections for a day and the 7 days before (read only). A failed
+ * load says what the old widget said.
+ */
+async function fetchDueGroups(date: string): Promise<DueChecklistGroup[]> {
+  const fail = () => new Error(dueGroupsErrorText(navigator.onLine));
+  let res: Response;
+  try {
+    res = await fetch(dueGroupsUrl(date));
+  } catch {
+    throw fail();
+  }
+  if (!res.ok) throw fail();
+  try {
+    const { groups } = (await res.json()) as { groups?: DueChecklistGroup[] };
+    if (!Array.isArray(groups)) throw fail();
+    return groups;
+  } catch {
+    throw fail();
+  }
+}
+
+/**
+ * The last populate on the day, for its Undo (the toast's and the menu's
+ * share it, so it runs once).
+ */
+type PopulateRun = {
+  date: string;
+  rows: { id: string; label: string }[];
+  used: boolean;
+};
+
+/** The list menu ("⋯") or the bulk sheet; `seq` keys each open. */
+type ListSheetRequest = { kind: "menu" | "bulk"; seq: number };
 
 /**
  * A sheet a row asked for. `seq` grows on every request so the sheet can key
@@ -97,6 +161,12 @@ function ChecklistDay({ today }: { today: string }) {
    */
   const [rowSheet, setRowSheet] = useState<RowSheetRequest | null>(null);
   const [addSheet, setAddSheet] = useState<AddSheetRequest | null>(null);
+  const [listSheet, setListSheet] = useState<ListSheetRequest | null>(null);
+  /** The populate the menu's "Undo populate" takes back (this day only). */
+  const [lastPopulate, setLastPopulate] = useState<PopulateRun | null>(null);
+  const [populating, setPopulating] = useState(false);
+  /** A populate under way, so a double tap fetches and inserts once. */
+  const populatingRef = useRef(false);
   const sheetSeq = useRef(0);
   /** Rows whose Remove is under way, so a double tap removes (and toasts) once. */
   const removingRef = useRef(new Set<string>());
@@ -116,6 +186,17 @@ function ChecklistDay({ today }: { today: string }) {
     restoreItems,
   } = useChecklistItems(date);
   const quickPay = useQuickPay(setChecked);
+  const bulkPay = useBulkPaid(setChecked);
+  /**
+   * The day and its rows as they are now, for work that finishes after an
+   * await or from a toast (whose closure is from an earlier render).
+   */
+  const dateRef = useRef(date);
+  const itemsRef = useRef(items);
+  useEffect(() => {
+    dateRef.current = date;
+    itemsRef.current = items;
+  }, [date, items]);
   const { data: borrowers = NO_BORROWERS } = useBorrowersSearch();
 
   const changeDate = (next: string) => {
@@ -127,6 +208,9 @@ function ChecklistDay({ today }: { today: string }) {
     setExpandedIds(new Set());
     setRowSheet(null);
     setAddSheet(null);
+    setListSheet(null);
+    // "Undo populate" is for the day it was populated on.
+    setLastPopulate(null);
     setDate(next);
   };
 
@@ -151,6 +235,8 @@ function ChecklistDay({ today }: { today: string }) {
     [collectItems, schedules],
   );
   const summary = useMemo(() => summarizeRows(rows), [rows]);
+  /** What "Mark all paid" is for: the Collect rows not fully paid. */
+  const bulkRows = useMemo(() => bulkPaidRows(rows), [rows]);
   const counts = useMemo(() => filterCounts(rows), [rows]);
 
   const requestSheet = (kind: RowRequest, itemId: string) => {
@@ -178,6 +264,7 @@ function ChecklistDay({ today }: { today: string }) {
     if (loading) return;
     sheetSeq.current += 1;
     setRowSheet(null);
+    setListSheet(null);
     setAddSheet({ mode, editItemId, seq: sheetSeq.current });
   };
   const closeAdd = () => setAddSheet(null);
@@ -186,6 +273,10 @@ function ChecklistDay({ today }: { today: string }) {
     : null;
   // Edit item is for collection rows; a row removed meanwhile closes it.
   const addOpen = !!addSheet && (!addSheet.editItemId || !!editRow?.model);
+  const menuOpen = listSheet?.kind === "menu" && tab === "collect";
+  // Closes by itself once nothing is left to mark.
+  const bulkOpen =
+    listSheet?.kind === "bulk" && tab === "collect" && bulkRows.length > 0;
   const openBorrower = (row: RowView) => {
     const id = rowBorrower(row)?.id;
     if (!id) return;
@@ -195,43 +286,44 @@ function ChecklistDay({ today }: { today: string }) {
   };
 
   /**
-   * Remove from list: deletes the checklist item only (never its payments)
-   * and offers Undo, which puts the same row back (same id) on the day it
-   * came from. The toast tells the truth about the delete: if it fails the
-   * row returns and the toast goes; if it is queued offline the toast says so.
+   * Deletes checklist items only (never their payments) and offers Undo,
+   * which puts the same rows back (same ids) on the day they came from. The
+   * toast tells the truth about the delete: if it fails the rows return and
+   * the toast goes; if it is queued offline the toast says so. Rows already
+   * being removed are skipped, so a double tap removes (and toasts) once.
    */
-  const removeRow = (row: RowView) => {
-    const id = row.item.id;
-    if (loading || removingRef.current.has(id)) return;
-    removingRef.current.add(id);
-    // By then the row has left the list, so it can't be tapped again.
-    const release = () => removingRef.current.delete(id);
+  const removeWithUndo = (ids: string[], text: (count: number) => string) => {
+    const fresh = ids.filter((id) => !removingRef.current.has(id));
+    if (loading || fresh.length === 0) return;
+    for (const id of fresh) removingRef.current.add(id);
+    // By then the rows have left the list, so they can't be tapped again.
+    const release = () => {
+      for (const id of fresh) removingRef.current.delete(id);
+    };
     const timer = window.setTimeout(release, 1000);
-    closeSheet();
-    const name = rowName(row);
 
     let settle: (outcome: "saved" | "queued" | "failed") => void = () => {};
     const settled = new Promise<"saved" | "queued" | "failed">((resolve) => {
       settle = resolve;
     });
-    const toastId = `remove-${id}-${Date.now()}`;
+    const toastId = `remove-${fresh[0]}-${Date.now()}`;
     let undone = false;
     const undo = async (rows: DailyChecklistItem[]) => {
       // Once only, and never ahead of the delete it takes back: a failed
-      // delete already put the row back.
+      // delete already put the rows back.
       if (undone) return;
       undone = true;
       if ((await settled) === "failed") return;
       release();
       await restoreItems(rows);
     };
-    const removed = removeItems([id], (outcome) => {
+    const removed = removeItems(fresh, (outcome) => {
       if (outcome === "failed") {
         window.clearTimeout(timer);
         release();
         toast.dismiss(toastId);
       } else if (outcome === "queued" && !undone) {
-        toast(`${name} removed from the list · will sync when online`, {
+        toast(`${text(removed.length)}${QUEUED_SUFFIX}`, {
           id: toastId,
           duration: REMOVE_TOAST_MS,
           action: { label: "Undo", onClick: () => void undo(removed) },
@@ -244,11 +336,130 @@ function ChecklistDay({ today }: { today: string }) {
       release();
       return;
     }
-    toast(`${name} removed from the list`, {
+    toast(text(removed.length), {
       id: toastId,
       duration: REMOVE_TOAST_MS,
       action: { label: "Undo", onClick: () => void undo(removed) },
     });
+  };
+
+  /** Remove from list (row menu): this row's item only. */
+  const removeRow = (row: RowView) => {
+    const id = row.item.id;
+    if (loading || removingRef.current.has(id)) return;
+    closeSheet();
+    const name = rowName(row);
+    removeWithUndo([id], () => `${name} removed from the list`);
+  };
+
+  const openList = (kind: ListSheetRequest["kind"]) => {
+    if (loading) return;
+    sheetSeq.current += 1;
+    setRowSheet(null);
+    setAddSheet(null);
+    setListSheet({ kind, seq: sheetSeq.current });
+  };
+  const closeList = () => setListSheet(null);
+
+  /**
+   * Undo populate (the toast's or the menu's): deletes only the rows still
+   * as populate left them (label unchanged, not ticked), on the day it ran.
+   */
+  const undoPopulate = (run: PopulateRun) => {
+    if (run.used || dateRef.current !== run.date) return;
+    run.used = true;
+    setLastPopulate((prev) => (prev === run ? null : prev));
+    const { removeIds, kept } = planUndoPopulate(run.rows, itemsRef.current);
+    if (removeIds.length === 0) {
+      toast.info(NOTHING_TO_UNDO_POPULATE);
+      return;
+    }
+    const text = undoPopulateText(removeIds.length, kept);
+    removeItems(removeIds, (outcome) => {
+      if (outcome === "saved") toast.success(text);
+      else if (outcome === "queued") toast.success(`${text}${QUEUED_SUFFIX}`);
+      else if (dateRef.current === run.date) {
+        // The rows are back (removeItems showed why): it can be tried again.
+        run.used = false;
+        setLastPopulate(run);
+      }
+    });
+  };
+
+  /**
+   * Populate due: one row per borrower with something due on the day or up
+   * to 7 days late who isn't listed yet, in the collect category.
+   */
+  const populate = async () => {
+    if (loading || populatingRef.current) return;
+    populatingRef.current = true;
+    setPopulating(true);
+    const forDate = date;
+    try {
+      let groups: DueChecklistGroup[];
+      try {
+        groups = await fetchDueGroups(forDate);
+      } catch (err) {
+        toast.error(
+          err instanceof Error
+            ? err.message
+            : dueGroupsErrorText(navigator.onLine),
+        );
+        return;
+      }
+      // Another day is showing now: its rows aren't the ones to check.
+      if (dateRef.current !== forDate) return;
+      const labels = selectPopulateLabels(groups, itemsRef.current);
+      if (labels.length === 0) {
+        toast.info(NOTHING_NEW_TO_ADD);
+        return;
+      }
+      let queued = false;
+      let created: DailyChecklistItem[];
+      try {
+        created = await addItems(
+          labels.map((label) => ({ label, categoryId: collectId })),
+          (outcome) => {
+            queued = outcome === "queued";
+          },
+        );
+      } catch {
+        toast.error("Couldn't add them — check the list");
+        return;
+      }
+      // [] when the insert failed; addItems has said why.
+      if (created.length === 0) return;
+      const text = `${addedBorrowersText(created.length)}${
+        queued ? QUEUED_SUFFIX : ""
+      }`;
+      if (dateRef.current !== forDate) {
+        // Saved on the day it was asked for; no Undo from another day.
+        toast.success(text);
+        return;
+      }
+      const run: PopulateRun = {
+        date: forDate,
+        rows: created.map((c) => ({ id: c.id, label: c.label })),
+        used: false,
+      };
+      setLastPopulate(run);
+      toast.success(text, {
+        duration: POPULATE_TOAST_MS,
+        action: { label: "Undo", onClick: () => undoPopulate(run) },
+      });
+    } finally {
+      populatingRef.current = false;
+      setPopulating(false);
+    }
+  };
+
+  /** Clear all: the Collect tab's items (never payments), with Undo. */
+  const clearAll = () => {
+    setLastPopulate(null);
+    removeWithUndo(
+      collectItems.map((i) => i.id),
+      (count) => clearedItemsText(count),
+    );
   };
 
   const rowsApi: CollectRowsApi = {
@@ -304,6 +515,7 @@ function ChecklistDay({ today }: { today: string }) {
         counts={counts}
         loading={loading}
         onAdd={() => openAdd(tab)}
+        onMenu={() => openList("menu")}
       />
 
       {loading ? (
@@ -315,6 +527,8 @@ function ChecklistDay({ today }: { today: string }) {
           borrowers={borrowers}
           isToday={date === today}
           api={rowsApi}
+          populating={populating}
+          onPopulate={() => void populate()}
         />
       ) : (
         <div className="mt-3 px-3">
@@ -394,6 +608,49 @@ function ChecklistDay({ today }: { today: string }) {
             setLabel={setLabel}
             onOpenBorrower={() => openBorrower(sheetRow)}
             onClose={closeSheet}
+          />
+        )}
+      </Sheet>
+      <Sheet
+        open={menuOpen}
+        onClose={closeList}
+        label={date === today ? "Today's list" : "This day's list"}
+      >
+        {menuOpen && listSheet && (
+          <ListMenuSheet
+            key={listSheet.seq}
+            isToday={date === today}
+            unpaidCount={bulkRows.length}
+            total={collectItems.length}
+            canUndoPopulate={lastPopulate?.date === date}
+            disabled={loading}
+            populating={populating}
+            onPopulate={() => {
+              closeList();
+              void populate();
+            }}
+            onMarkAll={() => openList("bulk")}
+            onUndoPopulate={() => {
+              closeList();
+              if (lastPopulate) undoPopulate(lastPopulate);
+            }}
+            onClear={() => {
+              closeList();
+              clearAll();
+            }}
+            onManageCategories={closeList}
+          />
+        )}
+      </Sheet>
+      <Sheet open={bulkOpen} onClose={closeList} label="Mark all as paid">
+        {bulkOpen && listSheet && (
+          <BulkPaidSheet
+            key={listSheet.seq}
+            rows={bulkRows}
+            date={date}
+            disabled={loading}
+            onClose={closeList}
+            onConfirm={(bulk, paymentDate) => void bulkPay(bulk, paymentDate)}
           />
         )}
       </Sheet>
