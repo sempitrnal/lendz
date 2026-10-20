@@ -181,9 +181,6 @@ export const MentionPill = memo(function MentionPill({
   return (
     <Link
       href={href}
-      // A checklist can hold dozens of these; prefetching each borrower page
-      // in full as it scrolls into view floods the connection.
-      prefetch={false}
       onClick={(e) => e.stopPropagation()}
       style={style}
       className={className}
