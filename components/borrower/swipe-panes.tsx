@@ -114,7 +114,12 @@ export function SwipePanes({
       });
     };
 
+    // Mobile browsers fire resize when the address bar shows or hides; only a
+    // change of width (rotation, split screen) should re-snap the track.
+    let lastWidth = track.clientWidth;
     const onResize = () => {
+      if (track.clientWidth === lastWidth) return;
+      lastWidth = track.clientWidth;
       track.scrollTo({
         left: Math.round(progress) * track.clientWidth,
         behavior: "auto",
@@ -188,7 +193,7 @@ export function SwipePanes({
         tabIndex={0}
         onKeyDown={onKeyDown}
         className="flex snap-x snap-mandatory items-start overflow-x-auto
-          overflow-y-hidden overscroll-x-contain [scrollbar-width:none]
+          overflow-y-hidden overscroll-x-none [scrollbar-width:none]
           focus-visible:outline-2 focus-visible:-outline-offset-2
           focus-visible:outline-blue-500 [&::-webkit-scrollbar]:hidden"
       >
