@@ -23,7 +23,13 @@ import { Sheet } from "@/components/dashboard/checklist-v2/sheet";
 import { PaySheet } from "@/components/dashboard/checklist-v2/pay-sheet";
 import { EditPaymentsSheet } from "@/components/dashboard/checklist-v2/edit-payments-sheet";
 import { AddSheet } from "@/components/dashboard/checklist-v2/add-sheet";
+import {
+  NoteSheet,
+  RowMenuSheet,
+  rowBorrower,
+} from "@/components/dashboard/checklist-v2/row-sheets";
 import type { AddMode } from "@/lib/checklist/add-sheet";
+import type { DailyChecklistItem } from "@/lib/checklist/types";
 import { todayDateValue } from "@/lib/checklist/dates";
 import { extractScheduleRefs, NO_BORROWERS } from "@/lib/checklist/labels";
 import { buildRowView, type RowView } from "@/lib/checklist/row-state";
@@ -35,6 +41,9 @@ import {
 import { tabOf, type ChecklistTab } from "@/lib/checklist/categories";
 
 const noopSubscribe = () => () => {};
+
+/** The remove toast and its Undo (Global Constraints: 6000 ms for remove). */
+const REMOVE_TOAST_MS = 6000;
 
 /**
  * A sheet a row asked for. `seq` grows on every request so the sheet can key
@@ -83,14 +92,14 @@ function ChecklistDay({ today }: { today: string }) {
   /** Rows with several open installments shown expanded. */
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   /**
-   * The row sheet asked for (pay, edit payments, partial, note, row menu).
-   * The pay and edit-payments sheets render from it below; "note" and "more"
-   * are only recorded for now: Task 14 renders the note and row-menu sheets,
-   * so until then those requests open nothing.
+   * The row sheet asked for (pay, edit payments, partial, note, row menu);
+   * each renders from it below.
    */
   const [rowSheet, setRowSheet] = useState<RowSheetRequest | null>(null);
   const [addSheet, setAddSheet] = useState<AddSheetRequest | null>(null);
   const sheetSeq = useRef(0);
+  /** Rows whose Remove is under way, so a double tap removes (and toasts) once. */
+  const removingRef = useRef(new Set<string>());
   const router = useRouter();
 
   const {
@@ -103,6 +112,8 @@ function ChecklistDay({ today }: { today: string }) {
     setChecked,
     addItems,
     setLabel,
+    removeItems,
+    restoreItems,
   } = useChecklistItems(date);
   const quickPay = useQuickPay(setChecked);
   const { data: borrowers = NO_BORROWERS } = useBorrowersSearch();
@@ -157,10 +168,11 @@ function ChecklistDay({ today }: { today: string }) {
       rowSheet?.kind === "payRow" ||
       rowSheet?.kind === "partial");
   const editOpen = !!sheetRow?.model && rowSheet?.kind === "editPayments";
+  const moreOpen = !!sheetRow && rowSheet?.kind === "more";
+  const noteOpen = !!sheetRow && rowSheet?.kind === "note";
   /**
-   * Opens the add sheet. With `editItemId` it is Edit item on that row: the
-   * row menu (Task 14) calls `openAdd("collect", itemId)`; until then only
-   * the header's "+" opens it.
+   * Opens the add sheet. With `editItemId` it is Edit item on that row (from
+   * the row menu); otherwise it is the header's "+".
    */
   const openAdd = (mode: AddMode, editItemId: string | null = null) => {
     if (loading) return;
@@ -175,10 +187,68 @@ function ChecklistDay({ today }: { today: string }) {
   // Edit item is for collection rows; a row removed meanwhile closes it.
   const addOpen = !!addSheet && (!addSheet.editItemId || !!editRow?.model);
   const openBorrower = (row: RowView) => {
-    const id = row.model?.borrower?.id;
+    const id = rowBorrower(row)?.id;
     if (!id) return;
     closeSheet();
+    closeAdd();
     router.push(`/borrowers/${id}`);
+  };
+
+  /**
+   * Remove from list: deletes the checklist item only (never its payments)
+   * and offers Undo, which puts the same row back (same id) on the day it
+   * came from. The toast tells the truth about the delete: if it fails the
+   * row returns and the toast goes; if it is queued offline the toast says so.
+   */
+  const removeRow = (row: RowView) => {
+    const id = row.item.id;
+    if (loading || removingRef.current.has(id)) return;
+    removingRef.current.add(id);
+    // By then the row has left the list, so it can't be tapped again.
+    const release = () => removingRef.current.delete(id);
+    const timer = window.setTimeout(release, 1000);
+    closeSheet();
+    const name = rowName(row);
+
+    let settle: (outcome: "saved" | "queued" | "failed") => void = () => {};
+    const settled = new Promise<"saved" | "queued" | "failed">((resolve) => {
+      settle = resolve;
+    });
+    const toastId = `remove-${id}-${Date.now()}`;
+    let undone = false;
+    const undo = async (rows: DailyChecklistItem[]) => {
+      // Once only, and never ahead of the delete it takes back: a failed
+      // delete already put the row back.
+      if (undone) return;
+      undone = true;
+      if ((await settled) === "failed") return;
+      release();
+      await restoreItems(rows);
+    };
+    const removed = removeItems([id], (outcome) => {
+      if (outcome === "failed") {
+        window.clearTimeout(timer);
+        release();
+        toast.dismiss(toastId);
+      } else if (outcome === "queued" && !undone) {
+        toast(`${name} removed from the list · will sync when online`, {
+          id: toastId,
+          duration: REMOVE_TOAST_MS,
+          action: { label: "Undo", onClick: () => void undo(removed) },
+        });
+      }
+      settle(outcome);
+    });
+    if (removed.length === 0) {
+      window.clearTimeout(timer);
+      release();
+      return;
+    }
+    toast(`${name} removed from the list`, {
+      id: toastId,
+      duration: REMOVE_TOAST_MS,
+      action: { label: "Undo", onClick: () => void undo(removed) },
+    });
   };
 
   const rowsApi: CollectRowsApi = {
@@ -276,9 +346,8 @@ function ChecklistDay({ today }: { today: string }) {
               requestSheet("editPayments", sheetRow.item.id)
             }
             onOpenBorrower={() => openBorrower(sheetRow)}
-            // The gesture-free path to the row menu (Note, Edit item,
-            // Remove; the spec's open question 2). Only recorded here:
-            // Task 14 renders the row-menu sheet from this request.
+            // The gesture-free path to the row menu (Edit item, Open
+            // borrower page, Remove; the spec's open question 2).
             onMore={() => requestSheet("more", sheetRow.item.id)}
           />
         )}
@@ -298,6 +367,36 @@ function ChecklistDay({ today }: { today: string }) {
           />
         )}
       </Sheet>
+      <Sheet open={moreOpen} onClose={closeSheet} label="Row menu">
+        {moreOpen && sheetRow && rowSheet && (
+          <RowMenuSheet
+            key={rowSheet.seq}
+            row={sheetRow}
+            disabled={loading}
+            onEditItem={() => openAdd("collect", sheetRow.item.id)}
+            onEditNote={() => requestSheet("note", sheetRow.item.id)}
+            onOpenBorrower={() => openBorrower(sheetRow)}
+            onRemove={() => removeRow(sheetRow)}
+          />
+        )}
+      </Sheet>
+      <Sheet
+        open={noteOpen}
+        onClose={closeSheet}
+        label={sheetRow?.model ? "Note" : "Edit note"}
+      >
+        {noteOpen && sheetRow && rowSheet && (
+          <NoteSheet
+            key={rowSheet.seq}
+            row={sheetRow}
+            date={date}
+            disabled={loading}
+            setLabel={setLabel}
+            onOpenBorrower={() => openBorrower(sheetRow)}
+            onClose={closeSheet}
+          />
+        )}
+      </Sheet>
       <Sheet
         open={addOpen}
         onClose={closeAdd}
@@ -310,6 +409,9 @@ function ChecklistDay({ today }: { today: string }) {
             date={date}
             edit={editRow ?? undefined}
             api={{ items, loading, collectId, releasedId, addItems, setLabel }}
+            onOpenBorrower={() => {
+              if (editRow) openBorrower(editRow);
+            }}
             onClose={closeAdd}
           />
         )}

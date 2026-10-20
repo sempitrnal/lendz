@@ -122,6 +122,7 @@ export function AddSheet({
   date,
   edit,
   api,
+  onOpenBorrower,
   onClose,
 }: {
   mode: AddMode;
@@ -129,6 +130,8 @@ export function AddSheet({
   /** Edit this collection row instead of adding one (Edit item). */
   edit?: RowView;
   api: AddSheetApi;
+  /** Edit item: the borrower's name opens their page. */
+  onOpenBorrower?(): void;
   onClose(): void;
 }) {
   const isRelease = mode === "release" && !edit;
@@ -707,12 +710,23 @@ export function AddSheet({
       <div className="px-5 pt-2 pb-3">
         <h2 className="text-lg font-semibold">
           {title}{" "}
-          {subtitle && (
-            <span className="text-sm font-normal text-muted-foreground
-              lowercase">
-              · {subtitle}
-            </span>
-          )}
+          {subtitle &&
+            (edit && borrower && onOpenBorrower ? (
+              <button
+                type="button"
+                onClick={onOpenBorrower}
+                aria-label={`${subtitle}, open borrower page`}
+                className="text-sm font-normal text-muted-foreground lowercase
+                  underline-offset-2 active:opacity-70"
+              >
+                · {subtitle}
+              </button>
+            ) : (
+              <span className="text-sm font-normal text-muted-foreground
+                lowercase">
+                · {subtitle}
+              </span>
+            ))}
         </h2>
 
         <div

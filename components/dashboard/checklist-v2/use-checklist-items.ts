@@ -30,6 +30,8 @@ import type {
   DailyChecklistItem,
 } from "@/lib/checklist/types";
 
+export type RemoveOutcome = "saved" | "queued" | "failed";
+
 export type ChecklistItemsApi = {
   date: string;
   items: DailyChecklistItem[];
@@ -46,7 +48,15 @@ export type ChecklistItemsApi = {
   ): Promise<DailyChecklistItem[]>;
   setLabel(id: string, label: string): void;
   setChecked(ids: string[], checked: boolean): void;
-  removeItems(ids: string[]): DailyChecklistItem[]; // returns what was removed, for Undo
+  /**
+   * Removes the rows at once and returns them, for Undo. `onSettled` hears how
+   * the delete ended: "saved", "queued" (offline; it syncs later) or "failed"
+   * (the rows are put back and an error toast shows).
+   */
+  removeItems(
+    ids: string[],
+    onSettled?: (outcome: RemoveOutcome) => void,
+  ): DailyChecklistItem[];
   restoreItems(rows: DailyChecklistItem[]): Promise<void>;
 };
 
@@ -466,7 +476,10 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
   );
 
   const removeItems = useCallback(
-    (ids: string[]): DailyChecklistItem[] => {
+    (
+      ids: string[],
+      onSettled?: (outcome: RemoveOutcome) => void,
+    ): DailyChecklistItem[] => {
       const idSet = new Set(ids);
       const removed = itemsRef.current.filter((i) => idSet.has(i.id));
       if (removed.length === 0) return [];
@@ -477,14 +490,17 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
       void trackWrite(removedIds, () =>
         supabase.from("daily_checklist_items").delete().in("id", removedIds),
       ).then(({ error }: { error: DbError }) => {
-        if (wasQueuedOffline(error)) markWaiting(removedIds);
-        else if (error) {
+        if (wasQueuedOffline(error)) {
+          markWaiting(removedIds);
+          onSettled?.("queued");
+        } else if (error) {
           toast.error(error.message);
           updateDay(targetDate, (prev) => [
             ...prev,
             ...removed.filter((r) => !prev.some((i) => i.id === r.id)),
           ]);
-        }
+          onSettled?.("failed");
+        } else onSettled?.("saved");
       });
       return removed;
     },
