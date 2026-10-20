@@ -89,7 +89,7 @@ export function SwipePanes({
       pagerRefs.current.forEach((el, i) => {
         if (!el) return;
         el.style.width = `${widths[i]}px`;
-        el.dataset.active = String((i === 0) === (p < 0.5));
+        el.dataset.active = String((i === 0) === p < 0.5);
       });
     };
 
@@ -147,7 +147,9 @@ export function SwipePanes({
     const track = trackRef.current;
     if (!track) return;
     e.preventDefault();
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
     track.scrollBy({
       left: (e.key === "ArrowRight" ? 1 : -1) * track.clientWidth,
       behavior: reduce ? "auto" : "smooth",
@@ -202,8 +204,9 @@ export function SwipePanes({
             }}
             data-active={i === 0}
             style={{ width: i === 0 ? 27 : 5 }}
-            className="h-[5px] rounded-full bg-slate-300 data-[active=true]:bg-slate-600
-              dark:bg-slate-600 dark:data-[active=true]:bg-slate-300"
+            className="h-[5px] rounded-full bg-slate-300
+              data-[active=true]:bg-slate-600 dark:bg-slate-600
+              dark:data-[active=true]:bg-slate-300"
           />
         ))}
       </div>
