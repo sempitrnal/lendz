@@ -148,7 +148,7 @@ function ScheduleDots({
         <div key={i.due_date + idx} title={title(i)} className="text-center">
           <div
             className={`mx-auto flex size-[26px] items-center justify-center
-            rounded-full ${dotClasses(i.state, idx === nextIndex)}`}
+            rounded-md ${dotClasses(i.state, idx === nextIndex)}`}
           >
             {i.state === "paid" && (
               <Check className="size-3.5 text-white" strokeWidth={3} />
