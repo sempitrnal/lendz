@@ -13,6 +13,7 @@ import {
   barRightLabel,
   formatAmount,
   payoffPercent,
+  releasedLabel,
 } from "@/lib/account-card/summary";
 import { SwipePanes, swipeDotStyle, swipeTileStyle } from "./swipe-panes";
 
@@ -172,13 +173,6 @@ function ProgressBar({
   );
 }
 
-const KIND_LABEL = {
-  loan: "Loan",
-  cashAdvance: "Cash advance",
-  flat: "Manual · flat",
-  rolling: "Manual · rolling",
-} as const;
-
 export const AccountCard = memo(function AccountCard({
   account,
   isOpening,
@@ -242,13 +236,6 @@ export const AccountCard = memo(function AccountCard({
         .join(" · ");
   const releaseYmd = account.release_date?.slice(0, 10) ?? null;
   const tone = accountTone({ isManual, isRolling, isCashAdvance });
-  const kind = isManual
-    ? isRolling
-      ? KIND_LABEL.rolling
-      : KIND_LABEL.flat
-    : isCashAdvance
-      ? KIND_LABEL.cashAdvance
-      : KIND_LABEL.loan;
   // The band's date tile is the next due date; before there is one it falls
   // back to the release date.
   const bandDate =
@@ -499,7 +486,7 @@ export const AccountCard = memo(function AccountCard({
         ${isOpening ? "scale-[0.98] opacity-60" : ""}
         ${selectionMode && selected ? "ring ring-blue-600 dark:ring-amber-400" : ""}`}
     >
-      {/* Band: the kind of account, its date, its status */}
+      {/* Band: coloured by kind of account; release age, rate and status */}
       <div
         className={`flex items-center gap-2.5 py-2 pr-12 pl-3
           ${TONES[tone].band}`}
@@ -517,7 +504,7 @@ export const AccountCard = memo(function AccountCard({
             className="truncate text-sm font-bold text-slate-800
               dark:text-slate-100"
           >
-            {kind}
+            {releasedLabel(metrics?.daysSinceRelease ?? 0)}
           </p>
           <p
             className="flex min-w-0 items-center gap-1.5 text-[11px] font-medium

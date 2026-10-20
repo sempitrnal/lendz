@@ -23,3 +23,12 @@ export function barRightLabel(opts: {
   const paid = opts.installments.filter((i) => i.state === "paid").length;
   return `${paid} of ${opts.installments.length} paid`;
 }
+
+/** "released 3w ago", for the card's band. */
+export function releasedLabel(days: number): string {
+  if (days <= 0) return "released today";
+  if (days < 7) return `released ${days}d ago`;
+  if (days < 30) return `released ${Math.round(days / 7)}w ago`;
+  if (days < 365) return `released ${Math.round(days / 30)}mo ago`;
+  return `released ${Math.round(days / 365)}y ago`;
+}

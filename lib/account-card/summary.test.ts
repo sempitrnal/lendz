@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { InstallmentDot } from "@/lib/payment-schedule/installment-dots";
-import { barRightLabel, formatAmount, payoffPercent } from "./summary";
+import {
+  barRightLabel,
+  formatAmount,
+  payoffPercent,
+  releasedLabel,
+} from "./summary";
 
 const dot = (state: InstallmentDot["state"]): InstallmentDot => ({
   due_date: "2026-10-24",
@@ -32,9 +37,9 @@ describe("barRightLabel", () => {
       dot("pending"),
       dot("overdue"),
     ];
-    expect(
-      barRightLabel({ isManual: false, installments, totalPaid: 0 }),
-    ).toBe("3 of 6 paid");
+    expect(barRightLabel({ isManual: false, installments, totalPaid: 0 })).toBe(
+      "3 of 6 paid",
+    );
   });
   it("is empty when a scheduled account has no installments", () => {
     expect(
@@ -51,5 +56,15 @@ describe("barRightLabel", () => {
 describe("formatAmount", () => {
   it("rounds to two decimals", () => {
     expect(Number(formatAmount(379.997).replace(/[^\d.]/g, ""))).toBe(380);
+  });
+});
+
+describe("releasedLabel", () => {
+  it("says how long ago the account was released", () => {
+    expect(releasedLabel(0)).toBe("released today");
+    expect(releasedLabel(3)).toBe("released 3d ago");
+    expect(releasedLabel(14)).toBe("released 2w ago");
+    expect(releasedLabel(90)).toBe("released 3mo ago");
+    expect(releasedLabel(800)).toBe("released 2y ago");
   });
 });

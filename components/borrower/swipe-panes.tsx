@@ -141,6 +141,18 @@ export function SwipePanes({
     };
   }, [swipeable]);
 
+  function goTo(index: number) {
+    const track = trackRef.current;
+    if (!track) return;
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    track.scrollTo({
+      left: index * track.clientWidth,
+      behavior: reduce ? "auto" : "smooth",
+    });
+  }
+
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (e.target !== e.currentTarget) return;
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
@@ -195,19 +207,26 @@ export function SwipePanes({
           </div>
         ))}
       </div>
-      <div className="flex justify-center gap-[5px] pt-0.5 pb-2" aria-hidden>
+      <div className="flex justify-center pb-1">
         {panes.map((_, i) => (
-          <i
+          <button
             key={i}
-            ref={(el) => {
-              pagerRefs.current[i] = el;
-            }}
-            data-active={i === 0}
-            style={{ width: i === 0 ? 27 : 5 }}
-            className="h-[5px] rounded-full bg-slate-300
-              data-[active=true]:bg-slate-600 dark:bg-slate-600
-              dark:data-[active=true]:bg-slate-300"
-          />
+            type="button"
+            aria-label={`Show ${labels[i].toLowerCase()}`}
+            onClick={() => goTo(i)}
+            className="flex h-6 w-8 items-center justify-center"
+          >
+            <i
+              ref={(el) => {
+                pagerRefs.current[i] = el;
+              }}
+              data-active={i === 0}
+              style={{ width: i === 0 ? 27 : 5 }}
+              className="h-[5px] rounded-full bg-slate-300
+                data-[active=true]:bg-slate-600 dark:bg-slate-600
+                dark:data-[active=true]:bg-slate-300"
+            />
+          </button>
         ))}
       </div>
     </div>
