@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { composeLabel, labelParts } from "@/lib/checklist/composer";
 import { collectionRowModel } from "@/lib/checklist/labels";
-import { planNoteSave } from "@/lib/checklist/note-edit";
+import { planNoteSave, planPlainSave } from "@/lib/checklist/note-edit";
 import type { DueChecklistItem } from "@/lib/checklist/types";
 
 const DAY = "2026-10-19";
@@ -77,5 +77,22 @@ describe("planNoteSave", () => {
     expect(
       planNoteSave("[ana cruz](/borrowers/a1) bring change", DAY, ""),
     ).toEqual({ action: "save", label: "[ana cruz](/borrowers/a1)" });
+  });
+});
+
+describe("planPlainSave", () => {
+  const label = "call [Ana Cruz](/borrowers/a1) later with [b](/borrowers/2)";
+  it("does nothing when unchanged", () => {
+    expect(planPlainSave(label, `  ${label}\n`)).toEqual({ action: "none" });
+  });
+  it("keeps mentions in place with their links", () => {
+    const edited = label.replace("later", "tomorrow");
+    expect(planPlainSave(label, edited)).toEqual({
+      action: "save",
+      label: edited,
+    });
+  });
+  it("blocks emptying", () => {
+    expect(planPlainSave(label, " ")).toEqual({ action: "blocked" });
   });
 });

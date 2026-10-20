@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { labelParts } from "@/lib/checklist/composer";
 import { extractBorrowerMention } from "@/lib/checklist/labels";
-import { planNoteSave } from "@/lib/checklist/note-edit";
+import { planNoteSave, planPlainSave } from "@/lib/checklist/note-edit";
 import { todayDateValue } from "@/lib/checklist/dates";
 import type { RowView } from "@/lib/checklist/row-state";
 import { SheetFooter } from "@/components/dashboard/checklist-v2/sheet";
@@ -181,11 +181,15 @@ export function NoteSheet({
   const plain = row.model === null;
   const borrower = rowBorrower(row);
   // The note as it was when the sheet opened; this version is what's edited.
-  const [initial] = useState(() => labelParts(row.item.label, date).note);
+  const [initial] = useState(() =>
+    plain ? row.item.label : labelParts(row.item.label, date).note,
+  );
   const [text, setText] = useState(initial);
   const submitted = useRef(false);
 
-  const plan = planNoteSave(row.item.label, date, text);
+  const plan = plain
+    ? planPlainSave(row.item.label, text)
+    : planNoteSave(row.item.label, date, text);
   const clearing = text.trim() === "" && initial.trim() !== "";
   const canSave = !disabled && plan.action !== "blocked";
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Check, ChevronLeft, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
@@ -697,6 +697,7 @@ export function AddSheet({
             ? // One row, however many dues it links.
               `Add item · ${lines.length} due${lines.length === 1 ? "" : "s"}`
             : "Add item";
+  const linkedBorrower = !!(edit && borrower && onOpenBorrower);
   const placeholder = isRelease
     ? borrower
       ? "10,000 - 10 months for 110426"
@@ -709,25 +710,28 @@ export function AddSheet({
     <>
       <div className="px-5 pt-2 pb-3">
         <h2 className="text-lg font-semibold">
-          {title}{" "}
-          {subtitle &&
-            (edit && borrower && onOpenBorrower ? (
-              <button
-                type="button"
-                onClick={onOpenBorrower}
-                aria-label={`${subtitle}, open borrower page`}
-                className="text-sm font-normal text-muted-foreground lowercase
-                  underline-offset-2 active:opacity-70"
-              >
-                · {subtitle}
-              </button>
-            ) : (
-              <span className="text-sm font-normal text-muted-foreground
-                lowercase">
-                · {subtitle}
-              </span>
-            ))}
+          {title}
+          {subtitle && !linkedBorrower && (
+            <span
+              className="ml-1 text-sm font-normal text-muted-foreground
+                lowercase"
+            >
+              · {subtitle}
+            </span>
+          )}
         </h2>
+        {linkedBorrower && (
+          <button
+            type="button"
+            onClick={onOpenBorrower}
+            aria-label={`${subtitle}, open borrower page`}
+            className="-my-1 inline-flex min-h-11 max-w-full items-center gap-1
+              text-sm text-muted-foreground lowercase active:opacity-70"
+          >
+            <span className="truncate">{subtitle}</span>
+            <ChevronRight className="size-4 shrink-0" />
+          </button>
+        )}
 
         <div
           className="mt-3 rounded-xl border border-border bg-background p-3

@@ -26,3 +26,15 @@ export function planNoteSave(
   if (updated.trim() === "") return { action: "blocked" };
   return { action: "save", label: updated };
 }
+
+/**
+ * Saving a plain note (no dues): the whole label is the text, edited as it is
+ * (a mention stays where it is, with its link), so nothing is reordered or
+ * lost. Empty would leave an empty item: blocked.
+ */
+export function planPlainSave(label: string, draft: string): NoteSave {
+  const next = draft.trim();
+  if (next === label.trim()) return { action: "none" };
+  if (next === "") return { action: "blocked" };
+  return { action: "save", label: next };
+}

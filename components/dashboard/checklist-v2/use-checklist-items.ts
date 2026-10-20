@@ -489,19 +489,31 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
 
       void trackWrite(removedIds, () =>
         supabase.from("daily_checklist_items").delete().in("id", removedIds),
-      ).then(({ error }: { error: DbError }) => {
-        if (wasQueuedOffline(error)) {
-          markWaiting(removedIds);
-          onSettled?.("queued");
-        } else if (error) {
-          toast.error(error.message);
+      ).then(
+        ({ error }: { error: DbError }) => {
+          if (wasQueuedOffline(error)) {
+            markWaiting(removedIds);
+            onSettled?.("queued");
+          } else if (error) {
+            toast.error(error.message);
+            updateDay(targetDate, (prev) => [
+              ...prev,
+              ...removed.filter((r) => !prev.some((i) => i.id === r.id)),
+            ]);
+            onSettled?.("failed");
+          } else onSettled?.("saved");
+        },
+        () => {
+          // The write itself threw: we can't tell if it ran. Put the row back
+          // and say so, and always tell the caller (Undo waits on it).
+          toast.error("Couldn't remove it. Check the list.");
           updateDay(targetDate, (prev) => [
             ...prev,
             ...removed.filter((r) => !prev.some((i) => i.id === r.id)),
           ]);
           onSettled?.("failed");
-        } else onSettled?.("saved");
-      });
+        },
+      );
       return removed;
     },
     [date, updateDay, trackWrite, markWaiting],

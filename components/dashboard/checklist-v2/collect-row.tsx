@@ -10,6 +10,7 @@ import {
 import { Check, CloudUpload, NotebookPen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatShortDate } from "@/lib/checklist/labels";
+import { plainLabelText, rowDisplayName } from "@/lib/checklist/row-name";
 import type { RowLine, RowView } from "@/lib/checklist/row-state";
 import { peso } from "@/components/dashboard/checklist-v2/header";
 
@@ -24,14 +25,8 @@ const SPRING = { type: "spring", stiffness: 500, damping: 40 } as const;
 export const kindLabel = (type: string) =>
   type === "cash_advance" ? "cash advance" : "loan";
 
-/** The row's name: the borrower (lowercase) or the note's first line. */
-export function rowName(row: RowView) {
-  const name =
-    row.model?.borrower?.name.toLowerCase() ||
-    row.model?.note.split("\n")[0] ||
-    "collection";
-  return name.replace(/\s+/g, " ").trim();
-}
+/** The row's name for the list, toasts and headings (see `rowDisplayName`). */
+export const rowName = rowDisplayName;
 
 export const openLines = (row: RowView) =>
   row.lines.filter((l) => l.state !== "paid");
@@ -56,15 +51,6 @@ function subline(row: RowView): { text: string; late: boolean } {
     text: `${paid}${due}${late} · ${kindLabel(line.type)}`,
     late: line.overdue,
   };
-}
-
-/** A plain note's text, with `[name](href)` mentions shown as their name. */
-function plainText(label: string) {
-  return label
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, name: string, href: string) =>
-      href.startsWith("/borrowers/") ? name.toLowerCase() : name,
-    )
-    .trim();
 }
 
 export type CollectRowProps = {
@@ -479,7 +465,7 @@ function NoteBody({
   waiting: boolean;
   onTick(event: ReactMouseEvent<HTMLButtonElement>): void;
 }) {
-  const text = plainText(row.item.label);
+  const text = plainLabelText(row.item.label);
   return (
     <div className="flex items-center gap-1 py-0.5 pr-4 pl-1.5">
       <button
