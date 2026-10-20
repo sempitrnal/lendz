@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { relativeDayLabel, shiftDateValue } from "@/lib/checklist/dates";
 import type { ChecklistFilter } from "@/lib/checklist/list-view";
@@ -53,6 +53,7 @@ export function Header({
   onFilterChange,
   counts,
   loading,
+  onAdd,
 }: {
   date: string;
   today: string;
@@ -67,6 +68,8 @@ export function Header({
   counts: Record<ChecklistFilter, number>;
   /** The day is still loading: show placeholders, not zeros. */
   loading: boolean;
+  /** Opens the add sheet for the current tab. Off while the day loads. */
+  onAdd(): void;
 }) {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const relative = relativeDayLabel(date, today);
@@ -145,6 +148,18 @@ export function Header({
               <ChevronRight className="size-5" />
             </button>
           </div>
+          <button
+            type="button"
+            onClick={onAdd}
+            // Writes made before the day has loaded wouldn't show.
+            disabled={loading}
+            aria-label={tab === "release" ? "Add a release" : "Add an item"}
+            className="flex size-9 shrink-0 items-center justify-center
+              rounded-full bg-primary text-primary-foreground shadow-sm
+              transition-opacity active:scale-95 disabled:opacity-40"
+          >
+            <Plus className="size-5" />
+          </button>
         </div>
 
         {date !== today && (

@@ -22,6 +22,8 @@ import { useQuickPay } from "@/components/dashboard/checklist-v2/use-quick-pay";
 import { Sheet } from "@/components/dashboard/checklist-v2/sheet";
 import { PaySheet } from "@/components/dashboard/checklist-v2/pay-sheet";
 import { EditPaymentsSheet } from "@/components/dashboard/checklist-v2/edit-payments-sheet";
+import { AddSheet } from "@/components/dashboard/checklist-v2/add-sheet";
+import type { AddMode } from "@/lib/checklist/add-sheet";
 import { todayDateValue } from "@/lib/checklist/dates";
 import { extractScheduleRefs, NO_BORROWERS } from "@/lib/checklist/labels";
 import { buildRowView, type RowView } from "@/lib/checklist/row-state";
@@ -41,6 +43,16 @@ const noopSubscribe = () => () => {};
 export type RowSheetRequest = {
   kind: RowRequest;
   itemId: string;
+  seq: number;
+};
+
+/**
+ * The add sheet asked for: the "+" (Collect or Release), or Edit item on a
+ * collection row (`editItemId`). `seq` keys the content so each open is clean.
+ */
+export type AddSheetRequest = {
+  mode: AddMode;
+  editItemId: string | null;
   seq: number;
 };
 
@@ -77,11 +89,21 @@ function ChecklistDay({ today }: { today: string }) {
    * so until then those requests open nothing.
    */
   const [rowSheet, setRowSheet] = useState<RowSheetRequest | null>(null);
+  const [addSheet, setAddSheet] = useState<AddSheetRequest | null>(null);
   const sheetSeq = useRef(0);
   const router = useRouter();
 
-  const { items, loading, releasedId, waitingIds, flashIds, setChecked } =
-    useChecklistItems(date);
+  const {
+    items,
+    loading,
+    releasedId,
+    collectId,
+    waitingIds,
+    flashIds,
+    setChecked,
+    addItems,
+    setLabel,
+  } = useChecklistItems(date);
   const quickPay = useQuickPay(setChecked);
   const { data: borrowers = NO_BORROWERS } = useBorrowersSearch();
 
@@ -93,6 +115,7 @@ function ChecklistDay({ today }: { today: string }) {
     setSwipedId(null);
     setExpandedIds(new Set());
     setRowSheet(null);
+    setAddSheet(null);
     setDate(next);
   };
 
@@ -134,6 +157,23 @@ function ChecklistDay({ today }: { today: string }) {
       rowSheet?.kind === "payRow" ||
       rowSheet?.kind === "partial");
   const editOpen = !!sheetRow?.model && rowSheet?.kind === "editPayments";
+  /**
+   * Opens the add sheet. With `editItemId` it is Edit item on that row: the
+   * row menu (Task 14) calls `openAdd("collect", itemId)`; until then only
+   * the header's "+" opens it.
+   */
+  const openAdd = (mode: AddMode, editItemId: string | null = null) => {
+    if (loading) return;
+    sheetSeq.current += 1;
+    setRowSheet(null);
+    setAddSheet({ mode, editItemId, seq: sheetSeq.current });
+  };
+  const closeAdd = () => setAddSheet(null);
+  const editRow = addSheet?.editItemId
+    ? (rows.find((r) => r.item.id === addSheet.editItemId) ?? null)
+    : null;
+  // Edit item is for collection rows; a row removed meanwhile closes it.
+  const addOpen = !!addSheet && (!addSheet.editItemId || !!editRow?.model);
   const openBorrower = (row: RowView) => {
     const id = row.model?.borrower?.id;
     if (!id) return;
@@ -193,6 +233,7 @@ function ChecklistDay({ today }: { today: string }) {
         onFilterChange={setFilter}
         counts={counts}
         loading={loading}
+        onAdd={() => openAdd(tab)}
       />
 
       {loading ? (
@@ -254,6 +295,22 @@ function ChecklistDay({ today }: { today: string }) {
             setChecked={setChecked}
             onClose={closeSheet}
             onOpenBorrower={() => openBorrower(sheetRow)}
+          />
+        )}
+      </Sheet>
+      <Sheet
+        open={addOpen}
+        onClose={closeAdd}
+        label={editRow ? "Edit item" : "Add to the list"}
+      >
+        {addOpen && addSheet && (
+          <AddSheet
+            key={addSheet.seq}
+            mode={editRow ? "collect" : addSheet.mode}
+            date={date}
+            edit={editRow ?? undefined}
+            api={{ items, loading, collectId, releasedId, addItems, setLabel }}
+            onClose={closeAdd}
           />
         )}
       </Sheet>

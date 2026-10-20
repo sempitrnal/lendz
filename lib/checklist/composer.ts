@@ -137,3 +137,21 @@ export function withNote(
   const { borrower, lines, others } = parse(label, checklistDate);
   return composeLabel({ borrower, others, lines, note });
 }
+
+/**
+ * Rewrites a label with new collection lines and note, keeping its borrower
+ * and its `with` mentions (the edit composer hides `@`, so both stay put).
+ */
+export function editLabel(
+  label: string,
+  checklistDate: string,
+  input: { lines: DueChecklistItem[]; note: string },
+): string {
+  const { borrower, others } = parse(label, checklistDate);
+  return composeLabel({
+    borrower,
+    others,
+    lines: input.lines,
+    note: input.note,
+  });
+}
