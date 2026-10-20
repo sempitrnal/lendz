@@ -236,13 +236,6 @@ export const AccountCard = memo(function AccountCard({
         .join(" · ");
   const releaseYmd = account.release_date?.slice(0, 10) ?? null;
   const tone = accountTone({ isManual, isRolling, isCashAdvance });
-  // The band's date tile is the next due date; before there is one it falls
-  // back to the release date.
-  const bandDate =
-    (hasDetails && showCollections
-      ? (nextPending?.due_date ?? metrics?.nextCollectionDate)
-      : null
-    )?.slice(0, 10) ?? releaseYmd;
   const principal = Number(account.principal_amount ?? 0);
 
   function handleMainClick() {
@@ -491,12 +484,13 @@ export const AccountCard = memo(function AccountCard({
         className={`flex items-center gap-2.5 py-2 pr-12 pl-3
           ${TONES[tone].band}`}
       >
-        {bandDate && (
+        {releaseYmd && (
           <CalendarTile
-            date={bandDate}
+            date={releaseYmd}
             size="sm"
             className="border-slate-200 dark:border-border"
-            bandClassName="bg-teal-500 text-white"
+            bandClassName="bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200"
+            title={`Released ${formatDate(releaseYmd)}`}
           />
         )}
         <div className="min-w-0 flex-1">
