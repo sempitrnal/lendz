@@ -70,7 +70,12 @@ describe("recordManualPayment", () => {
     });
     expect(res).toEqual({
       ok: true,
-      schedule: { id: "new1", due_date: "2026-10-21", amount: 500, type: "loan" },
+      schedule: {
+        id: "new1",
+        due_date: "2026-10-21",
+        amount: 500,
+        type: "loan",
+      },
       rolloverAmount: 0,
     });
   });
@@ -86,17 +91,21 @@ describe("recordManualPayment", () => {
     add.mockResolvedValue({});
     expect(
       await recordManualPayment({ account: flat, amount: 5, paidDate: "d" }),
-    ).toEqual({ ok: false, error: "Couldn't add the payment (offline?)" });
+    ).toEqual({
+      ok: false,
+      error: "Couldn't add the payment (offline?)",
+      unknown: true,
+    });
   });
 
-  it("returns a generic error when an action throws", async () => {
+  it("returns a generic error, outcome unknown, when an action throws", async () => {
     add.mockRejectedValue(new Error("boom"));
     expect(
       await recordManualPayment({ account: flat, amount: 5, paidDate: "d" }),
-    ).toEqual({ ok: false, error: "Couldn't add the payment" });
+    ).toEqual({ ok: false, error: "Couldn't add the payment", unknown: true });
     apply.mockRejectedValue(new Error("boom"));
     expect(
       await recordManualPayment({ account: rolling, amount: 5, paidDate: "d" }),
-    ).toEqual({ ok: false, error: "Couldn't add the payment" });
+    ).toEqual({ ok: false, error: "Couldn't add the payment", unknown: true });
   });
 });

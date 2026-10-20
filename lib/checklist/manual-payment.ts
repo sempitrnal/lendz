@@ -6,7 +6,12 @@ import type { ManualAccount, NextCollectionItem } from "@/lib/checklist/labels";
 
 export type ManualPaymentResult =
   | { ok: true; schedule: NextCollectionItem; rolloverAmount: number }
-  | { ok: false; error: string };
+  /**
+   * `unknown` is set when it isn't known whether the payment was saved: the
+   * action threw (it may have committed before failing) or returned neither
+   * an id nor an error. Without it the action reported the failure itself.
+   */
+  | { ok: false; error: string; unknown?: true };
 
 /**
  * Records a payment on a manual account. Rolling accounts pay their open
@@ -45,10 +50,13 @@ export async function recordManualPayment(input: {
       paid_date: paidDate,
     });
     if (!result?.id) {
-      return {
-        ok: false,
-        error: result?.error ?? "Couldn't add the payment (offline?)",
-      };
+      return result?.error
+        ? { ok: false, error: result.error }
+        : {
+            ok: false,
+            error: "Couldn't add the payment (offline?)",
+            unknown: true,
+          };
     }
     return {
       ok: true,
@@ -62,6 +70,6 @@ export async function recordManualPayment(input: {
     };
   } catch (err) {
     console.error("recordManualPayment error:", err);
-    return { ok: false, error: "Couldn't add the payment" };
+    return { ok: false, error: "Couldn't add the payment", unknown: true };
   }
 }
