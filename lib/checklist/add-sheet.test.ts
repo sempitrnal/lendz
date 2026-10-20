@@ -4,18 +4,20 @@ import {
   activeBorrower,
   addMention,
   applyDuesSelection,
-  canRemoveMention,
   chipText,
   detectNextTyped,
   duesStepButton,
   initialSelection,
   listedScheduleIds,
+  MANUAL_UNCONFIRMED,
   manualFailureMessage,
   manualPaidMessage,
   manualPaymentCheck,
   manualQuickAmounts,
+  manualSummaryLeft,
   offerDues,
   paidLine,
+  recordedRow,
   releaseDraft,
   releaseReadBack,
   removeMention,
@@ -139,15 +141,6 @@ describe("mentions", () => {
       nora,
     ]);
   });
-  it("a saved payment locks the active borrower", () => {
-    const lines: DraftLine[] = [{ ...due("p1", DAY, 500), paid: true }];
-    const r = addMention("collect", [nora], lines, dante);
-    expect(r.mentions).toEqual([dante, nora]);
-    expect(r.lines).toBe(lines);
-    expect(canRemoveMention(r.mentions, lines, "n1")).toBe(false);
-    expect(canRemoveMention(r.mentions, lines, "d1")).toBe(true);
-    expect(removeMention(r.mentions, lines, "n1").mentions).toEqual(r.mentions);
-  });
   it("release mode keeps one borrower", () => {
     expect(addMention("release", [nora], [], dante).mentions).toEqual([dante]);
   });
@@ -214,13 +207,13 @@ describe("dues step", () => {
     item("i2", "[nora](/borrowers/n1) plain note"),
   ];
 
-  it("leaves out dues already on the day's list and saved payments", () => {
+  it("leaves out dues already on the day's list and payments recorded here", () => {
     const listed = listedScheduleIds(dayItems);
     expect([...listed]).toEqual(["s3"]);
-    const lines: DraftLine[] = [
+    const recorded: DraftLine[] = [
       { ...due("r1", "2026-10-30", 500), paid: true },
     ];
-    const { offered, alreadyListed } = offerDues(fetched, listed, lines);
+    const { offered, alreadyListed } = offerDues(fetched, listed, recorded);
     expect(offered.map((o) => o.id)).toEqual(["s1", "s2"]);
     expect(alreadyListed).toBe(1);
   });
@@ -234,7 +227,7 @@ describe("dues step", () => {
 
   it("picks become lines; lines the step didn't offer stay", () => {
     const { offered } = offerDues(fetched, new Set(), []);
-    const kept: DraftLine = { ...due("p1", DAY, 500), paid: true };
+    const kept: DraftLine = due("p1", DAY, 500);
     const old = due("gone", "2026-10-01", 900);
     const lines = [kept, old, due("s2", "2026-11-05", 2100)];
     const sel = initialSelection(offered, lines);
@@ -276,7 +269,6 @@ describe("submitPlan: collect", () => {
       action: "add",
       label: "call the office",
       categoryId: "c-collect",
-      checked: false,
     });
   });
 
@@ -292,7 +284,6 @@ describe("submitPlan: collect", () => {
       text: "promised friday",
     });
     if (!plan.ok || plan.action !== "add") throw new Error("expected add");
-    expect(plan.checked).toBe(false);
     // Renders in the new screen...
     const row = buildRowView(item("new", plan.label));
     expect(row.model?.borrower).toEqual(nora);
@@ -313,25 +304,29 @@ describe("submitPlan: collect", () => {
     expect(plan.label.endsWith("with [dante uy](/borrowers/d1)")).toBe(true);
   });
 
-  it("a row of saved payments goes in ticked and shows paid", () => {
-    const lines: DraftLine[] = [
-      { ...due("r1", DAY, 500, "cash_advance"), paid: true },
-    ];
-    const plan = submitPlan({ ...base, mentions: [nora], lines });
+  it("a recorded payment is never in the final Add", () => {
+    // Recorded payments live outside `lines`; with nothing else written the
+    // button just closes, even with the borrower still mentioned.
+    expect(submitPlan({ ...base, mentions: [nora], recordedCount: 1 })).toEqual(
+      { ok: true, action: "close" },
+    );
+    expect(
+      submitPlan({ ...base, mentions: [nora], recordedCount: 1, text: " " }),
+    ).toEqual({ ok: true, action: "close" });
+    // Anything else written is added as usual, without the paid line.
+    const plan = submitPlan({
+      ...base,
+      mentions: [nora],
+      recordedCount: 1,
+      lines: [due("s1", "2026-10-22", 2100)],
+    });
     if (!plan.ok || plan.action !== "add") throw new Error("expected add");
-    expect(plan.checked).toBe(true);
-    const row = buildRowView(item("new", plan.label, { is_checked: true }));
-    expect(row.status).toBe("paid");
-    expect(row.left).toBe(0);
-  });
-
-  it("a saved payment plus an open due is not ticked", () => {
-    const lines: DraftLine[] = [
-      { ...due("r1", DAY, 500), paid: true },
-      due("s1", "2026-10-22", 2100),
-    ];
-    const plan = submitPlan({ ...base, mentions: [nora], lines });
-    expect(plan.ok && plan.action === "add" && plan.checked).toBe(false);
+    expect(buildRowView(item("x", plan.label)).lines.map((l) => l.id)).toEqual([
+      "s1",
+    ]);
+    expect(
+      submitPlan({ ...base, mentions: [nora], recordedCount: 1, text: "hi" }),
+    ).toMatchObject({ ok: true, action: "add" });
   });
 
   it("a mention alone is a plain note about that borrower", () => {
@@ -393,7 +388,6 @@ describe("release", () => {
     });
     if (!plan.ok || plan.action !== "add") throw new Error("expected add");
     expect(plan.categoryId).toBe("c-released");
-    expect(plan.checked).toBe(false);
     // The release row the list builds from it.
     const view = buildReleaseView(
       item("r", plan.label, { category_id: "c-released" }),
@@ -562,12 +556,50 @@ describe("manual payments", () => {
     });
   });
 
-  it("a failed payment says nothing was recorded", () => {
-    expect(manualFailureMessage("Couldn't add the payment (offline?)")).toBe(
-      "Couldn't add the payment (offline?) — no payment was recorded",
+  it("only a failure the action reported says nothing was recorded", () => {
+    expect(manualFailureMessage({ error: "Account not found." })).toBe(
+      "Account not found — no payment was recorded",
     );
-    expect(manualFailureMessage("Couldn't add the payment.")).toBe(
-      "Couldn't add the payment — no payment was recorded",
+    // Thrown or empty results may have committed: check before retrying.
+    expect(
+      manualFailureMessage({
+        error: "Couldn't add the payment",
+        unknown: true,
+      }),
+    ).toBe(MANUAL_UNCONFIRMED);
+    expect(MANUAL_UNCONFIRMED).toBe(
+      "Couldn't confirm the payment — check the account before trying again",
     );
+  });
+
+  it("a recorded payment gets its own ticked row at once", () => {
+    const row = recordedRow(
+      nora,
+      { id: "new1", due_date: "2026-10-21", amount: 1500, type: "loan" },
+      "c-collect",
+    );
+    expect(row).toEqual({
+      label:
+        "[nora villanueva](/borrowers/n1)\n₱1,500 [Oct 21](#badge:date:2026-10-21|new1) [Loan](#badge:type:loan)",
+      categoryId: "c-collect",
+      checked: true,
+    });
+    // Same block the old `/next` dropdown wrote after a manual payment.
+    expect(row.label).toBe(
+      rewriteNextBlock("[nora villanueva](/borrowers/n1) /next", [
+        { id: "new1", due_date: "2026-10-21", amount: 1500, type: "loan" },
+      ]),
+    );
+    const view = buildRowView(item("p", row.label, { is_checked: true }));
+    expect(view.status).toBe("paid");
+    expect(view.left).toBe(0);
+    expect(view.model?.borrower).toEqual(nora);
+  });
+
+  it("what's left adds the interest on what rolls over", () => {
+    expect(manualSummaryLeft(rolling, "1000")).toBe(2650);
+    expect(manualSummaryLeft(rolling, "")).toBe(2500);
+    expect(manualSummaryLeft(rolling, "2600")).toBe(2500);
+    expect(manualSummaryLeft(flat, "1000")).toBe(8000);
   });
 });

@@ -33,21 +33,23 @@ import {
   addMention,
   applyDuesSelection,
   borrowerName,
-  canRemoveMention,
   chipText,
   detectNextTyped,
   duesStepButton,
   initialSelection,
   linesTotal,
   listedScheduleIds,
+  MANUAL_UNCONFIRMED,
   manualFailureMessage,
   manualPaidMessage,
   manualPaymentCheck,
   manualQuickAmounts,
+  manualSummaryLeft,
   MENTION_FIRST,
   offerDues,
-  PAID_ITEM_NOT_ADDED,
+  PAID_ROW_NOT_ADDED,
   paidLine,
+  recordedRow,
   releaseDraft,
   releaseReadBack,
   removeMention,
@@ -84,13 +86,16 @@ const BORROWER_LIST_LIMIT = 60;
 const kindName = (type: string) =>
   type === "cash_advance" ? "cash advance" : "loan";
 
-function manualSummary(account: ManualAccount): AccountSummary {
+function manualSummary(
+  account: ManualAccount,
+  left = account.remaining,
+): AccountSummary {
   const isCashAdvance = account.type === "cash_advance";
   return {
     typeLabel: kindName(account.type),
     isCashAdvance,
     paid: account.paid,
-    left: account.remaining,
+    left,
     pct: 0,
     paidInstallments: 0,
     installmentCount: 0,
@@ -154,6 +159,13 @@ export function AddSheet({
   const [paying, setPaying] = useState(false);
   /** Manual accounts paid from this sheet: never offered a second time. */
   const [recorded, setRecorded] = useState<Record<string, number>>({});
+  /**
+   * Payments recorded from this sheet, shown as green chips. Each already has
+   * its own ticked row, so they never go into the draft's label.
+   */
+  const [recordedLines, setRecordedLines] = useState<DraftLine[]>([]);
+  /** Accounts whose last payment attempt ended without a clear answer. */
+  const [unconfirmed, setUnconfirmed] = useState<Record<string, true>>({});
 
   // Synchronous guards against double taps (state updates land a frame late).
   const payingRef = useRef(false);
@@ -183,7 +195,7 @@ export function AddSheet({
   );
   const offer =
     dues.status === "ready"
-      ? offerDues(dues.items, listed, lines)
+      ? offerDues(dues.items, listed, recordedLines)
       : { offered: [], alreadyListed: 0 };
 
   const at = canMention ? atQuery(text) : null;
@@ -203,11 +215,11 @@ export function AddSheet({
     text,
     date,
     editOf: edit ? edit.item.label : null,
+    recordedCount: recordedLines.length,
     collectId: api.collectId,
     releasedId: api.releasedId,
   });
   const release = isRelease ? releaseDraft(borrower, text, date) : null;
-  const paidLines = lines.filter((l) => l.paid);
 
   const chooseBorrower = (b: ComposerBorrower) => {
     const next = addMention(mode, mentions, lines, b);
@@ -248,7 +260,10 @@ export function AddSheet({
       if (seq !== duesSeq.current) return;
       setDues({ status: "ready", borrowerId, ...data });
       setSelection(
-        initialSelection(offerDues(data.items, listed, lines).offered, lines),
+        initialSelection(
+          offerDues(data.items, listed, recordedLines).offered,
+          lines,
+        ),
       );
     });
   };
@@ -270,24 +285,23 @@ export function AddSheet({
       onClose();
       return;
     }
-    const hadPaid = paidLines.length > 0;
-    void api
-      .addItems([
-        {
-          label: plan.label,
-          categoryId: plan.categoryId,
-          checked: plan.checked,
-        },
-      ])
-      .then((rows) => {
-        if (rows.length === 0 && hadPaid) toast.error(PAID_ITEM_NOT_ADDED);
-      });
+    if (plan.action === "add") {
+      void api.addItems([{ label: plan.label, categoryId: plan.categoryId }]);
+    }
     onClose();
   };
 
+  /**
+   * Records a manual payment and, the moment it is saved, adds its own ticked
+   * row. Everything the row needs is read now, so the row goes in even if the
+   * sheet closes (or the day changes) while the payment is saving: a recorded
+   * payment always gets exactly one row.
+   */
   const recordPayment = async (account: ManualAccount) => {
     const check = manualPaymentCheck(account, payAmount);
+    const who = borrower;
     if (
+      !who ||
       !check.canSave ||
       check.amount === null ||
       disabled ||
@@ -297,7 +311,7 @@ export function AddSheet({
       return;
     }
     const amount = check.amount;
-    const borrowerId = borrower?.id ?? null;
+    const { addItems, collectId } = api;
     payingRef.current = true;
     setPaying(true);
     try {
@@ -307,17 +321,28 @@ export function AddSheet({
         paidDate: payDate,
       });
       if (!result.ok) {
-        // Stay on the step so it can be tried again.
-        toast.error(manualFailureMessage(result.error));
+        // Stay on the step. After an unclear outcome the step keeps saying
+        // so, and the retry is labelled as one.
+        if (result.unknown) {
+          setUnconfirmed((u) => ({ ...u, [account.id]: true }));
+        }
+        toast.error(manualFailureMessage(result));
         return;
       }
+      const row = recordedRow(who, result.schedule, collectId);
+      const notAdded = () => toast.error(PAID_ROW_NOT_ADDED);
+      void addItems([row])
+        .then((rows) => {
+          if (rows.length === 0) notAdded();
+        })
+        .catch(notAdded);
+      invalidateBorrowerDetails(who.id);
+      toast.success(manualPaidMessage(amount, check.rollover, check.nextDue));
       setRecorded((r) => ({ ...r, [account.id]: amount }));
-      setLines((prev) => [
+      setRecordedLines((prev) => [
         ...prev.filter((l) => l.id !== result.schedule.id),
         paidLine(result.schedule),
       ]);
-      if (borrowerId) invalidateBorrowerDetails(borrowerId);
-      toast.success(manualPaidMessage(amount, check.rollover, check.nextDue));
       setPayAmount("");
       setManualAccount(null);
       setView("compose");
@@ -396,6 +421,7 @@ export function AddSheet({
     const account = manualAccount;
     const check = manualPaymentCheck(account, payAmount);
     const done = recorded[account.id] !== undefined;
+    const unsure = !!unconfirmed[account.id];
     const quick = manualQuickAmounts(account);
     const cap = quick[quick.length - 1];
     return (
@@ -412,7 +438,10 @@ export function AddSheet({
           </p>
           <div className="mt-3 rounded-2xl bg-muted/40 p-3">
             <AccountSummaryHeader
-              summary={manualSummary(account)}
+              summary={manualSummary(
+                account,
+                manualSummaryLeft(account, payAmount),
+              )}
               pending={{
                 ...NO_PENDING,
                 paidAmount: check.canSave ? (check.amount ?? 0) : 0,
@@ -474,6 +503,15 @@ export function AddSheet({
                 focus:ring-3 focus:ring-ring/50"
             />
           </label>
+          {unsure && (
+            <p
+              className="mt-3 text-sm font-medium text-amber-600
+                dark:text-amber-400"
+              role="alert"
+            >
+              {MANUAL_UNCONFIRMED}. It may already be recorded.
+            </p>
+          )}
         </div>
         <SheetFooter>
           <Button
@@ -486,9 +524,11 @@ export function AddSheet({
               ? "Payment recorded"
               : paying
                 ? "Saving…"
-                : check.canSave && check.amount !== null
-                  ? `Add payment · ${peso(check.amount)}`
-                  : "Add payment"}
+                : unsure
+                  ? "Record it again anyway"
+                  : check.canSave && check.amount !== null
+                    ? `Add payment · ${peso(check.amount)}`
+                    : "Add payment"}
           </Button>
         </SheetFooter>
       </>
@@ -588,21 +628,31 @@ export function AddSheet({
                       font-medium text-emerald-700 dark:text-emerald-300"
                   >
                     <Check className="size-4" />
-                    {peso(paidHere)} payment recorded
+                    {peso(paidHere)} payment recorded · added to the list
                   </p>
                 ) : (
-                  <Button
-                    variant="outline"
-                    className="mt-3 h-10 w-full"
-                    disabled={disabled}
-                    onClick={() => {
-                      setManualAccount(account);
-                      setPayAmount("");
-                      setView("manual");
-                    }}
-                  >
-                    Add payment
-                  </Button>
+                  <>
+                    {unconfirmed[account.id] && (
+                      <p
+                        className="mt-3 text-sm text-amber-600
+                          dark:text-amber-400"
+                      >
+                        {MANUAL_UNCONFIRMED}
+                      </p>
+                    )}
+                    <Button
+                      variant="outline"
+                      className="mt-3 h-10 w-full"
+                      disabled={disabled}
+                      onClick={() => {
+                        setManualAccount(account);
+                        setPayAmount("");
+                        setView("manual");
+                      }}
+                    >
+                      Add payment
+                    </Button>
+                  </>
                 )}
               </div>
             );
@@ -633,14 +683,17 @@ export function AddSheet({
     : isRelease
       ? "Release"
       : "Collect";
-  const buttonLabel = isRelease
-    ? "Add release"
-    : edit
-      ? "Save changes"
-      : lines.length > 0
-        ? // One row, however many dues it links.
-          `Add item · ${lines.length} due${lines.length === 1 ? "" : "s"}`
-        : "Add item";
+  const buttonLabel =
+    plan.ok && plan.action === "close"
+      ? "Done"
+      : isRelease
+        ? "Add release"
+        : edit
+          ? "Save changes"
+          : lines.length > 0
+            ? // One row, however many dues it links.
+              `Add item · ${lines.length} due${lines.length === 1 ? "" : "s"}`
+            : "Add item";
   const placeholder = isRelease
     ? borrower
       ? "10,000 - 10 months for 110426"
@@ -667,12 +720,13 @@ export function AddSheet({
             focus-within:border-ring focus-within:ring-3
             focus-within:ring-ring/50"
         >
-          {(mentions.length > 0 || lines.length > 0) && (
+          {(mentions.length > 0 ||
+            lines.length > 0 ||
+            recordedLines.length > 0) && (
             <div className="mb-2 flex flex-wrap items-center gap-1.5">
               {mentions.map((m) => {
                 const color = colorOf(m.id);
-                const removable =
-                  canMention && canRemoveMention(mentions, lines, m.id);
+                const removable = canMention;
                 return (
                   <span
                     key={m.id}
@@ -698,34 +752,37 @@ export function AddSheet({
                   </span>
                 );
               })}
+              {recordedLines.map((l) => (
+                // Recorded and listed as its own row: it stays, and isn't
+                // part of what the button adds.
+                <span
+                  key={`paid-${l.id}`}
+                  className="inline-flex items-center gap-1 rounded-full
+                    bg-emerald-500/10 px-2.5 py-1 text-xs font-medium
+                    text-emerald-700 tabular-nums dark:text-emerald-300"
+                >
+                  <Check className="size-3" strokeWidth={3} />
+                  {chipText(l)}
+                </span>
+              ))}
               {lines.map((l) => (
                 <span
                   key={l.id}
-                  className={cn(
-                    `inline-flex items-center gap-1 rounded-full px-2.5 py-1
-                    text-xs font-medium tabular-nums`,
-                    l.paid
-                      ? `bg-emerald-500/10 text-emerald-700
-                        dark:text-emerald-300`
-                      : "bg-muted",
-                  )}
+                  className="inline-flex items-center gap-1 rounded-full
+                    bg-muted px-2.5 py-1 text-xs font-medium tabular-nums"
                 >
-                  {l.paid && <Check className="size-3" strokeWidth={3} />}
                   {chipText(l)}
-                  {/* A saved payment stays: removing it wouldn't undo it. */}
-                  {!l.paid && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLines((prev) => prev.filter((x) => x.id !== l.id))
-                      }
-                      disabled={disabled}
-                      aria-label={`Remove ${chipText(l)}`}
-                      className="-mr-1 rounded-full p-0.5 text-muted-foreground"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLines((prev) => prev.filter((x) => x.id !== l.id))
+                    }
+                    disabled={disabled}
+                    aria-label={`Remove ${chipText(l)}`}
+                    className="-mr-1 rounded-full p-0.5 text-muted-foreground"
+                  >
+                    <X className="size-3" />
+                  </button>
                 </span>
               ))}
             </div>
@@ -812,9 +869,11 @@ export function AddSheet({
             There&apos;s no “released” category to add it to.
           </p>
         )}
-        {paidLines.length > 0 && !edit && (
+        {recordedLines.length > 0 && (
           <p className="mt-2 text-xs text-muted-foreground">
-            The payment is saved. Add the item to list it.
+            {recordedLines.length === 1
+              ? "The payment is recorded and on the list as its own paid row."
+              : "The payments are recorded and on the list as their own paid rows."}
           </p>
         )}
 

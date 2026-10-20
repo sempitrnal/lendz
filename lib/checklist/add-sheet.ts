@@ -21,7 +21,11 @@ import type { DueChecklistItem } from "@/lib/checklist/types";
 
 export type AddMode = "collect" | "release";
 
-/** A collection line on the draft; `paid` marks a manual payment already saved. */
+/**
+ * A collection line on the draft. `paid` marks a manual payment recorded from
+ * the sheet: it already has its own ticked row (`recordedRow`), so it is shown
+ * as a chip but never goes into the draft's label.
+ */
 export type DraftLine = DueChecklistItem & { paid?: true };
 
 export const MENTION_FIRST = "Mention a borrower first (@name)";
@@ -68,15 +72,10 @@ export function suggestBorrowers(
 export const activeBorrower = (mentions: ComposerBorrower[]) =>
   mentions.length > 0 ? mentions[mentions.length - 1] : null;
 
-/** A saved manual payment ties the draft to its borrower. */
-export const hasPaidLines = (lines: DraftLine[]) => lines.some((l) => l.paid);
-
 /**
  * Adds a mention. In Release mode there is one borrower, so it replaces.
  * In Collect mode the new one becomes the active borrower, and the lines
  * picked for the previous active borrower are dropped (they belong to it).
- * Once a manual payment is saved the active borrower is locked: a new mention
- * goes in before it, so the paid line stays with its borrower.
  */
 export function addMention(
   mode: AddMode,
@@ -86,22 +85,8 @@ export function addMention(
 ): { mentions: ComposerBorrower[]; lines: DraftLine[] } {
   if (mode === "release") return { mentions: [b], lines: [] };
   const active = activeBorrower(mentions);
-  const rest = mentions.filter((m) => m.id !== b.id);
-  if (hasPaidLines(lines) && active && active.id !== b.id) {
-    const others = rest.filter((m) => m.id !== active.id);
-    return { mentions: [...others, b, active], lines };
-  }
   if (active?.id === b.id) return { mentions, lines };
-  return { mentions: [...rest, b], lines: [] };
-}
-
-/** Whether the pill can be removed: not the active one once a payment is saved. */
-export function canRemoveMention(
-  mentions: ComposerBorrower[],
-  lines: DraftLine[],
-  id: string,
-): boolean {
-  return !(hasPaidLines(lines) && activeBorrower(mentions)?.id === id);
+  return { mentions: [...mentions.filter((m) => m.id !== b.id), b], lines: [] };
 }
 
 /** Removes a mention; removing the active borrower drops its lines. */
@@ -110,7 +95,6 @@ export function removeMention(
   lines: DraftLine[],
   id: string,
 ): { mentions: ComposerBorrower[]; lines: DraftLine[] } {
-  if (!canRemoveMention(mentions, lines, id)) return { mentions, lines };
   const wasActive = activeBorrower(mentions)?.id === id;
   return {
     mentions: mentions.filter((m) => m.id !== id),
@@ -160,14 +144,15 @@ export function listedScheduleIds(
 
 /**
  * The dues the step offers: the borrower's open installments that aren't on
- * the day's list already and aren't a payment saved in this draft.
+ * the day's list already and aren't a payment recorded from this sheet (its
+ * row may not have reached the list yet).
  */
 export function offerDues(
   fetched: NextCollectionItem[],
   listed: Set<string>,
-  lines: DraftLine[],
+  recorded: DraftLine[],
 ): { offered: DueChecklistItem[]; alreadyListed: number } {
-  const paidIds = new Set(lines.filter((l) => l.paid).map((l) => l.id));
+  const paidIds = new Set(recorded.map((l) => l.id));
   const offered: DueChecklistItem[] = [];
   let alreadyListed = 0;
   for (const f of fetched) {
@@ -222,7 +207,7 @@ export function duesStepButton(
 ): { label: string; enabled: boolean } {
   const chosen = offered.filter((o) => selected.has(o.id));
   const offeredIds = new Set(offered.map((o) => o.id));
-  const hadFromDues = lines.some((l) => !l.paid && offeredIds.has(l.id));
+  const hadFromDues = lines.some((l) => offeredIds.has(l.id));
   if (chosen.length > 0) {
     const total = cents(chosen.reduce((s, o) => s + o.amount, 0));
     return { label: `Add ${chosen.length} · ${peso(total)}`, enabled: true };
@@ -291,9 +276,10 @@ export type SubmitPlan =
       action: "add";
       label: string;
       categoryId: string | null;
-      checked: boolean;
     }
   | { ok: true; action: "edit"; label: string }
+  /** Payments recorded here already have their rows; nothing else to add. */
+  | { ok: true; action: "close" }
   | {
       ok: false;
       reason:
@@ -308,10 +294,12 @@ export type SubmitPlan =
 /**
  * What pressing the sheet's button does, or why it can't.
  * - Collect: the active borrower's mention, its lines, the note and `with`
- *   the other mentions, into Collect. No lines makes a plain note. The item
- *   starts ticked when every line is a payment already saved.
+ *   the other mentions, into Collect. No lines makes a plain note. Payments
+ *   recorded from the sheet are never in it (they have their own rows).
  * - Release: the borrower and the typed note, only once it parses.
  * - Edit: new lines and note on the item's label; needs at least one line.
+ * - With a payment recorded and nothing else written (or, in edit, nothing
+ *   changed), the button just closes the sheet ("Done").
  */
 export function submitPlan(draft: {
   mode: AddMode;
@@ -321,10 +309,13 @@ export function submitPlan(draft: {
   date: string;
   /** The label of the item being edited. */
   editOf: string | null;
+  /** Payments recorded from this sheet (each already has its own row). */
+  recordedCount?: number;
   collectId: string | null;
   releasedId: string | null;
 }): SubmitPlan {
   const note = draft.text.trim();
+  const recorded = (draft.recordedCount ?? 0) > 0;
   const lines: DueChecklistItem[] = draft.lines.map((l) => ({
     id: l.id,
     due_date: l.due_date,
@@ -335,7 +326,11 @@ export function submitPlan(draft: {
   if (draft.editOf !== null) {
     if (lines.length === 0) return { ok: false, reason: "no-lines" };
     const label = editLabel(draft.editOf, draft.date, { lines, note });
-    if (label === draft.editOf) return { ok: false, reason: "unchanged" };
+    if (label === draft.editOf) {
+      return recorded
+        ? { ok: true, action: "close" }
+        : { ok: false, reason: "unchanged" };
+    }
     return { ok: true, action: "edit", label };
   }
 
@@ -350,12 +345,17 @@ export function submitPlan(draft: {
       action: "add",
       label,
       categoryId: draft.releasedId,
-      checked: false,
     };
   }
 
-  if (lines.length === 0 && !note && draft.mentions.length === 0) {
-    return { ok: false, reason: "empty" };
+  if (
+    lines.length === 0 &&
+    !note &&
+    (recorded || draft.mentions.length === 0)
+  ) {
+    return recorded
+      ? { ok: true, action: "close" }
+      : { ok: false, reason: "empty" };
   }
   const others = draft.mentions.filter((m) => m.id !== borrower?.id);
   const label = composeLabel({ borrower, others, lines, note });
@@ -364,7 +364,6 @@ export function submitPlan(draft: {
     action: "add",
     label,
     categoryId: draft.collectId,
-    checked: draft.lines.length > 0 && draft.lines.every((l) => l.paid),
   };
 }
 
@@ -453,11 +452,55 @@ export function paidLine(schedule: NextCollectionItem): DraftLine {
   };
 }
 
-/** The toast when a manual payment fails: says plainly that no money moved. */
-export function manualFailureMessage(error: string): string {
-  return `${error.replace(/[.\s]+$/, "")} — no payment was recorded`;
+/** Shown when it isn't known whether a manual payment was saved. */
+export const MANUAL_UNCONFIRMED =
+  "Couldn't confirm the payment — check the account before trying again";
+
+/**
+ * The toast when a manual payment fails. Only a failure the action reported
+ * itself is known to have saved nothing; a thrown or empty result may have
+ * committed, so it says to check before retrying.
+ */
+export function manualFailureMessage(result: {
+  error: string;
+  unknown?: true;
+}): string {
+  if (result.unknown) return MANUAL_UNCONFIRMED;
+  return `${result.error.replace(/[.\s]+$/, "")} — no payment was recorded`;
 }
 
-/** The toast when the item for a saved payment can't be added. */
-export const PAID_ITEM_NOT_ADDED =
-  "The payment is saved, but its item wasn't added to the list — don't record it again";
+/**
+ * The row a recorded manual payment gets at once, whatever happens to the
+ * sheet: the borrower and the paid line, ticked, in Collect. Same as the old
+ * `/next` dropdown, which inserted a ticked row as soon as the payment saved.
+ */
+export function recordedRow(
+  borrower: ComposerBorrower,
+  schedule: NextCollectionItem,
+  collectId: string | null,
+): { label: string; categoryId: string | null; checked: true } {
+  const { id, due_date, amount, type } = paidLine(schedule);
+  return {
+    label: composeLabel({
+      borrower,
+      others: [],
+      lines: [{ id, due_date, amount, type }],
+      note: "",
+    }),
+    categoryId: collectId,
+    checked: true,
+  };
+}
+
+/** The toast when a recorded payment's row couldn't be added. */
+export const PAID_ROW_NOT_ADDED =
+  "The payment was recorded, but its row couldn't be added to the list — don't record it again";
+
+/**
+ * What's left on the account while typing a manual payment: for a rolling
+ * account the interest on what rolls over is added (as the old dialog does).
+ */
+export function manualSummaryLeft(account: ManualAccount, raw: string): number {
+  const check = manualPaymentCheck(account, raw);
+  return cents(account.remaining + (check.nextDue - check.rollover));
+}
