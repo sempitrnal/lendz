@@ -134,9 +134,9 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
           ...calendarMonthUrls(),
           "/api/borrowers",
           "/api/categories",
+          // Edit pages aren't saved: editing a borrower needs a connection.
           ...(borrowers ?? []).flatMap((b: { id: string }) => [
             `/borrowers/${b.id}`,
-            `/borrowers/${b.id}/edit`,
             `/api/borrowers/${b.id}/details`,
           ]),
           ...(accounts ?? []).map((a: { id: string }) => `/accounts/${a.id}`),
