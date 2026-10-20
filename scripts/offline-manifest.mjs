@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * Runs after `next build`. Writes `.next/static/offline-manifest.json`
- * (served at /_next/static/offline-manifest.json) for the offline sync:
+ * Runs after `next build`. Writes `public/offline-manifest.json` (served at
+ * /offline-manifest.json) for the offline sync. It lives in `public/` because
+ * Vercel does not publish files added to `.next/static` after the build, but
+ * does publish `public/`:
  *
  * - `buildId`: a new one means every saved page needs downloading again.
  * - `assets`: every static file of this build, so the worker can fetch the
@@ -12,7 +14,7 @@ import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const NEXT = ".next";
-const OUT = join(NEXT, "static", "offline-manifest.json");
+const OUT = join("public", "offline-manifest.json");
 
 const buildId = readFileSync(join(NEXT, "BUILD_ID"), "utf8").trim();
 

@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# written by scripts/offline-manifest.mjs after each build
+/public/offline-manifest.json

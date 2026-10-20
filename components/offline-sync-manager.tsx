@@ -23,7 +23,7 @@ const SYNCED_MANIFEST_KEY = "lendz-offline-manifest";
  * Stored (not just in memory) so a reload mid-pass still recognises its end.
  */
 const PENDING_VERSION_KEY = "lendz-offline-pending-version";
-const MANIFEST_URL = "/_next/static/offline-manifest.json";
+const MANIFEST_URL = "/offline-manifest.json";
 
 /** This deploy's manifest, or null (dev, or not reachable right now). */
 async function fetchManifest(): Promise<OfflineManifest | null> {

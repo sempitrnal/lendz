@@ -134,7 +134,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // The build's offline manifest changes with every deploy: always fresh.
-  if (url.pathname === "/_next/static/offline-manifest.json") return;
+  if (url.pathname === "/offline-manifest.json") return;
 
   // Router prefetches (`<Link>` warming the next page) answer with partial
   // payloads. Saved under the page's key they would replace the full copy
