@@ -1,0 +1,244 @@
+"use client";
+
+import { useRef } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { relativeDayLabel, shiftDateValue } from "@/lib/checklist/dates";
+import type { ChecklistFilter } from "@/lib/checklist/list-view";
+import type { ChecklistTab } from "@/lib/checklist/categories";
+
+export const peso = (n: number) =>
+  `₱${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+
+/** e.g. "Mon, Oct 19" (shown uppercase); adds the year when it isn't the current one. */
+function headerDate(value: string, today: string) {
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    ...(value.slice(0, 4) !== today.slice(0, 4) ? { year: "numeric" } : {}),
+  });
+}
+
+const FILTERS: [ChecklistFilter, string][] = [
+  ["all", "All"],
+  ["overdue", "Overdue"],
+  ["today", "Today"],
+  ["paid", "Paid"],
+];
+
+export type HeaderSummary = {
+  left: number;
+  due: number;
+  collected: number;
+  done: number;
+  count: number;
+};
+
+/**
+ * The top of the checklist: the date row, the day's total and the sticky
+ * Collect / Release switch with the filter chips.
+ */
+export function Header({
+  date,
+  today,
+  onDateChange,
+  tab,
+  onTabChange,
+  collectCount,
+  releaseCount,
+  summary,
+  filter,
+  onFilterChange,
+  counts,
+}: {
+  date: string;
+  today: string;
+  onDateChange(date: string): void;
+  tab: ChecklistTab;
+  onTabChange(tab: ChecklistTab): void;
+  collectCount: number;
+  releaseCount: number;
+  summary: HeaderSummary;
+  filter: ChecklistFilter;
+  onFilterChange(filter: ChecklistFilter): void;
+  counts: Record<ChecklistFilter, number>;
+}) {
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const relative = relativeDayLabel(date, today);
+  const progress =
+    summary.due > 0
+      ? Math.min(100, (summary.collected / summary.due) * 100)
+      : 0;
+
+  const openDatePicker = () => {
+    const input = dateInputRef.current;
+    if (!input) return;
+    try {
+      input.showPicker();
+    } catch {
+      input.focus();
+      input.click();
+    }
+  };
+
+  return (
+    <>
+      <div className="px-4 pt-3">
+        <div className="flex items-center justify-between">
+          <div className="relative flex min-w-0 items-center gap-0.5">
+            <button
+              type="button"
+              aria-label="Previous day"
+              onClick={() => onDateChange(shiftDateValue(date, -1))}
+              className="-ml-2 flex size-9 shrink-0 items-center justify-center
+                rounded-full text-muted-foreground active:bg-muted"
+            >
+              <ChevronLeft className="size-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Pick a date"
+              onClick={openDatePicker}
+              className="flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-1"
+            >
+              <span
+                className="truncate text-xs font-semibold tracking-wider
+                  text-muted-foreground uppercase"
+              >
+                {headerDate(date, today)}
+              </span>
+              {relative && (
+                <span
+                  className="shrink-0 rounded-full bg-muted px-2 py-0.5
+                    text-[11px] font-semibold text-muted-foreground"
+                >
+                  {relative}
+                </span>
+              )}
+            </button>
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={date}
+              onChange={(e) => {
+                if (e.target.value) onDateChange(e.target.value);
+              }}
+              tabIndex={-1}
+              aria-hidden
+              className="pointer-events-none absolute bottom-0 left-8 size-px
+                opacity-0"
+            />
+            <button
+              type="button"
+              aria-label="Next day"
+              onClick={() => onDateChange(shiftDateValue(date, 1))}
+              className="flex size-9 shrink-0 items-center justify-center
+                rounded-full text-muted-foreground active:bg-muted"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+          </div>
+        </div>
+
+        {date !== today && (
+          <button
+            type="button"
+            onClick={() => onDateChange(today)}
+            className="mt-1 text-xs font-semibold text-primary"
+          >
+            Back to today
+          </button>
+        )}
+
+        {tab === "collect" && (
+          <div className="mt-2">
+            <div className="flex items-baseline gap-2">
+              <span
+                className="text-3xl font-semibold tracking-tight tabular-nums"
+              >
+                {peso(summary.left)}
+              </span>
+              <span className="text-sm text-muted-foreground">left</span>
+              <span
+                className="ml-auto text-sm text-muted-foreground tabular-nums"
+              >
+                {summary.done}/{summary.count} paid
+              </span>
+            </div>
+            <div
+              className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary"
+              role="progressbar"
+              aria-label="Collected"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress)}
+            >
+              <div
+                className="h-full rounded-full bg-primary transition-all
+                  duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Sticks under the mobile top bar (4rem) or the site header (66px). */}
+      <div
+        className="sticky top-16 z-20 sm:top-[66px] mt-3 space-y-2 border-b
+          border-border bg-background/95 px-4 pt-2 pb-2.5 backdrop-blur"
+      >
+        <div
+          className="flex rounded-xl bg-secondary p-0.5 text-sm font-medium"
+          role="tablist"
+        >
+          {(
+            [
+              ["collect", `Collect ${collectCount}`],
+              ["release", `Release ${releaseCount}`],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => onTabChange(key)}
+              className={cn(
+                "flex-1 rounded-[10px] py-1.5 transition-colors",
+                tab === key
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {tab === "collect" && (
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
+            {FILTERS.map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={filter === key}
+                onClick={() => onFilterChange(key)}
+                className={cn(
+                  `shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium
+                  transition-colors active:scale-95`,
+                  filter === key
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground",
+                )}
+              >
+                {label} {counts[key]}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
