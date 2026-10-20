@@ -156,3 +156,28 @@ describe("failure messages", () => {
     });
   });
 });
+
+describe("buildEditPlan with float noise", () => {
+  const noisy = recordedCards(
+    [
+      sched({
+        id: "n",
+        amount_due: 113.37,
+        amount_paid: 14.63,
+        remaining_amount: 113.37 - 14.63,
+        status: "partial",
+      }),
+    ],
+    ["n"],
+  );
+
+  it("Paid in full (the due as shown) is a paid choice", () => {
+    const e = buildEditPlan(noisy, { n: String(noisy[0].due) }, CUTOFF);
+    expect(e.first.paidIds).toEqual(["n"]);
+    expect(e.first.partials).toEqual([]);
+  });
+
+  it("the recorded amount as shown is unchanged", () => {
+    expect(buildEditPlan(noisy, { n: "14.63" }, CUTOFF).changed).toBe(false);
+  });
+});

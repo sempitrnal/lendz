@@ -5,6 +5,7 @@ import {
 } from "@/lib/checklist/payment-plan";
 import type { ScheduleDialogRow } from "@/lib/checklist/schedule-cache";
 import { amountPaidOnInstallment } from "@/lib/payment-schedule/schedule-balances";
+import { cents } from "@/lib/checklist/amount-input";
 
 /**
  * The server can only reset an installment (it deletes every payment on it),
@@ -57,9 +58,11 @@ export function planOnReset(
     const amount = amounts[copy.id];
     if (!(amount > 0)) continue;
     choices[copy.id] =
-      amount >= copy.amount_due
+      // Centavos on both sides, so float noise can't turn a full amount
+      // into a partial.
+      cents(amount) >= cents(copy.amount_due)
         ? { status: "paid", amount: "" }
-        : { status: "partial", amount: String(amount) };
+        : { status: "partial", amount: String(cents(amount)) };
   }
   return buildPaymentPlan(copies, choices, overdueCutoff);
 }

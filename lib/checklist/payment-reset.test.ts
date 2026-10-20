@@ -121,3 +121,20 @@ describe("planCallCount", () => {
     expect(isEmptyPlan(planOnReset([], {}, CUTOFF))).toBe(true);
   });
 });
+
+describe("planOnReset with float noise", () => {
+  it("a full amount computed with noise is still paid, a smaller one a rounded partial", () => {
+    const row = sched({
+      amount_due: 113.37,
+      status: "paid",
+      amount_paid: 113.37,
+    });
+    // 14.63 + 98.74 is 113.36999999999999 in floating point.
+    expect(planOnReset([row], { s1: 14.63 + 98.74 }, CUTOFF).paidIds).toEqual([
+      "s1",
+    ]);
+    expect(planOnReset([row], { s1: 0.1 + 0.2 }, CUTOFF).partials).toEqual([
+      { id: "s1", amount: 0.3 },
+    ]);
+  });
+});

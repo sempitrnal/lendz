@@ -137,7 +137,7 @@ describe("buildPaySheet", () => {
     );
     expect(blank.invalidIds).toEqual([]);
     expect(blank.total).toBe(0);
-    expect(payButtonLabel(blank, peso)).toBe("Pick an installment");
+    expect(payButtonLabel(blank, peso)).toBe("Enter an amount");
   });
 
   it("never settles a row with an installment that couldn't be loaded", () => {
@@ -158,5 +158,105 @@ describe("payFailureMessage", () => {
   it("keeps the default for one call and warns for several", () => {
     expect(payFailureMessage(1)).toBeUndefined();
     expect(payFailureMessage(2)).toMatch(/check what is recorded/);
+  });
+});
+
+describe("buildPaySheet with float noise in what is left", () => {
+  // 113.37 - 14.63 is 98.74000000000001 in floating point.
+  const noisy = sched({
+    id: "n",
+    amount_due: 113.37,
+    amount_paid: 14.63,
+    remaining_amount: 98.74,
+    status: "partial",
+  });
+  const run = (typed: string, row = noisy) =>
+    buildPaySheet(
+      input({
+        rows: [row],
+        lineIds: [row.id],
+        custom: true,
+        amounts: { [row.id]: typed },
+      }),
+    );
+
+  it("has noise to begin with", () => {
+    expect(113.37 - 14.63).not.toBe(98.74);
+  });
+
+  it("the prefilled rest (98.74) is a paid choice that settles the row", () => {
+    const pay = run("98.74");
+    expect(pay.choices.n).toEqual({ status: "paid", amount: "" });
+    expect(pay.plan.paidIds).toEqual(["n"]);
+    expect(pay.plan.partials).toEqual([]);
+    expect(pay.clampedIds).toEqual([]);
+    expect(pay.settlesRow).toBe(true);
+    expect(pay.total).toBe(98.74);
+  });
+
+  it("98.75 clamps and counts as the whole rest", () => {
+    const pay = run("98.75");
+    expect(pay.clampedIds).toEqual(["n"]);
+    expect(pay.plan.paidIds).toEqual(["n"]);
+    expect(pay.settlesRow).toBe(true);
+  });
+
+  it("98.73 stays a partial", () => {
+    const pay = run("98.73");
+    expect(pay.clampedIds).toEqual([]);
+    expect(pay.plan.partials).toEqual([{ id: "n", amount: 98.73 }]);
+    expect(pay.settlesRow).toBe(false);
+  });
+
+  it("holds for many noisy due/paid pairs", () => {
+    let noisyPairs = 0;
+    for (let due = 100; due < 200; due += 7.37) {
+      for (let paid = 0.01; paid < 50; paid += 3.13) {
+        const d = Math.round(due * 100) / 100;
+        const p = Math.round(paid * 100) / 100;
+        if (d - p !== Math.round((d - p) * 100) / 100) noisyPairs += 1;
+        const row = sched({
+          id: "x",
+          amount_due: d,
+          amount_paid: p,
+          remaining_amount: d - p,
+          status: "partial",
+        });
+        const shown = String(Math.round((d - p) * 100) / 100);
+        const pay = run(shown, row);
+        expect(pay.plan.paidIds).toEqual(["x"]);
+        expect(pay.settlesRow).toBe(true);
+        expect(pay.clampedIds).toEqual([]);
+      }
+    }
+    expect(noisyPairs).toBeGreaterThan(0);
+  });
+
+  it("an installment with only noise left is not open", () => {
+    const pay = buildPaySheet(
+      input({
+        rows: [
+          sched({
+            id: "z",
+            amount_due: 0.3,
+            amount_paid: 0.1 + 0.2,
+            status: "partial",
+          }),
+        ],
+        lineIds: ["z"],
+      }),
+    );
+    expect(pay.open).toEqual([]);
+  });
+});
+
+describe("payButtonLabel in custom mode", () => {
+  it("asks for an amount when installments are ticked but nothing is typed", () => {
+    const pay = buildPaySheet(
+      input({ custom: true, amounts: { a: "", b: "0" } }),
+    );
+    expect(payButtonLabel(pay, peso)).toBe("Enter an amount");
+    const none = buildPaySheet(input({ picked: { a: false, b: false } }));
+    expect(payButtonLabel(none, peso)).toBe("Pick an installment");
   });
 });

@@ -118,7 +118,7 @@ export function PaySheet({
   const borrowerId = row.model?.borrower?.id ?? null;
   const lineById = new Map(row.lines.map((l) => [l.id, l]));
   const openLeft = cents(
-    pay.open.reduce((sum, r) => sum + remainingOnInstallment(r), 0),
+    pay.open.reduce((sum, r) => sum + cents(remainingOnInstallment(r)), 0),
   );
   const hasRecorded = live.rows.some(
     (r) => r.status === "paid" || amountPaidOnInstallment(r) > 0,
@@ -271,7 +271,8 @@ export function PaySheet({
                           ? line.daysOverdue
                           : 0;
                       const paidSoFar = amountPaidOnInstallment(r);
-                      const left = remainingOnInstallment(r);
+                      // Centavos, as the plan compares them.
+                      const left = cents(remainingOnInstallment(r));
                       const invalid = pay.invalidIds.includes(r.id);
                       const clamped = pay.clampedIds.includes(r.id);
                       const toggle = () =>

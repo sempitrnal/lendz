@@ -52,6 +52,10 @@ export type PaySheetPlan = {
   undo: { reset: PaymentPlan; restore: PaymentPlan };
   /** How many server calls the pay makes. */
   calls: number;
+  /** "Pay a different amount" is on. */
+  custom: boolean;
+  /** Installments left ticked. */
+  tickedCount: number;
 };
 
 /**
@@ -72,7 +76,7 @@ export function buildPaySheet({
   const open = [...new Set(lineIds)]
     .map((id) => byId.get(id))
     .filter((r): r is ScheduleDialogRow => !!r && r.status !== "paid")
-    .filter((r) => remainingOnInstallment(r) > 0);
+    .filter((r) => cents(remainingOnInstallment(r)) > 0);
 
   const choices: Record<string, ScheduleChoice> = {};
   const invalidIds: string[] = [];
@@ -89,7 +93,10 @@ export function buildPaySheet({
       continue;
     }
     const amount = cents(typed);
-    const left = remainingOnInstallment(row);
+    // Both sides in centavos: `due - paid` carries float noise (113.37 -
+    // 14.63 is 98.74000000000001), and the prefilled 98.74 must still count
+    // as the whole rest, a `paid` choice, or the installment stays partial.
+    const left = cents(remainingOnInstallment(row));
     if (amount > left) clampedIds.push(row.id);
     if (amount <= 0) continue;
     choices[row.id] =
@@ -141,17 +148,21 @@ export function buildPaySheet({
     pendingByAccount,
     undo: buildResetAndRestore(paidRows, overdueCutoff),
     calls: planCallCount(plan),
+    custom,
+    tickedCount: open.filter((r) => picked[r.id] !== false).length,
   };
 }
 
 /** The pay sheet's primary button. */
 export function payButtonLabel(
-  pay: Pick<PaySheetPlan, "total" | "invalidIds">,
+  pay: Pick<PaySheetPlan, "total" | "invalidIds" | "custom" | "tickedCount">,
   peso: (n: number) => string,
 ): string {
   if (pay.invalidIds.length > 0) return "Check the amounts";
-  return pay.total > 0
-    ? `Record ${peso(pay.total)} paid`
+  if (pay.total > 0) return `Record ${peso(pay.total)} paid`;
+  // Ticked, but the typed amounts are blank or zero.
+  return pay.custom && pay.tickedCount > 0
+    ? "Enter an amount"
     : "Pick an installment";
 }
 

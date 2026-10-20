@@ -24,11 +24,15 @@ export type LiveSchedules = {
  */
 export function useLiveSchedules(ids: string[]): LiveSchedules {
   const key = [...new Set(ids)].sort().join("|");
-  const [state, setState] = useState<LiveSchedules & { key: string }>(() => ({
-    key,
-    rows: key ? readCachedSchedules(key.split("|")) : [],
-    status: key ? "loading" : "ready",
-  }));
+  const initial = (k: string): LiveSchedules & { key: string } => ({
+    key: k,
+    rows: k ? readCachedSchedules(k.split("|")) : [],
+    status: k ? "loading" : "ready",
+  });
+  const [state, setState] = useState(() => initial(key));
+  // Other installments: start over from their saved rows (the load below
+  // fetches them), never show the previous ones as ready.
+  if (state.key !== key) setState(initial(key));
 
   useEffect(() => {
     if (!key) return;
