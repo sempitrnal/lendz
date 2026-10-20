@@ -1,0 +1,107 @@
+import {
+  collectionRowModel,
+  type CollectionRowLine,
+  type CollectionRowModel,
+} from "@/lib/checklist/labels";
+import type { ScheduleDialogRow } from "@/lib/checklist/schedule-cache";
+import type { DailyChecklistItem } from "@/lib/checklist/types";
+import { remainingOnInstallment } from "@/lib/payment-schedule/schedule-balances";
+
+export type LineState = "paid" | "partial" | "unpaid";
+
+export type RowLine = CollectionRowLine & {
+  state: LineState;
+  paid: number;
+  left: number;
+  overdue: boolean;
+};
+
+export type RowStatus = "paid" | "partial" | "unpaid";
+
+export type RowView = {
+  item: DailyChecklistItem;
+  model: CollectionRowModel | null;
+  lines: RowLine[];
+  status: RowStatus;
+  left: number;
+  total: number;
+  lateDays: number;
+  dueOnDay: boolean;
+  carried: boolean;
+};
+
+const cents = (n: number) => Math.round(n * 100) / 100;
+
+function buildLine(
+  line: CollectionRowLine,
+  ticked: boolean,
+  schedules?: Map<string, ScheduleDialogRow>,
+): RowLine {
+  const row = schedules?.get(line.id);
+  let state: LineState;
+  let left: number;
+  if (row) {
+    left = Math.min(line.amount, remainingOnInstallment(row));
+    state =
+      row.status === "paid"
+        ? "paid"
+        : Number(row.amount_paid ?? 0) > 0
+          ? "partial"
+          : "unpaid";
+  } else {
+    state = ticked ? "paid" : "unpaid";
+    left = ticked ? 0 : line.amount;
+  }
+  left = cents(left);
+  const overdue =
+    state !== "paid" &&
+    line.daysOverdue > 0 &&
+    (row ? row.status === "overdue" : true);
+  return { ...line, state, left, paid: cents(line.amount - left), overdue };
+}
+
+export function buildRowView(
+  item: DailyChecklistItem,
+  schedules?: Map<string, ScheduleDialogRow>,
+): RowView {
+  const model = collectionRowModel(item.label, item.checklist_date);
+  if (!model) {
+    return {
+      item,
+      model: null,
+      lines: [],
+      status: item.is_checked ? "paid" : "unpaid",
+      left: 0,
+      total: 0,
+      lateDays: 0,
+      dueOnDay: false,
+      carried: false,
+    };
+  }
+
+  const lines = model.lines.map((l) => buildLine(l, item.is_checked, schedules));
+  const left = cents(lines.reduce((sum, l) => sum + l.left, 0));
+  const status: RowStatus = lines.every((l) => l.state === "paid")
+    ? "paid"
+    : lines.some((l) => l.state !== "unpaid")
+      ? "partial"
+      : "unpaid";
+  const lateDays = lines.reduce(
+    (max, l) => (l.overdue ? Math.max(max, l.daysOverdue) : max),
+    0,
+  );
+  const day = item.checklist_date.slice(0, 10);
+  return {
+    item,
+    model,
+    lines,
+    status,
+    left,
+    total: model.total,
+    lateDays,
+    dueOnDay: lines.some(
+      (l) => l.state !== "paid" && l.due_date.slice(0, 10) === day,
+    ),
+    carried: lines.every((l) => l.due_date.slice(0, 10) < day),
+  };
+}
