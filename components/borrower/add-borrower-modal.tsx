@@ -1,6 +1,8 @@
 import { UserRoundPlus } from "lucide-react";
 
-import BorrowerForm from "@/components/forms/borrower-form";
+import dynamic from "next/dynamic";
+
+const BorrowerForm = dynamic(() => import("@/components/forms/borrower-form"));
 import {
   Dialog,
   DialogContent,

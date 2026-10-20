@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getAccountDetailPageData } from "@/lib/cache/accounts";
@@ -7,6 +8,9 @@ import {
   describePublicAccount,
 } from "@/lib/public-account";
 import PublicAccountView from "@/components/public-account/public-account-view";
+
+// generateMetadata and the page both load the account; once per request.
+const loadAccount = cache(getAccountDetailPageData);
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -17,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   let data;
   try {
-    data = await getAccountDetailPageData(id);
+    data = await loadAccount(id);
   } catch {
     return { title: "Loan Details | Utangz" };
   }
@@ -53,7 +57,7 @@ export default async function PublicAccountViewPage({ params }: Props) {
 
   let data;
   try {
-    data = await getAccountDetailPageData(id);
+    data = await loadAccount(id);
   } catch {
     notFound();
   }

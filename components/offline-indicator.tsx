@@ -3,7 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import {
+  AnimatePresence,
+  LazyMotion,
+  m,
+  useReducedMotion,
+} from "framer-motion";
+
+// The animation features load after first paint instead of with every page.
+const loadMotionFeatures = () =>
+  import("framer-motion").then((mod) => mod.domMax);
 import {
   ChevronUp,
   CloudCheck,
@@ -264,227 +273,233 @@ export function OfflineIndicator() {
   // Sits just above the mobile bottom nav (its height plus the safe area),
   // and in the corner on wider screens where there is no nav.
   return (
-    <div
-      data-queue-menu
-      className="fixed right-4
-        bottom-[calc(max(env(safe-area-inset-bottom),12px)+82px)] z-50 flex
-        flex-col items-end gap-2 md:bottom-4 print:hidden"
-    >
-      <AnimatePresence>
-        {menuOpen && interactive && (
-          <motion.div
-            key="queue-menu"
-            initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={
-              reduceMotion
-                ? undefined
-                : {
-                    opacity: 0,
-                    y: 6,
-                    scale: 0.98,
-                    transition: { duration: 0.15 },
-                  }
-            }
-            transition={{ type: "spring", stiffness: 420, damping: 34 }}
-            style={{ transformOrigin: "bottom right" }}
-            className={cn(
-              `w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl
-              text-foreground`,
-              GLASS,
-            )}
-          >
-            <div className="flex items-start gap-3 px-4 pt-4 pb-3">
-              <span
-                className={cn(
-                  `flex size-8 shrink-0 items-center justify-center
-                  rounded-full`,
-                  pending > 0 ? TONES.sky : TONES.rose,
-                )}
-              >
-                {pending > 0 ? (
-                  <CloudUpload className="size-4" />
-                ) : (
-                  <TriangleAlert className="size-4" />
-                )}
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold">
-                  {pending > 0
-                    ? `${pending} change${plural(pending)} waiting`
-                    : `${failed} change${plural(failed)} couldn't sync`}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Saved on this device and sent in order once the connection is
-                  good.
-                </p>
-              </div>
-            </div>
-
-            <ul
-              className="max-h-60 overflow-y-auto border-y border-border/60
-                py-1"
+    <LazyMotion features={loadMotionFeatures}>
+      <div
+        data-queue-menu
+        className="fixed right-4
+          bottom-[calc(max(env(safe-area-inset-bottom),12px)+82px)] z-50 flex
+          flex-col items-end gap-2 md:bottom-4 print:hidden"
+      >
+        <AnimatePresence>
+          {menuOpen && interactive && (
+            <m.div
+              key="queue-menu"
+              initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={
+                reduceMotion
+                  ? undefined
+                  : {
+                      opacity: 0,
+                      y: 6,
+                      scale: 0.98,
+                      transition: { duration: 0.15 },
+                    }
+              }
+              transition={{ type: "spring", stiffness: 420, damping: 34 }}
+              style={{ transformOrigin: "bottom right" }}
+              className={cn(
+                `w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl
+                text-foreground`,
+                GLASS,
+              )}
             >
-              {tasks.map((task, i) => (
-                <li
-                  key={`${task.label}-${i}`}
-                  className="flex items-center gap-2.5 px-4 py-2 text-[13px]"
+              <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+                <span
+                  className={cn(
+                    `flex size-8 shrink-0 items-center justify-center
+                    rounded-full`,
+                    pending > 0 ? TONES.sky : TONES.rose,
+                  )}
+                >
+                  {pending > 0 ? (
+                    <CloudUpload className="size-4" />
+                  ) : (
+                    <TriangleAlert className="size-4" />
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">
+                    {pending > 0
+                      ? `${pending} change${plural(pending)} waiting`
+                      : `${failed} change${plural(failed)} couldn't sync`}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Saved on this device and sent in order once the connection
+                    is good.
+                  </p>
+                </div>
+              </div>
+
+              <ul
+                className="max-h-60 overflow-y-auto border-y border-border/60
+                  py-1"
+              >
+                {tasks.map((task, i) => (
+                  <li
+                    key={`${task.label}-${i}`}
+                    className="flex items-center gap-2.5 px-4 py-2 text-[13px]"
+                  >
+                    <span
+                      className={cn(
+                        "size-1.5 shrink-0 rounded-full",
+                        task.failed ? "bg-rose-500" : "bg-sky-500",
+                      )}
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {task.label}
+                    </span>
+                    {task.count > 1 && (
+                      <span
+                        className="shrink-0 rounded-full bg-muted px-1.5
+                          text-[11px] font-medium text-muted-foreground
+                          tabular-nums"
+                      >
+                        ×{task.count}
+                      </span>
+                    )}
+                    {task.failed && (
+                      <span
+                        className="shrink-0 text-[11px] font-medium
+                          text-rose-600 dark:text-rose-300"
+                      >
+                        stuck
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex items-center gap-2 p-3">
+                {pending > 0 ? (
+                  <button
+                    type="button"
+                    onClick={replay}
+                    className="inline-flex h-9 flex-1 items-center
+                      justify-center gap-1.5 rounded-xl bg-primary px-3 text-xs
+                      font-semibold text-primary-foreground shadow-sm transition
+                      active:scale-[0.98]"
+                  >
+                    <CloudCheck className="size-3.5" />
+                    Sync now
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void retryFailed()}
+                    className="inline-flex h-9 flex-1 items-center
+                      justify-center gap-1.5 rounded-xl bg-primary px-3 text-xs
+                      font-semibold text-primary-foreground shadow-sm transition
+                      active:scale-[0.98]"
+                  >
+                    <RefreshCw className="size-3.5" />
+                    Try again
+                  </button>
+                )}
+                {pending > 0 && failed > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => void retryFailed()}
+                    className="inline-flex h-9 items-center justify-center
+                      rounded-xl bg-muted px-3 text-xs font-semibold transition
+                      hover:bg-muted/70 active:scale-[0.98]"
+                  >
+                    Retry stuck
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void clearQueue()}
+                  aria-label={
+                    confirmClear ? `Discard ${total} changes` : "Clear queue"
+                  }
+                  className={cn(
+                    `inline-flex h-9 items-center justify-center gap-1.5
+                    rounded-xl px-3 text-xs font-semibold transition
+                    active:scale-[0.98]`,
+                    confirmClear
+                      ? "bg-rose-600 text-white"
+                      : "text-rose-600 hover:bg-rose-500/10 dark:text-rose-300",
+                  )}
+                >
+                  <Trash2 className="size-3.5" />
+                  {confirmClear ? `Discard ${total}?` : "Clear"}
+                </button>
+              </div>
+            </m.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {content && (
+            <m.div
+              key="status-pill"
+              role={interactive ? "button" : "status"}
+              tabIndex={interactive ? 0 : undefined}
+              aria-expanded={interactive ? menuOpen : undefined}
+              onClick={toggleMenu}
+              onKeyDown={(e) => {
+                if (interactive && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  toggleMenu();
+                }
+              }}
+              layout
+              initial={
+                reduceMotion ? false : { opacity: 0, y: 12, scale: 0.96 }
+              }
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={
+                reduceMotion
+                  ? undefined
+                  : {
+                      opacity: 0,
+                      y: 8,
+                      scale: 0.97,
+                      transition: { duration: 0.2 },
+                    }
+              }
+              transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              className={cn(
+                `flex items-center overflow-hidden rounded-full py-1 pr-3 pl-1
+                text-xs font-medium text-foreground`,
+                GLASS,
+                interactive && "cursor-pointer active:scale-[0.98]",
+              )}
+            >
+              <AnimatePresence mode="popLayout" initial={false}>
+                <m.span
+                  key={content.key}
+                  className="flex items-center gap-2"
+                  initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
                 >
                   <span
                     className={cn(
-                      "size-1.5 shrink-0 rounded-full",
-                      task.failed ? "bg-rose-500" : "bg-sky-500",
+                      "flex size-6 items-center justify-center rounded-full",
+                      TONES[content.tone],
                     )}
-                  />
-                  <span className="min-w-0 flex-1 truncate">{task.label}</span>
-                  {task.count > 1 && (
-                    <span
-                      className="shrink-0 rounded-full bg-muted px-1.5
-                        text-[11px] font-medium text-muted-foreground
-                        tabular-nums"
-                    >
-                      ×{task.count}
-                    </span>
+                  >
+                    {content.icon}
+                  </span>
+                  <span>{content.text}</span>
+                  {interactive && (
+                    <ChevronUp
+                      className={cn(
+                        `size-3.5 text-muted-foreground transition-transform
+                        duration-200`,
+                        !menuOpen && "rotate-180",
+                      )}
+                    />
                   )}
-                  {task.failed && (
-                    <span
-                      className="shrink-0 text-[11px] font-medium text-rose-600
-                        dark:text-rose-300"
-                    >
-                      stuck
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-
-            <div className="flex items-center gap-2 p-3">
-              {pending > 0 ? (
-                <button
-                  type="button"
-                  onClick={replay}
-                  className="inline-flex h-9 flex-1 items-center justify-center
-                    gap-1.5 rounded-xl bg-primary px-3 text-xs font-semibold
-                    text-primary-foreground shadow-sm transition
-                    active:scale-[0.98]"
-                >
-                  <CloudCheck className="size-3.5" />
-                  Sync now
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void retryFailed()}
-                  className="inline-flex h-9 flex-1 items-center justify-center
-                    gap-1.5 rounded-xl bg-primary px-3 text-xs font-semibold
-                    text-primary-foreground shadow-sm transition
-                    active:scale-[0.98]"
-                >
-                  <RefreshCw className="size-3.5" />
-                  Try again
-                </button>
-              )}
-              {pending > 0 && failed > 0 && (
-                <button
-                  type="button"
-                  onClick={() => void retryFailed()}
-                  className="inline-flex h-9 items-center justify-center
-                    rounded-xl bg-muted px-3 text-xs font-semibold transition
-                    hover:bg-muted/70 active:scale-[0.98]"
-                >
-                  Retry stuck
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => void clearQueue()}
-                aria-label={
-                  confirmClear ? `Discard ${total} changes` : "Clear queue"
-                }
-                className={cn(
-                  `inline-flex h-9 items-center justify-center gap-1.5
-                  rounded-xl px-3 text-xs font-semibold transition
-                  active:scale-[0.98]`,
-                  confirmClear
-                    ? "bg-rose-600 text-white"
-                    : "text-rose-600 hover:bg-rose-500/10 dark:text-rose-300",
-                )}
-              >
-                <Trash2 className="size-3.5" />
-                {confirmClear ? `Discard ${total}?` : "Clear"}
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {content && (
-          <motion.div
-            key="status-pill"
-            role={interactive ? "button" : "status"}
-            tabIndex={interactive ? 0 : undefined}
-            aria-expanded={interactive ? menuOpen : undefined}
-            onClick={toggleMenu}
-            onKeyDown={(e) => {
-              if (interactive && (e.key === "Enter" || e.key === " ")) {
-                e.preventDefault();
-                toggleMenu();
-              }
-            }}
-            layout
-            initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={
-              reduceMotion
-                ? undefined
-                : {
-                    opacity: 0,
-                    y: 8,
-                    scale: 0.97,
-                    transition: { duration: 0.2 },
-                  }
-            }
-            transition={{ type: "spring", stiffness: 380, damping: 32 }}
-            className={cn(
-              `flex items-center overflow-hidden rounded-full py-1 pr-3 pl-1
-              text-xs font-medium text-foreground`,
-              GLASS,
-              interactive && "cursor-pointer active:scale-[0.98]",
-            )}
-          >
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.span
-                key={content.key}
-                className="flex items-center gap-2"
-                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
-                transition={{ duration: 0.2 }}
-              >
-                <span
-                  className={cn(
-                    "flex size-6 items-center justify-center rounded-full",
-                    TONES[content.tone],
-                  )}
-                >
-                  {content.icon}
-                </span>
-                <span>{content.text}</span>
-                {interactive && (
-                  <ChevronUp
-                    className={cn(
-                      `size-3.5 text-muted-foreground transition-transform
-                      duration-200`,
-                      !menuOpen && "rotate-180",
-                    )}
-                  />
-                )}
-              </motion.span>
-            </AnimatePresence>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+                </m.span>
+              </AnimatePresence>
+            </m.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </LazyMotion>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import Link from "next/link";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import {
@@ -16,7 +16,7 @@ import {
 } from "@/lib/checklist/labels";
 import type { ScheduleDialogRow } from "@/lib/checklist/schedule-cache";
 
-export function LinkedLabel({
+export const LinkedLabel = memo(function LinkedLabel({
   label,
   checked,
   borrowers,
@@ -135,9 +135,9 @@ export function LinkedLabel({
     }
   }
   return <>{parts}</>;
-}
+});
 
-export function MentionPill({
+export const MentionPill = memo(function MentionPill({
   name,
   href,
   checked,
@@ -181,7 +181,9 @@ export function MentionPill({
   return (
     <Link
       href={href}
-      prefetch
+      // A checklist can hold dozens of these; prefetching each borrower page
+      // in full as it scrolls into view floods the connection.
+      prefetch={false}
       onClick={(e) => e.stopPropagation()}
       style={style}
       className={className}
@@ -189,7 +191,7 @@ export function MentionPill({
       {name}
     </Link>
   );
-}
+});
 
 type LineState = "paid" | "partial" | "unpaid";
 
@@ -207,7 +209,7 @@ const peso = (n: number) => `₱${n.toLocaleString()}`;
  * schedules, so a ticked row only strikes the lines actually paid; lines the
  * device has no status for follow the tick, as before.
  */
-export function CollectionLabel({
+export const CollectionLabel = memo(function CollectionLabel({
   model,
   checked,
   borrowers,
@@ -273,7 +275,9 @@ export function CollectionLabel({
                 </span>
               )}
               {/* Type as a quiet dot + word; the color alone tells loan from ca. */}
-              <span className="inline-flex items-center gap-1 text-muted-foreground">
+              <span
+                className="inline-flex items-center gap-1 text-muted-foreground"
+              >
                 <span
                   aria-hidden="true"
                   className={`size-1.5 rounded-full ${
@@ -318,4 +322,4 @@ export function CollectionLabel({
       </span>
     </div>
   );
-}
+});

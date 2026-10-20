@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { formatDate } from "@/lib/utils";
-import ActivateAccountDialog from "@/components/borrower/activate-account-dialog";
+import dynamic from "next/dynamic";
+
+const ActivateAccountDialog = dynamic(
+  () => import("@/components/borrower/activate-account-dialog"),
+);
 import type { ActivateAccountData } from "@/app/actions/accounts";
 
 export default function PendingActivationBanner({

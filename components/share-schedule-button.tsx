@@ -2,7 +2,6 @@
 
 import { useRef, useState, useCallback } from "react";
 import { flushSync } from "react-dom";
-import { toPng } from "html-to-image";
 import { Share2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -189,6 +188,8 @@ export default function ShareScheduleButton({
     }
 
     try {
+      // Loaded on first use; it is only needed once someone shares.
+      const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(cardRef.current, {
         pixelRatio: 2,
         backgroundColor: darkActive ? "#18181b" : "#fffefa",

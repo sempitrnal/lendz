@@ -13,16 +13,23 @@ import {
   Clock,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { formatDate } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
-import AccountForm, {
+import {
   accountRowToFormInitial,
   type AccountEditableRow,
-} from "@/components/forms/account-form";
+} from "@/components/forms/account-form-initial";
 import {
   Dialog,
   DialogContent,
@@ -44,7 +51,12 @@ import {
 import dynamic from "next/dynamic";
 
 const NotesCanvas = dynamic(() => import("./notes-canvas"), { ssr: false });
-import ActivateAccountDialog from "./activate-account-dialog";
+// Only needed once a dialog or the notes grid is actually shown.
+const AccountForm = dynamic(() => import("@/components/forms/account-form"));
+const ActivateAccountDialog = dynamic(
+  () => import("./activate-account-dialog"),
+);
+const SortableNotesGrid = dynamic(() => import("./sortable-notes-grid"));
 import { AccountCard } from "./account-card";
 import type { InstallmentDot } from "@/lib/payment-schedule/installment-dots";
 import {
@@ -57,7 +69,6 @@ import {
 } from "@/lib/offline/pending-accounts";
 import { motion } from "framer-motion";
 import { StickyBorrowerStrip } from "./sticky-borrower-strip";
-import SortableNotesGrid from "./sortable-notes-grid";
 
 const groupVariants = {
   hidden: { opacity: 0, y: 24 },
@@ -230,6 +241,7 @@ type BorrowerAccountsSectionProps = {
   borrower?: BorrowerSummary;
   initialMetrics?: Record<string, AccountComputedMetrics>;
   deletedAccounts?: AccountRow[];
+  initialNotes?: Record<string, unknown>[] | null;
 };
 
 export default function BorrowerAccountsSection({
@@ -238,6 +250,7 @@ export default function BorrowerAccountsSection({
   borrower,
   initialMetrics,
   deletedAccounts = [],
+  initialNotes,
 }: BorrowerAccountsSectionProps) {
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountRow | null>(null);
@@ -280,6 +293,7 @@ export default function BorrowerAccountsSection({
           },
           accounts: (serverAccounts as any[]) ?? [],
           metrics: (initialMetrics as any) ?? {},
+          notes: initialNotes ?? undefined,
         }
       : undefined,
   );
@@ -318,6 +332,56 @@ export default function BorrowerAccountsSection({
   const accountMetricsById = (queryData?.metrics ??
     initialMetrics ??
     {}) as Record<string, AccountComputedMetrics>;
+
+  // Each kind of account in its own list, soonest due first. Recomputed only
+  // when the accounts or their metrics change, not on every render.
+  const groupedAccounts = useMemo(() => {
+    const list = accounts ?? [];
+    const dueTime = (a: AccountRow) => {
+      const date = accountMetricsById[a.id]?.nextCollectionDate;
+      return date ? new Date(date).getTime() : Infinity;
+    };
+    const bucket = (
+      pending: boolean,
+      cash: boolean,
+      mode: "auto" | "flat" | "rolling",
+    ) =>
+      list
+        .filter((a) => {
+          const manual = a.schedule_mode === "manual";
+          const rolling = manual && a.interest_type === "rolling";
+          return (
+            (a.status === "pending") === pending &&
+            (a.type === "cash_advance") === cash &&
+            (mode === "auto"
+              ? !manual
+              : mode === "rolling"
+                ? rolling
+                : manual && !rolling)
+          );
+        })
+        .sort((a, b) => dueTime(a) - dueTime(b));
+    return {
+      activeAutoLoans: bucket(false, false, "auto"),
+      activeManualFlatLoans: bucket(false, false, "flat"),
+      activeManualRollingLoans: bucket(false, false, "rolling"),
+      activeAutoCashAdvances: bucket(false, true, "auto"),
+      activeManualFlatCashAdvances: bucket(false, true, "flat"),
+      activeManualRollingCashAdvances: bucket(false, true, "rolling"),
+      pendingAutoAll: [
+        ...bucket(true, false, "auto"),
+        ...bucket(true, true, "auto"),
+      ],
+      pendingManualFlatAll: [
+        ...bucket(true, false, "flat"),
+        ...bucket(true, true, "flat"),
+      ],
+      pendingManualRollingAll: [
+        ...bucket(true, false, "rolling"),
+        ...bucket(true, true, "rolling"),
+      ],
+    };
+  }, [accounts, accountMetricsById]);
   const [restoringIds, setRestoringIds] = useState<Set<string>>(new Set());
   const [permaDeletingIds, setPermaDeletingIds] = useState<Set<string>>(
     new Set(),
@@ -572,6 +636,43 @@ export default function BorrowerAccountsSection({
   const handlePrefetchAccount = (id: string) => {
     router.prefetch(`/accounts/${id}`);
   };
+
+  // The cards are memoized, so they get handlers that keep one identity. They
+  // call through to the latest version of each function, set after each render.
+  const latestHandlers = useRef({
+    open: handleOpenAccount,
+    prefetch: handlePrefetchAccount,
+    toggleSelect: toggleAccountSelection,
+    toggleExpand: toggleAccountExpanded,
+  });
+  useEffect(() => {
+    latestHandlers.current = {
+      open: handleOpenAccount,
+      prefetch: handlePrefetchAccount,
+      toggleSelect: toggleAccountSelection,
+      toggleExpand: toggleAccountExpanded,
+    };
+  });
+  const stableOpenAccount = useCallback(
+    (id: string) => latestHandlers.current.open(id),
+    [],
+  );
+  const stablePrefetchAccount = useCallback(
+    (id: string) => latestHandlers.current.prefetch(id),
+    [],
+  );
+  const stableToggleSelect = useCallback(
+    (id: string) => latestHandlers.current.toggleSelect(id),
+    [],
+  );
+  const stableToggleExpand = useCallback(
+    (id: string) => latestHandlers.current.toggleExpand(id),
+    [],
+  );
+  const stableEditAccount = useCallback((acc: AccountRow) => {
+    setEditingAccount(acc);
+    setIsAccountDialogOpen(true);
+  }, []);
 
   const summaryStats = useMemo(() => {
     if (!accounts || accounts.length === 0) return null;
@@ -889,134 +990,17 @@ export default function BorrowerAccountsSection({
           </motion.div>
         ) : (
           (() => {
-            const sortByNextDue = (group: typeof accounts) =>
-              [...group].sort((a, b) => {
-                const ma = accountMetricsById[a.id];
-                const mb = accountMetricsById[b.id];
-                const da = ma?.nextCollectionDate
-                  ? new Date(ma.nextCollectionDate).getTime()
-                  : Infinity;
-                const db = mb?.nextCollectionDate
-                  ? new Date(mb.nextCollectionDate).getTime()
-                  : Infinity;
-                return da - db;
-              });
-            const activeAutoLoans = sortByNextDue(
-              accounts.filter(
-                (a) =>
-                  a.status !== "pending" &&
-                  a.type !== "cash_advance" &&
-                  a.schedule_mode !== "manual",
-              ),
-            );
-            const activeManualFlatLoans = sortByNextDue(
-              accounts.filter(
-                (a) =>
-                  a.status !== "pending" &&
-                  a.type !== "cash_advance" &&
-                  a.schedule_mode === "manual" &&
-                  (a as any).interest_type !== "rolling",
-              ),
-            );
-            const activeManualRollingLoans = sortByNextDue(
-              accounts.filter(
-                (a) =>
-                  a.status !== "pending" &&
-                  a.type !== "cash_advance" &&
-                  a.schedule_mode === "manual" &&
-                  (a as any).interest_type === "rolling",
-              ),
-            );
-            const activeAutoCashAdvances = sortByNextDue(
-              accounts.filter(
-                (a) =>
-                  a.status !== "pending" &&
-                  a.type === "cash_advance" &&
-                  a.schedule_mode !== "manual",
-              ),
-            );
-            const activeManualFlatCashAdvances = sortByNextDue(
-              accounts.filter(
-                (a) =>
-                  a.status !== "pending" &&
-                  a.type === "cash_advance" &&
-                  a.schedule_mode === "manual" &&
-                  (a as any).interest_type !== "rolling",
-              ),
-            );
-            const activeManualRollingCashAdvances = sortByNextDue(
-              accounts.filter(
-                (a) =>
-                  a.status !== "pending" &&
-                  a.type === "cash_advance" &&
-                  a.schedule_mode === "manual" &&
-                  (a as any).interest_type === "rolling",
-              ),
-            );
-            const pendingAutoLoans = sortByNextDue(
-              accounts.filter(
-                (a) =>
-                  a.status === "pending" &&
-                  a.type !== "cash_advance" &&
-                  a.schedule_mode !== "manual",
-              ),
-            );
-            const pendingManualFlatLoans = sortByNextDue(
-              accounts.filter(
-                (a) =>
-                  a.status === "pending" &&
-                  a.type !== "cash_advance" &&
-                  a.schedule_mode === "manual" &&
-                  (a as any).interest_type !== "rolling",
-              ),
-            );
-            const pendingManualRollingLoans = sortByNextDue(
-              accounts.filter(
-                (a) =>
-                  a.status === "pending" &&
-                  a.type !== "cash_advance" &&
-                  a.schedule_mode === "manual" &&
-                  (a as any).interest_type === "rolling",
-              ),
-            );
-            const pendingAutoCashAdvances = sortByNextDue(
-              accounts.filter(
-                (a) =>
-                  a.status === "pending" &&
-                  a.type === "cash_advance" &&
-                  a.schedule_mode !== "manual",
-              ),
-            );
-            const pendingManualFlatCashAdvances = sortByNextDue(
-              accounts.filter(
-                (a) =>
-                  a.status === "pending" &&
-                  a.type === "cash_advance" &&
-                  a.schedule_mode === "manual" &&
-                  (a as any).interest_type !== "rolling",
-              ),
-            );
-            const pendingManualRollingCashAdvances = sortByNextDue(
-              accounts.filter(
-                (a) =>
-                  a.status === "pending" &&
-                  a.type === "cash_advance" &&
-                  a.schedule_mode === "manual" &&
-                  (a as any).interest_type === "rolling",
-              ),
-            );
-            const pendingAutoAll = [
-              ...pendingAutoLoans,
-              ...pendingAutoCashAdvances,
-            ];
-            const pendingManualFlatAll = [
-              ...pendingManualFlatLoans,
-              ...pendingManualFlatCashAdvances,
-            ];
-            const pendingManualRollingAll = [
-              ...pendingManualRollingLoans,
-              ...pendingManualRollingCashAdvances,
-            ];
+            const {
+              activeAutoLoans,
+              activeManualFlatLoans,
+              activeManualRollingLoans,
+              activeAutoCashAdvances,
+              activeManualFlatCashAdvances,
+              activeManualRollingCashAdvances,
+              pendingAutoAll,
+              pendingManualFlatAll,
+              pendingManualRollingAll,
+            } = groupedAccounts;
 
             const renderGroup = (
               group: typeof accounts,
@@ -1026,7 +1010,9 @@ export default function BorrowerAccountsSection({
               group.length === 0 ? null : (
                 <motion.div
                   variants={groupVariants}
-                  initial="hidden"
+                  // Visible in the server HTML; "hidden" would leave the whole
+                  // list blank until the page hydrates.
+                  initial={false}
                   whileInView="visible"
                   viewport={{ once: true, margin: "-60px" }}
                 >
@@ -1064,26 +1050,23 @@ export default function BorrowerAccountsSection({
                         <motion.div
                           key={account.id}
                           variants={cardVariants}
-                          initial="hidden"
+                          initial={false}
                           animate="visible"
                         >
                           <AccountCard
                             account={account}
                             isOpening={openingAccountId === account.id}
-                            onOpen={handleOpenAccount}
-                            onPrefetch={handlePrefetchAccount}
-                            onEdit={(acc) => {
-                              setEditingAccount(acc);
-                              setIsAccountDialogOpen(true);
-                            }}
-                            onActivate={(acc) => setActivatingAccount(acc)}
+                            onOpen={stableOpenAccount}
+                            onPrefetch={stablePrefetchAccount}
+                            onEdit={stableEditAccount}
+                            onActivate={setActivatingAccount}
                             metrics={m}
                             selectionMode={selectionMode}
                             selected={selectedAccountIds.has(account.id)}
-                            onToggleSelect={toggleAccountSelection}
+                            onToggleSelect={stableToggleSelect}
                             expanded={isAccountExpanded(account.id)}
                             animateToggle={animateToggles}
-                            onToggleExpand={toggleAccountExpanded}
+                            onToggleExpand={stableToggleExpand}
                           />
                         </motion.div>
                       );

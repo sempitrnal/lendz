@@ -2,7 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { DEMO_USER, isDemoMode } from "@/lib/demo";
 
-export async function createSupabaseServer() {
+/**
+ * `frozenCookies` reads the request's cookies once, up front, for a client that
+ * will be used inside `after()`, where `cookies()` can no longer be called.
+ */
+export async function createSupabaseServer(
+  { frozenCookies = false }: { frozenCookies?: boolean } = {},
+) {
   if (isDemoMode()) {
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!serviceRoleKey) {
@@ -52,6 +58,7 @@ export async function createSupabaseServer() {
   }
 
   const cookieStore = await cookies();
+  const frozen = frozenCookies ? cookieStore.getAll() : null;
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,7 +66,7 @@ export async function createSupabaseServer() {
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll();
+          return frozen ?? cookieStore.getAll();
         },
         setAll(cookiesToSet) {
           try {

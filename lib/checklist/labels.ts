@@ -257,13 +257,31 @@ export type MentionSegment = {
   href: string | null;
 };
 
+/** Stands in while the borrower list loads, so memoized work keys on a stable array. */
+export const NO_BORROWERS: BorrowerSearchItem[] = [];
+
+/** Full-name lookups, built once per borrower list rather than once per label. */
+const namesByBorrowerList = new WeakMap<
+  BorrowerSearchItem[],
+  Map<string, BorrowerSearchItem>
+>();
+
+function borrowerNames(borrowers: BorrowerSearchItem[]) {
+  let names = namesByBorrowerList.get(borrowers);
+  if (!names) {
+    names = new Map(
+      borrowers.map((b) => [`${b.first_name} ${b.last_name}`, b]),
+    );
+    namesByBorrowerList.set(borrowers, names);
+  }
+  return names;
+}
+
 export function parseMentions(
   label: string,
   borrowers: BorrowerSearchItem[],
 ): MentionSegment[] {
-  const names = new Map(
-    borrowers.map((b) => [`${b.first_name} ${b.last_name}`, b]),
-  );
+  const names = borrowerNames(borrowers);
   const matches: MentionSegment[] = [];
 
   const mdRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
@@ -282,6 +300,9 @@ export function parseMentions(
 
   const nameMatches: MentionSegment[] = [];
   names.forEach((borrower, name) => {
+    // A whole-word match is also a substring match, and this is far cheaper
+    // than compiling a pattern for every borrower on every label.
+    if (!label.includes(name)) return;
     const re = new RegExp(`\\b${escapeRegex(name)}\\b`, "g");
     let m: RegExpExecArray | null;
     while ((m = re.exec(label)) !== null) {
@@ -372,6 +393,22 @@ export type CollectionRowModel = {
  * Returns null when the label has no linked collection lines.
  */
 export function collectionRowModel(
+  label: string,
+  checklistDate: string,
+): CollectionRowModel | null {
+  const key = `${checklistDate}\u0000${label}`;
+  if (rowModelCache.has(key)) return rowModelCache.get(key) ?? null;
+  const model = buildCollectionRowModel(label, checklistDate);
+  // Bounded: a long session shouldn't keep every label it ever showed.
+  if (rowModelCache.size >= 500) rowModelCache.clear();
+  rowModelCache.set(key, model);
+  return model;
+}
+
+/** Parsed rows by day and label, so a tap that changes one row doesn't re-parse them all. */
+const rowModelCache = new Map<string, CollectionRowModel | null>();
+
+function buildCollectionRowModel(
   label: string,
   checklistDate: string,
 ): CollectionRowModel | null {

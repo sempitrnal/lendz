@@ -28,16 +28,21 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import BorrowerForm from "@/components/forms/borrower-form";
-import AccountForm from "@/components/forms/account-form";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import { borrowerCategoryColor } from "@/lib/checklist/labels";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 
-const NotesCanvas = dynamic(() => import("@/components/borrower/notes-canvas"), {
-  ssr: false,
-});
+// The forms (react-hook-form, zod, schedule builders) load when a dialog opens,
+// not with every dashboard page this button sits on.
+const BorrowerForm = dynamic(() => import("@/components/forms/borrower-form"));
+const AccountForm = dynamic(() => import("@/components/forms/account-form"));
+const NotesCanvas = dynamic(
+  () => import("@/components/borrower/notes-canvas"),
+  {
+    ssr: false,
+  },
+);
 
 type Action = "borrower" | "account" | "note";
 
@@ -211,9 +216,7 @@ export function QuickActionsButton() {
                           >
                             {label}
                           </span>
-                          <span
-                            className="block text-xs text-muted-foreground"
-                          >
+                          <span className="block text-xs text-muted-foreground">
                             {hint}
                           </span>
                         </span>
@@ -252,8 +255,12 @@ export function QuickActionsButton() {
       >
         <DialogContent className="overflow-visible! sm:max-w-md">
           <DialogHeader className="pb-2">
-            <DialogTitle className="text-lg font-bold">Add borrower</DialogTitle>
-            <DialogDescription>Create a new borrower profile.</DialogDescription>
+            <DialogTitle className="text-lg font-bold">
+              Add borrower
+            </DialogTitle>
+            <DialogDescription>
+              Create a new borrower profile.
+            </DialogDescription>
           </DialogHeader>
           <BorrowerForm onSuccess={close} />
         </DialogContent>
@@ -292,10 +299,9 @@ export function QuickActionsButton() {
         onOpenChange={(open) => !open && close()}
       >
         <DialogContent
-          className="top-[1dvh] h-[98dvh] max-h-[98dvh]
-            max-w-[calc(100%-1rem)] translate-y-0 gap-2 rounded-xl p-2 pt-3
-            sm:top-1/2 sm:h-[95dvh] sm:max-h-[95dvh] sm:max-w-5xl
-            sm:-translate-y-1/2 sm:gap-4 sm:p-6"
+          className="top-[1dvh] h-[98dvh] max-h-[98dvh] max-w-[calc(100%-1rem)]
+            translate-y-0 gap-2 rounded-xl p-2 pt-3 sm:top-1/2 sm:h-[95dvh]
+            sm:max-h-[95dvh] sm:max-w-5xl sm:-translate-y-1/2 sm:gap-4 sm:p-6"
         >
           <div className="flex min-h-8 items-center pr-10 pl-1">
             <DialogHeader>

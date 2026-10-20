@@ -7,7 +7,6 @@ import {
   amountPaidOnInstallment,
   isInstallmentFullyPaid,
   nextCollectionsForDisplay,
-  nextDueScheduleForCollection,
   nextFutureScheduleForCollection,
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
@@ -16,7 +15,6 @@ import type {
   AccountComputedMetrics,
 } from "@/components/borrower/borrower-accounts-section";
 
-const PAGE_SIZE = 8;
 const ACCOUNT_ID_IN_CHUNK = 120;
 
 function createSupabaseAdmin() {
@@ -28,86 +26,6 @@ function createSupabaseAdmin() {
     );
   }
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey);
-}
-
-async function fetchBorrowersPageData(
-  currentPage: number,
-  searchQuery: string,
-  categoryIds: string[],
-) {
-  const from = (currentPage - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
-
-  const supabase = createSupabaseAdmin();
-
-  let borrowerIdsWithAccounts: string[] | undefined;
-  if (!searchQuery) {
-    const { data: accountRows } = await supabase
-      .from("accounts")
-      .select("borrower_id")
-      .not("borrower_id", "is", null)
-      .is("deleted_at", null);
-    borrowerIdsWithAccounts = [
-      ...new Set((accountRows ?? []).map((a) => a.borrower_id).filter(Boolean)),
-    ] as string[];
-  }
-
-  let query = supabase
-    .from("borrowers")
-    .select(
-      `*, borrower_categories ( category:categories ( id, name, color ) ), borrower_notes ( count )`,
-      { count: "exact" },
-    )
-    .is("deleted_at", null);
-
-  if (!searchQuery && borrowerIdsWithAccounts) {
-    if (borrowerIdsWithAccounts.length > 0) {
-      query = query.in("id", borrowerIdsWithAccounts);
-    } else {
-      query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
-    }
-  }
-
-  if (searchQuery) {
-    const pattern = `%${searchQuery}%`;
-    query = query.or(
-      `first_name.ilike.${pattern},last_name.ilike.${pattern},contact.ilike.${pattern}`,
-    );
-  }
-
-  if (categoryIds.length > 0) {
-    const { data: bcRows } = await supabase
-      .from("borrower_categories")
-      .select("borrower_id")
-      .in("category_id", categoryIds);
-    const matchingIds = [...new Set((bcRows ?? []).map((r) => r.borrower_id))];
-    if (matchingIds.length > 0) {
-      query = query.in("id", matchingIds);
-    } else {
-      query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
-    }
-  }
-
-  const {
-    data: borrowerRows,
-    error: borrowerError,
-    count,
-  } = await query.order("created_at", { ascending: false }).range(from, to);
-
-  if (borrowerError) {
-    throw borrowerError;
-  }
-
-  const totalCount = count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const rawBorrowers = (borrowerRows ?? []) as Borrower[];
-  const enrichedBorrowers = await enrichBorrowerBatch(supabase, rawBorrowers);
-
-  return {
-    borrowers: enrichedBorrowers,
-    totalCount,
-    totalPages,
-  };
 }
 
 async function enrichBorrowerBatch(
@@ -165,7 +83,7 @@ async function enrichBorrowerBatch(
   // which overflows Node's fetch past ~350 ids) and paginate each chunk so no
   // borrower is truncated by a single-query limit.
   const batchSize = 1000;
-  const scheduleRows: Array<{
+  type ScheduleRow = {
     id: string;
     account_id: string;
     due_date: string;
@@ -173,9 +91,9 @@ async function enrichBorrowerBatch(
     amount_paid: number | null;
     remaining_amount: number | null;
     status: string;
-  }> = [];
-  for (let c = 0; c < allAccountIds.length; c += ACCOUNT_ID_IN_CHUNK) {
-    const chunk = allAccountIds.slice(c, c + ACCOUNT_ID_IN_CHUNK);
+  };
+  const loadChunk = async (chunk: string[]) => {
+    const out: ScheduleRow[] = [];
     let from = 0;
     while (true) {
       const { data: batch, error } = await supabase
@@ -192,11 +110,18 @@ async function enrichBorrowerBatch(
         break;
       }
       if (!batch || batch.length === 0) break;
-      scheduleRows.push(...(batch as typeof scheduleRows));
+      out.push(...(batch as ScheduleRow[]));
       if (batch.length < batchSize) break;
       from += batchSize;
     }
+    return out;
+  };
+  const chunks: string[][] = [];
+  for (let c = 0; c < allAccountIds.length; c += ACCOUNT_ID_IN_CHUNK) {
+    chunks.push(allAccountIds.slice(c, c + ACCOUNT_ID_IN_CHUNK));
   }
+  // The chunks are independent, so they load side by side.
+  const scheduleRows = (await Promise.all(chunks.map(loadChunk))).flat();
   // Chunks are each sorted; restore the global due_date order across them.
   scheduleRows.sort(
     (a, b) => a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id),
@@ -327,19 +252,14 @@ async function enrichBorrowerBatch(
   });
 }
 
-export const getBorrowersPageData = unstable_cache(
-  fetchBorrowersPageData,
-  ["borrowers-page"],
-  { revalidate: 60, tags: ["borrowers"] },
-);
-
 async function fetchAllBorrowersData() {
   const supabase = createSupabaseAdmin();
 
   const { data: borrowerRows, error: borrowerError } = await supabase
     .from("borrowers")
+    // Named columns: `*` would also drag along the notes canvas JSON.
     .select(
-      `*, borrower_categories ( category:categories ( id, name, color ) ), borrower_notes ( count )`,
+      `id, first_name, last_name, contact, created_at, borrower_categories ( category:categories ( id, name, color ) ), borrower_notes ( count )`,
     )
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
@@ -348,7 +268,7 @@ async function fetchAllBorrowersData() {
     throw borrowerError;
   }
 
-  const rawBorrowers = (borrowerRows ?? []) as Borrower[];
+  const rawBorrowers = (borrowerRows ?? []) as unknown as Borrower[];
   return enrichBorrowerBatch(supabase, rawBorrowers);
 }
 
@@ -380,11 +300,40 @@ async function fetchBorrowerById(id: string) {
   return borrower;
 }
 
-export const getBorrowerById = unstable_cache(
-  fetchBorrowerById,
-  ["borrower-by-id"],
-  { revalidate: 60, tags: ["borrowers"] },
-);
+export function getBorrowerById(id: string) {
+  return unstable_cache(fetchBorrowerById, ["borrower-by-id"], {
+    revalidate: 60,
+    tags: ["borrowers", `borrower-${id}`],
+  })(id);
+}
+
+/**
+ * A borrower's notes, newest arrangement first. Uncached: notes are edited and
+ * reordered in place, and the page keeps them fresh through its own query.
+ */
+export async function getBorrowerNotes(
+  borrowerId: string,
+): Promise<Record<string, unknown>[] | null> {
+  const supabase = createSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("borrower_notes")
+    .select("*")
+    .eq("borrower_id", borrowerId)
+    .order("sort_order", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: false });
+  if (!error) return data ?? [];
+
+  // Older databases don't have sort_order yet.
+  if (error.message.includes("sort_order")) {
+    const fallback = await supabase
+      .from("borrower_notes")
+      .select("*")
+      .eq("borrower_id", borrowerId)
+      .order("created_at", { ascending: false });
+    return fallback.error ? null : (fallback.data ?? []);
+  }
+  return null;
+}
 
 async function fetchBorrowerAccountsWithSchedules(borrowerId: string) {
   const supabase = createSupabaseAdmin();
@@ -400,16 +349,32 @@ async function fetchBorrowerAccountsWithSchedules(borrowerId: string) {
   const initialMetrics: Record<string, AccountComputedMetrics> = {};
 
   if (accountList.length > 0) {
-    const { data: schedulesData } = await supabase
-      .from("payment_schedules")
-      .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
-      )
-      .in(
-        "account_id",
-        accountList.map((a) => a.id),
-      )
-      .order("due_date", { ascending: true });
+    const accountIds = accountList.map((a) => a.id);
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const monthStart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const nextMonthStart = `${nextMonth.getFullYear()}-${pad(nextMonth.getMonth() + 1)}-01`;
+
+    // Independent of each other, and the payments are cut to this month in the
+    // database instead of loading every payment ever recorded.
+    const [{ data: schedulesData }, { data: paymentsData }] = await Promise.all(
+      [
+        supabase
+          .from("payment_schedules")
+          .select(
+            "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status",
+          )
+          .in("account_id", accountIds)
+          .order("due_date", { ascending: true }),
+        supabase
+          .from("schedule_payments")
+          .select("amount, payment_schedules!inner(account_id)")
+          .in("payment_schedules.account_id", accountIds)
+          .gte("payment_date", monthStart)
+          .lt("payment_date", nextMonthStart),
+      ],
+    );
 
     const scheduleRows = schedulesData ?? [];
     const byAccount = new Map<string, typeof scheduleRows>();
@@ -419,38 +384,24 @@ async function fetchBorrowerAccountsWithSchedules(borrowerId: string) {
       byAccount.set(row.account_id, prev);
     });
 
-    const scheduleIds = scheduleRows.map((row) => row.id);
     const paymentsByAccount = new Map<string, number>();
-    if (scheduleIds.length > 0) {
-      const { data: paymentsData } = await supabase
-        .from("schedule_payments")
-        .select("schedule_id, amount, payment_date")
-        .in("schedule_id", scheduleIds);
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth();
-      for (const payment of (paymentsData ?? []) as {
-        schedule_id: string;
-        amount: number | null;
-        payment_date: string | null;
-      }[]) {
-        if (!payment.payment_date || payment.amount == null) continue;
-        const paymentDate = new Date(payment.payment_date);
-        if (
-          paymentDate.getFullYear() !== currentYear ||
-          paymentDate.getMonth() !== currentMonth
-        ) {
-          continue;
-        }
-        const accountId = scheduleRows.find(
-          (row) => row.id === payment.schedule_id,
-        )?.account_id;
-        if (!accountId) continue;
-        paymentsByAccount.set(
-          accountId,
-          (paymentsByAccount.get(accountId) ?? 0) + Number(payment.amount),
-        );
-      }
+    for (const payment of (paymentsData ?? []) as unknown as {
+      amount: number | null;
+      payment_schedules:
+        | { account_id: string }
+        | { account_id: string }[]
+        | null;
+    }[]) {
+      if (payment.amount == null) continue;
+      const schedule = Array.isArray(payment.payment_schedules)
+        ? payment.payment_schedules[0]
+        : payment.payment_schedules;
+      if (!schedule) continue;
+      paymentsByAccount.set(
+        schedule.account_id,
+        (paymentsByAccount.get(schedule.account_id) ?? 0) +
+          Number(payment.amount),
+      );
     }
 
     accountList.forEach((account) => {
@@ -561,11 +512,16 @@ async function fetchBorrowerAccountsWithSchedules(borrowerId: string) {
   return { accountList, initialMetrics };
 }
 
-export const getBorrowerAccountsWithSchedules = unstable_cache(
-  fetchBorrowerAccountsWithSchedules,
-  ["borrower-accounts"],
-  { revalidate: 60, tags: ["borrower-accounts"] },
-);
+export function getBorrowerAccountsWithSchedules(borrowerId: string) {
+  return unstable_cache(
+    fetchBorrowerAccountsWithSchedules,
+    ["borrower-accounts"],
+    {
+      revalidate: 60,
+      tags: ["borrower-accounts", `borrower-accounts-${borrowerId}`],
+    },
+  )(borrowerId);
+}
 
 async function fetchDeletedBorrowers() {
   const supabase = createSupabaseAdmin();

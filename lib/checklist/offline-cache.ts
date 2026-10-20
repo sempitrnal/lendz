@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
+import { shareInFlight } from "@/lib/offline/in-flight";
 import { getPendingOutboxCount } from "@/lib/offline/outbox";
 import { todayDateValue } from "@/lib/checklist/dates";
 import { readStored, writeStored } from "@/lib/offline/storage";
@@ -30,9 +31,17 @@ export function readCachedItems(date: string): DailyChecklistItem[] | null {
   return readStored<DailyChecklistItem[]>(ITEMS_PREFIX + date);
 }
 
+/** Old days are swept at most this often; every edit writes the day. */
+const PRUNE_EVERY_MS = 60 * 60 * 1000;
+let lastPrunedAt = 0;
+
 export function writeCachedItems(date: string, items: DailyChecklistItem[]) {
   writeStored(ITEMS_PREFIX + date, items);
-  pruneOldDays();
+  const now = Date.now();
+  if (now - lastPrunedAt >= PRUNE_EVERY_MS) {
+    lastPrunedAt = now;
+    pruneOldDays();
+  }
 }
 
 function pruneOldDays() {
@@ -66,7 +75,11 @@ export function wasQueuedOffline(error: unknown): boolean {
   );
 }
 
-export async function fetchChecklistCategories(): Promise<{
+export function fetchChecklistCategories() {
+  return shareInFlight("checklist-categories", loadChecklistCategories);
+}
+
+async function loadChecklistCategories(): Promise<{
   categories: ChecklistCategory[];
   error: { message: string } | null;
 }> {
@@ -78,7 +91,13 @@ export async function fetchChecklistCategories(): Promise<{
   return { categories: (data ?? []) as ChecklistCategory[], error };
 }
 
-export async function fetchChecklistItems(date: string): Promise<{
+export function fetchChecklistItems(date: string) {
+  return shareInFlight(`checklist-items:${date}`, () =>
+    loadChecklistItems(date),
+  );
+}
+
+async function loadChecklistItems(date: string): Promise<{
   items: DailyChecklistItem[];
   error: { message: string } | null;
 }> {

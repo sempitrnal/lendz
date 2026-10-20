@@ -5,13 +5,19 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import {
+  FONT_SCALE_STORAGE_KEY,
+  MAX_FONT_SCALE,
+  MIN_FONT_SCALE,
+} from "@/lib/font-scale";
 
-const STORAGE_KEY = "font-scale";
-const MIN_SCALE = 1;
-const MAX_SCALE = 1.6;
+const STORAGE_KEY = FONT_SCALE_STORAGE_KEY;
+const MIN_SCALE = MIN_FONT_SCALE;
+const MAX_SCALE = MAX_FONT_SCALE;
 const STEP = 0.1;
 
 type FontSizeContextValue = {
@@ -47,7 +53,14 @@ export function FontSizeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // The first run would write the default 1 over the size the head script
+  // already applied, for a frame, before the saved size is read below.
+  const appliedOnce = useRef(false);
   useEffect(() => {
+    if (!appliedOnce.current) {
+      appliedOnce.current = true;
+      return;
+    }
     document.documentElement.style.setProperty("--font-scale", String(scale));
   }, [scale]);
 

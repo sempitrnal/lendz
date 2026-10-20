@@ -155,6 +155,10 @@ self.addEventListener("fetch", (event) => {
   // Network-first: Supabase REST/storage (cross-origin data).
   // Auth and realtime traffic must always hit the network.
   if (url.hostname.includes("supabase.co")) {
+    // Account revisions are whole snapshots of an account (JSON) and only
+    // used while reverting, which needs a good connection anyway: saving each
+    // response would fill the data cache with large entries nobody reads.
+    if (url.pathname.startsWith("/rest/v1/account_revisions")) return;
     if (
       url.pathname.startsWith("/rest/v1/") ||
       url.pathname.startsWith("/storage/v1/")

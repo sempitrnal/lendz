@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBorrowerSearchList } from "@/lib/cache/borrowers";
+import { getSignedInUserId } from "@/lib/supabase/session";
 
 export type BorrowerSearchItem = {
   id: string;
@@ -17,6 +18,10 @@ export type BorrowerSearchItem = {
 };
 
 export async function GET() {
+  // Reads with the service role, so the session is checked here.
+  if (!(await getSignedInUserId())) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  }
   try {
     const data = await getBorrowerSearchList();
     return NextResponse.json(data as BorrowerSearchItem[]);

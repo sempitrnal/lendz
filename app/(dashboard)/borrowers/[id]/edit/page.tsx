@@ -12,17 +12,19 @@ export default async function EditBorrowerPage({
   const { id } = await params;
   const supabase = await createSupabaseServer();
 
-  const { data: borrower, error } = await supabase
-    .from("borrowers")
-    .select("*")
-    .eq("id", id)
-    .is("deleted_at", null)
-    .single();
-
-  const { data: categoryLinks } = await supabase
-    .from("borrower_categories")
-    .select("category_id")
-    .eq("borrower_id", id);
+  const [{ data: borrower, error }, { data: categoryLinks }] =
+    await Promise.all([
+      supabase
+        .from("borrowers")
+        .select("id, first_name, last_name, contact")
+        .eq("id", id)
+        .is("deleted_at", null)
+        .single(),
+      supabase
+        .from("borrower_categories")
+        .select("category_id")
+        .eq("borrower_id", id),
+    ]);
 
   if (error || !borrower) {
     notFound();

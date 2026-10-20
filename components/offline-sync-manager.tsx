@@ -123,7 +123,8 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
         const [{ data: borrowers }, { data: accounts }, { data: categories }] =
           await Promise.all([
             supabase.from("borrowers").select("id").is("deleted_at", null),
-            supabase.from("accounts").select("id"),
+            // Deleted accounts 404, so saving their pages is wasted work.
+            supabase.from("accounts").select("id").is("deleted_at", null),
             supabase.from("categories").select("id"),
           ]);
         if (cancelled) return;

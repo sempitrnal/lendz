@@ -38,6 +38,7 @@ import { getPendingOutboxCount } from "@/lib/offline/outbox";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import {
   borrowerCategoryColor,
+  NO_BORROWERS,
   extractBorrowerMention,
   extractScheduleRefs,
   formatShortDate,
@@ -270,11 +271,15 @@ export function ScheduleCheckDialog({
   mode = "check",
   onClose,
   onConfirmed,
+  onFailed,
 }: {
   item: DailyChecklistItem | null;
   mode?: "check" | "edit";
   onClose: () => void;
+  /** Called as soon as the choices are applied locally, before the server answers. */
   onConfirmed: () => void;
+  /** Called if the server then rejects them, to undo whatever onConfirmed did. */
+  onFailed?: () => void;
 }) {
   const [rows, setRows] = useState<ScheduleDialogRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -289,7 +294,7 @@ export function ScheduleCheckDialog({
     [item?.id, item?.label],
   );
   const borrowerName = borrower?.name;
-  const { data: borrowers = [] } = useBorrowersSearch();
+  const { data: borrowers = NO_BORROWERS } = useBorrowersSearch();
   const borrowerColor = useMemo(
     () => borrowerCategoryColor(borrowers.find((b) => b.id === borrower?.id)),
     [borrowers, borrower?.id],
@@ -306,8 +311,9 @@ export function ScheduleCheckDialog({
     // Keyed on schedule ids (known immediately) so it runs in parallel with
     // the row fetch instead of waiting for it.
     enabled: open && scheduleIds.length > 0,
-    // Show cached numbers instantly but refresh each time the dialog opens.
-    staleTime: 0,
+    // Cached numbers show instantly; reopening within a short while doesn't
+    // refetch, and a saved payment invalidates the query anyway.
+    staleTime: 30_000,
     placeholderData: () => readCachedSummaries(scheduleIds) ?? undefined,
   });
   const accountGroups = useMemo(() => {
@@ -410,66 +416,80 @@ export function ScheduleCheckDialog({
   const undoRows = rows.filter((row) => choices[row.id]?.status === "undo");
 
   const handleConfirm = async () => {
+    // Everything is read up front: the dialog's state resets once it closes.
+    const payments = chosenPayments();
+    const undone = undoRows;
+    const accountIds = [...new Set(rows.map((r) => r.account_id))];
+    const paidIds = rows
+      .filter(
+        (row) => choices[row.id]?.status === "paid" && row.status !== "paid",
+      )
+      .map((row) => row.id);
+    const partials = rows.flatMap((row) => {
+      const choice = choices[row.id];
+      if (choice?.status !== "partial") return [];
+      const amt = Number.parseFloat(choice.amount || "0");
+      return Number.isFinite(amt) && amt > 0 ? [{ id: row.id, amt }] : [];
+    });
+    const undoCalls = undone.map((row) => ({
+      accountId: row.account_id,
+      scheduleId: row.id,
+      // Same reset as the account page's "pending": clears what was paid and
+      // its payment records. Once past its due date it is overdue instead.
+      status: row.due_date < overdueCutoffDateValue() ? "overdue" : "pending",
+    }));
+
     setSubmitting(true);
     const queuedBefore = await getPendingOutboxCount();
+
+    // Show the result now. Line statuses read the saved schedules, so those are
+    // updated here and the row is ticked; the server catches up below, and a
+    // failure puts both back.
+    undoPaymentsInCache(undone.map((r) => r.id));
+    applyPaymentsToCache(payments);
+    toast.success(
+      undone.length > 0 && payments.length === 0
+        ? `Undid ${undone.length} payment${undone.length === 1 ? "" : "s"}`
+        : "Payment schedule updated",
+    );
+    onConfirmed();
+
     try {
-      const paidIds = rows
-        .filter(
-          (row) => choices[row.id]?.status === "paid" && row.status !== "paid",
-        )
-        .map((row) => row.id);
       await Promise.all([
         paidIds.length > 0
           ? markSchedulesPaidAction(paidIds, todayDateValue())
           : Promise.resolve(),
-        ...rows.map(async (row) => {
-          const choice = choices[row.id];
-          if (choice?.status === "partial") {
-            const amt = Number.parseFloat(choice.amount || "0");
-            if (!Number.isFinite(amt) || amt <= 0) return;
-            const fd = new FormData();
-            fd.set("scheduleId", row.id);
-            fd.set("paymentAmount", String(amt));
-            fd.set("paymentDate", todayDateValue());
-            await applyPartialPaymentAction(fd);
-          }
-        }),
-        // Same reset as the account page's "pending": clears what was paid
-        // and its payment records. Once past its due date it is overdue instead.
-        ...undoRows.map((row) => {
+        ...partials.map(async ({ id, amt }) => {
           const fd = new FormData();
-          fd.set("scheduleId", row.id);
-          fd.set(
-            "status",
-            row.due_date < overdueCutoffDateValue() ? "overdue" : "pending",
-          );
-          return updateScheduleStatusAction(row.account_id, fd);
+          fd.set("scheduleId", id);
+          fd.set("paymentAmount", String(amt));
+          fd.set("paymentDate", todayDateValue());
+          await applyPartialPaymentAction(fd);
+        }),
+        ...undoCalls.map(({ accountId, scheduleId, status }) => {
+          const fd = new FormData();
+          fd.set("scheduleId", scheduleId);
+          fd.set("status", status);
+          return updateScheduleStatusAction(accountId, fd);
         }),
       ]);
-      // Line statuses read the saved schedules: update them now, then
-      // re-download so they match what the server actually recorded.
-      undoPaymentsInCache(undoRows.map((r) => r.id));
-      applyPaymentsToCache(chosenPayments());
-      void refreshCachedAccounts(rows.map((r) => r.account_id)).catch(() => {});
+      // Re-download so the saved copy matches what the server recorded.
+      void refreshCachedAccounts(accountIds).catch(() => {});
       if (borrower) invalidateBorrowerDetails(borrower.id);
       queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
-      toast.success(
-        undoRows.length > 0 && chosenPayments().length === 0
-          ? `Undid ${undoRows.length} payment${undoRows.length === 1 ? "" : "s"}`
-          : "Payment schedule updated",
-      );
-      onConfirmed();
     } catch (err) {
       if (await actionWasQueued(queuedBefore)) {
-        // The service worker queued the action calls; show them as done.
-        undoPaymentsInCache(undoRows.map((r) => r.id));
-        applyPaymentsToCache(chosenPayments());
+        // The service worker queued the action calls; they sync later and the
+        // local result stands.
         queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
-        onConfirmed();
         return;
       }
       console.error("ScheduleCheckDialog confirm error:", err);
-      toast.error("Failed to update payment schedule");
+      // Put the saved numbers back to what the server has.
+      void refreshCachedAccounts(accountIds).catch(() => {});
+      queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
+      onFailed?.();
+      toast.error("Couldn't save the payment — it has been undone");
     } finally {
       setSubmitting(false);
     }

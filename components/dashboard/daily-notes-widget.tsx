@@ -46,13 +46,16 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
-import AccountForm from "@/components/forms/account-form";
+import dynamic from "next/dynamic";
+
+const AccountForm = dynamic(() => import("@/components/forms/account-form"));
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import {
   parseReleasedLabel,
   type ParsedReleasedLabel,
 } from "@/lib/checklist/released";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
+import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import type {
   ChecklistCategory,
   DailyChecklistItem,
@@ -62,6 +65,7 @@ import {
   buildDueLabel,
   collectionRowModel,
   groupByBorrowerCategory,
+  NO_BORROWERS,
   extractBorrowerMention,
   extractScheduleRefs,
   parseExistingNext,
@@ -146,11 +150,111 @@ async function fetchDueGroups(
   return ((await res.json()) as { groups: DueChecklistGroup[] }).groups;
 }
 
+/** Coming back to the tab refetches the day only after being away this long. */
+const VISIBLE_REFETCH_AFTER_MS = 30_000;
+
+/** A realtime change to a checklist row, as far as the echo check reads it. */
+type ItemChangePayload = {
+  eventType: "INSERT" | "UPDATE" | "DELETE";
+  new: Partial<DailyChecklistItem> & { id?: string };
+  old: { id?: string };
+};
+
+/** True when the change is already what the screen shows (our own write). */
+function isEchoOfLocalState(
+  payload: ItemChangePayload,
+  current: DailyChecklistItem[],
+) {
+  if (payload.eventType === "DELETE") {
+    return !current.some((row) => row.id === payload.old?.id);
+  }
+  const next = payload.new;
+  const local = current.find((row) => row.id === next?.id);
+  if (!local) return false;
+  return (
+    local.label === next.label &&
+    local.is_checked === next.is_checked &&
+    Number(local.sort_order) === Number(next.sort_order) &&
+    (local.category_id ?? null) === (next.category_id ?? null)
+  );
+}
+
 const CHECKED_MENU_ITEM =
   "flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted";
 
 const ICON_BUTTON =
   "inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground";
+
+/**
+ * The "add item" input and its button. The typed text lives here, so a
+ * keystroke re-renders this and not every row of the section.
+ */
+function AddItemBar({
+  category,
+  date,
+  borrowers,
+  getBorrowerNextAmounts,
+  onAdd,
+}: {
+  category: ChecklistCategory | null;
+  date: string;
+  borrowers: BorrowerSearchItem[];
+  getBorrowerNextAmounts: (borrowerId: string) => Promise<BorrowerNextData>;
+  onAdd: (
+    label: string,
+    categoryId: string | null,
+    date: string,
+    checked?: boolean,
+  ) => Promise<void>;
+}) {
+  const [newLabel, setNewLabel] = useState("");
+  const [saving, setSaving] = useState(false);
+  const addInputRef = useRef<ChecklistInputHandle>(null);
+
+  const handleAdd = async (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    setSaving(true);
+    await onAdd(trimmed, category?.id ?? null, date);
+    setSaving(false);
+    setNewLabel("");
+    addInputRef.current?.clear();
+  };
+
+  return (
+    <div className="flex items-end gap-2 px-3 py-3 sm:px-4">
+      <div className="min-w-0 flex-1">
+        <ChecklistInput
+          ref={addInputRef}
+          defaultValue=""
+          onChange={setNewLabel}
+          onSubmit={handleAdd}
+          placeholder={`Add item${category ? ` to ${category.name}` : ""}…`}
+          borrowers={borrowers}
+          getBorrowerNextAmounts={getBorrowerNextAmounts}
+          // The payment is already recorded, so its row goes in ticked.
+          onManualPayment={(label) =>
+            void onAdd(label, category?.id ?? null, date, true)
+          }
+          showPesoButton
+        />
+      </div>
+      <button
+        type="button"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => addInputRef.current?.submit()}
+        disabled={saving || !newLabel.trim()}
+        aria-label="Add item"
+        title="Add item"
+        className="inline-flex size-10 shrink-0 items-center justify-center
+          rounded-xl bg-foreground text-background transition-opacity
+          duration-200 hover:opacity-80 disabled:opacity-30"
+      >
+        <ArrowUp className="size-4" />
+      </button>
+    </div>
+  );
+}
 
 function CategorySection({
   category,
@@ -187,8 +291,6 @@ function CategorySection({
   onCheckMany: (ids: string[]) => void;
 }) {
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [newLabel, setNewLabel] = useState("");
-  const [saving, setSaving] = useState(false);
   const [populating, setPopulating] = useState(false);
   const [editingItem, setEditingItem] = useState<DailyChecklistItem | null>(
     null,
@@ -207,7 +309,6 @@ function CategorySection({
   } | null>(null);
   const router = useRouter();
   const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
-  const addInputRef = useRef<ChecklistInputHandle>(null);
   const editInputRef = useRef<ChecklistInputHandle>(null);
   const [expanded, setExpanded] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
@@ -220,7 +321,7 @@ function CategorySection({
       else next.add(key);
       return next;
     });
-  const { data: borrowers = [] } = useBorrowersSearch();
+  const { data: borrowers = NO_BORROWERS } = useBorrowersSearch();
 
   const getBorrowerNextAmounts = useCallback(
     async (borrowerId: string): Promise<BorrowerNextData> => {
@@ -317,16 +418,6 @@ function CategorySection({
       ),
     [sorted],
   );
-
-  const handleAdd = async (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    setSaving(true);
-    await onAdd(trimmed, category?.id ?? null, date);
-    setSaving(false);
-    setNewLabel("");
-    addInputRef.current?.clear();
-  };
 
   const handleEditSave = (value: string) => {
     if (!editingItem) return;
@@ -554,38 +645,13 @@ function CategorySection({
 
       {expanded && (
         <>
-          <div className="flex items-end gap-2 px-3 py-3 sm:px-4">
-            <div className="min-w-0 flex-1">
-              <ChecklistInput
-                ref={addInputRef}
-                defaultValue=""
-                onChange={setNewLabel}
-                onSubmit={handleAdd}
-                placeholder={`Add item${category ? ` to ${category.name}` : ""}…`}
-                borrowers={borrowers}
-                getBorrowerNextAmounts={getBorrowerNextAmounts}
-                // The payment is already recorded, so its row goes in ticked.
-                onManualPayment={(label) =>
-                  void onAdd(label, category?.id ?? null, date, true)
-                }
-                showPesoButton
-              />
-            </div>
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => addInputRef.current?.submit()}
-              disabled={saving || !newLabel.trim()}
-              aria-label="Add item"
-              title="Add item"
-              className="inline-flex size-10 shrink-0 items-center
-                justify-center rounded-xl bg-foreground text-background
-                transition-opacity duration-200 hover:opacity-80
-                disabled:opacity-30"
-            >
-              <ArrowUp className="size-4" />
-            </button>
-          </div>
+          <AddItemBar
+            category={category}
+            date={date}
+            borrowers={borrowers}
+            getBorrowerNextAmounts={getBorrowerNextAmounts}
+            onAdd={onAdd}
+          />
 
           {sorted.length === 0 ? (
             <div className="px-3 pb-4 sm:px-4">
@@ -971,6 +1037,13 @@ function CategorySection({
           // Editing a ticked row's payments leaves the tick as it is.
           if (item && scheduleCheckMode === "check") onToggle(item);
         }}
+        onFailed={() => {
+          // The server refused it after the row was ticked: untick it again.
+          const item = scheduleCheckItem;
+          if (item && scheduleCheckMode === "check") {
+            onToggle({ ...item, is_checked: !item.is_checked });
+          }
+        }}
       />
 
       <Dialog
@@ -1099,8 +1172,13 @@ export default function DailyNotesWidget() {
     }
   };
 
+  // Categories don't depend on the day, so they load once.
+  const categoriesRequested = useRef(false);
   useEffect(() => {
-    void loadCategories();
+    if (!categoriesRequested.current) {
+      categoriesRequested.current = true;
+      void loadCategories();
+    }
     void loadItems(date);
   }, [date]);
 
@@ -1145,7 +1223,11 @@ export default function DailyNotesWidget() {
           table: "daily_checklist_items",
           filter: `checklist_date=eq.${date}`,
         },
-        () => {
+        (payload: ItemChangePayload) => {
+          // Our own write comes back as an event too. If the screen already
+          // matches it there is nothing to fetch, and a fetch could land
+          // before the write commits and undo it.
+          if (isEchoOfLocalState(payload, itemsRef.current)) return;
           if (refreshTimerRef.current) {
             window.clearTimeout(refreshTimerRef.current);
           }
@@ -1156,10 +1238,17 @@ export default function DailyNotesWidget() {
       )
       .subscribe();
 
+    // The channel keeps the list current; only a long absence (when it may
+    // have dropped) is worth a refetch on return.
+    let hiddenAt: number | null = null;
     const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        void loadItems(date, false);
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
       }
+      const awayFor = hiddenAt === null ? Infinity : Date.now() - hiddenAt;
+      hiddenAt = null;
+      if (awayFor >= VISIBLE_REFETCH_AFTER_MS) void loadItems(date, false);
     };
     document.addEventListener("visibilitychange", onVisible);
 

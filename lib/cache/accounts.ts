@@ -75,17 +75,36 @@ async function fetchAccountDetailPageData(
 ): Promise<AccountDetailData> {
   const supabase = createSupabaseAdmin();
 
-  const { data: account, error: accountError } = await supabase
-    .from("accounts")
-    .select(
-      "id, borrower_id, type, status, release_date, principal_amount, interest_rate, term_months, payment_frequency, schedule_mode, interest_type, first_payment_date, created_at",
-    )
-    .eq("id", id)
-    .is("deleted_at", null)
-    .single();
+  // Schedules only need the account id, so they load alongside the account,
+  // with each schedule's payments embedded instead of a separate query.
+  const [accountRes, schedulesRes] = await Promise.all([
+    supabase
+      .from("accounts")
+      .select(
+        "id, borrower_id, type, status, release_date, principal_amount, interest_rate, term_months, payment_frequency, schedule_mode, interest_type, first_payment_date, calculate_skipped_schedules, created_at",
+      )
+      .eq("id", id)
+      .is("deleted_at", null)
+      .single(),
+    supabase
+      .from("payment_schedules")
+      .select(
+        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, paid_date, status, schedule_payments(id, schedule_id, amount, payment_date, note, created_at)",
+      )
+      .eq("account_id", id)
+      .order("due_date", { ascending: true })
+      .order("created_at", {
+        referencedTable: "schedule_payments",
+        ascending: true,
+      }),
+  ]);
 
-  if (accountError || !account) {
+  const account = accountRes.data;
+  if (accountRes.error || !account) {
     throw new Error("Account not found");
+  }
+  if (schedulesRes.error) {
+    throw new Error(schedulesRes.error.message);
   }
 
   const { data: borrower } = await supabase
@@ -97,68 +116,32 @@ async function fetchAccountDetailPageData(
     .is("deleted_at", null)
     .single();
 
-  let schedulesData: unknown[] | null = null;
-  {
-    const res = await supabase
-      .from("payment_schedules")
-      .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, paid_date, status",
-      )
-      .eq("account_id", account.id)
-      .order("due_date", { ascending: true });
-    if (res.error) {
-      const fb1 = await supabase
-        .from("payment_schedules")
-        .select(
-          "id, account_id, due_date, amount_due, amount_paid, remaining_amount, note, status",
-        )
-        .eq("account_id", account.id)
-        .order("due_date", { ascending: true });
-      if (fb1.error) {
-        const fb2 = await supabase
-          .from("payment_schedules")
-          .select("id, account_id, due_date, amount_due, status")
-          .eq("account_id", account.id)
-          .order("due_date", { ascending: true });
-        schedulesData = (fb2.data ?? []) as unknown[];
-      } else {
-        schedulesData = fb1.data ?? [];
-      }
-    } else {
-      schedulesData = res.data ?? [];
-    }
-  }
-
-  const scheduleIds = ((schedulesData ?? []) as { id: string }[]).map(
-    (s) => s.id,
-  );
   const paymentsMap: Record<string, SchedulePaymentRow[]> = {};
-  if (scheduleIds.length > 0) {
-    const { data: paymentsData } = await supabase
-      .from("schedule_payments")
-      .select("id, schedule_id, amount, payment_date, note, created_at")
-      .in("schedule_id", scheduleIds)
-      .order("created_at", { ascending: true });
-    for (const p of (paymentsData ?? []) as SchedulePaymentRow[]) {
-      const list = paymentsMap[p.schedule_id] ?? [];
-      list.push(p);
-      paymentsMap[p.schedule_id] = list;
-    }
+  const schedules: PaymentScheduleRow[] = [];
+  for (const row of schedulesRes.data ?? []) {
+    const { schedule_payments, ...schedule } = row as PaymentScheduleRow & {
+      schedule_payments: SchedulePaymentRow[] | null;
+    };
+    schedules.push(schedule);
+    if (schedule_payments?.length) paymentsMap[schedule.id] = schedule_payments;
   }
 
   return {
     account: account as AccountRow,
     borrower: borrower as BorrowerRow | null,
-    schedules: (schedulesData ?? []) as PaymentScheduleRow[],
+    schedules,
     paymentsMap,
   };
 }
 
-export const getAccountDetailPageData = unstable_cache(
-  fetchAccountDetailPageData,
-  ["account-detail"],
-  {
+/**
+ * Tagged per account as well, so a payment on one account expires only that
+ * account's page (`account-<id>`, which the schedule actions and the overdue
+ * cron already target), while `account-detail` still expires them all.
+ */
+export function getAccountDetailPageData(id: string) {
+  return unstable_cache(fetchAccountDetailPageData, ["account-detail"], {
     revalidate: 60,
-    tags: ["account-detail"],
-  },
-);
+    tags: ["account-detail", `account-${id}`],
+  })(id);
+}

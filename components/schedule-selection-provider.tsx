@@ -5,6 +5,7 @@ import {
   useContext,
   useState,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
 
@@ -21,7 +22,11 @@ type SelectionCtx = {
 
 const Context = createContext<SelectionCtx | null>(null);
 
-export function ScheduleSelectionProvider({ children }: { children: ReactNode }) {
+export function ScheduleSelectionProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isEditing, setIsEditingState] = useState(false);
 
@@ -49,25 +54,34 @@ export function ScheduleSelectionProvider({ children }: { children: ReactNode })
 
   const isSelected = useCallback(
     (id: string) => selectedIds.has(id),
-    [selectedIds]
+    [selectedIds],
   );
 
-  return (
-    <Context.Provider
-      value={{
-        selectedIds,
-        isEditing,
-        setIsEditing,
-        toggleId,
-        selectAll,
-        clearAll,
-        isSelected,
-        hasSelection: selectedIds.size > 0,
-      }}
-    >
-      {children}
-    </Context.Provider>
+  // One value object until the selection really changes, so a re-render of
+  // the page above doesn't re-render every row that reads it.
+  const value = useMemo(
+    () => ({
+      selectedIds,
+      isEditing,
+      setIsEditing,
+      toggleId,
+      selectAll,
+      clearAll,
+      isSelected,
+      hasSelection: selectedIds.size > 0,
+    }),
+    [
+      selectedIds,
+      isEditing,
+      setIsEditing,
+      toggleId,
+      selectAll,
+      clearAll,
+      isSelected,
+    ],
   );
+
+  return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
 export function useScheduleSelection(): SelectionCtx {

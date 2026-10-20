@@ -10,6 +10,7 @@ import { extractScheduleRefs } from "@/lib/checklist/labels";
 import { overdueCutoffDateValue } from "@/lib/checklist/dates";
 import { readStored, writeStored } from "@/lib/offline/storage";
 import { getPendingOutboxCount } from "@/lib/offline/outbox";
+import { shareInFlight } from "@/lib/offline/in-flight";
 
 /**
  * Data behind the checklist's payment dialogs ("Update payment status" and
@@ -65,8 +66,33 @@ type AccountWithSchedules = SummaryAccountRow & {
 
 // --- Local store ---
 
+/**
+ * The parsed blob per key, with the raw string it came from. Callers treat the
+ * returned map as read-only; a writer copies it first. Many components
+ * read these maps on every change, and parsing the whole map each time adds up;
+ * comparing the raw string still picks up writes from other tabs.
+ */
+const parsedMaps = new Map<
+  string,
+  { raw: string; map: Record<string, Stamped<unknown>> }
+>();
+
 function readMap<T>(key: string): Record<string, Stamped<T>> {
-  return readStored<Record<string, Stamped<T>>>(key) ?? {};
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(key);
+  } catch {
+    // Storage unavailable: behaves as empty, like readStored.
+  }
+  if (!raw) {
+    parsedMaps.delete(key);
+    return {};
+  }
+  const hit = parsedMaps.get(key);
+  if (hit?.raw === raw) return hit.map as Record<string, Stamped<T>>;
+  const map = readStored<Record<string, Stamped<T>>>(key) ?? {};
+  parsedMaps.set(key, { raw, map });
+  return map;
 }
 
 // --- Change notifications (for UI reading the cache, e.g. line statuses) ---
@@ -98,7 +124,8 @@ export function scheduleCacheVersion() {
 
 function mergeMap<T>(key: string, entries: Record<string, T>) {
   const now = Date.now();
-  const map = readMap<T>(key);
+  // A copy: the parsed map is shared with every reader and is never mutated.
+  const map = { ...readMap<T>(key) };
   for (const [id, value] of Object.entries(entries)) {
     map[id] = { ...value, cachedAt: now };
   }
@@ -286,6 +313,13 @@ export async function warmScheduleCache(labels: string[]) {
     ...new Set(labels.flatMap((l) => extractScheduleRefs(l).map((r) => r.id))),
   ];
   if (ids.length === 0) return;
+  // The offline warm-up and the checklist both do this on load.
+  await shareInFlight(`warm-schedules:${[...ids].sort().join(",")}`, () =>
+    downloadSchedules(ids),
+  );
+}
+
+async function downloadSchedules(ids: string[]) {
   await Promise.all([
     fetchSchedules(ids),
     // The summary embed filters with `in`, so keep its URL bounded too.
@@ -328,7 +362,7 @@ export async function refreshCachedAccounts(
   const kept = new Set(fresh.map((r) => r.id));
   const gone = ids.filter((id) => !kept.has(id));
   if (gone.length > 0) {
-    const map = readMap<ScheduleDialogRow>(SCHEDULES_KEY);
+    const map = { ...readMap<ScheduleDialogRow>(SCHEDULES_KEY) };
     for (const id of gone) delete map[id];
     writeStored(SCHEDULES_KEY, map);
     notifyChange();

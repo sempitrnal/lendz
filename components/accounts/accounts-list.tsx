@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { memo, useDeferredValue, useMemo, useState } from "react";
 
 import { formFieldInputClassName } from "@/lib/form-field-classes";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
@@ -69,7 +69,11 @@ function categorySearchBlob(a: AccountListItem) {
   return cats.map((bc) => (bc.category?.name ?? "").toLowerCase()).join(" ");
 }
 
-function AccountCatalogCard({ account }: { account: AccountListItem }) {
+const AccountCatalogCard = memo(function AccountCatalogCard({
+  account,
+}: {
+  account: AccountListItem;
+}) {
   const name = borrowerLabel(account);
   const scheduleType = scheduleTypeKey(account);
   const freq =
@@ -363,7 +367,7 @@ function AccountCatalogCard({ account }: { account: AccountListItem }) {
       )}
     </Link>
   );
-}
+});
 
 export default function AccountsList({
   accounts,
@@ -420,7 +424,9 @@ export default function AccountsList({
     return m;
   }, [accounts]);
 
-  const normalizedSearch = search.trim().toLowerCase();
+  // The box stays responsive while the card grid catches up with the text.
+  const deferredSearch = useDeferredValue(search);
+  const normalizedSearch = deferredSearch.trim().toLowerCase();
 
   const filtered = useMemo(() => {
     return accounts.filter((a) => {

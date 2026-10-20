@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import BorrowerAccountsAsync from "@/components/borrower/borrower-accounts-async";
 import BorrowerEditForm, {
   type BorrowerEditFormProps,
@@ -23,7 +24,16 @@ export default function BorrowerEditView({
         />
       </div>
 
-      <BorrowerAccountsAsync borrowerId={borrowerId} />
+      <Suspense
+        fallback={
+          <div
+            className="h-40 animate-pulse rounded-2xl bg-slate-100
+              dark:bg-slate-800/50"
+          />
+        }
+      >
+        <BorrowerAccountsAsync borrowerId={borrowerId} />
+      </Suspense>
     </div>
   );
 }

@@ -30,15 +30,23 @@ export async function fetchBorrowerDetails(
   return res.json();
 }
 
+/**
+ * `seed` is what the server already rendered. With its notes included it counts
+ * as the query's first result, so opening the page doesn't fetch it all again;
+ * without notes it only stands in while the fetch runs.
+ */
 export function useBorrowerDetails(
   borrowerId: string,
-  placeholderData?: BorrowerDetailsResponse,
+  seed?: BorrowerDetailsResponse,
 ) {
+  const seeded = seed?.notes !== undefined;
   return useQuery({
     queryKey: borrowerDetailsQueryKey(borrowerId),
     queryFn: () => fetchBorrowerDetails(borrowerId),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    placeholderData,
+    initialData: seeded ? seed : undefined,
+    initialDataUpdatedAt: seeded ? () => Date.now() : undefined,
+    placeholderData: seeded ? undefined : seed,
   });
 }
 

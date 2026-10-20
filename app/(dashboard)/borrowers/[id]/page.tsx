@@ -3,6 +3,7 @@ import {
   getBorrowerById,
   getBorrowerAccountsWithSchedules,
   getDeletedAccountsForBorrower,
+  getBorrowerNotes,
 } from "@/lib/cache/borrowers";
 import { notFound } from "next/navigation";
 
@@ -16,11 +17,13 @@ export default async function BorrowerPage({ params }: BorrowerPageProps) {
   const { id } = await params;
 
   try {
-    const [borrower, { accountList, initialMetrics }, deletedAccounts] =
+    const [borrower, { accountList, initialMetrics }, deletedAccounts, notes] =
       await Promise.all([
         getBorrowerById(id),
         getBorrowerAccountsWithSchedules(id),
         getDeletedAccountsForBorrower(id),
+        // The client loads them itself if this comes back null.
+        getBorrowerNotes(id).catch(() => null),
       ]);
 
     if (!borrower) {
@@ -33,6 +36,7 @@ export default async function BorrowerPage({ params }: BorrowerPageProps) {
         accounts={accountList}
         initialMetrics={initialMetrics}
         deletedAccounts={deletedAccounts}
+        initialNotes={notes}
       />
     );
   } catch {

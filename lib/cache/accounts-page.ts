@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 import { isInstallmentFullyPaid } from "@/lib/payment-schedule/schedule-balances";
 
 function createSupabaseAdmin() {
@@ -62,7 +63,7 @@ export type AccountsPageData = {
   })[];
 };
 
-export async function getAccountsPageData(): Promise<AccountsPageData> {
+async function fetchAccountsPageData(): Promise<AccountsPageData> {
   const supabase = createSupabaseAdmin();
 
   const { data, error } = await supabase
@@ -156,8 +157,14 @@ export async function getAccountsPageData(): Promise<AccountsPageData> {
       due_date: string;
     }[] = [];
 
+    const chunks: string[][] = [];
     for (let c = 0; c < accountIds.length; c += ACCOUNT_ID_IN_CHUNK) {
-      const chunk = accountIds.slice(c, c + ACCOUNT_ID_IN_CHUNK);
+      chunks.push(accountIds.slice(c, c + ACCOUNT_ID_IN_CHUNK));
+    }
+
+    // Each chunk pages through its own schedules; the chunks run side by side.
+    const loadChunk = async (chunk: string[]) => {
+      const out: typeof all = [];
       let from = 0;
       for (;;) {
         const { data: schedData, error: schedError } = await supabase
@@ -166,24 +173,23 @@ export async function getAccountsPageData(): Promise<AccountsPageData> {
             "account_id, status, amount_due, amount_paid, remaining_amount, due_date",
           )
           .in("account_id", chunk)
+          // Paging by range needs a stable order or pages can overlap.
+          .order("id")
           .range(from, from + PAYMENT_SCHEDULE_PAGE_SIZE - 1);
 
         if (schedError) {
           console.error(schedError);
           break;
         }
-        const rows = (schedData ?? []) as {
-          account_id: string;
-          status: string;
-          amount_due: number | null;
-          amount_paid: number | null;
-          remaining_amount: number | null;
-          due_date: string;
-        }[];
-        all.push(...rows);
+        const rows = (schedData ?? []) as typeof all;
+        out.push(...rows);
         if (rows.length < PAYMENT_SCHEDULE_PAGE_SIZE) break;
         from += PAYMENT_SCHEDULE_PAGE_SIZE;
       }
+      return out;
+    };
+    for (const rows of await Promise.all(chunks.map(loadChunk))) {
+      all.push(...rows);
     }
 
     const byAccount = new Map<
@@ -265,3 +271,15 @@ export async function getAccountsPageData(): Promise<AccountsPageData> {
 
   return { rows };
 }
+
+/**
+ * Cached like the borrower pages. Everything that changes an account or its
+ * schedules already expires the `accounts-page` tag (schedule actions, account
+ * edits, the overdue cron), so this is fresh after a change and otherwise
+ * skips the heavy read.
+ */
+export const getAccountsPageData = unstable_cache(
+  fetchAccountsPageData,
+  ["accounts-page"],
+  { revalidate: 60, tags: ["accounts-page"] },
+);

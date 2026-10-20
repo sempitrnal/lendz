@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { PageTransition } from "@/components/page-transition";
 import { Manrope } from "next/font/google";
 import MobileTopBar from "@/components/mobile-top-bar";
 import { ScrollRestoration } from "@/components/scroll-restoration";
@@ -12,6 +11,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
 import { getSignedInUserId } from "@/lib/supabase/session";
+import { FONT_SCALE_INIT_SCRIPT } from "@/lib/font-scale";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -32,19 +32,35 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({
+/**
+ * The pieces that need to know whether someone is signed in. They resolve on
+ * their own, so the page doesn't wait on the session check before it starts
+ * to render.
+ */
+async function SessionAwareClients() {
+  const signedIn = (await getSignedInUserId()) !== null;
+  return (
+    <>
+      <OfflineSyncManager enabled={signedIn} />
+      <MobileTopBar isLoggedIn={signedIn} />
+    </>
+  );
+}
+
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const signedIn = (await getSignedInUserId()) !== null;
-
   return (
     <html
       lang="en"
       suppressHydrationWarning
       className={`${manrope.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: FONT_SCALE_INIT_SCRIPT }} />
+      </head>
       <body className="bg-background text-foreground flex min-h-full flex-col">
         <ThemeProvider>
           <Suspense fallback={null}>
@@ -52,13 +68,12 @@ export default async function RootLayout({
           </Suspense>
           <ServiceWorkerRegistrar />
           <ConnectionMonitor />
-          <OfflineSyncManager enabled={signedIn} />
           <OfflineIndicator />
 
-          <PageTransition>{children}</PageTransition>
+          {children}
 
           <Suspense fallback={null}>
-            <MobileTopBar isLoggedIn={signedIn} />
+            <SessionAwareClients />
           </Suspense>
           <Toaster />
         </ThemeProvider>

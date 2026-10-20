@@ -35,15 +35,17 @@ import {
 import { snapshotAccount } from "@/lib/accounts/revisions";
 import { isConnectionGood } from "@/lib/offline/connection";
 
+export {
+  isoDateOnlyForInput,
+  accountRowToFormInitial,
+  type AccountEditableRow,
+} from "@/components/forms/account-form-initial";
+import { isoDateOnlyForInput } from "@/components/forms/account-form-initial";
+
 function ordinalSuffix(n: number): string {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
-export function isoDateOnlyForInput(iso: string | null | undefined): string {
-  if (!iso) return "";
-  return iso.slice(0, 10);
 }
 
 type AccountFormProps = {
@@ -76,52 +78,6 @@ const emptyDefaults = (borrowerId: string): AccountFormValues => ({
   status: "active",
   calculate_skipped_schedules: false,
 });
-
-export type AccountEditableRow = {
-  type: string;
-  principal_amount: number | string | null;
-  interest_rate: number | string | null;
-  term_months: number | string | null;
-  release_date: string | null;
-  first_payment_date: string | null;
-  payment_frequency: string | null;
-  term_installments: number | string | null;
-  schedule_mode: string | null;
-  calculate_skipped_schedules?: boolean | null;
-  interest_type?: string | null;
-  status?: string | null;
-};
-
-export function accountRowToFormInitial(
-  account: AccountEditableRow,
-): Partial<AccountFormValues> {
-  const frequencies = ["weekly", "monthly", "bimonthly", "custom"] as const;
-  const raw = account.payment_frequency ?? "";
-  const payment_frequency = frequencies.includes(
-    raw as (typeof frequencies)[number],
-  )
-    ? (raw as AccountFormValues["payment_frequency"])
-    : "bimonthly";
-
-  const t = account.type === "cash_advance" ? "cash_advance" : "loan";
-
-  const scheduleMode = account.schedule_mode === "manual" ? "manual" : "auto";
-
-  return {
-    type: t,
-    principal_amount: Number(account.principal_amount ?? 0),
-    interest_rate: Number(account.interest_rate ?? 0),
-    term_months: Number(account.term_months ?? 1),
-    release_date: isoDateOnlyForInput(account.release_date),
-    first_payment_date: isoDateOnlyForInput(account.first_payment_date),
-    payment_frequency,
-    schedule_mode: scheduleMode,
-    calculate_skipped_schedules: false,
-    interest_type: account.interest_type === "rolling" ? "rolling" : "flat",
-    status:
-      (account.status as AccountFormValues["status"] | undefined) ?? "active",
-  } as Partial<AccountFormValues>;
-}
 
 export default function AccountForm({
   borrowerId,
@@ -189,8 +145,7 @@ export default function AccountForm({
 
   // Editing: what the existing schedules already have paid, so the form can
   // offer to keep those payments when the dates change.
-  const [rescheduleMode, setRescheduleMode] =
-    useState<RescheduleMode>("carry");
+  const [rescheduleMode, setRescheduleMode] = useState<RescheduleMode>("carry");
   const [carried, setCarried] = useState<{
     paid: number;
     partial: number;
@@ -223,7 +178,9 @@ export default function AccountForm({
       // can't be queued offline.
       if (regenerate && !isConnectionGood()) {
         triggerHaptic("error");
-        toast.error("Editing schedules needs a good connection — try again online.");
+        toast.error(
+          "Editing schedules needs a good connection — try again online.",
+        );
         return;
       }
 
@@ -291,15 +248,15 @@ export default function AccountForm({
       if (plan) {
         // Existing rows move in place (ids, payments and checklist links
         // stay); extra installments are added; unpaid leftovers removed.
-        const steps: Array<() => PromiseLike<{ error: { message: string } | null }>> = [];
+        const steps: Array<
+          () => PromiseLike<{ error: { message: string } | null }>
+        > = [];
         if (plan.updates.length) {
           steps.push(() =>
-            supabase
-              .from("payment_schedules")
-              .upsert(
-                plan.updates.map((u) => ({ ...u, account_id: accountId })),
-                { onConflict: "id" },
-              ),
+            supabase.from("payment_schedules").upsert(
+              plan.updates.map((u) => ({ ...u, account_id: accountId })),
+              { onConflict: "id" },
+            ),
           );
         }
         if (plan.deletes.length) {
@@ -1185,65 +1142,60 @@ export default function AccountForm({
         </>
       )}
 
-      {isEdit &&
-        !isManual &&
-        carried &&
-        carried.paid + carried.partial > 0 && (
-          <fieldset className="space-y-2">
-            <legend className={formFieldLabelClassName}>
-              Existing payments
-            </legend>
-            {(
-              [
-                {
-                  mode: "carry",
-                  title: "Keep them on the new dates",
-                  hint: `${carried.paid} paid${
-                    carried.partial ? ` and ${carried.partial} partial` : ""
-                  } installment${
-                    carried.paid + carried.partial === 1 ? "" : "s"
-                  } move in order (1st to 1st, 2nd to 2nd) with their payments.`,
-                },
-                {
-                  mode: "reset",
-                  title: "Start over",
-                  hint: "Every installment starts unpaid; recorded payments are removed.",
-                },
-              ] as const
-            ).map((option) => (
-              <label
-                key={option.mode}
-                className={`flex cursor-pointer gap-3 rounded-xl border p-3
-                  transition ${
-                    rescheduleMode === option.mode
-                      ? "border-primary bg-primary/5"
-                      : "border-border"
-                  }`}
-              >
-                <input
-                  type="radio"
-                  name="reschedule-mode"
-                  className="mt-1 accent-[var(--primary)]"
-                  checked={rescheduleMode === option.mode}
-                  onChange={() => setRescheduleMode(option.mode)}
-                />
-                <span>
-                  <span className="block text-sm font-semibold">
-                    {option.title}
-                    {option.mode === "carry" && (
-                      <span className="ml-1.5 text-xs font-medium text-primary">
-                        recommended
-                      </span>
-                    )}
-                  </span>
-                  <span className="block text-xs text-muted-foreground">
-                    {option.hint}
-                  </span>
+      {isEdit && !isManual && carried && carried.paid + carried.partial > 0 && (
+        <fieldset className="space-y-2">
+          <legend className={formFieldLabelClassName}>Existing payments</legend>
+          {(
+            [
+              {
+                mode: "carry",
+                title: "Keep them on the new dates",
+                hint: `${carried.paid} paid${
+                  carried.partial ? ` and ${carried.partial} partial` : ""
+                } installment${
+                  carried.paid + carried.partial === 1 ? "" : "s"
+                } move in order (1st to 1st, 2nd to 2nd) with their payments.`,
+              },
+              {
+                mode: "reset",
+                title: "Start over",
+                hint: "Every installment starts unpaid; recorded payments are removed.",
+              },
+            ] as const
+          ).map((option) => (
+            <label
+              key={option.mode}
+              className={`flex cursor-pointer gap-3 rounded-xl border p-3
+              transition ${
+                rescheduleMode === option.mode
+                  ? "border-primary bg-primary/5"
+                  : "border-border"
+              }`}
+            >
+              <input
+                type="radio"
+                name="reschedule-mode"
+                className="mt-1 accent-[var(--primary)]"
+                checked={rescheduleMode === option.mode}
+                onChange={() => setRescheduleMode(option.mode)}
+              />
+              <span>
+                <span className="block text-sm font-semibold">
+                  {option.title}
+                  {option.mode === "carry" && (
+                    <span className="ml-1.5 text-xs font-medium text-primary">
+                      recommended
+                    </span>
+                  )}
                 </span>
-              </label>
-            ))}
-          </fieldset>
-        )}
+                <span className="block text-xs text-muted-foreground">
+                  {option.hint}
+                </span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+      )}
 
       <Button
         type="submit"

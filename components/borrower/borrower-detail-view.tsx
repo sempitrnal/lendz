@@ -27,6 +27,8 @@ type BorrowerDetailViewProps = {
   accounts: AccountRow[];
   initialMetrics: Record<string, AccountComputedMetrics>;
   deletedAccounts?: AccountRow[];
+  /** Rendered with the page; null when they couldn't be loaded here. */
+  initialNotes?: Record<string, unknown>[] | null;
 };
 
 export default function BorrowerDetailView({
@@ -34,6 +36,7 @@ export default function BorrowerDetailView({
   accounts,
   initialMetrics,
   deletedAccounts = [],
+  initialNotes,
 }: BorrowerDetailViewProps) {
   return (
     <BorrowerAccountsSection
@@ -42,6 +45,7 @@ export default function BorrowerDetailView({
       accounts={accounts}
       initialMetrics={initialMetrics}
       deletedAccounts={deletedAccounts}
+      initialNotes={initialNotes}
     />
   );
 }

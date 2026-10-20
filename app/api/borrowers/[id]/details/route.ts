@@ -10,6 +10,30 @@ import {
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
 
+async function loadNotes(
+  supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
+  borrowerId: string,
+) {
+  const { data, error } = await supabase
+    .from("borrower_notes")
+    .select("*")
+    .eq("borrower_id", borrowerId)
+    .order("sort_order", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: false });
+  if (!error) return data ?? [];
+
+  // Older databases don't have sort_order yet.
+  if (error.message.includes("sort_order")) {
+    const { data: fallback } = await supabase
+      .from("borrower_notes")
+      .select("*")
+      .eq("borrower_id", borrowerId)
+      .order("created_at", { ascending: false });
+    return fallback ?? [];
+  }
+  return [];
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -17,43 +41,79 @@ export async function GET(
   const { id: borrowerId } = await params;
   const supabase = await createSupabaseServer();
 
-  // Fetch borrower basic info
-  const { data: borrower, error: borrowerError } = await supabase
-    .from("borrowers")
-    .select("id, first_name, last_name, contact, created_at")
-    .eq("id", borrowerId)
-    .single();
+  // The borrower, their accounts and their notes don't depend on each other.
+  const [borrowerRes, accountsRes, notes] = await Promise.all([
+    supabase
+      .from("borrowers")
+      .select("id, first_name, last_name, contact, created_at")
+      .eq("id", borrowerId)
+      .single(),
+    supabase
+      .from("accounts")
+      .select(
+        "id, borrower_id, type, principal_amount, created_at, release_date, schedule_mode, interest_type, interest_rate, term_months, payment_frequency, term_installments, status, first_payment_date, calculate_skipped_schedules",
+      )
+      .eq("borrower_id", borrowerId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false }),
+    loadNotes(supabase, borrowerId),
+  ]);
 
-  if (borrowerError || !borrower) {
+  const borrower = borrowerRes.data;
+  if (borrowerRes.error || !borrower) {
     return NextResponse.json({ error: "Borrower not found" }, { status: 404 });
   }
 
-  // Fetch accounts for this borrower
-  const { data: accountsData } = await supabase
-    .from("accounts")
-    .select(
-      "id, borrower_id, type, principal_amount, created_at, release_date, schedule_mode, interest_type, interest_rate, term_months, payment_frequency, term_installments, status, first_payment_date, calculate_skipped_schedules",
-    )
-    .eq("borrower_id", borrowerId)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+  const accountList = accountsRes.data ?? [];
 
-  const accountList = accountsData ?? [];
-
-  // Fetch schedules for these accounts
+  // Schedules for these accounts, and this month's payments toward them.
   let schedules: Record<string, unknown>[] = [];
+  const paymentsByAccount = new Map<string, number>();
   if (accountList.length > 0) {
-    const { data: schedulesData } = await supabase
-      .from("payment_schedules")
-      .select(
-        "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status, paid_date",
-      )
-      .in(
-        "account_id",
-        accountList.map((a) => a.id),
-      )
-      .order("due_date", { ascending: true });
+    const accountIds = accountList.map((a) => a.id);
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const monthStart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const nextMonthStart = `${nextMonth.getFullYear()}-${pad(nextMonth.getMonth() + 1)}-01`;
+
+    const [{ data: schedulesData }, { data: paymentsData }] = await Promise.all(
+      [
+        supabase
+          .from("payment_schedules")
+          .select(
+            "id, account_id, due_date, amount_due, amount_paid, remaining_amount, status, paid_date",
+          )
+          .in("account_id", accountIds)
+          .order("due_date", { ascending: true }),
+        supabase
+          .from("schedule_payments")
+          .select("amount, payment_schedules!inner(account_id)")
+          .in("payment_schedules.account_id", accountIds)
+          .gte("payment_date", monthStart)
+          .lt("payment_date", nextMonthStart),
+      ],
+    );
     schedules = schedulesData ?? [];
+
+    for (const payment of (paymentsData ?? []) as unknown as {
+      amount: number | null;
+      payment_schedules:
+        | { account_id: string }
+        | { account_id: string }[]
+        | null;
+    }[]) {
+      if (payment.amount == null) continue;
+      const schedule = Array.isArray(payment.payment_schedules)
+        ? payment.payment_schedules[0]
+        : payment.payment_schedules;
+      if (!schedule) continue;
+      paymentsByAccount.set(
+        schedule.account_id,
+        (paymentsByAccount.get(schedule.account_id) ?? 0) +
+          Number(payment.amount),
+      );
+    }
   }
 
   const byAccount = new Map<string, typeof schedules>();
@@ -61,42 +121,6 @@ export async function GET(
     const list = byAccount.get(row.account_id as string) ?? [];
     list.push(row);
     byAccount.set(row.account_id as string, list);
-  }
-
-  // Compute amount paid this month per account from schedule_payments
-  const scheduleIds = schedules.map((s) => s.id as string);
-  const paymentsByAccount = new Map<string, number>();
-  if (scheduleIds.length > 0) {
-    const { data: paymentsData } = await supabase
-      .from("schedule_payments")
-      .select("schedule_id, amount, payment_date")
-      .in("schedule_id", scheduleIds);
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-    for (const payment of (paymentsData ?? []) as {
-      schedule_id: string;
-      amount: number | null;
-      payment_date: string | null;
-    }[]) {
-      if (!payment.payment_date || payment.amount == null) continue;
-      const paymentDate = new Date(payment.payment_date);
-      if (
-        paymentDate.getFullYear() !== currentYear ||
-        paymentDate.getMonth() !== currentMonth
-      ) {
-        continue;
-      }
-      const accountId = schedules.find(
-        (s) => s.id === payment.schedule_id,
-      )?.account_id;
-      if (!accountId) continue;
-      paymentsByAccount.set(
-        accountId as string,
-        (paymentsByAccount.get(accountId as string) ?? 0) +
-          Number(payment.amount),
-      );
-    }
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -196,25 +220,6 @@ export async function GET(
       term_installments: account.term_installments,
       schedule_mode: account.schedule_mode,
     };
-  }
-
-  // Fetch notes
-  const { data: notesData, error: notesError } = await supabase
-    .from("borrower_notes")
-    .select("*")
-    .eq("borrower_id", borrowerId)
-    .order("sort_order", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: false });
-
-  let notes = notesData ?? [];
-
-  if (notesError && notesError.message.includes("sort_order")) {
-    const { data: fallbackNotes } = await supabase
-      .from("borrower_notes")
-      .select("*")
-      .eq("borrower_id", borrowerId)
-      .order("created_at", { ascending: false });
-    notes = fallbackNotes ?? [];
   }
 
   return NextResponse.json({

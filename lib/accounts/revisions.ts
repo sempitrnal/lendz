@@ -35,17 +35,47 @@ const RESTORED_ACCOUNT_FIELDS = [
   "calculate_skipped_schedules",
 ] as const;
 
-async function loadState(accountId: string) {
-  const [{ data: account, error: e1 }, { data: schedules, error: e2 }] =
-    await Promise.all([
-      supabase.from("accounts").select("*").eq("id", accountId).single(),
-      supabase.from("payment_schedules").select("*").eq("account_id", accountId),
-    ]);
+/** Snapshots beyond this many per account are dropped, oldest first. */
+const KEEP_REVISIONS = 20;
+
+type State = { account: Row; schedules: Row[]; payments: Row[] };
+
+async function loadState(accountId: string): Promise<State> {
+  // Schedules with their payments in one request; the account alongside.
+  const [{ data: account, error: e1 }, embedded] = await Promise.all([
+    supabase.from("accounts").select("*").eq("id", accountId).single(),
+    supabase
+      .from("payment_schedules")
+      .select("*, schedule_payments(*)")
+      .eq("account_id", accountId),
+  ]);
   if (e1 || !account) throw new Error(e1?.message ?? "Account not found");
+
+  if (!embedded.error) {
+    const schedules: Row[] = [];
+    const payments: Row[] = [];
+    for (const raw of (embedded.data ?? []) as (Row & {
+      schedule_payments?: Row[] | null;
+    })[]) {
+      const { schedule_payments, ...schedule } = raw;
+      schedules.push(schedule as Row);
+      payments.push(...(schedule_payments ?? []));
+    }
+    return { account: account as Row, schedules, payments };
+  }
+
+  // The embed was rejected: read schedules, then their payments, as before.
+  const { data: schedules, error: e2 } = await supabase
+    .from("payment_schedules")
+    .select("*")
+    .eq("account_id", accountId);
   if (e2) throw new Error(e2.message);
   const ids = ((schedules ?? []) as Row[]).map((s) => s.id);
   const { data: payments, error: e3 } = ids.length
-    ? await supabase.from("schedule_payments").select("*").in("schedule_id", ids)
+    ? await supabase
+        .from("schedule_payments")
+        .select("*")
+        .in("schedule_id", ids)
     : { data: [], error: null };
   if (e3) throw new Error(e3.message);
   return {
@@ -70,7 +100,26 @@ export async function snapshotAccount(accountId: string, reason: string) {
         : `Can't save a backup of this account first: ${error.message}`,
     );
   }
+  void pruneRevisions(accountId);
   return state;
+}
+
+/** Keeps the newest snapshots; a failure here must never fail the edit. */
+async function pruneRevisions(accountId: string) {
+  try {
+    const { data } = await supabase
+      .from("account_revisions")
+      .select("id")
+      .eq("account_id", accountId)
+      .order("created_at", { ascending: false })
+      .range(KEEP_REVISIONS, KEEP_REVISIONS + 99);
+    const old = (data ?? []).map((r: { id: string }) => r.id);
+    if (old.length) {
+      await supabase.from("account_revisions").delete().in("id", old);
+    }
+  } catch {
+    // Old snapshots just stay a little longer.
+  }
 }
 
 /** The newest snapshot not yet restored, or null. */
@@ -94,8 +143,16 @@ export async function paymentsSince(
   accountId: string,
   revision: AccountRevision,
 ): Promise<number> {
-  const { payments } = await loadState(accountId);
   const kept = new Set(revision.payments.map((p) => p.id));
+  // Only the ids are needed to count what the snapshot doesn't have.
+  const { data, error } = await supabase
+    .from("schedule_payments")
+    .select("id, payment_schedules!inner(account_id)")
+    .eq("payment_schedules.account_id", accountId);
+  if (!error) {
+    return (data ?? []).filter((p: { id: string }) => !kept.has(p.id)).length;
+  }
+  const { payments } = await loadState(accountId);
   return payments.filter((p) => !kept.has(p.id)).length;
 }
 

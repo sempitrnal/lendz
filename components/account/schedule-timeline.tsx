@@ -1,6 +1,12 @@
 "use client";
 
-import { Fragment, useOptimistic, useState, useTransition } from "react";
+import {
+  Fragment,
+  useMemo,
+  useOptimistic,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { triggerHaptic } from "@/lib/haptics";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -223,21 +229,26 @@ export function ScheduleTimeline({
   );
   const today = todayDateValue();
 
-  const indexed = all.map((s, i) => ({ s, i }));
-  const paidRows = indexed.filter((x) => x.s.status === "paid");
-  const partialRows = indexed.filter((x) => x.s.status === "partial");
-  const overdueRows = indexed.filter(
-    (x) => x.s.status === "overdue" && x.i !== nextIndex,
-  );
-  const nextRow = nextIndex >= 0 ? indexed[nextIndex] : null;
-  const upcomingRows = indexed.filter(
-    (x) =>
-      x.s.status !== "paid" &&
-      x.s.status !== "partial" &&
-      x.s.status !== "overdue" &&
-      x.i !== nextIndex,
-  );
-  const hasFocus = (rows: typeof indexed) =>
+  const { paidRows, partialRows, overdueRows, nextRow, upcomingRows } =
+    useMemo(() => {
+      const indexed = all.map((s, i) => ({ s, i }));
+      return {
+        paidRows: indexed.filter((x) => x.s.status === "paid"),
+        partialRows: indexed.filter((x) => x.s.status === "partial"),
+        overdueRows: indexed.filter(
+          (x) => x.s.status === "overdue" && x.i !== nextIndex,
+        ),
+        nextRow: nextIndex >= 0 ? indexed[nextIndex] : null,
+        upcomingRows: indexed.filter(
+          (x) =>
+            x.s.status !== "paid" &&
+            x.s.status !== "partial" &&
+            x.s.status !== "overdue" &&
+            x.i !== nextIndex,
+        ),
+      };
+    }, [all, nextIndex]);
+  const hasFocus = (rows: typeof paidRows) =>
     rows.some((x) => x.s.id === focusScheduleId);
 
   // Paid rows tuck away unless that's all there is (or one is being focused).
