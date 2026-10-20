@@ -392,12 +392,6 @@ export default function BorrowerAccountsSection({
   );
   const [selectionMode, setSelectionMode] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  /**
-   * Which accounts show as the full card. Until the user expands or collapses
-   * something, one or two accounts open as full cards and more start as
-   * compact rows, so a long list stays short.
-   */
-  const [expandedIds, setExpandedIds] = useState<Set<string> | null>(null);
   const deleteNote = async (id: string) => {
     const confirmed = window.confirm("Delete this note?");
 
@@ -436,56 +430,16 @@ export default function BorrowerAccountsSection({
     router.push(`/accounts/${id}`);
   };
 
-  const allAccountIds = (accounts ?? []).map((a) => a.id);
-  const isAccountExpanded = (id: string) =>
-    expandedIds ? expandedIds.has(id) : allAccountIds.length <= 2;
-
-  // Remember which cards are open for this tab, so coming back from an
-  // account page leaves them as they were. Restored before paint so the cards
-  // don't flash their default state first.
-  const expandedStorageKey = `lendz-expanded-accounts:${borrowerId}`;
-  const [stateRestored, setStateRestored] = useState(false);
-  /** Off until the user toggles a card, so restoring open cards is instant. */
-  const [animateToggles, setAnimateToggles] = useState(false);
+  // Back from an account page, return to where this history entry was left
+  // (or the top for a fresh visit), before anything is painted.
   useLayoutEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(expandedStorageKey);
-      if (raw) setExpandedIds(new Set(JSON.parse(raw) as string[]));
-    } catch {
-      // Storage unavailable — fall back to the default layout
-    }
-    setStateRestored(true);
-  }, [expandedStorageKey]);
-  // Once the restored cards are laid out, return to where this history entry
-  // was left (or the top for a fresh visit), before anything is painted.
-  useLayoutEffect(() => {
-    if (!stateRestored) return;
     const y = window.history.state?.[SCROLL_STATE_KEY];
     if (typeof y !== "number") {
       window.scrollTo(0, 0);
       return;
     }
     return restoreScrollTo(y);
-  }, [stateRestored]);
-  const saveExpanded = (next: Set<string>) => {
-    setAnimateToggles(true);
-    setExpandedIds(next);
-    try {
-      sessionStorage.setItem(expandedStorageKey, JSON.stringify([...next]));
-    } catch {
-      // Storage unavailable — the choice just won't survive navigation
-    }
-  };
-  const toggleAccountExpanded = (id: string) => {
-    const next = new Set(
-      expandedIds ?? (allAccountIds.length <= 2 ? allAccountIds : []),
-    );
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    saveExpanded(next);
-  };
-  const allExpanded =
-    allAccountIds.length > 0 && allAccountIds.every(isAccountExpanded);
+  }, []);
 
   const toggleAccountSelection = (accountId: string) => {
     setSelectedAccountIds((prev) => {
@@ -643,14 +597,12 @@ export default function BorrowerAccountsSection({
     open: handleOpenAccount,
     prefetch: handlePrefetchAccount,
     toggleSelect: toggleAccountSelection,
-    toggleExpand: toggleAccountExpanded,
   });
   useEffect(() => {
     latestHandlers.current = {
       open: handleOpenAccount,
       prefetch: handlePrefetchAccount,
       toggleSelect: toggleAccountSelection,
-      toggleExpand: toggleAccountExpanded,
     };
   });
   const stableOpenAccount = useCallback(
@@ -663,10 +615,6 @@ export default function BorrowerAccountsSection({
   );
   const stableToggleSelect = useCallback(
     (id: string) => latestHandlers.current.toggleSelect(id),
-    [],
-  );
-  const stableToggleExpand = useCallback(
-    (id: string) => latestHandlers.current.toggleExpand(id),
     [],
   );
   const stableEditAccount = useCallback((acc: AccountRow) => {
@@ -872,21 +820,6 @@ export default function BorrowerAccountsSection({
             <Copy className="size-3.5" />
             copy amounts
           </button>
-          {accounts && accounts.length > 1 && (
-            <button
-              type="button"
-              onClick={() =>
-                saveExpanded(allExpanded ? new Set() : new Set(allAccountIds))
-              }
-              className="inline-flex items-center gap-1.5 rounded-lg border
-                border-slate-300 bg-white px-3 py-1.5 text-xs font-bold
-                text-slate-600 shadow-sm transition hover:bg-slate-50
-                active:translate-y-px active:shadow-none dark:border-slate-700
-                dark:bg-card dark:text-slate-300 dark:hover:bg-slate-800/50"
-            >
-              {allExpanded ? "collapse all" : "expand all"}
-            </button>
-          )}
         </div>
 
         {summaryStats &&
@@ -1064,9 +997,6 @@ export default function BorrowerAccountsSection({
                             selectionMode={selectionMode}
                             selected={selectedAccountIds.has(account.id)}
                             onToggleSelect={stableToggleSelect}
-                            expanded={isAccountExpanded(account.id)}
-                            animateToggle={animateToggles}
-                            onToggleExpand={stableToggleExpand}
                           />
                         </motion.div>
                       );
