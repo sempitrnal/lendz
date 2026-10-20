@@ -26,7 +26,12 @@ export type RecordPaymentsInput = {
   onApplied?: () => void;
   /** After a refusal, once the local result is put back. */
   onFailed?: () => void;
+  /** The error toast after a refusal; defaults to the payment one. */
+  failureMessage?: string;
 };
+
+const DEFAULT_FAILURE_MESSAGE =
+  "Couldn't save the payment — it has been undone";
 
 /**
  * Records a payment plan: shows the result locally at once, then makes the
@@ -44,6 +49,7 @@ export function useRecordPayments() {
     paymentDate,
     onApplied,
     onFailed,
+    failureMessage = DEFAULT_FAILURE_MESSAGE,
   }: RecordPaymentsInput): Promise<"saved" | "queued" | "failed"> => {
     const queuedBefore = await getPendingOutboxCount();
 
@@ -89,7 +95,7 @@ export function useRecordPayments() {
       void refreshCachedAccounts(accountIds).catch(() => {});
       queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
       onFailed?.();
-      toast.error("Couldn't save the payment — it has been undone");
+      toast.error(failureMessage);
       return "failed";
     }
   };

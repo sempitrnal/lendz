@@ -28,7 +28,9 @@ const cents = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * The one-tap pay of a collection row: pays what is left on `targetIds` in
- * full, plus the plans its Undo runs. Returns null when an installment isn't
+ * full, plus the plans its Undo runs. Every amount (what is paid, what Undo
+ * puts back) comes from `schedules`, never from the row's own state, so pass
+ * the freshest rows there are. Returns null when an installment isn't
  * among `schedules` (load it first) or there is nothing left to pay.
  */
 export function buildQuickPay(
@@ -93,6 +95,11 @@ export function buildQuickPay(
     restore,
     accountIds: [...new Set(targets.map((t) => t.account_id))],
     amount: cents(pay.payments.reduce((sum, p) => sum + p.amount, 0)),
-    settlesRow: lines.every((l) => l.state === "paid" || paidNow.has(l.id)),
+    settlesRow: lines.every((l) => {
+      if (paidNow.has(l.id)) return true;
+      // The rows passed in (live when online) win over the row's own state.
+      const live = byId.get(l.id);
+      return live ? live.status === "paid" : l.state === "paid";
+    }),
   };
 }

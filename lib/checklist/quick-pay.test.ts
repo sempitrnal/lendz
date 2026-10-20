@@ -161,4 +161,71 @@ describe("buildQuickPay", () => {
   it("returns null with no targets", () => {
     expect(buildQuickPay([], [], [sched()], CUTOFF)).toBeNull();
   });
+
+  describe("amounts come from the rows passed in (live), not the row view", () => {
+    it("restores a part payment the row view didn't know about", () => {
+      // Cached state said unpaid; the live row has ₱400 recorded elsewhere.
+      const q = buildQuickPay(
+        [{ id: "s1", state: "unpaid" }],
+        ["s1"],
+        [
+          sched({
+            amount_paid: 400,
+            remaining_amount: 1600,
+            status: "partial",
+          }),
+        ],
+        CUTOFF,
+      );
+      expect(q!.amount).toBe(1600);
+      expect(q!.restore.partials).toEqual([{ id: "s1", amount: 400 }]);
+    });
+
+    it("restores nothing when the part payment was removed elsewhere", () => {
+      // Cached state said part-paid; the live row has nothing recorded.
+      const q = buildQuickPay(
+        [{ id: "s1", state: "partial" }],
+        ["s1"],
+        [sched()],
+        CUTOFF,
+      );
+      expect(q!.amount).toBe(2000);
+      expect(q!.restore.payments).toEqual([]);
+      expect(q!.restore.partials).toEqual([]);
+    });
+
+    it("settles the row when another line is paid in the live rows", () => {
+      const q = buildQuickPay(
+        [
+          { id: "s1", state: "unpaid" },
+          { id: "s2", state: "unpaid" },
+        ],
+        ["s1"],
+        [
+          sched(),
+          sched({
+            id: "s2",
+            status: "paid",
+            amount_paid: 2000,
+            remaining_amount: 0,
+          }),
+        ],
+        CUTOFF,
+      );
+      expect(q!.settlesRow).toBe(true);
+    });
+
+    it("does not settle when the live rows show another line reopened", () => {
+      const q = buildQuickPay(
+        [
+          { id: "s1", state: "unpaid" },
+          { id: "s2", state: "paid" },
+        ],
+        ["s1"],
+        [sched(), sched({ id: "s2" })],
+        CUTOFF,
+      );
+      expect(q!.settlesRow).toBe(false);
+    });
+  });
 });

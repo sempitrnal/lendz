@@ -6,6 +6,7 @@ import { useRecordPayments } from "@/components/dashboard/checklist/use-record-p
 import {
   loadSchedules,
   readCachedSchedules,
+  type ScheduleDialogRow,
 } from "@/lib/checklist/schedule-cache";
 import { buildQuickPay } from "@/lib/checklist/quick-pay";
 import { overdueCutoffDateValue, todayDateValue } from "@/lib/checklist/dates";
@@ -38,14 +39,22 @@ export function useQuickPay(
     if (busy.current.has(itemId) || lineIds.length === 0) return;
     busy.current.add(itemId);
     try {
-      let schedules = readCachedSchedules(lineIds);
-      if (schedules.length < new Set(lineIds).size) {
-        try {
-          schedules = await loadSchedules(lineIds);
-        } catch {
-          toast.error("Couldn't load this payment. Try again when online.");
-          return;
-        }
+      // Live rows when online (like the pay dialog), so a payment recorded
+      // or removed elsewhere since the day loaded is counted; the saved copy
+      // only offline or when the live load fails. Every line of the row is
+      // loaded so "fully paid" is judged on the same numbers.
+      const allIds = [...new Set([...lineIds, ...row.lines.map((l) => l.id)])];
+      let schedules: ScheduleDialogRow[];
+      try {
+        schedules = await loadSchedules(allIds);
+      } catch {
+        schedules = readCachedSchedules(allIds);
+      }
+      const loaded = new Set(schedules.map((s) => s.id));
+      if (!lineIds.every((id) => loaded.has(id))) {
+        // Never pay from the label's amounts.
+        toast.error("Couldn't load this payment. Try again when online.");
+        return;
       }
       const quick = buildQuickPay(
         row.lines,
@@ -54,11 +63,7 @@ export function useQuickPay(
         overdueCutoffDateValue(),
       );
       if (!quick) {
-        toast.error(
-          schedules.length < new Set(lineIds).size
-            ? "Couldn't load this payment. Try again when online."
-            : "Nothing left to pay here.",
-        );
+        toast.error("Nothing left to pay here.");
         return;
       }
 
@@ -68,28 +73,37 @@ export function useQuickPay(
       const tick = quick.settlesRow && !row.item.is_checked;
       const base = { accountIds: quick.accountIds, borrowerId, paymentDate };
       let toastId: string | number | undefined;
+      /** The pay's server result; set below before any toast (and Undo) shows. */
+      let paid: Promise<"saved" | "queued" | "failed"> | null = null;
 
       const undo = async () => {
         // Never let the reset race the pay it takes back.
-        if ((await paid) === "failed") return;
+        if (!paid || (await paid) === "failed") return;
         const undone = await recordPayments({
           ...base,
           plan: quick.undo,
-          onApplied: () => {
-            if (tick) setChecked([itemId], false);
-          },
-          onFailed: () => {
-            if (tick) setChecked([itemId], true);
-          },
+          failureMessage: "Couldn't undo — the payment is still recorded",
         });
+        if (undone === "failed") return; // still paid: keep the tick
+        if (tick) setChecked([itemId], false);
         // The reset deletes every payment on the installment; put back what
         // was there before this pay, after the reset has gone through.
-        if (undone !== "failed" && quick.restore.payments.length > 0) {
-          await recordPayments({ ...base, plan: quick.restore });
+        if (quick.restore.payments.length > 0) {
+          const restored = quick.restore.payments.reduce(
+            (sum, p) => sum + p.amount,
+            0,
+          );
+          await recordPayments({
+            ...base,
+            plan: quick.restore,
+            failureMessage: `Couldn't put back the earlier ${peso(
+              restored,
+            )} payment — re-enter it`,
+          });
         }
       };
 
-      const paid = recordPayments({
+      paid = recordPayments({
         ...base,
         plan: quick.pay,
         onApplied: () => {
