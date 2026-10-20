@@ -528,6 +528,7 @@ export const AccountCard = memo(function AccountCard({
       </div>
 
       <SwipePanes
+        onDragStart={clearLongPress}
         panes={hasDetails ? [summaryPane, detailsPane] : [summaryPane]}
         labels={["Summary", "Details"]}
       />

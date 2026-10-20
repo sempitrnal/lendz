@@ -11,11 +11,18 @@ import {
   blendHeight,
   dotProgress,
   paneOneVars,
-  paneProgress,
   paneTwoVars,
   pagerWidths,
   tileProgress,
 } from "@/lib/account-card/swipe-progress";
+import {
+  dragPosition,
+  isSettled,
+  settleTarget,
+  startVelocity,
+  stepSpring,
+  type SpringState,
+} from "@/lib/account-card/spring";
 
 /** Put on an element with `data-swipe="tile"`; SwipePanes sets its `--t`. */
 export const swipeTileStyle: CSSProperties = {
@@ -40,42 +47,60 @@ const paneTwoStyle: CSSProperties = {
   transform: "translateX(calc((1 - var(--i, 1)) * 40px))",
 };
 
+/** Px of sideways travel before a touch counts as a swipe, not a tap. */
+const DRAG_SLOP = 6;
+
 /**
- * Two (or one) panes side by side, snapping horizontally. The browser's own
- * scrolling drives the motion; a scroll listener turns how far it has gone
- * into CSS variables and the track's height, so the card grows or shrinks
- * with the finger instead of keeping the taller pane's height.
+ * Two (or one) panes side by side. A finger drags them 1:1; on release a
+ * critically damped spring carries them to the nearer pane (a flick's speed
+ * counts), so it eases out smoothly with no bounce. The position drives CSS
+ * variables and the track's height, so the card grows or shrinks with the
+ * finger instead of keeping the taller pane's height.
  */
 export function SwipePanes({
   panes,
   labels,
   className = "",
+  onDragStart,
 }: {
   panes: ReactNode[];
   labels: string[];
   className?: string;
+  /** Called once when a touch turns into a swipe. */
+  onDragStart?: () => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
   const paneRefs = useRef<(HTMLDivElement | null)[]>([]);
   const pagerRefs = useRef<(HTMLElement | null)[]>([]);
+  const goToRef = useRef<(index: number) => void>(() => {});
+  const onDragStartRef = useRef(onDragStart);
   const swipeable = panes.length > 1;
+
+  useLayoutEffect(() => {
+    onDragStartRef.current = onDragStart;
+  });
 
   useLayoutEffect(() => {
     const root = rootRef.current;
     const track = trackRef.current;
-    if (!swipeable || !root || !track) return;
+    const strip = stripRef.current;
+    if (!swipeable || !root || !track || !strip) return;
 
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     let reduce = media.matches;
-    let progress = 0;
+    let width = track.clientWidth;
+    let pos = 0;
+    let index = 0;
     let heights: [number, number] = [0, 0];
     let tiles: HTMLElement[] = [];
     let dots: HTMLElement[] = [];
-    let frame = 0;
+    let raf = 0;
 
     const apply = () => {
-      const p = progress;
+      const p = width > 0 ? pos / width : 0;
+      strip.style.transform = `translate3d(${-pos}px,0,0)`;
       root.style.setProperty("--o", String(paneOneVars(p, reduce).o));
       root.style.setProperty("--i", String(paneTwoVars(p, reduce).i));
       tiles.forEach((el, i) =>
@@ -105,25 +130,114 @@ export function SwipePanes({
       apply();
     };
 
-    const onScroll = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        progress = paneProgress(track.scrollLeft, track.clientWidth);
-        apply();
-      });
+    const stopAnimation = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
     };
 
-    // Mobile browsers fire resize when the address bar shows or hides; only a
-    // change of width (rotation, split screen) should re-snap the track.
-    let lastWidth = track.clientWidth;
-    const onResize = () => {
-      if (track.clientWidth === lastWidth) return;
-      lastWidth = track.clientWidth;
-      track.scrollTo({
-        left: Math.round(progress) * track.clientWidth,
-        behavior: "auto",
-      });
+    const animateTo = (target: number, flick = 0) => {
+      stopAnimation();
+      index = target > 0 ? 1 : 0;
+      if (reduce) {
+        pos = target;
+        apply();
+        return;
+      }
+      let state: SpringState = {
+        x: pos,
+        v: startVelocity(pos, flick, target),
+      };
+      let last = performance.now();
+      const frame = (now: number) => {
+        state = stepSpring(state, target, now - last);
+        last = now;
+        if (isSettled(state, target)) {
+          pos = target;
+          raf = 0;
+        } else {
+          pos = Math.min(width, Math.max(0, state.x));
+          raf = requestAnimationFrame(frame);
+        }
+        apply();
+      };
+      raf = requestAnimationFrame(frame);
+    };
+
+    goToRef.current = (i) => animateTo(i > 0 ? width : 0);
+
+    // --- dragging -------------------------------------------------------
+    let pointerId: number | null = null;
+    let startX = 0;
+    let startY = 0;
+    let startPos = 0;
+    let dragging = false;
+    let suppressClick = false;
+    let samples: { t: number; x: number }[] = [];
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (!e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
+      pointerId = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      startPos = pos;
+      dragging = false;
+      samples = [{ t: e.timeStamp, x: e.clientX }];
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerId !== pointerId) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!dragging) {
+        if (Math.abs(dx) < DRAG_SLOP || Math.abs(dx) < Math.abs(dy)) return;
+        dragging = true;
+        stopAnimation();
+        startPos = pos;
+        startX = e.clientX;
+        track.setPointerCapture(e.pointerId);
+        onDragStartRef.current?.();
+        return;
+      }
+      pos = dragPosition(startPos, e.clientX - startX, width);
+      samples.push({ t: e.timeStamp, x: e.clientX });
+      if (samples.length > 8) samples.shift();
+      apply();
+    };
+
+    const endDrag = (e: PointerEvent) => {
+      if (e.pointerId !== pointerId) return;
+      pointerId = null;
+      if (!dragging) return;
+      dragging = false;
+      suppressClick = true;
+      setTimeout(() => (suppressClick = false), 60);
+      // Finger speed over roughly the last 100ms; the card moves opposite.
+      const end = samples[samples.length - 1];
+      const from = samples.find((s) => end.t - s.t <= 100) ?? end;
+      const span = end.t - from.t;
+      const v = span > 0 ? -(end.x - from.x) / span : 0;
+      animateTo(settleTarget(pos, v, width), v);
+    };
+
+    // A swipe must not also count as a tap on the card underneath.
+    const onClickCapture = (e: MouseEvent) => {
+      if (!suppressClick) return;
+      e.stopPropagation();
+      e.preventDefault();
+      suppressClick = false;
+    };
+
+    // Tabbing into a pane brings it into view.
+    const onFocusIn = (e: FocusEvent) => {
+      const i = paneRefs.current.findIndex((el) =>
+        el?.contains(e.target as Node),
+      );
+      if (i >= 0 && i !== index) animateTo(i > 0 ? width : 0);
+    };
+
+    // The browser scrolls an overflow:hidden box to reveal a focused child.
+    const onTrackScroll = () => {
+      track.scrollLeft = 0;
     };
 
     const onMedia = () => {
@@ -131,46 +245,48 @@ export function SwipePanes({
       apply();
     };
 
+    const trackObserver = new ResizeObserver(() => {
+      // Only a change of width (rotation, split screen) re-seats the panes.
+      if (track.clientWidth === width) return;
+      width = track.clientWidth;
+      stopAnimation();
+      pos = index * width;
+      apply();
+    });
+
     measure();
-    const observer = new ResizeObserver(measure);
-    paneRefs.current.forEach((el) => el && observer.observe(el));
-    track.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onResize);
+    const paneObserver = new ResizeObserver(measure);
+    paneRefs.current.forEach((el) => el && paneObserver.observe(el));
+    trackObserver.observe(track);
+    track.addEventListener("pointerdown", onPointerDown);
+    track.addEventListener("pointermove", onPointerMove);
+    track.addEventListener("pointerup", endDrag);
+    track.addEventListener("pointercancel", endDrag);
+    track.addEventListener("click", onClickCapture, true);
+    track.addEventListener("focusin", onFocusIn);
+    track.addEventListener("scroll", onTrackScroll, { passive: true });
     media.addEventListener("change", onMedia);
     return () => {
-      if (frame) cancelAnimationFrame(frame);
-      observer.disconnect();
-      track.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
+      stopAnimation();
+      paneObserver.disconnect();
+      trackObserver.disconnect();
+      track.removeEventListener("pointerdown", onPointerDown);
+      track.removeEventListener("pointermove", onPointerMove);
+      track.removeEventListener("pointerup", endDrag);
+      track.removeEventListener("pointercancel", endDrag);
+      track.removeEventListener("click", onClickCapture, true);
+      track.removeEventListener("focusin", onFocusIn);
+      track.removeEventListener("scroll", onTrackScroll);
       media.removeEventListener("change", onMedia);
+      goToRef.current = () => {};
     };
   }, [swipeable]);
-
-  function goTo(index: number) {
-    const track = trackRef.current;
-    if (!track) return;
-    const reduce = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    track.scrollTo({
-      left: index * track.clientWidth,
-      behavior: reduce ? "auto" : "smooth",
-    });
-  }
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (e.target !== e.currentTarget) return;
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-    const track = trackRef.current;
-    if (!track) return;
     e.preventDefault();
-    const reduce = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    track.scrollBy({
-      left: (e.key === "ArrowRight" ? 1 : -1) * track.clientWidth,
-      behavior: reduce ? "auto" : "smooth",
-    });
+    goToRef.current(e.key === "ArrowRight" ? 1 : 0);
   }
 
   if (!swipeable) {
@@ -192,25 +308,26 @@ export function SwipePanes({
         aria-label="Account details"
         tabIndex={0}
         onKeyDown={onKeyDown}
-        className="flex snap-x snap-mandatory items-start overflow-x-auto
-          overflow-y-hidden overscroll-x-none [scrollbar-width:none]
+        className="touch-pan-y overflow-hidden select-none
           focus-visible:outline-2 focus-visible:-outline-offset-2
-          focus-visible:outline-blue-500 [&::-webkit-scrollbar]:hidden"
+          focus-visible:outline-blue-500"
       >
-        {panes.map((pane, i) => (
-          <div
-            key={i}
-            ref={(el) => {
-              paneRefs.current[i] = el;
-            }}
-            role="group"
-            aria-label={labels[i]}
-            className="w-full flex-none snap-start snap-always"
-            style={i === 0 ? undefined : { height: 0 }}
-          >
-            <div style={i === 0 ? paneOneStyle : paneTwoStyle}>{pane}</div>
-          </div>
-        ))}
+        <div ref={stripRef} className="flex items-start will-change-transform">
+          {panes.map((pane, i) => (
+            <div
+              key={i}
+              ref={(el) => {
+                paneRefs.current[i] = el;
+              }}
+              role="group"
+              aria-label={labels[i]}
+              className="w-full flex-none"
+              style={i === 0 ? undefined : { height: 0 }}
+            >
+              <div style={i === 0 ? paneOneStyle : paneTwoStyle}>{pane}</div>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="flex justify-center pb-1">
         {panes.map((_, i) => (
@@ -218,7 +335,7 @@ export function SwipePanes({
             key={i}
             type="button"
             aria-label={`Show ${labels[i].toLowerCase()}`}
-            onClick={() => goTo(i)}
+            onClick={() => goToRef.current(i)}
             className="flex h-6 w-8 items-center justify-center"
           >
             <i
