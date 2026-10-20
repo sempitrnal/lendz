@@ -52,6 +52,7 @@ export function Header({
   filter,
   onFilterChange,
   counts,
+  loading,
 }: {
   date: string;
   today: string;
@@ -64,6 +65,8 @@ export function Header({
   filter: ChecklistFilter;
   onFilterChange(filter: ChecklistFilter): void;
   counts: Record<ChecklistFilter, number>;
+  /** The day is still loading: show placeholders, not zeros. */
+  loading: boolean;
 }) {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const relative = relativeDayLabel(date, today);
@@ -99,7 +102,9 @@ export function Header({
             </button>
             <button
               type="button"
-              aria-label="Pick a date"
+              aria-label={`${headerDate(date, today)}${
+                relative ? ` (${relative})` : ""
+              }, pick a date`}
               onClick={openDatePicker}
               className="flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-1"
             >
@@ -154,26 +159,39 @@ export function Header({
 
         {tab === "collect" && (
           <div className="mt-2">
-            <div className="flex items-baseline gap-2">
-              <span
-                className="text-3xl font-semibold tracking-tight tabular-nums"
-              >
-                {peso(summary.left)}
-              </span>
-              <span className="text-sm text-muted-foreground">left</span>
-              <span
-                className="ml-auto text-sm text-muted-foreground tabular-nums"
-              >
-                {summary.done}/{summary.count} paid
-              </span>
-            </div>
+            {loading ? (
+              <div className="flex items-center gap-2" aria-busy="true">
+                <span className="sr-only">Loading the day</span>
+                <span
+                  className="h-9 w-32 animate-pulse rounded-lg bg-muted"
+                  aria-hidden="true"
+                />
+                <span
+                  className="ml-auto h-4 w-16 animate-pulse rounded bg-muted/70"
+                  aria-hidden="true"
+                />
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-2">
+                <span
+                  className="text-3xl font-semibold tracking-tight tabular-nums"
+                >
+                  {peso(summary.left)}
+                </span>
+                <span className="text-sm text-muted-foreground">left</span>
+                <span className="ml-auto text-sm text-muted-foreground
+                  tabular-nums">
+                  {summary.done}/{summary.count} paid
+                </span>
+              </div>
+            )}
             <div
               className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary"
               role="progressbar"
               aria-label="Collected"
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-valuenow={Math.round(progress)}
+              aria-valuenow={loading ? undefined : Math.round(progress)}
             >
               <div
                 className="h-full rounded-full bg-primary transition-all
@@ -196,8 +214,8 @@ export function Header({
         >
           {(
             [
-              ["collect", `Collect ${collectCount}`],
-              ["release", `Release ${releaseCount}`],
+              ["collect", loading ? "Collect" : `Collect ${collectCount}`],
+              ["release", loading ? "Release" : `Release ${releaseCount}`],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -233,7 +251,8 @@ export function Header({
                     : "border-border bg-card text-muted-foreground",
                 )}
               >
-                {label} {counts[key]}
+                {label}
+                {!loading && ` ${counts[key]}`}
               </button>
             ))}
           </div>

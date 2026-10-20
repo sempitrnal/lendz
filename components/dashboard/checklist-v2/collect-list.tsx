@@ -1,19 +1,10 @@
 "use client";
 
 import { useMemo, useState, type CSSProperties } from "react";
-import {
-  Check,
-  ChevronDown,
-  ChevronUp,
-  NotebookPen,
-  Undo2,
-} from "lucide-react";
+import { ChevronDown, ChevronUp, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
-import {
-  formatShortDate,
-  groupByBorrowerCategory,
-} from "@/lib/checklist/labels";
+import { groupByBorrowerCategory } from "@/lib/checklist/labels";
 import {
   matchesFilter,
   sortSettledLast,
@@ -26,6 +17,30 @@ import {
   isNearWhite,
 } from "@/components/dashboard/checklist/dom";
 import { peso } from "@/components/dashboard/checklist-v2/header";
+import { CollectRow } from "@/components/dashboard/checklist-v2/collect-row";
+
+/** What a row asks the screen to open; the sheets render from it. */
+export type RowRequest =
+  | "openPay"
+  | "payRow"
+  | "editPayments"
+  | "partial"
+  | "note"
+  | "more";
+
+/** The screen's row state and handlers, passed through to every row. */
+export type CollectRowsApi = {
+  swipedId: string | null;
+  onSwiped(itemId: string, open: boolean): void;
+  expandedIds: Set<string>;
+  onExpandToggle(itemId: string): void;
+  waitingIds: Set<string>;
+  flashIds: Set<string>;
+  onRequest(row: RowView, request: RowRequest): void;
+  onPayAll(row: RowView): void;
+  onPayLine(row: RowView, lineId: string): void;
+  onTick(row: RowView): void;
+};
 
 const CARRY_KEY = "carry";
 
@@ -45,174 +60,24 @@ function buildGroups(
   );
 }
 
-const kindLabel = (type: string) =>
-  type === "cash_advance" ? "cash advance" : "loan";
-
-/** The muted second line of a collection row, per the spec's row table. */
-function subline(row: RowView): { text: string; late: boolean } {
-  if (row.status === "paid") return { text: "paid · tap to edit", late: false };
-  const open = row.lines.filter((l) => l.state !== "paid");
-  if (open.length > 1) {
-    return {
-      text: `${open.length} due${
-        row.lateDays > 0 ? ` · oldest ${row.lateDays}d late` : ""
-      }`,
-      late: row.lateDays > 0,
-    };
-  }
-  const line = open[0];
-  const paid = line.paid > 0 ? `${peso(line.paid)} paid · ` : "";
-  const due = formatShortDate(line.due_date).toLowerCase();
-  const late = line.overdue ? ` · ${line.daysOverdue}d late` : "";
-  return {
-    text: `${paid}${due}${late} · ${kindLabel(line.type)}`,
-    late: line.overdue,
-  };
-}
-
-/** A plain note's text, with `[name](href)` mentions shown as their name. */
-function plainText(label: string) {
-  return label
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, name: string, href: string) =>
-      href.startsWith("/borrowers/") ? name.toLowerCase() : name,
-    )
-    .trim();
-}
-
-function CollectionRow({ row }: { row: RowView }) {
-  const done = row.status === "paid";
-  const open = row.lines.filter((l) => l.state !== "paid");
-  const sub = subline(row);
-  const name =
-    row.model?.borrower?.name.toLowerCase() ||
-    row.model?.note.split("\n")[0] ||
-    "collection";
-  return (
-    <li className="border-b border-border bg-card last:border-b-0">
-      <div className="flex items-center gap-3 px-4 py-2">
-        <div className={cn("min-w-0 flex-1", done && "opacity-55")}>
-          <p
-            className={cn(
-              "truncate text-[15px] font-medium lowercase",
-              done && "line-through",
-            )}
-          >
-            {name}
-            {row.model?.note && (
-              <NotebookPen
-                className="ml-1.5 inline size-3.5 text-amber-500"
-                aria-label="Has a note"
-              />
-            )}
-          </p>
-          <p
-            className={cn(
-              "truncate text-xs",
-              sub.late
-                ? "text-rose-600 dark:text-rose-400"
-                : "text-muted-foreground",
-            )}
-          >
-            {sub.text}
-          </p>
-        </div>
-        <span
-          className={cn(
-            "text-[15px] font-semibold tabular-nums",
-            done && "text-muted-foreground opacity-55",
-          )}
-        >
-          {peso(done ? row.total : row.left)}
-        </span>
-        {/* Pay controls are shown but not wired yet (read-only list). */}
-        {done ? (
-          <span
-            className="-mr-1 flex size-11 items-center justify-center"
-            aria-hidden="true"
-          >
-            <span
-              className="flex size-8 items-center justify-center rounded-full
-                bg-primary text-primary-foreground"
-            >
-              <Check className="size-4" strokeWidth={3} />
-            </span>
-          </span>
-        ) : open.length > 1 ? (
-          <span
-            className="flex h-9 items-center rounded-full border
-              border-muted-foreground/40 px-3 text-sm font-semibold"
-            aria-hidden="true"
-          >
-            Pay {open.length}
-          </span>
-        ) : (
-          <span
-            className="-mr-1 flex size-11 items-center justify-center"
-            aria-hidden="true"
-          >
-            <span
-              className={cn(
-                `flex size-8 items-center justify-center rounded-full border
-                  text-muted-foreground`,
-                row.status === "partial"
-                  ? "border-primary/50 text-primary"
-                  : "border-muted-foreground/40",
-              )}
-            >
-              <Check className="size-4" strokeWidth={2.5} />
-            </span>
-          </span>
-        )}
-      </div>
-    </li>
-  );
-}
-
-function NoteRow({ row }: { row: RowView }) {
-  const done = row.item.is_checked;
-  return (
-    <li className="border-b border-border bg-card last:border-b-0">
-      <div className="flex items-center gap-3 px-4 py-2.5">
-        <span
-          className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded-md border",
-            done
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-muted-foreground/40",
-          )}
-          aria-hidden="true"
-        >
-          {done && <Check className="size-3.5" strokeWidth={3} />}
-        </span>
-        <p
-          className={cn(
-            "line-clamp-2 min-w-0 flex-1 text-sm whitespace-pre-line",
-            done && "text-muted-foreground line-through",
-          )}
-        >
-          {plainText(row.item.label)}
-        </p>
-      </div>
-    </li>
-  );
-}
-
 /**
  * The Collect tab's list: rows grouped by borrower category, then one amber
  * "carried over" section for rows whose every installment is from an earlier
- * day. Read-only for now; the row actions come with the row component.
+ * day.
  */
 export function CollectList({
   rows,
   filter,
   borrowers,
   isToday,
+  api,
 }: {
   /** Every Collect row of the day (unfiltered). */
   rows: RowView[];
   filter: ChecklistFilter;
   borrowers: BorrowerSearchItem[];
   isToday: boolean;
+  api: CollectRowsApi;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const toggle = (key: string) =>
@@ -306,13 +171,30 @@ export function CollectList({
         </button>
         {!isCollapsed && (
           <ul>
-            {g.rows.map((row) =>
-              row.model ? (
-                <CollectionRow key={row.item.id} row={row} />
-              ) : (
-                <NoteRow key={row.item.id} row={row} />
-              ),
-            )}
+            {g.rows.map((row) => {
+              const id = row.item.id;
+              return (
+                <CollectRow
+                  key={id}
+                  row={row}
+                  waiting={api.waitingIds.has(id)}
+                  highlight={api.flashIds.has(id)}
+                  swiped={api.swipedId === id}
+                  onSwiped={(open) => api.onSwiped(id, open)}
+                  expanded={api.expandedIds.has(id)}
+                  onExpandToggle={() => api.onExpandToggle(id)}
+                  onOpenPay={() => api.onRequest(row, "openPay")}
+                  onPayRow={() => api.onRequest(row, "payRow")}
+                  onEditPayments={() => api.onRequest(row, "editPayments")}
+                  onPartial={() => api.onRequest(row, "partial")}
+                  onNote={() => api.onRequest(row, "note")}
+                  onMore={() => api.onRequest(row, "more")}
+                  onPayAll={() => api.onPayAll(row)}
+                  onPayLine={(lineId) => api.onPayLine(row, lineId)}
+                  onTick={() => api.onTick(row)}
+                />
+              );
+            })}
           </ul>
         )}
       </div>

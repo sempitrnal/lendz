@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,28 @@ export function Sheet({
     () => false,
   );
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // While open: the page behind doesn't scroll, and focus moves into the
+  // sheet; on close it goes back to whatever had it before.
+  useEffect(() => {
+    if (!open || !mounted) return;
+    const body = document.body;
+    const previousOverflow = body.style.overflow;
+    body.style.overflow = "hidden";
+    const previousFocus =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    dialogRef.current?.focus({ preventScroll: true });
+    return () => {
+      body.style.overflow = previousOverflow;
+      if (previousFocus?.isConnected) {
+        previousFocus.focus({ preventScroll: true });
+      }
+    };
+  }, [open, mounted]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -59,13 +81,15 @@ export function Sheet({
           />
           <motion.div
             key="sheet"
+            ref={dialogRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label={label}
             className="fixed inset-x-0 bottom-0 z-[9999] mx-auto flex
               max-h-[88dvh] max-w-md flex-col overflow-hidden rounded-t-3xl
               border-t border-border bg-card pb-[env(safe-area-inset-bottom)]
-              shadow-[0_-8px_40px_rgba(0,0,0,0.4)]"
+              outline-none shadow-[0_-8px_40px_rgba(0,0,0,0.4)]"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
