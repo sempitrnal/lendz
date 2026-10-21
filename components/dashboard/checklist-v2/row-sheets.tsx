@@ -23,7 +23,7 @@ export function rowBorrower(row: RowView): { id: string; name: string } | null {
   return row.model?.borrower ?? extractBorrowerMention(row.item.label);
 }
 
-function MenuEntry({
+export function MenuEntry({
   icon,
   title,
   onClick,

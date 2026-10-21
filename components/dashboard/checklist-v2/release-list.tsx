@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CloudUpload, HandCoins } from "lucide-react";
+import { Check, CloudUpload, HandCoins, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ReleaseRowView } from "@/lib/checklist/release-items";
@@ -25,6 +25,7 @@ export function ReleaseList({
   disabled,
   onCreate,
   onCheckOff,
+  onMenu,
   onNewRelease,
 }: {
   views: ReleaseRowView[];
@@ -37,6 +38,8 @@ export function ReleaseList({
   onCreate(view: ReleaseRowView): void;
   /** Ticks an item whose account was made here but whose tick failed. */
   onCheckOff(view: ReleaseRowView): void;
+  /** Opens the row's menu: Edit, Open borrower page, Remove. */
+  onMenu(view: ReleaseRowView): void;
   onNewRelease(): void;
 }) {
   return (
@@ -60,6 +63,7 @@ export function ReleaseList({
                 disabled={disabled}
                 onCreate={() => onCreate(view)}
                 onCheckOff={() => onCheckOff(view)}
+                onMenu={() => onMenu(view)}
               />
             ))}
           </ul>
@@ -89,6 +93,7 @@ function ReleaseRow({
   disabled,
   onCreate,
   onCheckOff,
+  onMenu,
 }: {
   view: ReleaseRowView;
   mark: CreateMark | undefined;
@@ -97,6 +102,7 @@ function ReleaseRow({
   disabled: boolean;
   onCreate(): void;
   onCheckOff(): void;
+  onMenu(): void;
 }) {
   const state = releaseRowState(view, mark);
   const summary = releaseSummary(view);
@@ -206,6 +212,18 @@ function ReleaseRow({
           Check off
         </Button>
       )}
+      <button
+        type="button"
+        onClick={onMenu}
+        // An account is being made from it right now: leave it alone.
+        disabled={disabled || state === "creating"}
+        aria-label={`Options for ${title}`}
+        className="-mr-2 flex size-11 shrink-0 items-center justify-center
+          rounded-full text-muted-foreground active:bg-muted
+          disabled:opacity-40"
+      >
+        <MoreHorizontal className="size-5" />
+      </button>
     </li>
   );
 }

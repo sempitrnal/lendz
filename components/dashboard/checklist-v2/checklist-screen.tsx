@@ -44,6 +44,12 @@ import {
   undoToast,
 } from "@/components/dashboard/checklist-v2/undo-toasts";
 import { ReleaseList } from "@/components/dashboard/checklist-v2/release-list";
+import {
+  ReleaseEditSheet,
+  ReleaseMenuSheet,
+} from "@/components/dashboard/checklist-v2/release-sheets";
+import { releaseDisplayName } from "@/lib/checklist/release-edit";
+import { extractBorrowerMention } from "@/lib/checklist/labels";
 import { CreateAccountSheet } from "@/components/dashboard/checklist-v2/create-account-sheet";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import { isConnectionGood } from "@/lib/offline/connection";
@@ -128,6 +134,13 @@ type PopulateRun = {
   used: boolean;
 };
 
+/** A release row's menu or edit sheet; `seq` keys each open. */
+type ReleaseSheetRequest = {
+  kind: "menu" | "edit";
+  itemId: string;
+  seq: number;
+};
+
 /** The create-account sheet for a release item; `seq` keys each open. */
 type CreateSheetRequest = { itemId: string; seq: number };
 
@@ -190,6 +203,9 @@ function ChecklistDay({ today }: { today: string }) {
   const [rowSheet, setRowSheet] = useState<RowSheetRequest | null>(null);
   const [addSheet, setAddSheet] = useState<AddSheetRequest | null>(null);
   const [listSheet, setListSheet] = useState<ListSheetRequest | null>(null);
+  const [releaseSheet, setReleaseSheet] = useState<ReleaseSheetRequest | null>(
+    null,
+  );
   const [createSheet, setCreateSheet] = useState<CreateSheetRequest | null>(
     null,
   );
@@ -263,6 +279,7 @@ function ChecklistDay({ today }: { today: string }) {
     setAddSheet(null);
     setListSheet(null);
     setCreateSheet(null);
+    setReleaseSheet(null);
     // "Undo populate" is for the day it was populated on.
     setLastPopulate(null);
     setDate(next);
@@ -304,6 +321,7 @@ function ChecklistDay({ today }: { today: string }) {
 
   const requestSheet = (kind: RowRequest, itemId: string) => {
     sheetSeq.current += 1;
+    setReleaseSheet(null);
     setRowSheet({ kind, itemId, seq: sheetSeq.current });
   };
   const closeSheet = () => setRowSheet(null);
@@ -329,6 +347,7 @@ function ChecklistDay({ today }: { today: string }) {
     setRowSheet(null);
     setListSheet(null);
     setCreateSheet(null);
+    setReleaseSheet(null);
     setAddSheet({ mode, editItemId, seq: sheetSeq.current });
   };
   const closeAdd = () => setAddSheet(null);
@@ -422,9 +441,43 @@ function ChecklistDay({ today }: { today: string }) {
     setRowSheet(null);
     setAddSheet(null);
     setCreateSheet(null);
+    setReleaseSheet(null);
     setListSheet({ kind, seq: sheetSeq.current });
   };
   const closeList = () => setListSheet(null);
+
+  /** A Release row's "⋯": its menu (Edit, Open borrower, Remove). */
+  const openReleaseMenu = (view: ReleaseRowView) => {
+    if (createBusy() || releaseState(view) === "creating") return;
+    sheetSeq.current += 1;
+    setRowSheet(null);
+    setAddSheet(null);
+    setListSheet(null);
+    setCreateSheet(null);
+    setReleaseSheet({
+      kind: "menu",
+      itemId: view.item.id,
+      seq: sheetSeq.current,
+    });
+  };
+  const closeRelease = () => setReleaseSheet(null);
+  const editRelease = (view: ReleaseRowView) => {
+    if (loading) return;
+    sheetSeq.current += 1;
+    setReleaseSheet({
+      kind: "edit",
+      itemId: view.item.id,
+      seq: sheetSeq.current,
+    });
+  };
+  /** Remove from list (release menu): this item only, never an account. */
+  const removeRelease = (view: ReleaseRowView) => {
+    const id = view.item.id;
+    if (loading || removingRef.current.has(id)) return;
+    closeRelease();
+    const name = releaseDisplayName(view);
+    removeWithUndo([id], () => `${name} removed from the list`);
+  };
 
   const markCreate = (event: CreateEvent) => {
     const next = reduceCreateMarks(createMarksRef.current, event);
@@ -447,6 +500,7 @@ function ChecklistDay({ today }: { today: string }) {
     setRowSheet(null);
     setAddSheet(null);
     setListSheet(null);
+    setReleaseSheet(null);
     setCreateSheet({ itemId: view.item.id, seq: sheetSeq.current });
   };
   /**
@@ -467,6 +521,20 @@ function ChecklistDay({ today }: { today: string }) {
   const createMark = createView
     ? createMarks.get(createView.item.id)
     : undefined;
+  const releaseView = releaseSheet
+    ? (releaseViews.find((v) => v.item.id === releaseSheet.itemId) ?? null)
+    : null;
+  // Closes by itself if the item is gone or the tab is left.
+  const releaseMenuOpen =
+    !!releaseView && tab === "release" && releaseSheet?.kind === "menu";
+  const releaseEditOpen =
+    !!releaseView && tab === "release" && releaseSheet?.kind === "edit";
+  const openReleaseBorrower = (view: ReleaseRowView) => {
+    const id = extractBorrowerMention(view.item.label)?.id;
+    if (!id) return;
+    closeRelease();
+    router.push(`/borrowers/${id}`);
+  };
   const createViewState = createView
     ? releaseRowState(createView, createMark)
     : null;
@@ -735,6 +803,7 @@ function ChecklistDay({ today }: { today: string }) {
             if (loading || releaseState(view) !== "check-off") return;
             tickCreated(view.item.id);
           }}
+          onMenu={openReleaseMenu}
           onNewRelease={() => openAdd("release")}
         />
       )}
@@ -865,6 +934,30 @@ function ChecklistDay({ today }: { today: string }) {
             }}
             onCreated={() => accountCreated(createView)}
             onCheckOff={() => checkOffWithoutAccount(createView)}
+          />
+        )}
+      </Sheet>
+      <Sheet open={releaseMenuOpen} onClose={closeRelease} label="Release menu">
+        {releaseMenuOpen && releaseView && releaseSheet && (
+          <ReleaseMenuSheet
+            key={releaseSheet.seq}
+            view={releaseView}
+            disabled={loading}
+            onEdit={() => editRelease(releaseView)}
+            onOpenBorrower={() => openReleaseBorrower(releaseView)}
+            onRemove={() => removeRelease(releaseView)}
+          />
+        )}
+      </Sheet>
+      <Sheet open={releaseEditOpen} onClose={closeRelease} label="Edit release">
+        {releaseEditOpen && releaseView && releaseSheet && (
+          <ReleaseEditSheet
+            key={releaseSheet.seq}
+            view={releaseView}
+            disabled={loading}
+            setLabel={setLabel}
+            onOpenBorrower={() => openReleaseBorrower(releaseView)}
+            onClose={closeRelease}
           />
         )}
       </Sheet>
