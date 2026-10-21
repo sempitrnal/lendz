@@ -25,6 +25,8 @@ export type PaySheetInput = {
   rows: ScheduleDialogRow[];
   /** Every installment the item links, in label order. */
   lineIds: string[];
+  /** Only these are offered to pay (default: all of `lineIds`). */
+  scopeIds?: string[];
   /** Installments left ticked; a missing entry counts as ticked. */
   picked: Record<string, boolean>;
   /** "Pay a different amount": the typed amounts apply to every installment. */
@@ -77,6 +79,7 @@ export const isCustomRow = (
 export function buildPaySheet({
   rows,
   lineIds,
+  scopeIds,
   picked,
   custom,
   customRows,
@@ -84,7 +87,7 @@ export function buildPaySheet({
   overdueCutoff,
 }: PaySheetInput): PaySheetPlan {
   const byId = new Map(rows.map((r) => [r.id, r]));
-  const open = [...new Set(lineIds)]
+  const open = [...new Set(scopeIds ?? lineIds)]
     .map((id) => byId.get(id))
     .filter((r): r is ScheduleDialogRow => !!r && r.status !== "paid")
     .filter((r) => cents(remainingOnInstallment(r)) > 0);

@@ -60,6 +60,7 @@ const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export function PaySheet({
   row,
   startPartial,
+  onlyLineId,
   setChecked,
   onClose,
   onEditRecorded,
@@ -69,6 +70,8 @@ export function PaySheet({
   row: RowView;
   /** Opened from the swipe's Partial: start with the amount inputs. */
   startPartial: boolean;
+  /** Opened from one expanded schedule: pay just that one. */
+  onlyLineId?: string;
   setChecked(ids: string[], checked: boolean): void;
   onClose(): void;
   onEditRecorded(): void;
@@ -92,6 +95,7 @@ export function PaySheet({
   const pay = buildPaySheet({
     rows: live.rows,
     lineIds,
+    scopeIds: onlyLineId ? [onlyLineId] : undefined,
     picked,
     custom,
     customRows,
@@ -343,16 +347,15 @@ export function PaySheet({
                               )}
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-medium">
-                                {kind}
-                              </span>
                               <span
-                                className="block text-xs text-muted-foreground"
+                                className="block text-xs text-muted-foreground
+                                  font-semibold"
                               >
                                 {formatShortDate(r.due_date).toLowerCase()}
                                 {late > 0 && (
                                   <span
-                                    className="text-rose-400 dark:text-rose-300"
+                                    className="text-rose-700/80 text-[10px]
+                                      font-semibold dark:text-rose-300"
                                   >
                                     {" "}
                                     · {late}d late
