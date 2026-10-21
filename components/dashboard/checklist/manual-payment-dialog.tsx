@@ -11,10 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  addManualScheduleAction,
-  applyPartialPaymentAction,
-} from "@/lib/actions/schedules";
+import { recordManualPayment } from "@/lib/checklist/manual-payment";
 import {
   formatShortDate,
   type ManualAccount,
@@ -246,47 +243,22 @@ function ManualPaymentBody({
     if (!canSave) return;
     setSubmitting(true);
     try {
-      if (open) {
-        const fd = new FormData();
-        fd.set("scheduleId", open.id);
-        fd.set("paymentAmount", String(paid));
-        fd.set("paymentDate", paidDate);
-        await applyPartialPaymentAction(fd);
-        if (borrower) invalidateBorrowerDetails(borrower.id);
-        toast.success(
-          rollover > 0
-            ? `₱${paid.toLocaleString()} paid · ₱${nextDue.toLocaleString()} rolls over`
-            : `₱${paid.toLocaleString()} payment recorded`,
-        );
-        onSaved({
-          id: open.id,
-          due_date: open.due_date,
-          amount: paid,
-          type: account.type,
-        });
-        return;
-      }
-      const result = await addManualScheduleAction(account.id, {
-        due_date: paidDate,
-        amount_due: paid,
-        status: "paid",
-        paid_date: paidDate,
+      const result = await recordManualPayment({
+        account,
+        amount: paid,
+        paidDate,
       });
-      if (!result?.id) {
-        toast.error(result?.error ?? "Couldn't add the payment (offline?)");
+      if (!result.ok) {
+        toast.error(result.error);
         return;
       }
       if (borrower) invalidateBorrowerDetails(borrower.id);
-      toast.success(`₱${paid.toLocaleString()} payment recorded`);
-      onSaved({
-        id: result.id,
-        due_date: paidDate,
-        amount: paid,
-        type: account.type,
-      });
-    } catch (err) {
-      console.error("ManualPaymentDialog confirm error:", err);
-      toast.error("Couldn't add the payment");
+      toast.success(
+        result.rolloverAmount > 0
+          ? `₱${paid.toLocaleString()} paid · ₱${nextDue.toLocaleString()} rolls over`
+          : `₱${paid.toLocaleString()} payment recorded`,
+      );
+      onSaved(result.schedule);
     } finally {
       setSubmitting(false);
     }

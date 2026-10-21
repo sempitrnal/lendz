@@ -53,6 +53,7 @@ const STATIC_ROUTES = [
   "/settings",
   "/upcoming",
   "/daily-checklist",
+  "/daily-checklist/v2",
   "/daily-checklist/categories",
   "/test-account",
 ];
