@@ -1,8 +1,9 @@
-import ChecklistScreen from "@/components/dashboard/checklist-v2/checklist-screen";
+import DailyNotesWidget from "@/components/dashboard/daily-notes-widget";
 
-// The new mobile checklist, trialled here while `/daily-checklist` keeps the
-// classic widget. The screen is a client component; this page stays a server
-// component under the dashboard layout.
-export default function DailyChecklistV2Page() {
-  return <ChecklistScreen />;
+export default function DailyChecklistPage() {
+  return (
+    <main className="mx-auto max-w-7xl py-10 md:max-w-full pb-16">
+      <DailyNotesWidget />
+    </main>
+  );
 }
