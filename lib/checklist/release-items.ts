@@ -9,6 +9,8 @@ export type ReleaseRowView = {
   item: DailyChecklistItem;
   parsed: ParsedReleasedLabel | null;
   name: string;
+  /** The mentioned borrower's id, for linking to their page. */
+  borrowerId: string | null;
   /** The label as typed: the mention link collapsed to the borrower's name. */
   typed: string;
   created: boolean;
@@ -24,6 +26,7 @@ export function buildReleaseView(item: DailyChecklistItem): ReleaseRowView {
     item,
     parsed: parseReleasedLabel(item.label, item.checklist_date),
     name: mention?.name ?? "",
+    borrowerId: mention?.id ?? null,
     typed,
     created: item.is_checked,
   };

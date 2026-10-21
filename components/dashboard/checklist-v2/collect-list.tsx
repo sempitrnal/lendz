@@ -37,7 +37,8 @@ export type CollectRowsApi = {
   onExpandToggle(itemId: string): void;
   waitingIds: Set<string>;
   flashIds: Set<string>;
-  onRequest(row: RowView, request: RowRequest): void;
+  /** `lineId`: the one schedule a pay request is about. */
+  onRequest(row: RowView, request: RowRequest, lineId?: string): void;
   onPayAll(row: RowView): void;
   onPayLine(row: RowView, lineId: string): void;
   onTick(row: RowView): void;
@@ -200,6 +201,7 @@ export function CollectList({
                   onExpandToggle={() => api.onExpandToggle(id)}
                   onOpenPay={() => api.onRequest(row, "openPay")}
                   onPayRow={() => api.onRequest(row, "payRow")}
+                  onOpenLine={(lineId) => api.onRequest(row, "openPay", lineId)}
                   onEditPayments={() => api.onRequest(row, "editPayments")}
                   onMore={() => api.onRequest(row, "more")}
                   onPayAll={() => api.onPayAll(row)}

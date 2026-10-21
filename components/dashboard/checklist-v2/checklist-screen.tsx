@@ -158,6 +158,8 @@ type ListSheetRequest = { kind: "menu" | "bulk"; seq: number };
 export type RowSheetRequest = {
   kind: RowRequest;
   itemId: string;
+  /** A pay request for one schedule of the row, not all of them. */
+  lineId?: string;
   seq: number;
 };
 
@@ -321,10 +323,10 @@ function ChecklistDay({ today }: { today: string }) {
   const bulkRows = useMemo(() => bulkPaidRows(rows), [rows]);
   const counts = useMemo(() => filterCounts(rows), [rows]);
 
-  const requestSheet = (kind: RowRequest, itemId: string) => {
+  const requestSheet = (kind: RowRequest, itemId: string, lineId?: string) => {
     sheetSeq.current += 1;
     setReleaseSheet(null);
-    setRowSheet({ kind, itemId, seq: sheetSeq.current });
+    setRowSheet({ kind, itemId, lineId, seq: sheetSeq.current });
   };
   const closeSheet = () => setRowSheet(null);
   /** The row the open sheet is about, kept live as payments land. */
@@ -737,9 +739,9 @@ function ChecklistDay({ today }: { today: string }) {
       }),
     waitingIds,
     flashIds,
-    onRequest: (row, kind) => {
+    onRequest: (row, kind, lineId) => {
       setSwipedId(null);
-      requestSheet(kind, row.item.id);
+      requestSheet(kind, row.item.id, lineId);
     },
     onPayAll: (row: RowView) =>
       void quickPay(
@@ -808,6 +810,7 @@ function ChecklistDay({ today }: { today: string }) {
           ) : (
             <ReleaseList
               views={releaseViews}
+              borrowers={borrowers}
               createMarks={createMarks}
               waitingIds={waitingIds}
               flashIds={flashIds}
@@ -830,6 +833,7 @@ function ChecklistDay({ today }: { today: string }) {
             key={rowSheet.seq}
             row={sheetRow}
             startPartial={rowSheet.kind === "partial"}
+            onlyLineId={rowSheet.lineId}
             setChecked={setChecked}
             onClose={closeSheet}
             onEditRecorded={() =>

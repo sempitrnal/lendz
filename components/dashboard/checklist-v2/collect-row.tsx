@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import {
   AnimatePresence,
@@ -40,24 +41,27 @@ export const originalTotal = (row: RowView) =>
   Math.round(row.lines.reduce((sum, l) => sum + l.original, 0) * 100) / 100;
 
 /** The muted second line of a collection row, per the spec's row table. */
-function subline(row: RowView): { text: string; late: boolean } {
+function subline(row: RowView): {
+  text: string;
+  late: boolean;
+  /** The single open installment's type, shown as a badge. */
+  kind?: string;
+} {
   if (row.status === "paid") return { text: "paid · tap to edit", late: false };
   const open = openLines(row);
   if (open.length > 1) {
     return {
-      text: `${open.length} due${
-        paidSoFar(row) > 0 ? ` · ${peso(paidSoFar(row))} paid` : ""
-      }${row.lateDays > 0 ? ` · oldest ${row.lateDays}d late` : ""}`,
+      text: `${open.length} due${row.lateDays > 0 ? ` · oldest ${row.lateDays}d late` : ""}`,
       late: row.lateDays > 0,
     };
   }
   const line = open[0];
-  const paid = line.recorded > 0 ? `${peso(line.recorded)} paid · ` : "";
   const due = formatShortDate(line.due_date).toLowerCase();
   const late = line.overdue ? ` · ${line.daysOverdue}d late` : "";
   return {
-    text: `${paid}${due}${late} · ${kindLabel(line.type)}`,
+    text: `${due}${late}`,
     late: line.overdue,
+    kind: line.type,
   };
 }
 
@@ -79,6 +83,8 @@ export type CollectRowProps = {
   onPayRow(): void;
   /** One tap pays everything left: the check circle, or "Pay all". */
   onPayAll(): void;
+  /** An expanded schedule's row: the pay sheet for just that schedule. */
+  onOpenLine(lineId: string): void;
   /** Pays one installment from the expanded row. */
   onPayLine(lineId: string): void;
   /** A plain note's tick. */
@@ -104,6 +110,7 @@ export function CollectRow({
   onMore,
   onPayRow,
   onPayAll,
+  onOpenLine,
   onPayLine,
   onTick,
   onExpandToggle,
@@ -151,7 +158,7 @@ export function CollectRow({
     )
       return;
     // Taps on the row's own buttons are handled by those buttons.
-    if ((event.target as Element | null)?.closest("button")) return;
+    if ((event.target as Element | null)?.closest("button, a")) return;
     if (swiped) return settle(false);
     // A note's tick is its own button; the rest of the row opens its menu
     // (Edit note, Remove), the way to them without a swipe.
@@ -188,6 +195,25 @@ export function CollectRow({
       if (swiped) return settle(false);
       run();
     };
+
+  /**
+   * The name's link to the borrower page: a drag or a swipe-open row must not
+   * also navigate.
+   */
+  const onNameClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    event.stopPropagation();
+    const from = pressAt.current;
+    if (
+      dragged.current ||
+      swiped ||
+      (from &&
+        Math.hypot(event.clientX - from.x, event.clientY - from.y) >
+          TAP_SLOP_PX)
+    ) {
+      event.preventDefault();
+      if (swiped) settle(false);
+    }
+  };
 
   const actionButton = (label: string, className: string, run: () => void) => (
     <button
@@ -254,7 +280,13 @@ export function CollectRow({
         ) : (
           <>
             <div className="flex items-center gap-3 px-4 py-2">
-              <RowText row={row} name={name} done={done} waiting={waiting} />
+              <RowText
+                row={row}
+                name={name}
+                done={done}
+                waiting={waiting}
+                onNameClick={onNameClick}
+              />
               {expandable && (
                 <button
                   type="button"
@@ -275,12 +307,15 @@ export function CollectRow({
               )}
               <span className="shrink-0 text-right">
                 {paidSoFar(row) > 0 && (
-                  <span
-                    className="block text-[11px] tabular-nums leading-tight
-                      text-muted-foreground line-through"
-                    aria-label={`Original ${peso(originalTotal(row))}`}
-                  >
-                    {peso(originalTotal(row))}
+                  <span className="flex items-center justify-end">
+                    <PaidBadge amount={paidSoFar(row)} />
+                    <span
+                      className="ml-1.5 text-[11px] tabular-nums leading-tight
+                        text-muted-foreground line-through"
+                      aria-label={`Original ${peso(originalTotal(row))}`}
+                    >
+                      {peso(originalTotal(row))}
+                    </span>
                   </span>
                 )}
                 <span
@@ -357,6 +392,7 @@ export function CollectRow({
                       <LineItem
                         key={line.id}
                         line={line}
+                        onOpen={guard(() => onOpenLine(line.id))}
                         onPay={guard(() => onPayLine(line.id))}
                         onEdit={guard(onEditPayments)}
                       />
@@ -388,26 +424,37 @@ function RowText({
   name,
   done,
   waiting,
+  onNameClick,
 }: {
   row: RowView;
   name: string;
   done: boolean;
   waiting: boolean;
+  onNameClick(event: ReactMouseEvent<HTMLAnchorElement>): void;
 }) {
   const sub = subline(row);
+  const borrowerId = row.model?.borrower?.id ?? null;
   return (
     <div className={cn("min-w-0 flex-1", done && "opacity-55")}>
       <p
         className={cn(
           "truncate text-[15px] font-bold lowercase",
-          // The group's category colour (--grp, set by the list), darkened;
-          // lightened in dark mode. No category: the normal text colour.
-          `text-[color:color-mix(in_oklab,var(--grp,var(--foreground))_62%,black)]
-          dark:text-[color:color-mix(in_oklab,var(--grp,var(--foreground))_60%,white)]`,
+          "text-zinc-700 dark:text-zinc-300",
           done && "line-through",
         )}
       >
-        {name}
+        {borrowerId ? (
+          <Link
+            href={`/borrowers/${borrowerId}`}
+            draggable={false}
+            onClick={onNameClick}
+            className="hover:underline"
+          >
+            {name}
+          </Link>
+        ) : (
+          name
+        )}
         {row.model?.note && (
           <NotebookPen
             className="ml-1.5 inline size-3.5 text-amber-500"
@@ -415,32 +462,61 @@ function RowText({
           />
         )}
         {waiting && <WaitingIcon />}
-        {row.status === "partial" && <PartialBadge />}
       </p>
       <p
         className={cn(
-          "truncate text-xs",
+          "truncate text-[10px]",
           sub.late
-            ? "text-rose-400 dark:text-rose-300"
-            : "text-muted-foreground",
+            ? "text-rose-700/80 font-semibold dark:text-rose-400"
+            : "text-muted-foreground font-semibold",
         )}
       >
         {sub.text}
+        {sub.kind && <KindBadge type={sub.kind} compact className="ml-1.5" />}
       </p>
     </div>
   );
 }
 
-/** Part-paid: something has been recorded but not all of it. */
-export function PartialBadge() {
+/** The installment's type: purple for a loan, amber for a cash advance. */
+function KindBadge({
+  type,
+  compact,
+  className,
+}: {
+  type: string;
+  /** Single-schedule rows: smaller, and "ca" for a cash advance. */
+  compact?: boolean;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        `inline-block rounded border align-middle leading-none font-semibold
+        lowercase`,
+        compact ? "px-1 py-px text-[9px]" : "px-1.5 py-0.5 text-[11px]",
+        type === "cash_advance"
+          ? `border-amber-300/60 bg-amber-100 text-amber-800
+            dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200`
+          : `border-violet-300/60 bg-violet-100 text-violet-800
+            dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-200`,
+        className,
+      )}
+    >
+      {compact && type === "cash_advance" ? "ca" : kindLabel(type)}
+    </span>
+  );
+}
+
+/** Part-paid: what has been recorded so far. */
+export function PaidBadge({ amount }: { amount: number }) {
   return (
     <span
       className="ml-1.5 inline-block rounded-full bg-violet-500/8 px-1
-        align-middle text-[9px] leading-4 font-medium tracking-wide
-        text-violet-600/80 uppercase dark:bg-violet-400/10
-        dark:text-violet-300/80"
+        align-middle text-[9px] leading-4 font-semibold tracking-wide
+        text-violet-900 lowercase dark:bg-violet-400/10 dark:text-violet-200"
     >
-      partial
+      {peso(amount)} paid
     </span>
   );
 }
@@ -457,10 +533,13 @@ function WaitingIcon() {
 /** One installment inside an expanded row, with its own check. */
 function LineItem({
   line,
+  onOpen,
   onPay,
   onEdit,
 }: {
   line: RowLine;
+  /** Tapping the schedule itself: its pay sheet (a paid one: edit). */
+  onOpen(event: ReactMouseEvent<HTMLButtonElement>): void;
   onPay(event: ReactMouseEvent<HTMLButtonElement>): void;
   /** Opens the edit-payments sheet; a paid installment's check does this. */
   onEdit(event: ReactMouseEvent<HTMLButtonElement>): void;
@@ -472,28 +551,46 @@ function LineItem({
       className="flex items-center gap-3 border-b border-border py-2
         last:border-b-0"
     >
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium capitalize">
-          {kindLabel(line.type)}
-          {line.state === "partial" && <PartialBadge />}
-        </p>
-        <p
-          className={cn(
-            "text-xs",
-            line.overdue
-              ? "text-rose-400 dark:text-rose-300"
-              : "text-muted-foreground",
+      <button
+        type="button"
+        onClick={paid ? onEdit : onOpen}
+        className="flex min-h-10 min-w-0 flex-1 items-center gap-3 text-left"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">
+            <KindBadge type={line.type} />
+          </p>
+          <p
+            className={cn(
+              "text-[10px]",
+              line.overdue
+                ? "text-rose-700/80 font-semibold dark:text-rose-400"
+                : "text-muted-foreground font-semibold",
+            )}
+          >
+            {due}
+            {line.overdue ? ` · ${line.daysOverdue}d late` : ""}
+            {paid ? " · paid · tap to edit" : ""}
+          </p>
+        </div>
+        <span className="shrink-0 text-right">
+          {line.state === "partial" && (
+            <span className="flex items-center justify-end">
+              <PaidBadge amount={line.recorded} />
+              <span
+                className="ml-1.5 text-[11px] leading-tight tabular-nums
+                  text-muted-foreground line-through"
+                aria-label={`Original ${peso(line.original)}`}
+              >
+                {peso(line.original)}
+              </span>
+            </span>
           )}
-        >
-          {line.recorded > 0 && !paid ? `${peso(line.recorded)} paid · ` : ""}
-          {due}
-          {line.overdue ? ` · ${line.daysOverdue}d late` : ""}
-          {paid ? " · paid · tap to edit" : ""}
-        </p>
-      </div>
-      <span className="text-sm font-semibold tabular-nums">
-        {peso(paid ? line.amount : line.left)}
-      </span>
+          <span className="block text-sm font-semibold tabular-nums">
+            {peso(paid ? line.amount : line.left)}
+          </span>
+        </span>
+      </button>
       <button
         type="button"
         aria-label={
