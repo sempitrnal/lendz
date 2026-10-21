@@ -29,7 +29,7 @@ export const namePillClass = `inline-block max-w-full min-w-0 truncate
   rounded-md border border-[color-mix(in_srgb,var(--grp,#0ea5e9)_30%,transparent)]
   bg-[color-mix(in_srgb,var(--grp,#0ea5e9)_12%,transparent)] px-2.5 py-1
   text-sm leading-none font-semibold text-slate-700 lowercase
-  dark:text-slate-200 mb-2`;
+  dark:text-slate-200 mb-1`;
 
 export const kindLabel = (type: string) =>
   type === "cash_advance" ? "cash advance" : "loan";
@@ -54,10 +54,17 @@ export const originalTotal = (row: RowView) =>
 function subline(row: RowView): {
   text: string;
   late: boolean;
-  /** The single open installment's type, shown as a badge. */
-  kind?: string;
+  /** The installment types shown after the text: the one open schedule's, or
+   * every schedule's on a paid row. */
+  kinds?: string[];
 } {
-  if (row.status === "paid") return { text: "paid · tap to edit", late: false };
+  if (row.status === "paid") {
+    return {
+      text: "paid · tap to edit",
+      late: false,
+      kinds: [...new Set(row.lines.map((l) => l.type))],
+    };
+  }
   const open = openLines(row);
   if (open.length > 1) {
     return {
@@ -71,7 +78,7 @@ function subline(row: RowView): {
   return {
     text: `${due}${late}`,
     late: line.overdue,
-    kind: line.type,
+    kinds: [line.type],
   };
 }
 
@@ -452,14 +459,12 @@ function RowText({
             href={`/borrowers/${borrowerId}`}
             draggable={false}
             onClick={onNameClick}
-            className={cn(namePillClass, done && "line-through")}
+            className={namePillClass}
           >
             {name}
           </Link>
         ) : (
-          <span className={cn(namePillClass, done && "line-through")}>
-            {name}
-          </span>
+          <span className={namePillClass}>{name}</span>
         )}
         {row.model?.note && (
           <NotebookPen
@@ -478,37 +483,39 @@ function RowText({
         )}
       >
         {sub.text}
-        {sub.kind && <KindBadge type={sub.kind} compact className="ml-1.5" />}
+        {sub.kinds?.map((type) => (
+          <KindBadge key={type} type={type} compact className="ml-1.5" />
+        ))}
       </p>
     </div>
   );
 }
 
 /** The installment's type: purple for a loan, amber for a cash advance. */
-function KindBadge({
+export function KindBadge({
   type,
   compact,
   className,
 }: {
   type: string;
-  /** Single-schedule rows: smaller, and "ca" for a cash advance. */
+  /** Single-schedule rows: "ca" for a cash advance. */
   compact?: boolean;
   className?: string;
 }) {
   return (
     <span
       className={cn(
-        `inline-block rounded border align-middle leading-none font-semibold
-        lowercase`,
-        compact ? "px-1 py-px text-[9px]" : "px-1.5 py-0.5 text-[11px]",
-        type === "cash_advance"
-          ? `border-amber-300/60 bg-amber-100 text-amber-800
-            dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200`
-          : `border-violet-300/60 bg-violet-100 text-violet-800
-            dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-200`,
+        "inline-flex items-center gap-1 align-middle lowercase",
         className,
       )}
     >
+      <span
+        className={cn(
+          "size-1.5 shrink-0 rounded-full",
+          type === "cash_advance" ? "bg-amber-400" : "bg-violet-500",
+        )}
+        aria-hidden="true"
+      />
       {compact && type === "cash_advance" ? "ca" : kindLabel(type)}
     </span>
   );
