@@ -445,9 +445,10 @@ function RowText({
 export function PartialBadge() {
   return (
     <span
-      className="ml-1.5 inline-block rounded-full bg-violet-500/15 px-1.5 py-px
-        align-middle text-[10px] font-semibold tracking-wide text-violet-700
-        uppercase dark:bg-violet-400/20 dark:text-violet-300"
+      className="ml-1.5 inline-block rounded-full bg-violet-500/8 px-1
+        align-middle text-[9px] leading-4 font-medium tracking-wide
+        text-violet-600/80 uppercase dark:bg-violet-400/10
+        dark:text-violet-300/80"
     >
       partial
     </span>
