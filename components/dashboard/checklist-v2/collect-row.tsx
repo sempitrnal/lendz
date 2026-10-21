@@ -31,6 +31,12 @@ export const rowName = rowDisplayName;
 export const openLines = (row: RowView) =>
   row.lines.filter((l) => l.state !== "paid");
 
+/** What has been paid on a part-paid row, across all its schedules. */
+export const paidSoFar = (row: RowView) =>
+  row.status === "partial"
+    ? Math.round(row.lines.reduce((sum, l) => sum + l.paid, 0) * 100) / 100
+    : 0;
+
 /** The muted second line of a collection row, per the spec's row table. */
 function subline(row: RowView): { text: string; late: boolean } {
   if (row.status === "paid") return { text: "paid · tap to edit", late: false };
@@ -38,8 +44,8 @@ function subline(row: RowView): { text: string; late: boolean } {
   if (open.length > 1) {
     return {
       text: `${open.length} due${
-        row.lateDays > 0 ? ` · oldest ${row.lateDays}d late` : ""
-      }`,
+        paidSoFar(row) > 0 ? ` · ${peso(paidSoFar(row))} paid` : ""
+      }${row.lateDays > 0 ? ` · oldest ${row.lateDays}d late` : ""}`,
       late: row.lateDays > 0,
     };
   }
@@ -275,13 +281,23 @@ export function CollectRow({
                   />
                 </button>
               )}
-              <span
-                className={cn(
-                  "text-[15px] font-semibold tabular-nums",
-                  done && "text-muted-foreground opacity-55",
+              <span className="shrink-0 text-right">
+                <span
+                  className={cn(
+                    "block text-[15px] font-semibold tabular-nums",
+                    done && "text-muted-foreground opacity-55",
+                  )}
+                >
+                  {peso(done ? row.total : row.left)}
+                </span>
+                {paidSoFar(row) > 0 && (
+                  <span
+                    className="block text-[11px] tabular-nums
+                      text-muted-foreground"
+                  >
+                    of {peso(row.total)}
+                  </span>
                 )}
-              >
-                {peso(done ? row.total : row.left)}
               </span>
               {done ? (
                 <button
@@ -399,6 +415,7 @@ function RowText({
           />
         )}
         {waiting && <WaitingIcon />}
+        {row.status === "partial" && <PartialBadge />}
       </p>
       <p
         className={cn(
@@ -411,6 +428,19 @@ function RowText({
         {sub.text}
       </p>
     </div>
+  );
+}
+
+/** Part-paid: something has been recorded but not all of it. */
+export function PartialBadge() {
+  return (
+    <span
+      className="ml-1.5 inline-block rounded-full bg-primary/10 px-1.5 py-px
+        align-middle text-[10px] font-semibold tracking-wide text-primary
+        uppercase"
+    >
+      partial
+    </span>
   );
 }
 
@@ -442,7 +472,10 @@ function LineItem({
         last:border-b-0"
     >
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium capitalize">{kindLabel(line.type)}</p>
+        <p className="text-sm font-medium capitalize">
+          {kindLabel(line.type)}
+          {line.state === "partial" && <PartialBadge />}
+        </p>
         <p
           className={cn(
             "text-xs",
