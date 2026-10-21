@@ -413,7 +413,7 @@ function RowText({
     <div className={cn("min-w-0 flex-1", done && "opacity-55")}>
       <p
         className={cn(
-          "truncate text-[15px] font-medium lowercase",
+          "truncate text-[15px] font-semibold lowercase",
           done && "line-through",
         )}
       >

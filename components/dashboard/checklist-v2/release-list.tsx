@@ -116,7 +116,7 @@ function ReleaseRow({
       <div className="min-w-0 flex-1">
         <p
           className={cn(
-            "truncate text-[15px] font-medium lowercase",
+            "truncate text-[15px] font-semibold lowercase",
             plainDone && "text-muted-foreground line-through",
           )}
         >
