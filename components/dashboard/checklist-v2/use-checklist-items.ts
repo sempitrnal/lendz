@@ -49,7 +49,13 @@ export type ChecklistItemsApi = {
    * shows and the rows go).
    */
   addItems(
-    rows: { label: string; categoryId: string | null; checked?: boolean }[],
+    rows: {
+      label: string;
+      categoryId: string | null;
+      checked?: boolean;
+      /** Show the waiting-to-sync mark even if the insert itself saves (its payment was queued). */
+      waiting?: boolean;
+    }[],
     onOutcome?: (outcome: "saved" | "queued") => void,
   ): Promise<DailyChecklistItem[]>;
   setLabel(id: string, label: string): void;
@@ -361,7 +367,12 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
 
   const addItems = useCallback(
     async (
-      rows: { label: string; categoryId: string | null; checked?: boolean }[],
+      rows: {
+        label: string;
+        categoryId: string | null;
+        checked?: boolean;
+        waiting?: boolean;
+      }[],
       onOutcome?: (outcome: "saved" | "queued") => void,
     ): Promise<DailyChecklistItem[]> => {
       if (rows.length === 0) return [];
@@ -413,6 +424,7 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
         return [];
       }
       onOutcome?.("saved");
+      markWaiting(ids.filter((_, idx) => rows[idx].waiting));
 
       const saved = new Map((data ?? []).map((row) => [row.id, row]));
       const result = created.map((row) => {

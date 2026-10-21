@@ -500,6 +500,40 @@ export function recordedRow(
   };
 }
 
+/**
+ * The toast when a manual payment was queued offline (or on a slow
+ * connection): it replays by itself, so it never says "couldn't confirm".
+ */
+export function manualQueuedMessage(amount: number): string {
+  return `${peso(amount)} payment saved offline — it will sync when you're back online`;
+}
+
+/**
+ * The row a queued manual payment gets. A rolling payment goes against the
+ * open schedule, so its row links it like any recorded one; a flat payment's
+ * schedule is created on replay and has no id yet, so its row is the
+ * borrower and a plain note saying what was paid.
+ */
+export function queuedRecordedRow(
+  borrower: ComposerBorrower,
+  account: { type: string },
+  schedule: NextCollectionItem | null,
+  amount: number,
+  collectId: string | null,
+): { label: string; categoryId: string | null; checked: true } {
+  if (schedule) return recordedRow(borrower, schedule, collectId);
+  return {
+    label: composeLabel({
+      borrower,
+      others: [],
+      lines: [],
+      note: `${peso(amount)} ${account.type === "cash_advance" ? "cash advance" : "loan"} payment (manual, saved offline)`,
+    }),
+    categoryId: collectId,
+    checked: true,
+  };
+}
+
 /** The toast when a recorded payment's row couldn't be added. */
 export const PAID_ROW_NOT_ADDED =
   "The payment was recorded, but its row couldn't be added to the list — don't record it again";

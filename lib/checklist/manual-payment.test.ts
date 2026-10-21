@@ -5,6 +5,14 @@ vi.mock("@/lib/actions/schedules", () => ({
   applyPartialPaymentAction: vi.fn(),
 }));
 
+let queued = false;
+vi.mock("@/lib/checklist/schedule-cache", () => ({
+  actionWasQueued: async () => queued,
+}));
+vi.mock("@/lib/offline/outbox", () => ({
+  getPendingOutboxCount: async () => 0,
+}));
+
 import {
   addManualScheduleAction,
   applyPartialPaymentAction,
@@ -32,6 +40,7 @@ const rolling: ManualAccount = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  queued = false;
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -107,5 +116,58 @@ describe("recordManualPayment", () => {
     expect(
       await recordManualPayment({ account: rolling, amount: 5, paidDate: "d" }),
     ).toEqual({ ok: false, error: "Couldn't add the payment", unknown: true });
+  });
+
+  it("reports a queued flat payment (the action threw, the outbox grew)", async () => {
+    add.mockRejectedValue(new Error("not an RSC response"));
+    queued = true;
+    expect(
+      await recordManualPayment({ account: flat, amount: 500, paidDate: "d" }),
+    ).toEqual({
+      ok: false,
+      error: "Couldn't add the payment",
+      unknown: true,
+      queued: true,
+      schedule: null,
+      rolloverAmount: 0,
+    });
+  });
+
+  it("reports a queued rolling payment against the open schedule", async () => {
+    apply.mockRejectedValue(new Error("not an RSC response"));
+    queued = true;
+    expect(
+      await recordManualPayment({
+        account: rolling,
+        amount: 500,
+        paidDate: "2026-10-21",
+      }),
+    ).toEqual({
+      ok: false,
+      error: "Couldn't add the payment",
+      unknown: true,
+      queued: true,
+      schedule: { id: "s1", due_date: "2026-10-20", amount: 500, type: "loan" },
+      rolloverAmount: 1500,
+    });
+  });
+
+  it("reports a queued flat payment that came back empty", async () => {
+    add.mockResolvedValue({});
+    queued = true;
+    const res = await recordManualPayment({
+      account: flat,
+      amount: 5,
+      paidDate: "d",
+    });
+    expect(res).toMatchObject({ ok: false, queued: true, schedule: null });
+  });
+
+  it("never reports queued when the action reported its own error", async () => {
+    add.mockResolvedValue({ error: "nope" });
+    queued = true;
+    expect(
+      await recordManualPayment({ account: flat, amount: 5, paidDate: "d" }),
+    ).toEqual({ ok: false, error: "nope" });
   });
 });

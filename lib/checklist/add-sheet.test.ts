@@ -13,10 +13,12 @@ import {
   manualFailureMessage,
   manualPaidMessage,
   manualPaymentCheck,
+  manualQueuedMessage,
   manualQuickAmounts,
   manualSummaryLeft,
   offerDues,
   paidLine,
+  queuedRecordedRow,
   recordedRow,
   releaseDraft,
   releaseReadBack,
@@ -594,6 +596,45 @@ describe("manual payments", () => {
     expect(view.status).toBe("paid");
     expect(view.left).toBe(0);
     expect(view.model?.borrower).toEqual(nora);
+  });
+
+  it("a queued payment says it will sync, never that it couldn't confirm", () => {
+    const msg = manualQueuedMessage(1500);
+    expect(msg).toBe(
+      "₱1,500 payment saved offline — it will sync when you're back online",
+    );
+    expect(msg).not.toMatch(/couldn't confirm|again/i);
+  });
+
+  it("a queued rolling payment's row links the open schedule", () => {
+    const schedule = {
+      id: "s1",
+      due_date: "2026-10-20",
+      amount: 500,
+      type: "loan",
+    };
+    expect(
+      queuedRecordedRow(nora, { type: "loan" }, schedule, 500, "c-collect"),
+    ).toEqual(recordedRow(nora, schedule, "c-collect"));
+  });
+
+  it("a queued flat payment's row is the borrower and a plain note", () => {
+    const row = queuedRecordedRow(
+      nora,
+      { type: "cash_advance" },
+      null,
+      1500,
+      "c-collect",
+    );
+    expect(row).toEqual({
+      label:
+        "[nora villanueva](/borrowers/n1) ₱1,500 cash advance payment (manual, saved offline)",
+      categoryId: "c-collect",
+      checked: true,
+    });
+    // No schedule link: nothing on the row can be paid or edited again.
+    const view = buildRowView(item("q", row.label, { is_checked: true }));
+    expect(view.model).toBeNull();
   });
 
   it("what's left adds the interest on what rolls over", () => {

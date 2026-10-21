@@ -43,12 +43,14 @@ import {
   manualFailureMessage,
   manualPaidMessage,
   manualPaymentCheck,
+  manualQueuedMessage,
   manualQuickAmounts,
   manualSummaryLeft,
   MENTION_FIRST,
   offerDues,
   PAID_ROW_NOT_ADDED,
   paidLine,
+  queuedRecordedRow,
   recordedRow,
   releaseDraft,
   releaseReadBack,
@@ -167,6 +169,8 @@ export function AddSheet({
    * its own ticked row, so they never go into the draft's label.
    */
   const [recordedLines, setRecordedLines] = useState<DraftLine[]>([]);
+  /** Manual accounts whose payment from this sheet was queued offline. */
+  const [queuedHere, setQueuedHere] = useState<Record<string, true>>({});
   /** Accounts whose last payment attempt ended without a clear answer. */
   const [unconfirmed, setUnconfirmed] = useState<Record<string, true>>({});
 
@@ -323,6 +327,47 @@ export function AddSheet({
         amount,
         paidDate: payDate,
       });
+      if (!result.ok && "queued" in result) {
+        // Held by the service worker: it replays by itself. Same as saved
+        // here (a ticked row, marked waiting), and never offered again.
+        const row = queuedRecordedRow(
+          who,
+          account,
+          result.schedule,
+          amount,
+          collectId,
+        );
+        const notAdded = () => toast.error(PAID_ROW_NOT_ADDED);
+        void addItems([{ ...row, waiting: true }])
+          .then((rows) => {
+            if (rows.length === 0) notAdded();
+          })
+          .catch(notAdded);
+        toast.success(manualQueuedMessage(amount));
+        const line = paidLine(
+          result.schedule ?? {
+            id: `queued-${account.id}`,
+            due_date: payDate,
+            amount,
+            type: account.type,
+          },
+        );
+        setRecorded((r) => ({ ...r, [account.id]: amount }));
+        setQueuedHere((q) => ({ ...q, [account.id]: true }));
+        setUnconfirmed((u) => {
+          const next = { ...u };
+          delete next[account.id];
+          return next;
+        });
+        setRecordedLines((prev) => [
+          ...prev.filter((l) => l.id !== line.id),
+          line,
+        ]);
+        setPayAmount("");
+        setManualAccount(null);
+        setView("compose");
+        return;
+      }
       if (!result.ok) {
         // Stay on the step. After an unclear outcome the step keeps saying
         // so, and the retry is labelled as one.
@@ -631,7 +676,10 @@ export function AddSheet({
                       font-medium text-emerald-700 dark:text-emerald-300"
                   >
                     <Check className="size-4" />
-                    {peso(paidHere)} payment recorded · added to the list
+                    {peso(paidHere)}{" "}
+                    {queuedHere[account.id]
+                      ? "payment saved offline · added to the list"
+                      : "payment recorded · added to the list"}
                   </p>
                 ) : (
                   <>
