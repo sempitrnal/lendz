@@ -135,8 +135,14 @@ export function CreateAccountSheet({
       warningRef.current?.scrollIntoView({ block: "nearest" });
       return;
     }
-    // The button is disabled while busy; a submit then isn't a new run.
-    if (now === "creating" || now === "created") return;
+    // The button is disabled while busy, but the form re-enables it a moment
+    // before it finishes (it resets, then waits on a server call). A submit
+    // in that gap would be a second account, so hold it back.
+    if (now === "creating" || now === "created") {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     eventRef.current("submit");
     watchSubmit();
   };
