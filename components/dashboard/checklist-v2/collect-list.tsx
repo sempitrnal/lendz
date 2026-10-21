@@ -201,8 +201,6 @@ export function CollectList({
                   onOpenPay={() => api.onRequest(row, "openPay")}
                   onPayRow={() => api.onRequest(row, "payRow")}
                   onEditPayments={() => api.onRequest(row, "editPayments")}
-                  onPartial={() => api.onRequest(row, "partial")}
-                  onNote={() => api.onRequest(row, "note")}
                   onMore={() => api.onRequest(row, "more")}
                   onPayAll={() => api.onPayAll(row)}
                   onPayLine={(lineId) => api.onPayLine(row, lineId)}

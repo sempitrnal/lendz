@@ -14,10 +14,8 @@ import { plainLabelText, rowDisplayName } from "@/lib/checklist/row-name";
 import type { RowLine, RowView } from "@/lib/checklist/row-state";
 import { peso } from "@/components/dashboard/checklist-v2/header";
 
-/** Partial (or Payment), Note and More, 64 px each. */
-const ACTIONS_W = 192;
-/** A plain note has no payment, so only Note and More. */
-const NOTE_ACTIONS_W = 128;
+/** The swipe shows More only. */
+const ACTIONS_W = 88;
 /** A pointer that moved further than this between down and up was a swipe. */
 const TAP_SLOP_PX = 8;
 const SPRING = { type: "spring", stiffness: 500, damping: 40 } as const;
@@ -74,11 +72,8 @@ export type CollectRowProps = {
   onSwiped(open: boolean): void;
   /** Row tap with one open installment: the pay sheet. */
   onOpenPay(): void;
-  /** Paid row (tap or its check), or Payment on a paid row's swipe. */
+  /** A row with payments (tap or its check): the edit-payments sheet. */
   onEditPayments(): void;
-  /** Swipe → Partial on an unpaid row. */
-  onPartial(): void;
-  onNote(): void;
   onMore(): void;
   /** The "Pay N" pill: the pay sheet (never pays at once). */
   onPayRow(): void;
@@ -106,8 +101,6 @@ export function CollectRow({
   onSwiped,
   onOpenPay,
   onEditPayments,
-  onPartial,
-  onNote,
   onMore,
   onPayRow,
   onPayAll,
@@ -131,7 +124,7 @@ export function CollectRow({
     (l) => l.state === "paid" || l.recorded > 0,
   );
   const name = rowName(row);
-  const width = isNote ? NOTE_ACTIONS_W : ACTIONS_W;
+  const width = ACTIONS_W;
 
   // Closing from outside (another row opened, a sheet opened) springs back.
   useEffect(() => {
@@ -220,13 +213,6 @@ export function CollectRow({
         style={{ width }}
         aria-hidden={!swiped}
       >
-        {!isNote &&
-          actionButton(
-            done ? "Payment" : "Partial",
-            "bg-amber-500",
-            done ? onEditPayments : onPartial,
-          )}
-        {actionButton("Note", "bg-slate-600", onNote)}
         {actionButton("More", "bg-slate-400 dark:bg-slate-500", onMore)}
       </div>
 
