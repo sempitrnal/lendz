@@ -79,6 +79,18 @@ describe("buildRowView", () => {
     expect(v.total).toBe(600);
   });
 
+  it("a stale label amount follows the saved schedule", () => {
+    // The label says 550 (a 1,900 payment, since undone); the schedule is
+    // back to owing the whole 2,450.
+    const lines = [{ due: "2026-10-10", amount: 550 }];
+    const v = buildRowView(
+      item(lines),
+      new Map([sched(0, { amount_due: 2450 })]),
+    );
+    expect(v.lines[0].left).toBe(2450);
+    expect(v.left).toBe(2450);
+  });
+
   it("a line with no saved schedule follows the tick", () => {
     const lines = [{ due: "2026-10-10", amount: 100 }];
     const open = buildRowView(item(lines));

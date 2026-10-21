@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { namePillClass } from "@/components/dashboard/checklist-v2/collect-row";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import { groupByBorrowerCategory } from "@/lib/checklist/labels";
 import {
@@ -209,7 +210,7 @@ function ReleaseRow({
           {view.borrowerId && view.name ? (
             <Link
               href={`/borrowers/${view.borrowerId}`}
-              className="hover:underline active:opacity-70"
+              className={cn(namePillClass, "active:opacity-70")}
             >
               {title}
             </Link>

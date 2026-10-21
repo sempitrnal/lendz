@@ -48,7 +48,9 @@ function buildLine(
   let state: LineState;
   let left: number;
   if (row) {
-    left = Math.min(line.amount, remainingOnInstallment(row));
+    // The saved schedule is the truth: the label's amount is only what was
+    // typed when the item was made, and can be stale (a payment undone).
+    left = remainingOnInstallment(row);
     state =
       row.status === "paid"
         ? "paid"
@@ -68,7 +70,7 @@ function buildLine(
     ...line,
     state,
     left,
-    paid: cents(line.amount - left),
+    paid: cents((row ? Number(row.amount_due) : line.amount) - left),
     overdue,
     recorded: row ? cents(amountPaidOnInstallment(row)) : 0,
     original: row ? cents(Number(row.amount_due)) : line.amount,
