@@ -21,6 +21,16 @@ const ACTIONS_W = 88;
 const TAP_SLOP_PX = 8;
 const SPRING = { type: "spring", stiffness: 500, damping: 40 } as const;
 
+/**
+ * A borrower's name as the old checklist's pill: tinted with the group's
+ * category colour (`--grp`, set by the list), sky when it has none.
+ */
+export const namePillClass = `inline-block max-w-full min-w-0 truncate
+  rounded-md border border-[color-mix(in_srgb,var(--grp,#0ea5e9)_30%,transparent)]
+  bg-[color-mix(in_srgb,var(--grp,#0ea5e9)_12%,transparent)] px-2.5 py-1
+  text-sm leading-none font-semibold text-slate-700 lowercase
+  dark:text-slate-200 mb-2`;
+
 export const kindLabel = (type: string) =>
   type === "cash_advance" ? "cash advance" : "loan";
 
@@ -320,7 +330,7 @@ export function CollectRow({
                 )}
                 <span
                   className={cn(
-                    "block text-[15px] font-semibold tabular-nums",
+                    "block text-[15px] font-bold text-zinc-600 tabular-nums ",
                     done && "text-muted-foreground opacity-55",
                   )}
                   aria-label={
@@ -436,28 +446,24 @@ function RowText({
   const borrowerId = row.model?.borrower?.id ?? null;
   return (
     <div className={cn("min-w-0 flex-1", done && "opacity-55")}>
-      <p
-        className={cn(
-          "truncate text-[15px] font-bold lowercase",
-          "text-zinc-700 dark:text-zinc-300",
-          done && "line-through",
-        )}
-      >
+      <p className="flex min-w-0 items-center gap-1.5">
         {borrowerId ? (
           <Link
             href={`/borrowers/${borrowerId}`}
             draggable={false}
             onClick={onNameClick}
-            className="hover:underline"
+            className={cn(namePillClass, done && "line-through")}
           >
             {name}
           </Link>
         ) : (
-          name
+          <span className={cn(namePillClass, done && "line-through")}>
+            {name}
+          </span>
         )}
         {row.model?.note && (
           <NotebookPen
-            className="ml-1.5 inline size-3.5 text-amber-500"
+            className="size-3.5 shrink-0 text-amber-500"
             aria-label="Has a note"
           />
         )}
@@ -578,7 +584,7 @@ function LineItem({
             <span className="flex items-center justify-end">
               <PaidBadge amount={line.recorded} />
               <span
-                className="ml-1.5 text-[11px] leading-tight tabular-nums
+                className="ml-1.5 text-xs leading-tight font-bold tabular-nums
                   text-muted-foreground line-through"
                 aria-label={`Original ${peso(line.original)}`}
               >
@@ -586,7 +592,7 @@ function LineItem({
               </span>
             </span>
           )}
-          <span className="block text-sm font-semibold tabular-nums">
+          <span className="block text-sm text-zinc-600 font-black tabular-nums">
             {peso(paid ? line.amount : line.left)}
           </span>
         </span>

@@ -1,15 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-
-const noopSubscribe = () => () => {};
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 
 /**
- * A bottom sheet in the style of the bottom nav's drawer: backdrop, grab
- * handle, rounded top, capped at 88dvh with its content scrolling.
+ * A bottom sheet on the shadcn drawer (vaul): backdrop, grab handle, drag
+ * down to dismiss, rounded top, capped at 88dvh with its content scrolling.
  *
  * The screen owns a counter it bumps on every open and keys the children with
  * it, so each open starts from a clean state even while the previous sheet is
@@ -28,87 +25,39 @@ export function Sheet({
   label?: string;
   children: ReactNode;
 }) {
-  // Portals need `document`; false on the server render.
-  const mounted = useSyncExternalStore(
-    noopSubscribe,
-    () => true,
-    () => false,
-  );
+  // The screen drops a sheet's children the moment it closes; keep the last
+  // ones on screen while the drawer slides out.
+  const [shown, setShown] = useState(children);
+  if (open && shown !== children) setShown(children);
 
-  const dialogRef = useRef<HTMLDivElement>(null);
-
-  // While open: the page behind doesn't scroll, and focus moves into the
-  // sheet; on close it goes back to whatever had it before.
-  useEffect(() => {
-    if (!open || !mounted) return;
-    const body = document.body;
-    const previousOverflow = body.style.overflow;
-    body.style.overflow = "hidden";
-    const previousFocus =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    dialogRef.current?.focus({ preventScroll: true });
-    return () => {
-      body.style.overflow = previousOverflow;
-      if (previousFocus?.isConnected) {
-        previousFocus.focus({ preventScroll: true });
-      }
-    };
-  }, [open, mounted]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!mounted) return null;
-  return createPortal(
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            key="backdrop"
-            className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
+  return (
+    <Drawer
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      // The keyboard must not move the sheet: the amount inputs stay put.
+      repositionInputs={false}
+    >
+      <DrawerContent
+        aria-describedby={undefined}
+        className="z-[9999] mx-auto max-h-[88dvh] max-w-md overflow-hidden
+          rounded-t-3xl border-t border-border bg-card
+          pb-[env(safe-area-inset-bottom)] outline-none
+          shadow-[0_-8px_40px_rgba(0,0,0,0.4)]"
+      >
+        <DrawerTitle className="sr-only">{label ?? "Sheet"}</DrawerTitle>
+        <div className="flex shrink-0 justify-center pt-3 pb-1">
+          <span
+            className="h-1.5 w-10 rounded-full bg-border"
+            aria-hidden="true"
           />
-          <motion.div
-            key="sheet"
-            ref={dialogRef}
-            tabIndex={-1}
-            role="dialog"
-            aria-modal="true"
-            aria-label={label}
-            className="fixed inset-x-0 bottom-0 z-[9999] mx-auto flex
-              max-h-[88dvh] max-w-md flex-col overflow-hidden rounded-t-3xl
-              border-t border-border bg-card pb-[env(safe-area-inset-bottom)]
-              outline-none shadow-[0_-8px_40px_rgba(0,0,0,0.4)]"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 380, damping: 38 }}
-          >
-            <div className="flex shrink-0 justify-center pt-3 pb-1">
-              <span
-                className="h-1.5 w-10 rounded-full bg-border"
-                aria-hidden="true"
-              />
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              {children}
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>,
-    document.body,
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          {open ? children : shown}
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
