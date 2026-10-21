@@ -144,7 +144,9 @@ export function CollectRow({
     // Taps on the row's own buttons are handled by those buttons.
     if ((event.target as Element | null)?.closest("button")) return;
     if (swiped) return settle(false);
-    if (isNote) return; // only the tick changes a note
+    // A note's tick is its own button; the rest of the row opens its menu
+    // (Edit note, Remove), the way to them without a swipe.
+    if (isNote) return onMore();
     if (done) onEditPayments();
     else if (multi) onExpandToggle();
     else onOpenPay();
@@ -242,6 +244,7 @@ export function CollectRow({
             done={done}
             waiting={waiting}
             onTick={guard(onTick)}
+            onOpen={guard(onMore)}
           />
         ) : (
           <>
@@ -459,11 +462,14 @@ function NoteBody({
   done,
   waiting,
   onTick,
+  onOpen,
 }: {
   row: RowView;
   done: boolean;
   waiting: boolean;
   onTick(event: ReactMouseEvent<HTMLButtonElement>): void;
+  /** The note's text: opens the row menu. */
+  onOpen(event: ReactMouseEvent<HTMLButtonElement>): void;
 }) {
   const text = plainLabelText(row.item.label);
   return (
@@ -487,15 +493,22 @@ function NoteBody({
           {done && <Check className="size-3.5" strokeWidth={3} />}
         </span>
       </button>
-      <p
-        className={cn(
-          "line-clamp-2 min-w-0 flex-1 text-sm whitespace-pre-line",
-          done && "text-muted-foreground line-through",
-        )}
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`${text}, open menu`}
+        className="flex min-h-11 min-w-0 flex-1 items-center text-left"
       >
-        {text}
-        {waiting && <WaitingIcon />}
-      </p>
+        <span
+          className={cn(
+            "line-clamp-2 min-w-0 text-sm whitespace-pre-line",
+            done && "text-muted-foreground line-through",
+          )}
+        >
+          {text}
+          {waiting && <WaitingIcon />}
+        </span>
+      </button>
     </div>
   );
 }

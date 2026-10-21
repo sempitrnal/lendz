@@ -58,11 +58,14 @@ export function EditPaymentsSheet({
   setChecked,
   onClose,
   onOpenBorrower,
+  onMore,
 }: {
   row: RowView;
   setChecked(ids: string[], checked: boolean): void;
   onClose(): void;
   onOpenBorrower(): void;
+  /** The row menu (Edit item, Open borrower page, Remove), as on the pay sheet. */
+  onMore(): void;
 }) {
   const lineIds = useMemo(() => row.lines.map((l) => l.id), [row.lines]);
   const live = useLiveSchedules(lineIds);
@@ -186,10 +189,20 @@ export function EditPaymentsSheet({
   return (
     <>
       <div className="px-5 pt-2 pb-3">
-        <BorrowerTitle
-          name={name}
-          onOpen={borrowerId ? onOpenBorrower : undefined}
-        />
+        <div className="flex items-start justify-between gap-3">
+          <BorrowerTitle
+            name={name}
+            onOpen={borrowerId ? onOpenBorrower : undefined}
+          />
+          <button
+            type="button"
+            onClick={onMore}
+            className="shrink-0 pt-1 text-sm font-medium text-muted-foreground
+              active:opacity-70"
+          >
+            More
+          </button>
+        </div>
         <p className="text-sm text-muted-foreground">
           {ready || live.rows.length > 0
             ? `Recorded payments · ${peso(recordedNow)}`

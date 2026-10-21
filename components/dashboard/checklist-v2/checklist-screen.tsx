@@ -769,6 +769,7 @@ function ChecklistDay({ today }: { today: string }) {
             setChecked={setChecked}
             onClose={closeSheet}
             onOpenBorrower={() => openBorrower(sheetRow)}
+            onMore={() => requestSheet("more", sheetRow.item.id)}
           />
         )}
       </Sheet>
