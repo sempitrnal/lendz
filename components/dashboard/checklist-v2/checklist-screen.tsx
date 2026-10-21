@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import { useCachedSchedules } from "@/components/dashboard/checklist/use-cached-schedules";
@@ -189,6 +190,7 @@ export default function ChecklistScreen() {
 }
 
 function ChecklistDay({ today }: { today: string }) {
+  const reduceMotion = useReducedMotion();
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<ChecklistTab>("collect");
   const [filter, setFilter] = useState<ChecklistFilter>("all");
@@ -781,31 +783,45 @@ function ChecklistDay({ today }: { today: string }) {
 
       {loading ? (
         <ListSkeleton />
-      ) : tab === "collect" ? (
-        <CollectList
-          rows={rows}
-          filter={filter}
-          borrowers={borrowers}
-          isToday={date === today}
-          api={rowsApi}
-          populating={populating}
-          onPopulate={() => void populate()}
-        />
       ) : (
-        <ReleaseList
-          views={releaseViews}
-          createMarks={createMarks}
-          waitingIds={waitingIds}
-          flashIds={flashIds}
-          disabled={loading}
-          onCreate={openCreate}
-          onCheckOff={(view) => {
-            if (loading || releaseState(view) !== "check-off") return;
-            tickCreated(view.item.id);
+        // A short fade and slide from the side the other tab is on; the
+        // content swaps at once, so nothing waits on the animation.
+        <motion.div
+          key={tab}
+          initial={{
+            opacity: 0,
+            x: reduceMotion ? 0 : tab === "release" ? 14 : -14,
           }}
-          onMenu={openReleaseMenu}
-          onNewRelease={() => openAdd("release")}
-        />
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
+        >
+          {tab === "collect" ? (
+            <CollectList
+              rows={rows}
+              filter={filter}
+              borrowers={borrowers}
+              isToday={date === today}
+              api={rowsApi}
+              populating={populating}
+              onPopulate={() => void populate()}
+            />
+          ) : (
+            <ReleaseList
+              views={releaseViews}
+              createMarks={createMarks}
+              waitingIds={waitingIds}
+              flashIds={flashIds}
+              disabled={loading}
+              onCreate={openCreate}
+              onCheckOff={(view) => {
+                if (loading || releaseState(view) !== "check-off") return;
+                tickCreated(view.item.id);
+              }}
+              onMenu={openReleaseMenu}
+              onNewRelease={() => openAdd("release")}
+            />
+          )}
+        </motion.div>
       )}
 
       <Sheet open={payOpen} onClose={closeSheet} label="Record payment">

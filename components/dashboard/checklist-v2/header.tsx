@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { relativeDayLabel, shiftDateValue } from "@/lib/checklist/dates";
@@ -78,6 +79,7 @@ export function Header({
   /** Opens the Collect list menu ("⋯"). Off while the day loads. */
   onMenu(): void;
 }) {
+  const reduceMotion = useReducedMotion();
   const dateInputRef = useRef<HTMLInputElement>(null);
   const relative = relativeDayLabel(date, today);
   const progress =
@@ -292,13 +294,23 @@ export function Header({
               aria-selected={tab === key}
               onClick={() => onTabChange(key)}
               className={cn(
-                "flex-1 rounded-[10px] py-1.5 transition-colors",
-                tab === key
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground",
+                "relative flex-1 rounded-[10px] py-1.5 transition-colors",
+                tab === key ? "text-foreground" : "text-muted-foreground",
               )}
             >
-              {label}
+              {tab === key && (
+                // The white pill slides to the tab you pick.
+                <motion.span
+                  layoutId="checklist-tab-pill"
+                  className="absolute inset-0 rounded-[10px] bg-card shadow-sm"
+                  transition={
+                    reduceMotion
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 500, damping: 40 }
+                  }
+                />
+              )}
+              <span className="relative">{label}</span>
             </button>
           ))}
         </div>
