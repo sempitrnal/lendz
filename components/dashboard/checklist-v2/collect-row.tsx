@@ -416,7 +416,7 @@ function RowText({
           "truncate text-[15px] font-bold lowercase",
           // The group's category colour (--grp, set by the list), darkened;
           // lightened in dark mode. No category: the normal text colour.
-          `text-[color:color-mix(in_oklab,var(--grp,var(--foreground))_72%,black)]
+          `text-[color:color-mix(in_oklab,var(--grp,var(--foreground))_62%,black)]
           dark:text-[color:color-mix(in_oklab,var(--grp,var(--foreground))_60%,white)]`,
           done && "line-through",
         )}
