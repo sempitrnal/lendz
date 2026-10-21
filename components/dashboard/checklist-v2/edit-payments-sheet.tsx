@@ -21,6 +21,7 @@ import type { RowView } from "@/lib/checklist/row-state";
 import { SheetFooter } from "@/components/dashboard/checklist-v2/sheet";
 import { peso } from "@/components/dashboard/checklist-v2/header";
 import {
+  KindBadge,
   kindLabel,
   rowName,
 } from "@/components/dashboard/checklist-v2/collect-row";
@@ -79,6 +80,10 @@ export function EditPaymentsSheet({
     cards.map((c) => [c.row.id, typed[c.row.id] ?? String(c.recorded)]),
   );
   const edit = buildEditPlan(cards, amounts, overdueCutoffDateValue());
+  // "Undo payments": every card to nothing paid, saved with the button below.
+  const allCleared =
+    cards.length > 0 &&
+    cards.every((c) => cardTarget(c, amounts[c.row.id]) === 0);
   const recordedNow = cards.reduce((sum, c) => sum + c.recorded, 0);
 
   const name = rowName(row);
@@ -221,64 +226,87 @@ export function EditPaymentsSheet({
               No payments recorded here.
             </p>
           ) : (
-            <ul className="space-y-2">
-              {cards.map((card) => {
-                const id = card.row.id;
-                const line = lineById.get(id);
-                const kind = sentence(kindLabel(line?.type ?? ""));
-                const date = formatShortDate(card.row.due_date).toLowerCase();
-                const target = cardTarget(card, amounts[id]);
-                return (
-                  <li
-                    key={id}
-                    className="rounded-xl border border-border bg-background
-                      p-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{kind}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {date} · due {peso(card.due)}
-                        </p>
+            <>
+              <ul className="space-y-2">
+                {cards.map((card) => {
+                  const id = card.row.id;
+                  const line = lineById.get(id);
+                  const kind = sentence(kindLabel(line?.type ?? ""));
+                  const date = formatShortDate(card.row.due_date).toLowerCase();
+                  const target = cardTarget(card, amounts[id]);
+                  return (
+                    <li
+                      key={id}
+                      className="rounded-xl border border-border bg-background
+                        p-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">
+                            <KindBadge type={line?.type ?? "loan"} />
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {date} · due {peso(card.due)}
+                          </p>
+                        </div>
+                        <AmountInput
+                          disabled={locked}
+                          value={amounts[id]}
+                          onChange={(v) => setTyped((t) => ({ ...t, [id]: v }))}
+                          label={`Amount paid for ${kind.toLowerCase()} ${date}`}
+                          invalid={target === null}
+                          className="w-32 shrink-0"
+                        />
                       </div>
-                      <AmountInput
-                        disabled={locked}
-                        value={amounts[id]}
-                        onChange={(v) => setTyped((t) => ({ ...t, [id]: v }))}
-                        label={`Amount paid for ${kind.toLowerCase()} ${date}`}
-                        invalid={target === null}
-                        className="w-32 shrink-0"
-                      />
-                    </div>
-                    {target === null && (
-                      <p
-                        className="mt-1 text-right text-[11px] text-destructive"
-                      >
-                        Not a number
-                      </p>
-                    )}
-                    <div className="mt-2 flex gap-2">
-                      <ShortcutChip
-                        disabled={locked}
-                        active={target === card.due}
-                        onClick={() =>
-                          setTyped((t) => ({ ...t, [id]: String(card.due) }))
-                        }
-                      >
-                        Paid in full
-                      </ShortcutChip>
-                      <ShortcutChip
-                        disabled={locked}
-                        active={target === 0}
-                        onClick={() => setTyped((t) => ({ ...t, [id]: "0" }))}
-                      >
-                        Not paid
-                      </ShortcutChip>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                      {target === null && (
+                        <p
+                          className="mt-1 text-right text-[11px]
+                            text-destructive"
+                        >
+                          Not a number
+                        </p>
+                      )}
+                      <div className="mt-2 flex gap-2">
+                        <ShortcutChip
+                          disabled={locked}
+                          active={target === card.due}
+                          onClick={() =>
+                            setTyped((t) => ({ ...t, [id]: String(card.due) }))
+                          }
+                        >
+                          Paid in full
+                        </ShortcutChip>
+                        <ShortcutChip
+                          disabled={locked}
+                          active={target === 0}
+                          onClick={() => setTyped((t) => ({ ...t, [id]: "0" }))}
+                        >
+                          Not paid
+                        </ShortcutChip>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              <button
+                type="button"
+                disabled={locked}
+                onClick={() =>
+                  setTyped(
+                    allCleared
+                      ? {}
+                      : Object.fromEntries(cards.map((c) => [c.row.id, "0"])),
+                  )
+                }
+                className={cn(
+                  `mt-3 text-sm font-medium active:opacity-70
+                    disabled:opacity-50`,
+                  allCleared ? "text-primary" : "text-destructive",
+                )}
+              >
+                {allCleared ? "Keep payments" : "Undo payments"}
+              </button>
+            </>
           )}
           {heldBack && cards.length > 0 && (
             <p
