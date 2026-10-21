@@ -16,7 +16,10 @@ import { buildQuickPay } from "@/lib/checklist/quick-pay";
 import { overdueCutoffDateValue, todayDateValue } from "@/lib/checklist/dates";
 import type { RowView } from "@/lib/checklist/row-state";
 import { peso } from "@/components/dashboard/checklist-v2/header";
-import { recordInSteps } from "@/components/dashboard/checklist-v2/record-steps";
+import {
+  recordInSteps,
+  undoAction,
+} from "@/components/dashboard/checklist-v2/record-steps";
 
 /** The pay toast and its Undo (Global Constraints: 6000 ms for pay). */
 const PAY_TOAST_MS = 6000;
@@ -88,7 +91,7 @@ export function useQuickPay(
       /** The pay's server result; set below before any toast (and Undo) shows. */
       let paid: Promise<"saved" | "queued" | "failed"> | null = null;
 
-      const undo = async () => {
+      const undo = async (onStart: () => void) => {
         // Never let the reset race the pay it takes back.
         if (!paid || (await paid) === "failed") return;
         const restored = quick.restore.payments.reduce(
@@ -97,22 +100,31 @@ export function useQuickPay(
         );
         // The reset deletes every payment on the installment; the restore
         // then puts back what was there before this pay.
-        await recordInSteps(recordPayments, base, [
-          {
-            plan: quick.undo,
-            failureMessage: "Couldn't undo — the payment is still recorded",
-            // Still paid after a refusal: the tick stays.
-            onDone: () => {
-              if (tick) setChecked([itemId], false);
+        const result = await recordInSteps(
+          recordPayments,
+          base,
+          [
+            {
+              plan: quick.undo,
+              failureMessage: "Couldn't undo — the payment is still recorded",
+              // Still paid after a refusal: the tick stays.
+              onDone: () => {
+                if (tick) setChecked([itemId], false);
+              },
             },
-          },
-          {
-            plan: quick.restore,
-            failureMessage: `Couldn't put back the earlier ${peso(
-              restored,
-            )} payment — re-enter it`,
-          },
-        ]);
+            {
+              plan: quick.restore,
+              failureMessage: `Couldn't put back the earlier ${peso(
+                restored,
+              )} payment — re-enter it`,
+            },
+          ],
+          { onStart, action: "undo" },
+        );
+        // The reset may not have happened: it is still paid, so tick it again.
+        if (result.heldBack === "unconfirmed" && tick)
+          setChecked([itemId], true);
+        return result;
       };
 
       paid = recordPayments({
@@ -126,7 +138,9 @@ export function useQuickPay(
               ? { duration: PAY_TOAST_MS, description: heldBack }
               : {
                   duration: PAY_TOAST_MS,
-                  action: { label: "Undo", onClick: () => void undo() },
+                  action: undoAction(undo, () => {
+                    if (toastId !== undefined) toast.dismiss(toastId);
+                  }),
                 },
           );
         },

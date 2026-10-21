@@ -32,7 +32,10 @@ import {
   useLiveSchedules,
 } from "@/components/dashboard/checklist-v2/use-live-schedules";
 import { heldBackPointer } from "@/lib/checklist/manual-accounts";
-import { recordInSteps } from "@/components/dashboard/checklist-v2/record-steps";
+import {
+  recordInSteps,
+  undoAction,
+} from "@/components/dashboard/checklist-v2/record-steps";
 import {
   AmountInput,
   BorrowerTitle,
@@ -138,25 +141,33 @@ export function PaySheet({
     // never reset from here: no Undo, the account page instead.
     const heldBack = heldBackPointer(pay.accountIds, summaries);
 
-    const undo = async () => {
+    const undo = async (onStart: () => void) => {
       // Never let the reset race the pay it takes back.
       if (!paid || (await paid) === "failed") return;
-      await recordInSteps(recordPayments, base, [
-        {
-          plan: pay.undo.reset,
-          failureMessage: "Couldn't undo — the payment is still recorded",
-          // Still paid after a refusal: the tick stays.
-          onDone: () => {
-            if (tick) setChecked([itemId], false);
+      const result = await recordInSteps(
+        recordPayments,
+        base,
+        [
+          {
+            plan: pay.undo.reset,
+            failureMessage: "Couldn't undo — the payment is still recorded",
+            // Still paid after a refusal: the tick stays.
+            onDone: () => {
+              if (tick) setChecked([itemId], false);
+            },
           },
-        },
-        {
-          plan: pay.undo.restore,
-          failureMessage: `Couldn't put back the earlier ${peso(
-            restored,
-          )} payment — re-enter it`,
-        },
-      ]);
+          {
+            plan: pay.undo.restore,
+            failureMessage: `Couldn't put back the earlier ${peso(
+              restored,
+            )} payment — re-enter it`,
+          },
+        ],
+        { onStart, action: "undo" },
+      );
+      // The reset may not have happened: it is still paid, so tick it again.
+      if (result.heldBack === "unconfirmed" && tick) setChecked([itemId], true);
+      return result;
     };
 
     setSubmitting(true);
@@ -173,7 +184,9 @@ export function PaySheet({
               ? { duration: PAY_TOAST_MS, description: heldBack }
               : {
                   duration: PAY_TOAST_MS,
-                  action: { label: "Undo", onClick: () => void undo() },
+                  action: undoAction(undo, () => {
+                    if (toastId !== undefined) toast.dismiss(toastId);
+                  }),
                 },
           );
           onClose();

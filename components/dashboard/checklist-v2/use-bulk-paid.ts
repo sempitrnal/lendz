@@ -4,7 +4,10 @@ import { useRef } from "react";
 import { toast } from "sonner";
 import { useRecordPayments } from "@/components/dashboard/checklist/use-record-payments";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
-import { recordInSteps } from "@/components/dashboard/checklist-v2/record-steps";
+import {
+  recordInSteps,
+  undoAction,
+} from "@/components/dashboard/checklist-v2/record-steps";
 import {
   bulkPayFailureText,
   bulkUndoOutcome,
@@ -66,10 +69,9 @@ export function useBulkPaid(
       let paid: Promise<Outcome> | null = null;
       let undone = false;
 
-      const undo = async () => {
-        // Once only, and never ahead of the pay it takes back.
+      const undo = async (onStart: () => void) => {
+        // Once only (`undoAction`), and never ahead of the pay it takes back.
         if (undone || !paid) return;
-        undone = true;
         if ((await paid) === "failed") return;
         const today = todayDateValue();
         // Manual accounts (or ones that couldn't be checked) are never reset
@@ -88,8 +90,8 @@ export function useBulkPaid(
         // the offline check (did the outbox grow?) can't then mistake
         // another installment's queued write for this one's.
         const results: BulkUndoResult[] = [];
-        for (const target of toUndo) {
-          const { failedAt } = await recordInSteps(
+        for (const [i, target] of toUndo.entries()) {
+          const { failedAt, heldBack } = await recordInSteps(
             recordPayments,
             {
               accountIds: [target.accountId],
@@ -101,9 +103,26 @@ export function useBulkPaid(
               { plan: target.reset, failureMessage: null },
               { plan: target.restore, failureMessage: null },
             ],
+            { onStart },
           );
-          results.push({ target, failedAt });
+          if (heldBack === "syncing") {
+            // Nothing sent for this one. Before any write the toast stays
+            // for another try; later, the rest are reported still recorded.
+            if (i === 0) return { failedAt: 0, heldBack };
+            for (const rest of toUndo.slice(i)) {
+              results.push({ target: rest, failedAt: 0 });
+            }
+            break;
+          }
+          // A reset that couldn't be confirmed may not have happened: still
+          // recorded, as far as anyone can tell here.
+          results.push({
+            target,
+            failedAt: heldBack === "unconfirmed" ? 0 : failedAt,
+          });
         }
+        undone = true;
+        onStart();
         // Only ticks this action set are taken back: rows it only ticked,
         // and rows with at least one of its payments reset (`bulkUndoOutcome`).
         const { untickIds, errors, note } = bulkUndoOutcome(
@@ -120,7 +139,7 @@ export function useBulkPaid(
         toast(text, {
           id: toastId,
           duration: BULK_TOAST_MS,
-          action: { label: "Undo", onClick: () => void undo() },
+          action: undoAction(undo, () => toast.dismiss(toastId)),
         });
 
       if (count === 0) {

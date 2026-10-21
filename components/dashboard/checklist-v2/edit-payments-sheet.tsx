@@ -28,7 +28,11 @@ import {
   useLiveSchedules,
 } from "@/components/dashboard/checklist-v2/use-live-schedules";
 import { heldBackPointer } from "@/lib/checklist/manual-accounts";
-import { recordInSteps } from "@/components/dashboard/checklist-v2/record-steps";
+import {
+  recordInSteps,
+  undoAction,
+  type StepsResult,
+} from "@/components/dashboard/checklist-v2/record-steps";
 import {
   AmountInput,
   BorrowerTitle,
@@ -109,56 +113,69 @@ export function EditPaymentsSheet({
     const undoFailure = editUndoFailureMessages(edit, peso);
     let toastId: string | number | undefined;
     /** The save's result; set before the toast (and its Undo) shows. */
-    let saved: Promise<{ failedAt: number | null }> | null = null;
+    let saved: Promise<StepsResult> | null = null;
 
-    const undo = async () => {
+    const undo = async (onStart: () => void) => {
       // Never let the undo race the save it takes back, and only take back
       // a save that fully went through.
       if (!saved || (await saved).failedAt !== null) return;
-      const { failedAt } = await recordInSteps(recordPayments, base, [
-        { plan: edit.undo.reset, failureMessage: undoFailure.reset },
-        { plan: edit.undo.restore, failureMessage: undoFailure.restore },
-      ]);
+      const result = await recordInSteps(
+        recordPayments,
+        base,
+        [
+          { plan: edit.undo.reset, failureMessage: undoFailure.reset },
+          { plan: edit.undo.restore, failureMessage: undoFailure.restore },
+        ],
+        { onStart, action: "undo" },
+      );
       // The money is back on the row only when both steps went through.
-      if (failedAt === null && untick) setChecked([itemId], true);
+      if (result.failedAt === null && untick) setChecked([itemId], true);
+      return result;
     };
 
     setSubmitting(true);
     try {
-      saved = recordInSteps(recordPayments, base, [
-        {
-          // Resets the lowered installments, adds to the raised ones.
-          plan: edit.first,
-          failureMessage: failure.first,
-          onApplied: () => {
-            toastId = toast(
-              edit.removesAll
-                ? `${name} · payment removed`
-                : `${name} · ${peso(edit.total)} paid`,
-              {
-                duration: EDIT_TOAST_MS,
-                action: { label: "Undo", onClick: () => void undo() },
-              },
-            );
-            onClose();
+      saved = recordInSteps(
+        recordPayments,
+        base,
+        [
+          {
+            // Resets the lowered installments, adds to the raised ones.
+            plan: edit.first,
+            failureMessage: failure.first,
+            onApplied: () => {
+              toastId = toast(
+                edit.removesAll
+                  ? `${name} · payment removed`
+                  : `${name} · ${peso(edit.total)} paid`,
+                {
+                  duration: EDIT_TOAST_MS,
+                  action: undoAction(undo, () => {
+                    if (toastId !== undefined) toast.dismiss(toastId);
+                  }),
+                },
+              );
+              onClose();
+            },
+            onFailed: () => {
+              if (toastId !== undefined) toast.dismiss(toastId);
+            },
+            // Unticks only once the payments are really gone.
+            onDone: () => {
+              if (untick) setChecked([itemId], false);
+            },
           },
-          onFailed: () => {
-            if (toastId !== undefined) toast.dismiss(toastId);
+          {
+            // The new, lower amounts, on the installments just reset.
+            plan: edit.then,
+            failureMessage: failure.then,
+            onFailed: () => {
+              if (toastId !== undefined) toast.dismiss(toastId);
+            },
           },
-          // Unticks only once the payments are really gone.
-          onDone: () => {
-            if (untick) setChecked([itemId], false);
-          },
-        },
-        {
-          // The new, lower amounts, on the installments just reset.
-          plan: edit.then,
-          failureMessage: failure.then,
-          onFailed: () => {
-            if (toastId !== undefined) toast.dismiss(toastId);
-          },
-        },
-      ]);
+        ],
+        { action: "save" },
+      );
       await saved;
     } finally {
       setSubmitting(false);
