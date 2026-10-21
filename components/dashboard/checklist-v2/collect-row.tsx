@@ -413,7 +413,7 @@ function RowText({
     <div className={cn("min-w-0 flex-1", done && "opacity-55")}>
       <p
         className={cn(
-          "truncate text-[15px] font-semibold lowercase",
+          "truncate text-[15px] font-bold lowercase",
           // The group's category colour (--grp, set by the list), darkened;
           // lightened in dark mode. No category: the normal text colour.
           `text-[color:color-mix(in_oklab,var(--grp,var(--foreground))_50%,black)]
