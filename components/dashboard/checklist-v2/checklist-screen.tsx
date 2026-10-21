@@ -7,7 +7,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
@@ -39,6 +38,21 @@ import {
   ListMenuSheet,
 } from "@/components/dashboard/checklist-v2/list-menu-sheets";
 import { useBulkPaid } from "@/components/dashboard/checklist-v2/use-bulk-paid";
+import { ReleaseList } from "@/components/dashboard/checklist-v2/release-list";
+import { CreateAccountSheet } from "@/components/dashboard/checklist-v2/create-account-sheet";
+import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
+import { isConnectionGood } from "@/lib/offline/connection";
+import {
+  buildReleaseView,
+  type ReleaseRowView,
+} from "@/lib/checklist/release-items";
+import {
+  checkedOffWithoutAccountText,
+  CREATED_CHECK_OFF_QUEUED,
+  CREATED_NOT_CHECKED_OFF,
+  releaseRowState,
+  releaseTotal,
+} from "@/lib/checklist/release-list";
 import type { AddMode } from "@/lib/checklist/add-sheet";
 import type {
   DailyChecklistItem,
@@ -106,6 +120,12 @@ type PopulateRun = {
   used: boolean;
 };
 
+/** The create-account sheet for a release item; `seq` keys each open. */
+type CreateSheetRequest = { itemId: string; seq: number };
+
+/** The "Check off without account" toast and its Undo (6000 ms). */
+const CHECK_OFF_TOAST_MS = 6000;
+
 /** The list menu ("⋯") or the bulk sheet; `seq` keys each open. */
 type ListSheetRequest = { kind: "menu" | "bulk"; seq: number };
 
@@ -162,6 +182,15 @@ function ChecklistDay({ today }: { today: string }) {
   const [rowSheet, setRowSheet] = useState<RowSheetRequest | null>(null);
   const [addSheet, setAddSheet] = useState<AddSheetRequest | null>(null);
   const [listSheet, setListSheet] = useState<ListSheetRequest | null>(null);
+  const [createSheet, setCreateSheet] = useState<CreateSheetRequest | null>(
+    null,
+  );
+  /**
+   * Release items an account was created from on this screen. They are
+   * never offered "Create account" again, even if ticking them failed.
+   */
+  const [createdIds, setCreatedIds] = useState<Set<string>>(() => new Set());
+  const createdRef = useRef(new Set<string>());
   /** The populate the menu's "Undo populate" takes back (this day only). */
   const [lastPopulate, setLastPopulate] = useState<PopulateRun | null>(null);
   const [populating, setPopulating] = useState(false);
@@ -171,6 +200,7 @@ function ChecklistDay({ today }: { today: string }) {
   /** Rows whose Remove is under way, so a double tap removes (and toasts) once. */
   const removingRef = useRef(new Set<string>());
   const router = useRouter();
+  const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
 
   const {
     items,
@@ -209,6 +239,7 @@ function ChecklistDay({ today }: { today: string }) {
     setRowSheet(null);
     setAddSheet(null);
     setListSheet(null);
+    setCreateSheet(null);
     // "Undo populate" is for the day it was populated on.
     setLastPopulate(null);
     setDate(next);
@@ -220,6 +251,15 @@ function ChecklistDay({ today }: { today: string }) {
       releaseItems: items.filter((i) => tabOf(i, releasedId) === "release"),
     }),
     [items, releasedId],
+  );
+
+  const releaseViews = useMemo(
+    () => releaseItems.map(buildReleaseView),
+    [releaseItems],
+  );
+  const releasedTotal = useMemo(
+    () => releaseTotal(releaseViews),
+    [releaseViews],
   );
 
   const scheduleIds = useMemo(
@@ -265,6 +305,7 @@ function ChecklistDay({ today }: { today: string }) {
     sheetSeq.current += 1;
     setRowSheet(null);
     setListSheet(null);
+    setCreateSheet(null);
     setAddSheet({ mode, editItemId, seq: sheetSeq.current });
   };
   const closeAdd = () => setAddSheet(null);
@@ -357,9 +398,90 @@ function ChecklistDay({ today }: { today: string }) {
     sheetSeq.current += 1;
     setRowSheet(null);
     setAddSheet(null);
+    setCreateSheet(null);
     setListSheet({ kind, seq: sheetSeq.current });
   };
   const closeList = () => setListSheet(null);
+
+  const releaseState = (view: ReleaseRowView) =>
+    releaseRowState(view, createdRef.current.has(view.item.id));
+  /** Opens the create-account sheet for a release item not yet converted. */
+  const openCreate = (view: ReleaseRowView) => {
+    if (loading || releaseState(view) !== "create") return;
+    sheetSeq.current += 1;
+    setRowSheet(null);
+    setAddSheet(null);
+    setListSheet(null);
+    setCreateSheet({ itemId: view.item.id, seq: sheetSeq.current });
+  };
+  const closeCreate = () => setCreateSheet(null);
+  const createView = createSheet
+    ? (releaseViews.find((v) => v.item.id === createSheet.itemId) ?? null)
+    : null;
+  // Closes by itself once the item is no longer "create": ticked (here or
+  // elsewhere), removed, or its account made here.
+  const createOpen =
+    !!createView &&
+    releaseRowState(createView, createdIds.has(createView.item.id)) ===
+      "create";
+
+  /**
+   * Ticks a release item whose account was just created, saying plainly when
+   * that fails (the row then offers "Check off", never a second account) or
+   * is only queued offline.
+   */
+  const tickCreated = (itemId: string) =>
+    setChecked([itemId], true, (outcome) => {
+      if (outcome === "failed") toast.error(CREATED_NOT_CHECKED_OFF);
+      else if (outcome === "queued") toast.info(CREATED_CHECK_OFF_QUEUED);
+    });
+
+  /**
+   * The form created the account (as the old widget did: close, tick the
+   * item, refresh the borrower's details, and the page when online). Once per
+   * item, and it may arrive after the sheet or the day has changed: the tick
+   * goes by item id.
+   */
+  const accountCreated = (view: ReleaseRowView) => {
+    const id = view.item.id;
+    if (createdRef.current.has(id)) return;
+    createdRef.current.add(id);
+    setCreatedIds(new Set(createdRef.current));
+    setCreateSheet((prev) => (prev?.itemId === id ? null : prev));
+    tickCreated(id);
+    if (view.parsed) invalidateBorrowerDetails(view.parsed.borrowerId);
+    if (isConnectionGood()) router.refresh();
+  };
+
+  /** "Check off without account": ticks it, with Undo on the toast. */
+  const checkOffWithoutAccount = (view: ReleaseRowView) => {
+    const id = view.item.id;
+    closeCreate();
+    if (loading || releaseState(view) !== "create") return;
+    const forDate = date;
+    const toastId = `check-off-${id}-${Date.now()}`;
+    let undone = false;
+    setChecked([id], true, (outcome) => {
+      // The row is back unticked (the hook said why): nothing to undo.
+      if (outcome === "failed") toast.dismiss(toastId);
+    });
+    toast(checkedOffWithoutAccountText(
+        (view.name || "release").toLowerCase(),
+      ), {
+      id: toastId,
+      duration: CHECK_OFF_TOAST_MS,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          if (undone || dateRef.current !== forDate) return;
+          // An account made from it since: it stays checked off.
+          if (createdRef.current.has(id)) return;
+          undone = true;
+          setChecked([id], false);
+        },
+      },
+    });
+  };
 
   /**
    * Undo populate (the toast's or the menu's): deletes only the rows still
@@ -510,6 +632,7 @@ function ChecklistDay({ today }: { today: string }) {
         collectCount={collectItems.length}
         releaseCount={releaseItems.length}
         summary={summary}
+        releaseTotal={releasedTotal}
         filter={filter}
         onFilterChange={setFilter}
         counts={counts}
@@ -531,21 +654,19 @@ function ChecklistDay({ today }: { today: string }) {
           onPopulate={() => void populate()}
         />
       ) : (
-        <div className="mt-3 px-3">
-          <div
-            className="rounded-2xl border border-dashed border-border bg-card
-              px-6 py-10 text-center"
-          >
-            <p className="text-base font-semibold">Releases are coming here</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Until then, create accounts from the{" "}
-              <Link href="/daily-checklist" className="text-primary underline">
-                classic checklist
-              </Link>
-              .
-            </p>
-          </div>
-        </div>
+        <ReleaseList
+          views={releaseViews}
+          createdIds={createdIds}
+          waitingIds={waitingIds}
+          flashIds={flashIds}
+          disabled={loading}
+          onCreate={openCreate}
+          onCheckOff={(view) => {
+            if (loading || releaseState(view) !== "check-off") return;
+            tickCreated(view.item.id);
+          }}
+          onNewRelease={() => openAdd("release")}
+        />
       )}
 
       <Sheet open={payOpen} onClose={closeSheet} label="Record payment">
@@ -651,6 +772,17 @@ function ChecklistDay({ today }: { today: string }) {
             disabled={loading}
             onClose={closeList}
             onConfirm={(bulk, paymentDate) => void bulkPay(bulk, paymentDate)}
+          />
+        )}
+      </Sheet>
+      <Sheet open={createOpen} onClose={closeCreate} label="Create account">
+        {createOpen && createView && createSheet && (
+          <CreateAccountSheet
+            key={createSheet.seq}
+            release={createView}
+            date={date}
+            onCreated={() => accountCreated(createView)}
+            onCheckOff={() => checkOffWithoutAccount(createView)}
           />
         )}
       </Sheet>

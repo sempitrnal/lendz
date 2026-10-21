@@ -53,7 +53,16 @@ export type ChecklistItemsApi = {
     onOutcome?: (outcome: "saved" | "queued") => void,
   ): Promise<DailyChecklistItem[]>;
   setLabel(id: string, label: string): void;
-  setChecked(ids: string[], checked: boolean): void;
+  /**
+   * Ticks or unticks the rows at once. `onOutcome` hears how the write ended:
+   * "saved", "queued" (offline; it syncs later) or "failed" (the rows go back
+   * and an error toast shows).
+   */
+  setChecked(
+    ids: string[],
+    checked: boolean,
+    onOutcome?: (outcome: RemoveOutcome) => void,
+  ): void;
   /**
    * Removes the rows at once and returns them, for Undo. `onSettled` hears how
    * the delete ended: "saved", "queued" (offline; it syncs later) or "failed"
@@ -448,7 +457,11 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
   );
 
   const setChecked = useCallback(
-    (ids: string[], checked: boolean) => {
+    (
+      ids: string[],
+      checked: boolean,
+      onOutcome?: (outcome: RemoveOutcome) => void,
+    ) => {
       if (ids.length === 0) return;
       const targetDate = date;
       const idSet = new Set(ids);
@@ -468,8 +481,10 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
           .update({ is_checked: checked })
           .in("id", ids),
       ).then(({ error }: { error: DbError }) => {
-        if (wasQueuedOffline(error)) markWaiting(ids);
-        else if (error) {
+        if (wasQueuedOffline(error)) {
+          markWaiting(ids);
+          onOutcome?.("queued");
+        } else if (error) {
           toast.error(error.message);
           updateDay(targetDate, (prev) =>
             prev.map((row) =>
@@ -478,7 +493,8 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
                 : row,
             ),
           );
-        }
+          onOutcome?.("failed");
+        } else onOutcome?.("saved");
       });
     },
     [date, updateDay, trackWrite, markWaiting],

@@ -248,8 +248,11 @@ function longDate(iso: string) {
   });
 }
 
-/** e.g. "Reads as ₱10,000 loan · 10 months · first payment Nov 4, 2026". */
-export function releaseReadBack(parsed: ParsedReleasedLabel): string {
+/**
+ * What a release note reads as, e.g. ["₱10,000 loan", "10 months",
+ * "first payment Nov 4, 2026"] (the term and first payment only when found).
+ */
+export function releaseParts(parsed: ParsedReleasedLabel): string[] {
   const v = parsed.initialValues;
   const parts = [
     `${peso(Number(v.principal_amount ?? 0))} ${
@@ -267,7 +270,12 @@ export function releaseReadBack(parsed: ParsedReleasedLabel): string {
   if (v.first_payment_date) {
     parts.push(`first payment ${longDate(v.first_payment_date)}`);
   }
-  return `Reads as ${parts.join(" · ")}`;
+  return parts;
+}
+
+/** e.g. "Reads as ₱10,000 loan · 10 months · first payment Nov 4, 2026". */
+export function releaseReadBack(parsed: ParsedReleasedLabel): string {
+  return `Reads as ${releaseParts(parsed).join(" · ")}`;
 }
 
 export type SubmitPlan =

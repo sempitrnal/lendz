@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { relativeDayLabel, shiftDateValue } from "@/lib/checklist/dates";
 import type { ChecklistFilter } from "@/lib/checklist/list-view";
 import type { ChecklistTab } from "@/lib/checklist/categories";
+import { releasedDayText } from "@/lib/checklist/release-list";
 
 export const peso = (n: number) =>
   `₱${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
@@ -49,6 +50,7 @@ export function Header({
   collectCount,
   releaseCount,
   summary,
+  releaseTotal,
   filter,
   onFilterChange,
   counts,
@@ -64,6 +66,8 @@ export function Header({
   collectCount: number;
   releaseCount: number;
   summary: HeaderSummary;
+  /** The Release tab's total: the day's parsed principals. */
+  releaseTotal: number;
   filter: ChecklistFilter;
   onFilterChange(filter: ChecklistFilter): void;
   counts: Record<ChecklistFilter, number>;
@@ -197,6 +201,28 @@ export function Header({
             Back to today
           </button>
         )}
+
+        {tab === "release" &&
+          (loading ? (
+            <div className="mt-2 flex items-center gap-2" aria-busy="true">
+              <span className="sr-only">Loading the day</span>
+              <span
+                className="h-9 w-32 animate-pulse rounded-lg bg-muted"
+                aria-hidden="true"
+              />
+            </div>
+          ) : (
+            <div className="mt-2 flex items-baseline gap-2">
+              <span
+                className="text-3xl font-semibold tracking-tight tabular-nums"
+              >
+                {peso(releaseTotal)}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                {releasedDayText(date === today)}
+              </span>
+            </div>
+          ))}
 
         {tab === "collect" && (
           <div className="mt-2">
