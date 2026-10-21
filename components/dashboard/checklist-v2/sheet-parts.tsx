@@ -1,7 +1,13 @@
 "use client";
 
+import { useLayoutEffect, useRef } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  formatAmountInput,
+  indexAfterSignificant,
+  significantBefore,
+} from "@/lib/checklist/amount-input";
 
 /**
  * The sheet title: the borrower's name (lowercase), which opens their page.
@@ -49,6 +55,19 @@ export function AmountInput({
   disabled?: boolean;
   className?: string;
 }) {
+  const ref = useRef<HTMLInputElement>(null);
+  /** Digits and dots before the caret, restored after the commas change. */
+  const caret = useRef<number | null>(null);
+  const shown = formatAmountInput(value);
+
+  useLayoutEffect(() => {
+    const input = ref.current;
+    if (!input || caret.current === null) return;
+    const at = indexAfterSignificant(input.value, caret.current);
+    caret.current = null;
+    if (document.activeElement === input) input.setSelectionRange(at, at);
+  });
+
   return (
     <label
       className={cn(
@@ -68,10 +87,18 @@ export function AmountInput({
         autoComplete="off"
         aria-label={label}
         aria-invalid={invalid || undefined}
-        value={value}
+        ref={ref}
+        value={shown}
         disabled={disabled}
         onFocus={(e) => e.currentTarget.select()}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          const input = e.target;
+          caret.current = significantBefore(
+            input.value,
+            input.selectionStart ?? input.value.length,
+          );
+          onChange(formatAmountInput(input.value));
+        }}
         className="min-w-0 flex-1 bg-transparent text-right text-base
           font-semibold tabular-nums outline-none"
       />
