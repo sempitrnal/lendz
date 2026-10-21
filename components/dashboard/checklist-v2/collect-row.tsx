@@ -232,7 +232,7 @@ export function CollectRow({
         }
         onTap={onTap}
         className={cn(
-          "relative touch-pan-y transition-colors duration-700",
+          "relative touch-pan-y transition-colors duration-700 motion-reduce:transition-none",
           highlight ? "bg-primary/15" : "bg-card",
         )}
       >

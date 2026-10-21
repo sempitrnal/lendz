@@ -109,7 +109,7 @@ function ReleaseRow({
     <li
       className={cn(
         `flex items-center gap-3 border-b border-border px-4 py-3
-        transition-colors duration-700 last:border-b-0`,
+        transition-colors duration-700 motion-reduce:transition-none last:border-b-0`,
         highlight && "bg-primary/5",
       )}
     >

@@ -13,6 +13,7 @@ import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import { useCachedSchedules } from "@/components/dashboard/checklist/use-cached-schedules";
 import { useChecklistItems } from "@/components/dashboard/checklist-v2/use-checklist-items";
 import { Header } from "@/components/dashboard/checklist-v2/header";
+import { OfflineBanner } from "@/components/dashboard/checklist-v2/offline-banner";
 import {
   CollectList,
   type CollectRowsApi,
@@ -698,6 +699,8 @@ function ChecklistDay({ today }: { today: string }) {
         onAdd={() => openAdd(tab)}
         onMenu={() => openList("menu")}
       />
+
+      <OfflineBanner />
 
       {loading ? (
         <ListSkeleton />
