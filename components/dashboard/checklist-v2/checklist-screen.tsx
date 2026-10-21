@@ -181,7 +181,7 @@ function ChecklistDay({ today }: { today: string }) {
   const [filter, setFilter] = useState<ChecklistFilter>("all");
   /** The one row whose swipe actions are showing. */
   const [swipedId, setSwipedId] = useState<string | null>(null);
-  /** Rows with several open installments shown expanded. */
+  /** Rows with several schedules shown expanded. */
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   /**
    * The row sheet asked for (pay, edit payments, partial, note, row menu);

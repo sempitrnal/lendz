@@ -114,6 +114,9 @@ export function CollectRow({
   const done = isNote ? row.item.is_checked : row.status === "paid";
   const open = openLines(row);
   const multi = !isNote && open.length > 1;
+  // Several schedules on one borrower: the row expands to list every one,
+  // paid ones included, so a paid schedule can be tapped to edit it.
+  const expandable = !isNote && !done && row.lines.length > 1;
   const name = rowName(row);
   const width = isNote ? NOTE_ACTIONS_W : ACTIONS_W;
 
@@ -148,7 +151,7 @@ export function CollectRow({
     // (Edit note, Remove), the way to them without a swipe.
     if (isNote) return onMore();
     if (done) onEditPayments();
-    else if (multi) onExpandToggle();
+    else if (expandable) onExpandToggle();
     else onOpenPay();
   };
 
@@ -307,7 +310,7 @@ export function CollectRow({
             </div>
 
             <AnimatePresence initial={false}>
-              {expanded && multi && (
+              {expanded && expandable && (
                 <motion.div
                   key="expanded"
                   initial={{ height: 0, opacity: 0 }}
@@ -321,16 +324,20 @@ export function CollectRow({
                         key={line.id}
                         line={line}
                         onPay={guard(() => onPayLine(line.id))}
+                        onEdit={guard(onEditPayments)}
                       />
                     ))}
-                    <button
-                      type="button"
-                      onClick={guard(onPayAll)}
-                      className="my-2 w-full rounded-lg bg-primary/10 py-2
-                        text-sm font-semibold text-primary active:bg-primary/20"
-                    >
-                      Pay all {peso(row.left)}
-                    </button>
+                    {multi && (
+                      <button
+                        type="button"
+                        onClick={guard(onPayAll)}
+                        className="my-2 w-full rounded-lg bg-primary/10 py-2
+                          text-sm font-semibold text-primary
+                          active:bg-primary/20"
+                      >
+                        Pay all {peso(row.left)}
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -398,9 +405,12 @@ function WaitingIcon() {
 function LineItem({
   line,
   onPay,
+  onEdit,
 }: {
   line: RowLine;
   onPay(event: ReactMouseEvent<HTMLButtonElement>): void;
+  /** Opens the edit-payments sheet; a paid installment's check does this. */
+  onEdit(event: ReactMouseEvent<HTMLButtonElement>): void;
 }) {
   const paid = line.state === "paid";
   const due = formatShortDate(line.due_date).toLowerCase();
@@ -422,7 +432,7 @@ function LineItem({
           {line.paid > 0 && !paid ? `${peso(line.paid)} paid · ` : ""}
           {due}
           {line.overdue ? ` · ${line.daysOverdue}d late` : ""}
-          {paid ? " · paid" : ""}
+          {paid ? " · paid · tap to edit" : ""}
         </p>
       </div>
       <span className="text-sm font-semibold tabular-nums">
@@ -430,13 +440,12 @@ function LineItem({
       </span>
       <button
         type="button"
-        disabled={paid}
         aria-label={
           paid
-            ? `${kindLabel(line.type)} due ${due} paid`
+            ? `Edit payment for ${kindLabel(line.type)} due ${due}`
             : `Pay ${kindLabel(line.type)} due ${due}, ${peso(line.left)}`
         }
-        onClick={onPay}
+        onClick={paid ? onEdit : onPay}
         className="flex size-10 items-center justify-center"
       >
         <span
