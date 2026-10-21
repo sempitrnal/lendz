@@ -57,8 +57,18 @@ describe("buildRowView", () => {
       { due: "2026-10-10", amount: 300 },
     ]);
     const map = new Map([
-      sched(0, { amount_due: 100, amount_paid: 100, remaining_amount: 0, status: "paid" }),
-      sched(1, { amount_due: 200, amount_paid: 50, remaining_amount: 150, status: "partial" }),
+      sched(0, {
+        amount_due: 100,
+        amount_paid: 100,
+        remaining_amount: 0,
+        status: "paid",
+      }),
+      sched(1, {
+        amount_due: 200,
+        amount_paid: 50,
+        remaining_amount: 150,
+        status: "partial",
+      }),
       sched(2, { amount_due: 300 }),
     ]);
     const v = buildRowView(it1, map);
@@ -85,7 +95,12 @@ describe("buildRowView", () => {
       { due: "2026-10-10", amount: 200 },
     ]);
     const map = new Map([
-      sched(0, { amount_due: 100, amount_paid: 100, remaining_amount: 0, status: "paid" }),
+      sched(0, {
+        amount_due: 100,
+        amount_paid: 100,
+        remaining_amount: 0,
+        status: "paid",
+      }),
       sched(1, { amount_due: 200 }),
     ]);
     expect(buildRowView(it1, map).status).toBe("partial");
@@ -115,7 +130,9 @@ describe("buildRowView", () => {
   });
 
   it("carried is true only when every line is due before the checklist date", () => {
-    expect(buildRowView(item([{ due: "2026-10-05", amount: 1 }])).carried).toBe(true);
+    expect(buildRowView(item([{ due: "2026-10-05", amount: 1 }])).carried).toBe(
+      true,
+    );
     expect(
       buildRowView(
         item([
@@ -134,7 +151,12 @@ describe("buildRowView", () => {
     expect(buildRowView(item(lines)).dueOnDay).toBe(true);
     const map = new Map([
       sched(0, { amount_due: 1 }),
-      sched(1, { amount_due: 1, amount_paid: 1, remaining_amount: 0, status: "paid" }),
+      sched(1, {
+        amount_due: 1,
+        amount_paid: 1,
+        remaining_amount: 0,
+        status: "paid",
+      }),
     ]);
     expect(buildRowView(item(lines), map).dueOnDay).toBe(false);
   });
@@ -148,5 +170,27 @@ describe("buildRowView", () => {
     expect(v.left).toBe(0);
     expect(v.status).toBe("unpaid");
     expect(buildRowView({ ...base, is_checked: true }).status).toBe("paid");
+  });
+});
+
+describe("recorded and original on a part-paid line", () => {
+  it("reads what is recorded and the installment's own amount from the schedule, even when the label already shows what is left", () => {
+    // The label carries ₱600 (what was left when it was written); the saved
+    // schedule is ₱1,000 with ₱400 paid.
+    const it1 = item([{ due: "2026-10-10", amount: 600 }]);
+    const map = new Map([
+      sched(0, { amount_due: 1000, amount_paid: 400, remaining_amount: 600 }),
+    ]);
+    const view = buildRowView(it1, map);
+    expect(view.status).toBe("partial");
+    expect(view.lines[0].recorded).toBe(400);
+    expect(view.lines[0].original).toBe(1000);
+    expect(view.left).toBe(600);
+  });
+
+  it("falls back to the label amount and no payment without a saved schedule", () => {
+    const view = buildRowView(item([{ due: "2026-10-10", amount: 600 }]));
+    expect(view.lines[0].recorded).toBe(0);
+    expect(view.lines[0].original).toBe(600);
   });
 });

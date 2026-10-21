@@ -34,8 +34,12 @@ export const openLines = (row: RowView) =>
 /** What has been paid on a part-paid row, across all its schedules. */
 export const paidSoFar = (row: RowView) =>
   row.status === "partial"
-    ? Math.round(row.lines.reduce((sum, l) => sum + l.paid, 0) * 100) / 100
+    ? Math.round(row.lines.reduce((sum, l) => sum + l.recorded, 0) * 100) / 100
     : 0;
+
+/** What the row was before anything was paid: the crossed-out total. */
+export const originalTotal = (row: RowView) =>
+  Math.round(row.lines.reduce((sum, l) => sum + l.original, 0) * 100) / 100;
 
 /** The muted second line of a collection row, per the spec's row table. */
 function subline(row: RowView): { text: string; late: boolean } {
@@ -50,7 +54,7 @@ function subline(row: RowView): { text: string; late: boolean } {
     };
   }
   const line = open[0];
-  const paid = line.paid > 0 ? `${peso(line.paid)} paid · ` : "";
+  const paid = line.recorded > 0 ? `${peso(line.recorded)} paid · ` : "";
   const due = formatShortDate(line.due_date).toLowerCase();
   const late = line.overdue ? ` · ${line.daysOverdue}d late` : "";
   return {
@@ -123,7 +127,9 @@ export function CollectRow({
   // Several schedules on one borrower: the row expands to list every one,
   // paid ones included, so a paid schedule can be tapped to edit it.
   const expandable = !isNote && !done && row.lines.length > 1;
-  const hasPayments = row.lines.some((l) => l.state === "paid" || l.paid > 0);
+  const hasPayments = row.lines.some(
+    (l) => l.state === "paid" || l.recorded > 0,
+  );
   const name = rowName(row);
   const width = isNote ? NOTE_ACTIONS_W : ACTIONS_W;
 
@@ -282,22 +288,26 @@ export function CollectRow({
                 </button>
               )}
               <span className="shrink-0 text-right">
+                {paidSoFar(row) > 0 && (
+                  <span
+                    className="block text-[11px] tabular-nums leading-tight
+                      text-muted-foreground line-through"
+                    aria-label={`Original ${peso(originalTotal(row))}`}
+                  >
+                    {peso(originalTotal(row))}
+                  </span>
+                )}
                 <span
                   className={cn(
                     "block text-[15px] font-semibold tabular-nums",
                     done && "text-muted-foreground opacity-55",
                   )}
+                  aria-label={
+                    paidSoFar(row) > 0 ? `${peso(row.left)} left` : undefined
+                  }
                 >
                   {peso(done ? row.total : row.left)}
                 </span>
-                {paidSoFar(row) > 0 && (
-                  <span
-                    className="block text-[11px] tabular-nums
-                      text-muted-foreground"
-                  >
-                    of {peso(row.total)}
-                  </span>
-                )}
               </span>
               {done ? (
                 <button
@@ -435,9 +445,9 @@ function RowText({
 export function PartialBadge() {
   return (
     <span
-      className="ml-1.5 inline-block rounded-full bg-primary/10 px-1.5 py-px
-        align-middle text-[10px] font-semibold tracking-wide text-primary
-        uppercase"
+      className="ml-1.5 inline-block rounded-full bg-violet-500/15 px-1.5 py-px
+        align-middle text-[10px] font-semibold tracking-wide text-violet-700
+        uppercase dark:bg-violet-400/20 dark:text-violet-300"
     >
       partial
     </span>
@@ -484,7 +494,7 @@ function LineItem({
               : "text-muted-foreground",
           )}
         >
-          {line.paid > 0 && !paid ? `${peso(line.paid)} paid · ` : ""}
+          {line.recorded > 0 && !paid ? `${peso(line.recorded)} paid · ` : ""}
           {due}
           {line.overdue ? ` · ${line.daysOverdue}d late` : ""}
           {paid ? " · paid · tap to edit" : ""}

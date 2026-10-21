@@ -5,7 +5,10 @@ import {
 } from "@/lib/checklist/labels";
 import type { ScheduleDialogRow } from "@/lib/checklist/schedule-cache";
 import type { DailyChecklistItem } from "@/lib/checklist/types";
-import { remainingOnInstallment } from "@/lib/payment-schedule/schedule-balances";
+import {
+  amountPaidOnInstallment,
+  remainingOnInstallment,
+} from "@/lib/payment-schedule/schedule-balances";
 
 export type LineState = "paid" | "partial" | "unpaid";
 
@@ -14,6 +17,10 @@ export type RowLine = CollectionRowLine & {
   paid: number;
   left: number;
   overdue: boolean;
+  /** What is recorded as paid on the saved schedule (0 with none saved). */
+  recorded: number;
+  /** The installment's own amount: the saved schedule's, else the label's. */
+  original: number;
 };
 
 export type RowStatus = "paid" | "partial" | "unpaid";
@@ -57,7 +64,15 @@ function buildLine(
     state !== "paid" &&
     line.daysOverdue > 0 &&
     (row ? row.status === "overdue" : true);
-  return { ...line, state, left, paid: cents(line.amount - left), overdue };
+  return {
+    ...line,
+    state,
+    left,
+    paid: cents(line.amount - left),
+    overdue,
+    recorded: row ? cents(amountPaidOnInstallment(row)) : 0,
+    original: row ? cents(Number(row.amount_due)) : line.amount,
+  };
 }
 
 export function buildRowView(
@@ -79,7 +94,9 @@ export function buildRowView(
     };
   }
 
-  const lines = model.lines.map((l) => buildLine(l, item.is_checked, schedules));
+  const lines = model.lines.map((l) =>
+    buildLine(l, item.is_checked, schedules),
+  );
   const left = cents(lines.reduce((sum, l) => sum + l.left, 0));
   const status: RowStatus = lines.every((l) => l.state === "paid")
     ? "paid"
