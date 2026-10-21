@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ReleaseRowView } from "@/lib/checklist/release-items";
 import {
+  type CreateMark,
+  type CreateMarks,
   releaseNote,
   releaseRowState,
   releaseSummary,
@@ -17,7 +19,7 @@ import {
  */
 export function ReleaseList({
   views,
-  createdIds,
+  createMarks,
   waitingIds,
   flashIds,
   disabled,
@@ -26,8 +28,8 @@ export function ReleaseList({
   onNewRelease,
 }: {
   views: ReleaseRowView[];
-  /** Items an account was created from on this screen (never offered again). */
-  createdIds: Set<string>;
+  /** Where creating an account stands per item on this screen. */
+  createMarks: CreateMarks;
   waitingIds: Set<string>;
   flashIds: Set<string>;
   /** The day is loading: no writes. */
@@ -44,13 +46,15 @@ export function ReleaseList({
           No releases on this day yet. Add one with New release.
         </p>
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-border bg-card">
+        <section
+          className="overflow-hidden rounded-2xl border border-border bg-card"
+        >
           <ul>
             {views.map((view) => (
               <ReleaseRow
                 key={view.item.id}
                 view={view}
-                createdHere={createdIds.has(view.item.id)}
+                mark={createMarks.get(view.item.id)}
                 waiting={waitingIds.has(view.item.id)}
                 highlight={flashIds.has(view.item.id)}
                 disabled={disabled}
@@ -79,7 +83,7 @@ export function ReleaseList({
 
 function ReleaseRow({
   view,
-  createdHere,
+  mark,
   waiting,
   highlight,
   disabled,
@@ -87,14 +91,14 @@ function ReleaseRow({
   onCheckOff,
 }: {
   view: ReleaseRowView;
-  createdHere: boolean;
+  mark: CreateMark | undefined;
   waiting: boolean;
   highlight: boolean;
   disabled: boolean;
   onCreate(): void;
   onCheckOff(): void;
 }) {
-  const state = releaseRowState(view, createdHere);
+  const state = releaseRowState(view, mark);
   const summary = releaseSummary(view);
   const note = releaseNote(view.item.label);
   // A row with no borrower mention shows its whole note as the title.
@@ -130,20 +134,23 @@ function ReleaseRow({
           </p>
         )}
         {view.name && note && (
-          <p className="text-[11px] break-words text-muted-foreground/70 lowercase">
+          <p
+            className="text-[11px] break-words text-muted-foreground/70
+              lowercase"
+          >
             “{note}”
           </p>
         )}
         {state === "check-off" && (
           <p className="mt-0.5 text-xs font-medium text-destructive">
-            Account created, not checked off
+            Not checked off yet
           </p>
         )}
       </div>
       {state === "created" && (
         <span
-          className="flex shrink-0 items-center gap-1 rounded-full
-            bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary"
+          className="flex shrink-0 items-center gap-1 rounded-full bg-primary/10
+            px-3 py-1.5 text-sm font-medium text-primary"
         >
           <Check className="size-4" strokeWidth={2.5} />
           Created
@@ -153,9 +160,19 @@ function ReleaseRow({
         <Button
           onClick={onCreate}
           disabled={disabled}
-          className="h-9 shrink-0 rounded-full px-4"
+          className="relative h-9 shrink-0 rounded-full px-4 after:absolute
+            after:-inset-y-1 after:inset-x-0 after:content-['']"
         >
           Create account
+        </Button>
+      )}
+      {state === "creating" && (
+        <Button
+          disabled
+          aria-busy="true"
+          className="relative h-9 shrink-0 rounded-full px-4"
+        >
+          Creating…
         </Button>
       )}
       {state === "check-off" && (
@@ -163,7 +180,8 @@ function ReleaseRow({
           variant="outline"
           onClick={onCheckOff}
           disabled={disabled}
-          className="h-9 shrink-0 rounded-full px-4"
+          className="relative h-9 shrink-0 rounded-full px-4 after:absolute
+            after:-inset-y-1 after:inset-x-0 after:content-['']"
         >
           Check off
         </Button>

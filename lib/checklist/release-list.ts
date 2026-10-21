@@ -17,23 +17,69 @@ export function releaseOf(view: ReleaseRowView): ParsedReleasedLabel | null {
 }
 
 /**
+ * Where creating an account from a release item stands on this screen:
+ * - "creating": the form's Create was pressed and hasn't finished.
+ * - "created": the form said the account was made (saved, or queued offline).
+ * No mark means idle.
+ */
+export type CreateMark = "creating" | "created";
+export type CreateMarks = ReadonlyMap<string, CreateMark>;
+
+/**
+ * - "submit": Create was pressed (idle → creating; nothing else changes).
+ * - "success": the form's onSuccess (→ created, from any state).
+ * - "idle": the form is back to idle without success, e.g. an error or a
+ *   failed validation (creating → idle; created stays).
+ */
+export type CreateEvent = { type: "submit" | "success" | "idle"; id: string };
+
+/** idle → creating → created | idle. Returns `marks` itself when nothing changes. */
+export function reduceCreateMarks(
+  marks: CreateMarks,
+  event: CreateEvent,
+): CreateMarks {
+  const current = marks.get(event.id);
+  let next: CreateMark | undefined = current;
+  if (event.type === "submit") next = current ?? "creating";
+  else if (event.type === "success") next = "created";
+  else if (current === "creating") next = undefined;
+  if (next === current) return marks;
+  const out = new Map(marks);
+  if (next) out.set(event.id, next);
+  else out.delete(event.id);
+  return out;
+}
+
+/** The create sheet can't be closed (or checked off) while Create runs. */
+export const canLeaveCreate = (mark: CreateMark | undefined) =>
+  mark !== "creating";
+
+/**
  * What a release row offers:
  * - "plain": the note doesn't read as a release (or is a collection); no button.
  * - "created": the item is ticked (an account was made, or it was checked off).
- * - "check-off": an account was made from it here but ticking the item
- *   failed, so it offers to check it off again, never to create a second one.
+ * - "creating": Create is running for it; a disabled "Creating…".
+ * - "check-off": an account was made from it here but the item isn't ticked
+ *   (the tick failed, or it was unticked since), so it offers to check it
+ *   off, never to create a second one.
  * - "create": a parsed release not yet turned into an account.
  */
-export type ReleaseRowState = "plain" | "created" | "check-off" | "create";
+export type ReleaseRowState =
+  | "plain"
+  | "created"
+  | "creating"
+  | "check-off"
+  | "create";
 
 export function releaseRowState(
   view: ReleaseRowView,
-  /** An account was created from this item on this screen. */
-  createdHere: boolean,
+  /** This item's create mark on this screen, if any. */
+  mark: CreateMark | undefined,
 ): ReleaseRowState {
   if (!releaseOf(view)) return "plain";
   if (view.created) return "created";
-  if (createdHere) return "check-off";
+  if (mark === "created") return "check-off";
+  if (mark === "creating") return "creating";
   return "create";
 }
 
@@ -72,13 +118,23 @@ export function releasedDayText(isToday: boolean): string {
   return isToday ? "released today" : "released this day";
 }
 
-/** The toast when ticking fails after the account was created. */
-export const CREATED_NOT_CHECKED_OFF =
-  "Account created, but the item couldn't be checked off. Tap Check off to try again.";
-
-/** The toast when ticking is queued offline after the account was created. */
-export const CREATED_CHECK_OFF_QUEUED =
-  "Account created. The item is checked off on this device and syncs when you're back online.";
+/**
+ * The toast after ticking the item the form created an account from, or null
+ * when the tick saved. `accountQueued`: the account itself was only queued
+ * offline (the form has said so), so this never claims it exists.
+ */
+export function tickAfterCreateText(
+  outcome: "saved" | "queued" | "failed",
+  accountQueued: boolean,
+): string | null {
+  if (outcome === "saved") return null;
+  if (outcome === "queued") {
+    return "Checked off on this device; it syncs when you're back online.";
+  }
+  return accountQueued
+    ? "The item couldn't be checked off. Tap Check off to try again."
+    : "Account created, but the item couldn't be checked off. Tap Check off to try again.";
+}
 
 /** The toast after "Check off without account". */
 export const checkedOffWithoutAccountText = (name: string) =>

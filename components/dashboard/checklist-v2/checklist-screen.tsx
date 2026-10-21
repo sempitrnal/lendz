@@ -47,11 +47,14 @@ import {
   type ReleaseRowView,
 } from "@/lib/checklist/release-items";
 import {
+  canLeaveCreate,
   checkedOffWithoutAccountText,
-  CREATED_CHECK_OFF_QUEUED,
-  CREATED_NOT_CHECKED_OFF,
+  reduceCreateMarks,
   releaseRowState,
   releaseTotal,
+  tickAfterCreateText,
+  type CreateEvent,
+  type CreateMarks,
 } from "@/lib/checklist/release-list";
 import type { AddMode } from "@/lib/checklist/add-sheet";
 import type {
@@ -186,11 +189,15 @@ function ChecklistDay({ today }: { today: string }) {
     null,
   );
   /**
-   * Release items an account was created from on this screen. They are
-   * never offered "Create account" again, even if ticking them failed.
+   * Where creating an account stands per release item on this screen
+   * ("creating" while the form's Create runs, then "created"). A created
+   * item is never offered "Create account" again, even if ticking it failed.
+   * The ref is the same marks for handlers that run after an await.
    */
-  const [createdIds, setCreatedIds] = useState<Set<string>>(() => new Set());
-  const createdRef = useRef(new Set<string>());
+  const [createMarks, setCreateMarks] = useState<CreateMarks>(() => new Map());
+  const createMarksRef = useRef<CreateMarks>(createMarks);
+  /** Items whose account was only queued offline, for truthful toasts. */
+  const accountQueuedRef = useRef(new Map<string, boolean>());
   /** The populate the menu's "Undo populate" takes back (this day only). */
   const [lastPopulate, setLastPopulate] = useState<PopulateRun | null>(null);
   const [populating, setPopulating] = useState(false);
@@ -403,8 +410,14 @@ function ChecklistDay({ today }: { today: string }) {
   };
   const closeList = () => setListSheet(null);
 
+  const markCreate = (event: CreateEvent) => {
+    const next = reduceCreateMarks(createMarksRef.current, event);
+    if (next === createMarksRef.current) return;
+    createMarksRef.current = next;
+    setCreateMarks(next);
+  };
   const releaseState = (view: ReleaseRowView) =>
-    releaseRowState(view, createdRef.current.has(view.item.id));
+    releaseRowState(view, createMarksRef.current.get(view.item.id));
   /** Opens the create-account sheet for a release item not yet converted. */
   const openCreate = (view: ReleaseRowView) => {
     if (loading || releaseState(view) !== "create") return;
@@ -414,16 +427,28 @@ function ChecklistDay({ today }: { today: string }) {
     setListSheet(null);
     setCreateSheet({ itemId: view.item.id, seq: sheetSeq.current });
   };
-  const closeCreate = () => setCreateSheet(null);
+  /**
+   * Closes the create sheet, except while its Create runs: the form must stay
+   * mounted (and the item marked) until it says how it ended, so a second
+   * form can't create a second account. Covers the backdrop and Escape.
+   */
+  const closeCreate = () => {
+    setCreateSheet((prev) =>
+      prev && !canLeaveCreate(createMarksRef.current.get(prev.itemId))
+        ? prev
+        : null,
+    );
+  };
   const createView = createSheet
     ? (releaseViews.find((v) => v.item.id === createSheet.itemId) ?? null)
     : null;
-  // Closes by itself once the item is no longer "create": ticked (here or
-  // elsewhere), removed, or its account made here.
+  const createViewState = createView
+    ? releaseRowState(createView, createMarks.get(createView.item.id))
+    : null;
+  // Closes by itself once the item is no longer "create" (ticked here or
+  // elsewhere, removed, or its account made here), but never mid-Create.
   const createOpen =
-    !!createView &&
-    releaseRowState(createView, createdIds.has(createView.item.id)) ===
-      "create";
+    createViewState === "create" || createViewState === "creating";
 
   /**
    * Ticks a release item whose account was just created, saying plainly when
@@ -432,8 +457,13 @@ function ChecklistDay({ today }: { today: string }) {
    */
   const tickCreated = (itemId: string) =>
     setChecked([itemId], true, (outcome) => {
-      if (outcome === "failed") toast.error(CREATED_NOT_CHECKED_OFF);
-      else if (outcome === "queued") toast.info(CREATED_CHECK_OFF_QUEUED);
+      const text = tickAfterCreateText(
+        outcome,
+        accountQueuedRef.current.get(itemId) ?? false,
+      );
+      if (!text) return;
+      if (outcome === "failed") toast.error(text);
+      else toast.info(text);
     });
 
   /**
@@ -444,9 +474,11 @@ function ChecklistDay({ today }: { today: string }) {
    */
   const accountCreated = (view: ReleaseRowView) => {
     const id = view.item.id;
-    if (createdRef.current.has(id)) return;
-    createdRef.current.add(id);
-    setCreatedIds(new Set(createdRef.current));
+    if (createMarksRef.current.get(id) === "created") return;
+    // The form queues the account when the connection isn't good; this is
+    // the same check, at the moment it reports back.
+    accountQueuedRef.current.set(id, !isConnectionGood());
+    markCreate({ type: "success", id });
     setCreateSheet((prev) => (prev?.itemId === id ? null : prev));
     tickCreated(id);
     if (view.parsed) invalidateBorrowerDetails(view.parsed.borrowerId);
@@ -456,8 +488,9 @@ function ChecklistDay({ today }: { today: string }) {
   /** "Check off without account": ticks it, with Undo on the toast. */
   const checkOffWithoutAccount = (view: ReleaseRowView) => {
     const id = view.item.id;
-    closeCreate();
+    // Not while Create runs (the button is off then too).
     if (loading || releaseState(view) !== "create") return;
+    closeCreate();
     const forDate = date;
     const toastId = `check-off-${id}-${Date.now()}`;
     let undone = false;
@@ -465,22 +498,23 @@ function ChecklistDay({ today }: { today: string }) {
       // The row is back unticked (the hook said why): nothing to undo.
       if (outcome === "failed") toast.dismiss(toastId);
     });
-    toast(checkedOffWithoutAccountText(
-        (view.name || "release").toLowerCase(),
-      ), {
-      id: toastId,
-      duration: CHECK_OFF_TOAST_MS,
-      action: {
-        label: "Undo",
-        onClick: () => {
-          if (undone || dateRef.current !== forDate) return;
-          // An account made from it since: it stays checked off.
-          if (createdRef.current.has(id)) return;
-          undone = true;
-          setChecked([id], false);
+    toast(
+      checkedOffWithoutAccountText((view.name || "release").toLowerCase()),
+      {
+        id: toastId,
+        duration: CHECK_OFF_TOAST_MS,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            if (undone || dateRef.current !== forDate) return;
+            // An account made from it since: it stays checked off.
+            if (createMarksRef.current.has(id)) return;
+            undone = true;
+            setChecked([id], false);
+          },
         },
       },
-    });
+    );
   };
 
   /**
@@ -656,7 +690,7 @@ function ChecklistDay({ today }: { today: string }) {
       ) : (
         <ReleaseList
           views={releaseViews}
-          createdIds={createdIds}
+          createMarks={createMarks}
           waitingIds={waitingIds}
           flashIds={flashIds}
           disabled={loading}
@@ -781,6 +815,13 @@ function ChecklistDay({ today }: { today: string }) {
             key={createSheet.seq}
             release={createView}
             date={date}
+            creating={createViewState === "creating"}
+            onSubmitStart={() =>
+              markCreate({ type: "submit", id: createView.item.id })
+            }
+            onSubmitIdle={() =>
+              markCreate({ type: "idle", id: createView.item.id })
+            }
             onCreated={() => accountCreated(createView)}
             onCheckOff={() => checkOffWithoutAccount(createView)}
           />
