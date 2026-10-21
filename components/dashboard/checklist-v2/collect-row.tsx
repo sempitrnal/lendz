@@ -7,7 +7,7 @@ import {
   useAnimationControls,
   type TapInfo,
 } from "framer-motion";
-import { Check, CloudUpload, NotebookPen } from "lucide-react";
+import { Check, ChevronDown, CloudUpload, NotebookPen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatShortDate } from "@/lib/checklist/labels";
 import { plainLabelText, rowDisplayName } from "@/lib/checklist/row-name";
@@ -117,6 +117,7 @@ export function CollectRow({
   // Several schedules on one borrower: the row expands to list every one,
   // paid ones included, so a paid schedule can be tapped to edit it.
   const expandable = !isNote && !done && row.lines.length > 1;
+  const hasPayments = row.lines.some((l) => l.state === "paid" || l.paid > 0);
   const name = rowName(row);
   const width = isNote ? NOTE_ACTIONS_W : ACTIONS_W;
 
@@ -150,7 +151,9 @@ export function CollectRow({
     // A note's tick is its own button; the rest of the row opens its menu
     // (Edit note, Remove), the way to them without a swipe.
     if (isNote) return onMore();
-    if (done) onEditPayments();
+    // Anything already recorded is edited by tapping the row; the chevron
+    // expands or collapses a multi-schedule row.
+    if (done || (expandable && hasPayments)) onEditPayments();
     else if (expandable) onExpandToggle();
     else onOpenPay();
   };
@@ -237,7 +240,8 @@ export function CollectRow({
         }
         onTap={onTap}
         className={cn(
-          "relative touch-pan-y transition-colors duration-700 motion-reduce:transition-none",
+          `relative touch-pan-y transition-colors duration-700
+          motion-reduce:transition-none`,
           highlight ? "bg-primary/15" : "bg-card",
         )}
       >
@@ -253,6 +257,24 @@ export function CollectRow({
           <>
             <div className="flex items-center gap-3 px-4 py-2">
               <RowText row={row} name={name} done={done} waiting={waiting} />
+              {expandable && (
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-label={`${expanded ? "Hide" : "Show"} ${row.lines.length} schedules for ${name}`}
+                  onClick={guard(onExpandToggle)}
+                  className="-mx-1 flex size-11 shrink-0 items-center
+                    justify-center text-muted-foreground"
+                >
+                  <ChevronDown
+                    className={cn(
+                      `size-5 transition-transform
+                        motion-reduce:transition-none`,
+                      expanded && "rotate-180",
+                    )}
+                  />
+                </button>
+              )}
               <span
                 className={cn(
                   "text-[15px] font-semibold tabular-nums",
