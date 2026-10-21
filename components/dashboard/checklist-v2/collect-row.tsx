@@ -435,7 +435,7 @@ function RowText({
         className={cn(
           "truncate text-xs",
           sub.late
-            ? "text-rose-600 dark:text-rose-400"
+            ? "text-rose-400 dark:text-rose-300"
             : "text-muted-foreground",
         )}
       >
@@ -495,7 +495,7 @@ function LineItem({
           className={cn(
             "text-xs",
             line.overdue
-              ? "text-rose-600 dark:text-rose-400"
+              ? "text-rose-400 dark:text-rose-300"
               : "text-muted-foreground",
           )}
         >

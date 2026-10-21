@@ -352,7 +352,7 @@ export function PaySheet({
                                 {formatShortDate(r.due_date).toLowerCase()}
                                 {late > 0 && (
                                   <span
-                                    className="text-rose-600 dark:text-rose-400"
+                                    className="text-rose-400 dark:text-rose-300"
                                   >
                                     {" "}
                                     · {late}d late
