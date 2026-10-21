@@ -236,8 +236,18 @@ function ChecklistDay({ today }: { today: string }) {
   }, [date, items]);
   const { data: borrowers = NO_BORROWERS } = useBorrowersSearch();
 
+  /**
+   * The create sheet's Create is busy: nothing may close or replace it (the
+   * form stays mounted until it says how the run ended). Behind the sheet's
+   * backdrop the header and rows can't be reached anyway; this is the guard
+   * if they ever are.
+   */
+  const createBusy = () =>
+    !!createSheet &&
+    !canLeaveCreate(createMarksRef.current.get(createSheet.itemId));
+
   const changeDate = (next: string) => {
-    if (next === date) return;
+    if (next === date || createBusy()) return;
     // Toasts (and their Undo) belong to the day they came from.
     toast.dismiss();
     setFilter("all");
@@ -308,7 +318,7 @@ function ChecklistDay({ today }: { today: string }) {
    * the row menu); otherwise it is the header's "+".
    */
   const openAdd = (mode: AddMode, editItemId: string | null = null) => {
-    if (loading) return;
+    if (loading || createBusy()) return;
     sheetSeq.current += 1;
     setRowSheet(null);
     setListSheet(null);
@@ -401,7 +411,7 @@ function ChecklistDay({ today }: { today: string }) {
   };
 
   const openList = (kind: ListSheetRequest["kind"]) => {
-    if (loading) return;
+    if (loading || createBusy()) return;
     sheetSeq.current += 1;
     setRowSheet(null);
     setAddSheet(null);
@@ -418,9 +428,15 @@ function ChecklistDay({ today }: { today: string }) {
   };
   const releaseState = (view: ReleaseRowView) =>
     releaseRowState(view, createMarksRef.current.get(view.item.id));
-  /** Opens the create-account sheet for a release item not yet converted. */
+  /**
+   * Opens the create-account sheet for a release item not yet converted. On
+   * an "attempted" item it opens on the warning, with no form until "Create
+   * anyway".
+   */
   const openCreate = (view: ReleaseRowView) => {
-    if (loading || releaseState(view) !== "create") return;
+    const state = releaseState(view);
+    if (loading || createBusy()) return;
+    if (state !== "create" && state !== "attempted") return;
     sheetSeq.current += 1;
     setRowSheet(null);
     setAddSheet(null);
@@ -442,13 +458,20 @@ function ChecklistDay({ today }: { today: string }) {
   const createView = createSheet
     ? (releaseViews.find((v) => v.item.id === createSheet.itemId) ?? null)
     : null;
+  const createMark = createView
+    ? createMarks.get(createView.item.id)
+    : undefined;
   const createViewState = createView
-    ? releaseRowState(createView, createMarks.get(createView.item.id))
+    ? releaseRowState(createView, createMark)
     : null;
-  // Closes by itself once the item is no longer "create" (ticked here or
-  // elsewhere, removed, or its account made here), but never mid-Create.
+  // Closes by itself once the item is no longer creatable (ticked here or
+  // elsewhere, removed, or its account made here), but never while Create is
+  // busy, even if the item was ticked elsewhere meanwhile.
   const createOpen =
-    createViewState === "create" || createViewState === "creating";
+    !!createView &&
+    (createMark === "creating" ||
+      createViewState === "create" ||
+      createViewState === "attempted");
 
   /**
    * Ticks a release item whose account was just created, saying plainly when
@@ -488,8 +511,9 @@ function ChecklistDay({ today }: { today: string }) {
   /** "Check off without account": ticks it, with Undo on the toast. */
   const checkOffWithoutAccount = (view: ReleaseRowView) => {
     const id = view.item.id;
-    // Not while Create runs (the button is off then too).
-    if (loading || releaseState(view) !== "create") return;
+    // Not while Create is busy (the button is off then too).
+    const state = releaseState(view);
+    if (loading || (state !== "create" && state !== "attempted")) return;
     closeCreate();
     const forDate = date;
     const toastId = `check-off-${id}-${Date.now()}`;
@@ -815,13 +839,17 @@ function ChecklistDay({ today }: { today: string }) {
             key={createSheet.seq}
             release={createView}
             date={date}
-            creating={createViewState === "creating"}
-            onSubmitStart={() =>
-              markCreate({ type: "submit", id: createView.item.id })
+            mark={createMark}
+            getMark={() => createMarksRef.current.get(createView.item.id)}
+            onCreateEvent={(type) =>
+              markCreate({ type, id: createView.item.id })
             }
-            onSubmitIdle={() =>
-              markCreate({ type: "idle", id: createView.item.id })
-            }
+            onOpenBorrower={() => {
+              if (!createView.parsed) return;
+              const id = createView.parsed.borrowerId;
+              closeCreate();
+              router.push(`/borrowers/${id}`);
+            }}
             onCreated={() => accountCreated(createView)}
             onCheckOff={() => checkOffWithoutAccount(createView)}
           />

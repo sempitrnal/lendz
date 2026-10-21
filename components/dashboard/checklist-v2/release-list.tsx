@@ -141,6 +141,14 @@ function ReleaseRow({
             “{note}”
           </p>
         )}
+        {state === "attempted" && (
+          <p
+            className="mt-0.5 text-xs font-medium text-amber-700
+              dark:text-amber-400"
+          >
+            An earlier Create may have made this account
+          </p>
+        )}
         {state === "check-off" && (
           <p className="mt-0.5 text-xs font-medium text-destructive">
             Not checked off yet
@@ -173,6 +181,17 @@ function ReleaseRow({
           className="relative h-9 shrink-0 rounded-full px-4"
         >
           Creating…
+        </Button>
+      )}
+      {state === "attempted" && (
+        <Button
+          variant="outline"
+          onClick={onCreate}
+          disabled={disabled}
+          className="relative h-9 shrink-0 rounded-full px-4 after:absolute
+            after:inset-x-0 after:-inset-y-1 after:content-['']"
+        >
+          Check first
         </Button>
       )}
       {state === "check-off" && (

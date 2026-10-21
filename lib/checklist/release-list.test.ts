@@ -5,8 +5,11 @@ import {
   releaseNote,
   releaseOf,
   canLeaveCreate,
+  classifySubmitSample,
+  needsCreateConfirm,
   reduceCreateMarks,
   tickAfterCreateText,
+  type CreateEvent,
   type CreateMarks,
   releaseRowState,
   releaseSummary,
@@ -141,57 +144,146 @@ describe("releasedDayText", () => {
 describe("reduceCreateMarks", () => {
   const empty: CreateMarks = new Map();
   const at = (marks: CreateMarks) => Object.fromEntries(marks);
+  const run = (types: CreateEvent["type"][], id = "a", from = empty) =>
+    types.reduce((m, type) => reduceCreateMarks(m, { type, id }), from);
 
-  it("marks creating on submit, and a second press changes nothing", () => {
-    const once = reduceCreateMarks(empty, { type: "submit", id: "a" });
+  it("marks creating on submit, and a double submit changes nothing", () => {
+    const once = run(["submit"]);
     expect(at(once)).toEqual({ a: "creating" });
-    const twice = reduceCreateMarks(once, { type: "submit", id: "a" });
-    expect(twice).toBe(once);
+    expect(reduceCreateMarks(once, { type: "submit", id: "a" })).toBe(once);
   });
 
-  it("success marks created, and later submits or idles keep it", () => {
-    let m = reduceCreateMarks(empty, { type: "submit", id: "a" });
-    m = reduceCreateMarks(m, { type: "success", id: "a" });
-    expect(at(m)).toEqual({ a: "created" });
-    expect(reduceCreateMarks(m, { type: "idle", id: "a" })).toBe(m);
-    expect(reduceCreateMarks(m, { type: "submit", id: "a" })).toBe(m);
+  it("idle before success: busy, re-enabled, then success lands → created", () => {
+    // The form resets (button enabled) before its last await and onSuccess.
+    const between = run(["submit", "ended"]);
+    expect(at(between)).toEqual({ a: "attempted" });
+    // In between, reopening asks first and the row never offers Create.
+    expect(needsCreateConfirm(between.get("a"))).toBe(true);
+    expect(
+      releaseRowState(
+        buildReleaseView(item(FULL, false, "a")),
+        between.get("a"),
+      ),
+    ).toBe("attempted");
+    expect(
+      at(reduceCreateMarks(between, { type: "success", id: "a" })),
+    ).toEqual({ a: "created" });
   });
 
-  it("an error (back to idle without success) clears creating for a retry", () => {
-    let m = reduceCreateMarks(empty, { type: "submit", id: "a" });
-    m = reduceCreateMarks(m, { type: "idle", id: "a" });
+  it("busy then re-enabled with no success → attempted → confirm → idle", () => {
+    const attempted = run(["submit", "ended"]);
+    expect(at(attempted)).toEqual({ a: "attempted" });
+    // Pressing Create while attempted does not start a run by itself.
+    expect(reduceCreateMarks(attempted, { type: "submit", id: "a" })).toBe(
+      attempted,
+    );
+    const confirmed = reduceCreateMarks(attempted, {
+      type: "confirm",
+      id: "a",
+    });
+    expect(at(confirmed)).toEqual({});
+    expect(at(run(["submit"], "a", confirmed))).toEqual({ a: "creating" });
+  });
+
+  it("a failed validation goes back to idle at once (no confirmation)", () => {
+    const m = run(["submit", "invalid"]);
     expect(at(m)).toEqual({});
-    expect(reduceCreateMarks(empty, { type: "idle", id: "a" })).toBe(empty);
+    expect(needsCreateConfirm(m.get("a"))).toBe(false);
+    expect(at(run(["submit", "invalid", "submit"]))).toEqual({ a: "creating" });
   });
 
-  it("success counts even if it comes with no submit seen (sheet closed)", () => {
-    const m = reduceCreateMarks(empty, { type: "success", id: "a" });
-    expect(at(m)).toEqual({ a: "created" });
+  it("the form going away while busy falls to attempted, never stays creating", () => {
+    expect(at(run(["submit", "lost"]))).toEqual({ a: "attempted" });
+    expect(at(run(["submit", "lost", "success"]))).toEqual({ a: "created" });
+  });
+
+  it("success counts from any state", () => {
+    for (const before of [
+      [],
+      ["submit"],
+      ["submit", "ended"],
+      ["submit", "invalid"],
+      ["submit", "ended", "confirm"],
+    ] as CreateEvent["type"][][]) {
+      expect(at(run([...before, "success"]))).toEqual({ a: "created" });
+    }
+  });
+
+  it("created is final: later events change nothing", () => {
+    const created = run(["success"]);
+    for (const type of [
+      "submit",
+      "invalid",
+      "ended",
+      "lost",
+      "confirm",
+    ] as const) {
+      expect(reduceCreateMarks(created, { type, id: "a" })).toBe(created);
+    }
+  });
+
+  it("stray events on an idle item change nothing", () => {
+    for (const type of ["invalid", "ended", "lost", "confirm"] as const) {
+      expect(reduceCreateMarks(empty, { type, id: "a" })).toBe(empty);
+    }
   });
 
   it("keeps other items' marks", () => {
-    let m = reduceCreateMarks(empty, { type: "success", id: "a" });
-    m = reduceCreateMarks(m, { type: "submit", id: "b" });
-    m = reduceCreateMarks(m, { type: "idle", id: "b" });
+    let m = run(["success"], "a");
+    m = run(["submit", "invalid"], "b", m);
     expect(at(m)).toEqual({ a: "created" });
   });
 
-  it("the sheet can't be left while creating (close during creating)", () => {
-    const m = reduceCreateMarks(empty, { type: "submit", id: "a" });
-    expect(canLeaveCreate(m.get("a"))).toBe(false);
+  it("blocks leaving (close, other sheets, check-off) only while busy", () => {
+    expect(canLeaveCreate(run(["submit"]).get("a"))).toBe(false);
+    expect(canLeaveCreate(run(["submit", "ended"]).get("a"))).toBe(true);
     expect(canLeaveCreate(undefined)).toBe(true);
     expect(canLeaveCreate("created")).toBe(true);
   });
 
   it("drives the row: Creating…, then never Create account again", () => {
     const view = buildReleaseView(item(FULL));
-    let m = reduceCreateMarks(empty, { type: "submit", id: "i1" });
+    let m = run(["submit"], "i1");
     expect(releaseRowState(view, m.get("i1"))).toBe("creating");
     m = reduceCreateMarks(m, { type: "success", id: "i1" });
     expect(releaseRowState(view, m.get("i1"))).toBe("check-off");
     expect(
       releaseRowState(buildReleaseView(item(FULL, true)), m.get("i1")),
     ).toBe("created");
+  });
+});
+
+describe("classifySubmitSample", () => {
+  const base = {
+    buttonDisabled: false,
+    seenBusy: false,
+    fieldErrors: 0,
+    elapsedMs: 0,
+  };
+
+  it("waits while the button is busy", () => {
+    expect(classifySubmitSample({ ...base, buttonDisabled: true })).toBe(
+      "wait",
+    );
+    expect(
+      classifySubmitSample({ ...base, buttonDisabled: true, fieldErrors: 2 }),
+    ).toBe("wait");
+  });
+
+  it("a field error once enabled is a failed validation, busy seen or not", () => {
+    expect(classifySubmitSample({ ...base, fieldErrors: 1 })).toBe("invalid");
+    expect(
+      classifySubmitSample({ ...base, fieldErrors: 1, seenBusy: true }),
+    ).toBe("invalid");
+  });
+
+  it("busy seen and enabled with no error is a real submit that ended", () => {
+    expect(classifySubmitSample({ ...base, seenBusy: true })).toBe("ended");
+  });
+
+  it("never busy and no error: waits, then takes the safe side", () => {
+    expect(classifySubmitSample({ ...base, elapsedMs: 300 })).toBe("wait");
+    expect(classifySubmitSample({ ...base, elapsedMs: 1000 })).toBe("ended");
   });
 });
 

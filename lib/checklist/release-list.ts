@@ -18,31 +18,58 @@ export function releaseOf(view: ReleaseRowView): ParsedReleasedLabel | null {
 
 /**
  * Where creating an account from a release item stands on this screen:
- * - "creating": the form's Create was pressed and hasn't finished.
+ * - "creating": the form's Create was pressed and its button is busy.
+ * - "attempted": a real submit ran and ended without the form's onSuccess
+ *   (yet). An account MAY exist: the form re-enables its button (its own
+ *   `reset`) before its last await and `onSuccess`, and an insert can save
+ *   the account and then fail on the schedules. Creating again needs an
+ *   explicit "Create anyway".
  * - "created": the form said the account was made (saved, or queued offline).
  * No mark means idle.
  */
-export type CreateMark = "creating" | "created";
+export type CreateMark = "creating" | "attempted" | "created";
 export type CreateMarks = ReadonlyMap<string, CreateMark>;
 
 /**
  * - "submit": Create was pressed (idle → creating; nothing else changes).
+ * - "invalid": that press was a failed validation, nothing was sent
+ *   (creating → idle).
+ * - "ended": a real submit ended without success, or it can't be told
+ *   (creating → attempted).
+ * - "lost": the form went away while busy (creating → attempted).
+ * - "confirm": the user chose "Create anyway" (attempted → idle).
  * - "success": the form's onSuccess (→ created, from any state).
- * - "idle": the form is back to idle without success, e.g. an error or a
- *   failed validation (creating → idle; created stays).
  */
-export type CreateEvent = { type: "submit" | "success" | "idle"; id: string };
+export type CreateEvent = {
+  type: "submit" | "invalid" | "ended" | "lost" | "confirm" | "success";
+  id: string;
+};
 
-/** idle → creating → created | idle. Returns `marks` itself when nothing changes. */
+/** Returns `marks` itself when nothing changes. */
 export function reduceCreateMarks(
   marks: CreateMarks,
   event: CreateEvent,
 ): CreateMarks {
   const current = marks.get(event.id);
   let next: CreateMark | undefined = current;
-  if (event.type === "submit") next = current ?? "creating";
-  else if (event.type === "success") next = "created";
-  else if (current === "creating") next = undefined;
+  switch (event.type) {
+    case "submit":
+      if (current === undefined) next = "creating";
+      break;
+    case "invalid":
+      if (current === "creating") next = undefined;
+      break;
+    case "ended":
+    case "lost":
+      if (current === "creating") next = "attempted";
+      break;
+    case "confirm":
+      if (current === "attempted") next = undefined;
+      break;
+    case "success":
+      next = "created";
+      break;
+  }
   if (next === current) return marks;
   const out = new Map(marks);
   if (next) out.set(event.id, next);
@@ -50,15 +77,48 @@ export function reduceCreateMarks(
   return out;
 }
 
-/** The create sheet can't be closed (or checked off) while Create runs. */
+/**
+ * The create sheet can't be closed, left for another sheet or day, or
+ * checked off while the form's Create is busy.
+ */
 export const canLeaveCreate = (mark: CreateMark | undefined) =>
   mark !== "creating";
+
+/** A submit pressed while "attempted" is held back until "Create anyway". */
+export const needsCreateConfirm = (mark: CreateMark | undefined) =>
+  mark === "attempted";
+
+/**
+ * Reads one sample of the form after a submit (the screen polls it):
+ * - "wait": still running (button disabled), or too soon to tell.
+ * - "invalid": a failed validation. react-hook-form only calls the form's
+ *   submit handler when validation passes, clearing all errors first, so a
+ *   field error showing once the button is enabled means nothing was sent.
+ * - "ended": the button was seen busy and is enabled with no field error (a
+ *   real submit ended: saved and reset, failed, or still finishing after its
+ *   reset), or it never showed busy within `quietMs` and shows no error
+ *   either. When unsure this is the answer: it only asks for a confirmation.
+ */
+export function classifySubmitSample(sample: {
+  buttonDisabled: boolean;
+  seenBusy: boolean;
+  fieldErrors: number;
+  elapsedMs: number;
+  quietMs?: number;
+}): "wait" | "invalid" | "ended" {
+  if (sample.buttonDisabled) return "wait";
+  if (sample.fieldErrors > 0) return "invalid";
+  if (sample.seenBusy) return "ended";
+  return sample.elapsedMs >= (sample.quietMs ?? 1000) ? "ended" : "wait";
+}
 
 /**
  * What a release row offers:
  * - "plain": the note doesn't read as a release (or is a collection); no button.
  * - "created": the item is ticked (an account was made, or it was checked off).
- * - "creating": Create is running for it; a disabled "Creating…".
+ * - "creating": Create is busy for it; a disabled "Creating…".
+ * - "attempted": an earlier Create may have made the account; "Check first"
+ *   opens the sheet on a warning before any new form.
  * - "check-off": an account was made from it here but the item isn't ticked
  *   (the tick failed, or it was unticked since), so it offers to check it
  *   off, never to create a second one.
@@ -68,6 +128,7 @@ export type ReleaseRowState =
   | "plain"
   | "created"
   | "creating"
+  | "attempted"
   | "check-off"
   | "create";
 
@@ -80,8 +141,13 @@ export function releaseRowState(
   if (view.created) return "created";
   if (mark === "created") return "check-off";
   if (mark === "creating") return "creating";
+  if (mark === "attempted") return "attempted";
   return "create";
 }
+
+/** The warning before creating again after an attempt. */
+export const CREATE_AGAIN_WARNING =
+  "A previous attempt may already have created this account — check the borrower's page before creating another.";
 
 /**
  * The note as typed, without the borrower mention, e.g. "10,000 - 10 months

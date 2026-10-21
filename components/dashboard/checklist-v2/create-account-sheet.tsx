@@ -1,14 +1,28 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
+import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formFieldErrorClassName } from "@/lib/form-field-classes";
 import type { ReleaseRowView } from "@/lib/checklist/release-items";
-import { releaseNote } from "@/lib/checklist/release-list";
+import {
+  classifySubmitSample,
+  CREATE_AGAIN_WARNING,
+  needsCreateConfirm,
+  releaseNote,
+  type CreateEvent,
+  type CreateMark,
+} from "@/lib/checklist/release-list";
 
 const AccountForm = dynamic(() => import("@/components/forms/account-form"), {
   loading: () => <FormSkeleton />,
 });
+
+/** The form's own submit button (its last child); the sticky CSS uses it too. */
+const SUBMIT_BUTTON = "form > button:last-child";
+/** How often the form is sampled after a submit. */
+const SAMPLE_MS = 100;
 
 /**
  * The create-account sheet for a release item: the real `AccountForm`,
@@ -18,27 +32,36 @@ const AccountForm = dynamic(() => import("@/components/forms/account-form"), {
  * with CSS only, so the form itself is unchanged. There is no schedule
  * preview: it would need the form's live values, which it doesn't expose.
  *
- * Whether Create is running is read from outside the form too: a submit
- * starts it (`onSubmitStart`), and the form's own button turning enabled
- * again without `onSuccess` ends it (`onSubmitIdle`: an error or a failed
- * validation), so the screen can keep the item from being created twice.
+ * Guarding against a second account, from outside the form:
+ * - A submit is caught on its way to the form (capture phase). While the
+ *   item is "attempted" it is held back: the warning asks for "Create
+ *   anyway" first.
+ * - Otherwise it reports "submit" and samples the form every 100 ms
+ *   (`classifySubmitSample`): a field error once the button is enabled is a
+ *   failed validation ("invalid", back to idle); the button seen busy and
+ *   enabled again with no error is a real submit that ended ("ended": it may
+ *   have saved the account, since the form resets before its last await and
+ *   onSuccess), as is no sign either way after a second.
+ * - The sheet going away mid-run reports "lost". All of these resolve to
+ *   "created" whenever the form's onSuccess arrives.
  */
 export function CreateAccountSheet({
   release,
   date,
-  creating,
-  onSubmitStart,
-  onSubmitIdle,
+  mark,
+  getMark,
+  onCreateEvent,
   onCreated,
   onCheckOff,
+  onOpenBorrower,
 }: {
   release: ReleaseRowView;
   date: string;
-  /** Create is running for this item: no "Check off without account". */
-  creating: boolean;
-  onSubmitStart(): void;
-  /** The form is idle again; ignored by the screen once the account is made. */
-  onSubmitIdle(): void;
+  /** This item's create mark, for rendering. */
+  mark: CreateMark | undefined;
+  /** The same mark as of now (handlers run between renders). */
+  getMark(): CreateMark | undefined;
+  onCreateEvent(type: Exclude<CreateEvent["type"], "success">): void;
   /**
    * The form created the account (saved, or queued offline). It may come
    * after the sheet has closed; the screen acts on it once per item.
@@ -46,47 +69,89 @@ export function CreateAccountSheet({
   onCreated(): void;
   /** "Check off without account". */
   onCheckOff(): void;
+  onOpenBorrower(): void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  /** Stops watching the form's button (one watch at a time). */
-  const stopWatchRef = useRef<(() => void) | null>(null);
-  useEffect(() => () => stopWatchRef.current?.(), []);
+  const warningRef = useRef<HTMLDivElement>(null);
+  /** Opened on an earlier attempt: no form until "Create anyway". */
+  const [showForm, setShowForm] = useState(() => !needsCreateConfirm(mark));
+  /** Bumped by "Create anyway" so a fresh, prefilled form mounts. */
+  const [formKey, setFormKey] = useState(0);
+  /** A submit held back while "attempted"; highlights the warning. */
+  const [heldBack, setHeldBack] = useState(false);
 
-  /**
-   * The form was submitted. react-hook-form disables its button while
-   * `isSubmitting` (validation included), so: once it has been seen
-   * disabled and is enabled again, or it never shows disabled within a
-   * second, the run is over. A success has called `onCreated` before that.
-   */
+  const eventRef = useRef(onCreateEvent);
+  useEffect(() => {
+    eventRef.current = onCreateEvent;
+  }, [onCreateEvent]);
+  /** Stops watching the form (one watch at a time); true if one was running. */
+  const stopWatchRef = useRef<(() => boolean) | null>(null);
+  useEffect(
+    () => () => {
+      // Gone mid-run (the sheet closed on a remote change): an account may
+      // exist, so it falls to "attempted" until onSuccess says otherwise.
+      if (stopWatchRef.current?.()) eventRef.current("lost");
+    },
+    [],
+  );
+
   const watchSubmit = () => {
-    onSubmitStart();
     stopWatchRef.current?.();
     const started = Date.now();
     let seenBusy = false;
     const timer = window.setInterval(() => {
-      const button = wrapRef.current?.querySelector<HTMLButtonElement>(
-        "form > button:last-child",
-      );
-      if (!button) return;
-      if (button.disabled) {
-        seenBusy = true;
-        return;
-      }
-      if (seenBusy || Date.now() - started > 1000) {
-        stop();
-        onSubmitIdle();
-      }
-    }, 100);
+      const wrap = wrapRef.current;
+      const button = wrap?.querySelector<HTMLButtonElement>(SUBMIT_BUTTON);
+      if (!wrap || !button) return;
+      if (button.disabled) seenBusy = true;
+      const fieldErrors = [...wrap.querySelectorAll("form p")].filter(
+        (p) => p.className === formFieldErrorClassName,
+      ).length;
+      const verdict = classifySubmitSample({
+        buttonDisabled: button.disabled,
+        seenBusy,
+        fieldErrors,
+        elapsedMs: Date.now() - started,
+      });
+      if (verdict === "wait") return;
+      stop();
+      eventRef.current(verdict);
+    }, SAMPLE_MS);
     const stop = () => {
       window.clearInterval(timer);
       stopWatchRef.current = null;
+      return true;
     };
     stopWatchRef.current = stop;
+  };
+
+  const onSubmitCapture = (e: FormEvent) => {
+    const now = getMark();
+    if (needsCreateConfirm(now)) {
+      // Never reaches the form: an earlier run may have made the account.
+      e.preventDefault();
+      e.stopPropagation();
+      setHeldBack(true);
+      warningRef.current?.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    // The button is disabled while busy; a submit then isn't a new run.
+    if (now === "creating" || now === "created") return;
+    eventRef.current("submit");
+    watchSubmit();
+  };
+
+  const createAnyway = () => {
+    onCreateEvent("confirm");
+    setHeldBack(false);
+    setShowForm(true);
+    setFormKey((k) => k + 1);
   };
 
   const parsed = release.parsed;
   if (!parsed) return null;
   const note = releaseNote(release.item.label);
+  const attempted = needsCreateConfirm(mark);
 
   return (
     <div className="px-5 pt-2 pb-4">
@@ -99,23 +164,58 @@ export function CreateAccountSheet({
           Filled in from your note: <span className="lowercase">“{note}”</span>
         </p>
       )}
-      <div
-        ref={wrapRef}
-        onSubmitCapture={watchSubmit}
-        className="mt-4 [&_form>button:last-child]:sticky
-          [&_form>button:last-child]:bottom-3 [&_form>button:last-child]:z-10
-          [&_form>button:last-child]:h-12 [&_form>button:last-child]:text-base
-          [&_form>button:last-child]:shadow-[0_0_0_12px_var(--card)]"
-      >
-        <AccountForm
-          key={`${release.item.id}-${date}`}
-          borrowerId={parsed.borrowerId}
-          initialValues={parsed.initialValues}
-          redirectOnCreate={false}
-          borrowerName={parsed.borrowerName}
-          onSuccess={onCreated}
-        />
-      </div>
+      {attempted && (
+        <div
+          ref={warningRef}
+          role="alert"
+          className={`mt-4 rounded-xl border p-3 text-sm ${
+            heldBack
+              ? "border-destructive bg-destructive/10"
+              : "border-amber-500/40 bg-amber-500/10"
+          }`}
+        >
+          <p className="flex gap-2">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+            <span>{CREATE_AGAIN_WARNING}</span>
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 flex-1"
+              onClick={onOpenBorrower}
+            >
+              Open borrower page
+            </Button>
+            <Button
+              type="button"
+              className="h-11 flex-1"
+              onClick={createAnyway}
+            >
+              Create anyway
+            </Button>
+          </div>
+        </div>
+      )}
+      {showForm && (
+        <div
+          ref={wrapRef}
+          onSubmitCapture={onSubmitCapture}
+          className="mt-4 [&_form>button:last-child]:sticky
+            [&_form>button:last-child]:bottom-3 [&_form>button:last-child]:z-10
+            [&_form>button:last-child]:h-12 [&_form>button:last-child]:text-base
+            [&_form>button:last-child]:shadow-[0_0_0_12px_var(--card)]"
+        >
+          <AccountForm
+            key={`${release.item.id}-${date}-${formKey}`}
+            borrowerId={parsed.borrowerId}
+            initialValues={parsed.initialValues}
+            redirectOnCreate={false}
+            borrowerName={parsed.borrowerName}
+            onSuccess={onCreated}
+          />
+        </div>
+      )}
       <p className="mt-4 text-center text-xs text-muted-foreground">
         If an error shows after Create, check the borrower page before trying
         again.
@@ -124,7 +224,7 @@ export function CreateAccountSheet({
         type="button"
         variant="ghost"
         className="mt-2 h-11 w-full"
-        disabled={creating}
+        disabled={mark === "creating"}
         onClick={onCheckOff}
       >
         Check off without account
