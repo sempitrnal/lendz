@@ -14,19 +14,15 @@ const peso = (n: number) =>
   `₱${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 
 /**
- * The rows "Mark all paid" is for: unticked collection rows (linked to
- * schedules) that the list shows as not fully paid. Ticked rows are left
- * alone, as the old `BulkPaidDialog` left them: a row ticked without its
- * payments recorded was ticked on purpose, and paying it in bulk would record
- * money the owner chose not to.
+ * The rows "Mark all paid" is for: every unticked collection row (linked to
+ * schedules), as in the old `BulkPaidDialog`. Rows already fully paid are
+ * included so they get ticked (no payment is written for them). Ticked rows
+ * are left alone: a row ticked without its payments recorded was ticked on
+ * purpose, and paying it in bulk would record money the owner chose not to.
  */
 export function bulkPaidRows(rows: RowView[]): RowView[] {
   return rows.filter(
-    (r) =>
-      !r.item.is_checked &&
-      r.model !== null &&
-      r.lines.length > 0 &&
-      r.status !== "paid",
+    (r) => !r.item.is_checked && r.model !== null && r.lines.length > 0,
   );
 }
 
@@ -59,7 +55,10 @@ export type BulkPaid = {
   plan: PaymentPlan;
   accountIds: string[];
   borrowerIds: string[];
-  /** Unticked rows this pay settles: the ones it ticks, and Undo unticks. */
+  /**
+   * Unticked rows fully paid once this pay lands (rows already fully paid
+   * included): the ones it ticks, and the only ones Undo unticks.
+   */
   tickIds: string[];
   targets: BulkUndoTarget[];
   summary: {
@@ -141,7 +140,7 @@ export function buildBulkPaid(
     borrowerIds: [
       ...new Set(paying.flatMap((r) => r.model?.borrower?.id ?? [])),
     ],
-    tickIds: paying
+    tickIds: rows
       .filter(
         (r) =>
           !r.item.is_checked &&
@@ -152,7 +151,8 @@ export function buildBulkPaid(
       .map((r) => r.item.id),
     targets,
     summary: {
-      borrowers: new Set(paying.map((r) => r.model?.borrower?.id ?? r.item.id))
+      // Every row, as the old dialog counted (its borrowers, or the item).
+      borrowers: new Set(rows.map((r) => r.model?.borrower?.id ?? r.item.id))
         .size,
       collections: plan.paidIds.length,
       alreadyPaid,
@@ -187,9 +187,11 @@ function nameList(names: string[]): string {
 
 /**
  * Sums up a bulk Undo, run one installment at a time so each outcome is
- * known: which items to untick (ticked by the pay, and at least one of their
- * installments reset) and the error toasts, in the words of the one-row
- * Undo.
+ * known: which items to untick and the error toasts, in the words of the
+ * one-row Undo. Only items the pay ticked (`tickedIds`) are unticked: those
+ * with an installment it paid once at least one of their resets went
+ * through; those it only ticked (already fully paid, nothing paid now)
+ * always, since there is no payment of this action to take back.
  */
 export function bulkUndoOutcome(
   results: BulkUndoResult[],
@@ -197,6 +199,8 @@ export function bulkUndoOutcome(
 ): { untickIds: string[]; errors: string[] } {
   const ticked = new Set(tickedIds);
   const untick = new Set<string>();
+  const paidFor = new Set(results.flatMap((r) => r.target.itemIds));
+  for (const id of tickedIds) if (!paidFor.has(id)) untick.add(id);
   for (const { target, failedAt } of results) {
     if (failedAt === 0) continue;
     for (const id of target.itemIds) if (ticked.has(id)) untick.add(id);

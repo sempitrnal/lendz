@@ -191,12 +191,6 @@ export function ListMenuSheet({
   );
 }
 
-/** The payment date the sheet starts on: the day shown, or today for a later day. */
-function defaultPaymentDate(date: string): string {
-  const today = todayDateValue();
-  return date < today ? date : today;
-}
-
 /**
  * The bulk sheet ("Mark all paid"): loads the live schedules of every unpaid
  * row, shows the old `BulkPaidDialog`'s summary (borrowers, collections to
@@ -214,14 +208,16 @@ export function BulkPaidSheet({
 }: {
   /** The rows to mark (`bulkPaidRows`). */
   rows: RowView[];
-  /** The day shown. */
+  /** The day shown (the payment date still starts on today). */
   date: string;
   /** The day is still loading: nothing here may write. */
   disabled: boolean;
   onClose(): void;
   onConfirm(bulk: BulkPaid, paymentDate: string): void;
 }) {
-  const [paidDate, setPaidDate] = useState(() => defaultPaymentDate(date));
+  // Today, like every other way of paying (and the old dialog): opening an
+  // earlier day's list must not back-date what is collected now.
+  const [paidDate, setPaidDate] = useState(todayDateValue);
   const submitted = useRef(false);
   const ids = useMemo(() => bulkScheduleIds(rows), [rows]);
   const live = useLiveSchedules(ids);
@@ -234,7 +230,7 @@ export function BulkPaidSheet({
   const canConfirm =
     ready &&
     !disabled &&
-    summary.collections > 0 &&
+    (summary.collections > 0 || bulk.tickIds.length > 0) &&
     /^\d{4}-\d{2}-\d{2}$/.test(paidDate);
 
   const confirm = () => {
@@ -312,6 +308,13 @@ export function BulkPaidSheet({
             className="mt-1.5 h-10 font-semibold"
           />
         </label>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          Recorded as the paid date on every payment
+          {date !== todayDateValue() && paidDate === todayDateValue()
+            ? " — today, not the day this list is for"
+            : ""}
+          .
+        </p>
       </div>
       <SheetFooter className="flex gap-2">
         <Button

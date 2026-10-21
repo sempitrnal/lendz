@@ -26,6 +26,13 @@ export const addedBorrowersText = (n: number) =>
 export const markedPaidText = (n: number) =>
   `Marked ${plural(n, "collection", "collections")} paid`;
 
+/**
+ * Mark all paid when every row was already paid: it only ticks them.
+ * "Ticked 3 rows already paid" / "Ticked 1 row already paid".
+ */
+export const tickedPaidRowsText = (n: number) =>
+  `Ticked ${plural(n, "row", "rows")} already paid`;
+
 /** "Cleared 3 items" / "Cleared 1 item". */
 export const clearedItemsText = (n: number) =>
   `Cleared ${plural(n, "item", "items")}`;

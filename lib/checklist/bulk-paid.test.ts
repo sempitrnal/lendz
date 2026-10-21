@@ -74,7 +74,7 @@ function row(
 }
 
 describe("bulkPaidRows", () => {
-  it("keeps unticked collection rows that aren't fully paid", () => {
+  it("keeps every unticked collection row, paid ones too (the old dialog's rule)", () => {
     const s = [
       sched("s1"),
       sched("s2", { status: "paid", amount_paid: 1000, remaining_amount: 0 }),
@@ -86,7 +86,7 @@ describe("bulkPaidRows", () => {
     const note = buildRowView(item("i4", "call the bank"));
     expect(
       bulkPaidRows([unpaid, paid, tickedUnpaid, note]).map((r) => r.item.id),
-    ).toEqual(["i1"]);
+    ).toEqual(["i1", "i2"]);
   });
 
   it("lists every linked schedule once", () => {
@@ -193,7 +193,7 @@ describe("buildBulkPaid", () => {
     expect(bulk.tickIds).toEqual([]);
   });
 
-  it("does not tick or count a row the live rows show as paid already", () => {
+  it("ticks a row the live rows show as paid already, writing no payment", () => {
     const cached = [sched("s1")];
     const live = [
       sched("s1", { status: "paid", amount_paid: 1000, remaining_amount: 0 }),
@@ -203,13 +203,74 @@ describe("buildBulkPaid", () => {
       live,
       CUTOFF,
     );
-    expect(bulk.plan.paidIds).toEqual([]);
-    expect(bulk.tickIds).toEqual([]);
+    expect(bulk.plan).toEqual({
+      payments: [],
+      paidIds: [],
+      partials: [],
+      undoCalls: [],
+    });
+    expect(bulk.targets).toEqual([]);
+    expect(bulk.tickIds).toEqual(["i1"]);
     expect(bulk.summary).toEqual({
-      borrowers: 0,
+      borrowers: 1,
       collections: 0,
       alreadyPaid: 1,
       total: 0,
+    });
+  });
+
+  it("ticks an all-paid unticked row beside rows it pays, paying only the open ones", () => {
+    const s = [
+      sched("s1"),
+      sched("s2", { status: "paid", amount_paid: 1000, remaining_amount: 0 }),
+      sched("s3", { status: "paid", amount_paid: 1000, remaining_amount: 0 }),
+    ];
+    const bulk = buildBulkPaid(
+      [row("i1", "ana", ["s1"], s), row("i2", "ben", ["s2", "s3"], s)],
+      s,
+      CUTOFF,
+    );
+    expect(bulk.plan.paidIds).toEqual(["s1"]);
+    expect(bulk.plan.payments).toEqual([{ scheduleId: "s1", amount: 1000 }]);
+    expect(bulk.targets.map((t) => t.scheduleId)).toEqual(["s1"]);
+    expect(bulk.tickIds).toEqual(["i1", "i2"]);
+    // Only borrowers it pays need their pages refreshed.
+    expect(bulk.borrowerIds).toEqual(["b-ana"]);
+    expect(bulk.summary).toEqual({
+      borrowers: 2,
+      collections: 1,
+      alreadyPaid: 2,
+      total: 1000,
+    });
+  });
+
+  it("pays the open installment of a row whose other one is paid", () => {
+    const s = [
+      sched("s1", { status: "paid", amount_paid: 1000, remaining_amount: 0 }),
+      sched("s2", {
+        amount_paid: 300,
+        remaining_amount: 700,
+        status: "partial",
+      }),
+    ];
+    const bulk = buildBulkPaid([row("i1", "ana", ["s1", "s2"], s)], s, CUTOFF);
+    expect(bulk.plan.paidIds).toEqual(["s2"]);
+    expect(bulk.plan.payments).toEqual([{ scheduleId: "s2", amount: 700 }]);
+    // Undo takes back only what this action paid.
+    expect(bulk.targets).toHaveLength(1);
+    expect(bulk.targets[0].scheduleId).toBe("s2");
+    expect(bulk.targets[0].reset.undoCalls.map((c) => c.scheduleId)).toEqual([
+      "s2",
+    ]);
+    expect(bulk.targets[0].restore.partials).toEqual([
+      { id: "s2", amount: 300 },
+    ]);
+    expect(bulk.tickIds).toEqual(["i1"]);
+    expect(bulk.summary).toEqual({
+      borrowers: 1,
+      collections: 1,
+      alreadyPaid: 1,
+      total: 700,
     });
   });
 
@@ -309,6 +370,45 @@ describe("bulkUndoOutcome", () => {
     expect(bulkUndoOutcome([{ target: t2, failedAt: 1 }], []).errors).toEqual([
       "Couldn't put back the earlier ₱400 payment — re-enter it",
     ]);
+  });
+
+  it("unticks rows it only ticked (nothing paid) and never other rows", () => {
+    const paid = sched("p1", {
+      status: "paid",
+      amount_paid: 1000,
+      remaining_amount: 0,
+    });
+    const open = sched("o1");
+    const mixed = buildBulkPaid(
+      [
+        row("i1", "ana", ["o1"], [open]),
+        row("i2", "ben", ["p1"], [paid]),
+        row("i3", "cy", ["p1"], [paid], { is_checked: true }),
+      ],
+      [open, paid],
+      CUTOFF,
+    );
+    // i3 is ticked already: not eligible, never in tickIds.
+    expect(mixed.tickIds).toEqual(["i1", "i2"]);
+    const ok = mixed.targets.map((target) => ({ target, failedAt: null }));
+    expect(bulkUndoOutcome(ok, mixed.tickIds).untickIds.sort()).toEqual([
+      "i1",
+      "i2",
+    ]);
+    // Reset refused: i1 stays ticked (still paid); i2 had nothing paid.
+    const refused = mixed.targets.map((target) => ({ target, failedAt: 0 }));
+    expect(bulkUndoOutcome(refused, mixed.tickIds).untickIds).toEqual(["i2"]);
+    // Only ticking (nothing to pay): Undo makes no calls and unticks them.
+    const onlyTicks = buildBulkPaid(
+      [row("i2", "ben", ["p1"], [paid])],
+      [paid],
+      CUTOFF,
+    );
+    expect(onlyTicks.targets).toEqual([]);
+    expect(bulkUndoOutcome([], onlyTicks.tickIds)).toEqual({
+      untickIds: ["i2"],
+      errors: [],
+    });
   });
 
   it("shortens a long list of names", () => {

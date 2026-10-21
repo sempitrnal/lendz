@@ -151,6 +151,9 @@ export function Header({
               <ChevronRight className="size-5" />
             </button>
           </div>
+          {/* 36px buttons with 44px tap areas (4px around each border box,
+              meeting in the 8px gap; the bordered one measures from inside
+              its 1px border, hence 5px). */}
           <div className="flex shrink-0 items-center gap-2">
             {tab === "collect" && (
               <button
@@ -160,8 +163,9 @@ export function Header({
                 aria-label={`${
                   date === today ? "Today's" : "This day's"
                 } list options`}
-                className="flex size-9 shrink-0 items-center justify-center
-                  rounded-full border border-border bg-card
+                className="relative flex size-9 shrink-0 items-center
+                  justify-center rounded-full border border-border bg-card
+                  after:absolute after:-inset-[5px] after:content-['']
                   text-muted-foreground transition-opacity active:scale-95
                   disabled:opacity-40"
               >
@@ -174,8 +178,9 @@ export function Header({
               // Writes made before the day has loaded wouldn't show.
               disabled={loading}
               aria-label={tab === "release" ? "Add a release" : "Add an item"}
-              className="flex size-9 shrink-0 items-center justify-center
-                rounded-full bg-primary text-primary-foreground shadow-sm
+              className="relative flex size-9 shrink-0 items-center
+                justify-center rounded-full bg-primary text-primary-foreground
+                shadow-sm after:absolute after:-inset-1 after:content-['']
                 transition-opacity active:scale-95 disabled:opacity-40"
             >
               <Plus className="size-5" />

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addedBorrowersText,
   clearedItemsText,
+  tickedPaidRowsText,
   dueGroupsErrorText,
   dueGroupsUrl,
   markedPaidText,
@@ -17,6 +18,8 @@ describe("toast texts", () => {
     expect(markedPaidText(12)).toBe("Marked 12 collections paid");
     expect(clearedItemsText(1)).toBe("Cleared 1 item");
     expect(clearedItemsText(3)).toBe("Cleared 3 items");
+    expect(tickedPaidRowsText(1)).toBe("Ticked 1 row already paid");
+    expect(tickedPaidRowsText(2)).toBe("Ticked 2 rows already paid");
   });
 
   it("reports an undo populate like the old widget", () => {
