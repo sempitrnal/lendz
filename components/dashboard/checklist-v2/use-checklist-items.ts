@@ -13,7 +13,13 @@ import {
   writeCachedItems,
 } from "@/lib/checklist/offline-cache";
 import { getPendingOutboxCount } from "@/lib/offline/outbox";
-import { warmScheduleCache } from "@/lib/checklist/schedule-cache";
+import {
+  readCachedSchedules,
+  warmScheduleCache,
+} from "@/lib/checklist/schedule-cache";
+import { labelsNeedingWarm } from "@/lib/checklist/warm";
+import { extractScheduleRefs } from "@/lib/checklist/labels";
+import { isConnectionGood } from "@/lib/offline/connection";
 import { resolveCategoryIds } from "@/lib/checklist/categories";
 import {
   isEchoOfLocalState,
@@ -97,6 +103,20 @@ type WriteResult = { data?: unknown; error: DbError };
 type Day = { date: string; items: DailyChecklistItem[] };
 
 const EMPTY_ITEMS: DailyChecklistItem[] = [];
+
+/**
+ * Saves the linked schedules of rows that just arrived (added, realtime,
+ * reload) so their amounts and offline pay work at once. Only labels with a
+ * schedule not saved yet; nothing on a bad connection.
+ */
+function warmNewLabels(labels: string[]) {
+  if (!isConnectionGood()) return;
+  const ids = labels.flatMap((l) => extractScheduleRefs(l).map((r) => r.id));
+  if (ids.length === 0) return;
+  const cached = new Set(readCachedSchedules(ids).map((r) => r.id));
+  const need = labelsNeedingWarm(labels, (id) => cached.has(id));
+  if (need.length > 0) void warmScheduleCache(need).catch(() => {});
+}
 
 /**
  * One day's checklist: the saved copy first, then the server; kept current by
@@ -262,6 +282,9 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
       if (initial) {
         // Ready the payment dialogs for this day in case the connection drops.
         void warmScheduleCache(fetched.map((i) => i.label)).catch(() => {});
+      } else {
+        // Rows that arrived since (realtime, another device): theirs too.
+        warmNewLabels(fetched.map((i) => i.label));
       }
     },
     [loadSeq, flash, clearWaiting],
@@ -425,6 +448,7 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
       }
       onOutcome?.("saved");
       markWaiting(ids.filter((_, idx) => rows[idx].waiting));
+      warmNewLabels(created.map((row) => row.label));
 
       const saved = new Map((data ?? []).map((row) => [row.id, row]));
       const result = created.map((row) => {
@@ -450,7 +474,8 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
         supabase.from("daily_checklist_items").update({ label }).eq("id", id),
       ).then(({ error }: { error: DbError }) => {
         if (wasQueuedOffline(error)) markWaiting([id]);
-        else if (error) {
+        else if (!error) warmNewLabels([label]);
+        else {
           toast.error(error.message);
           // Put the old label back unless it has been edited again since.
           if (before) {
