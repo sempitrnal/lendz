@@ -39,12 +39,14 @@ export function AmountInput({
   onChange,
   label,
   invalid,
+  disabled,
   className,
 }: {
   value: string;
   onChange(value: string): void;
   label: string;
   invalid?: boolean;
+  disabled?: boolean;
   className?: string;
 }) {
   return (
@@ -55,6 +57,7 @@ export function AmountInput({
         invalid
           ? "border-destructive focus-within:ring-destructive/20"
           : "border-input focus-within:border-ring focus-within:ring-ring/50",
+        disabled && "opacity-60",
         className,
       )}
     >
@@ -66,6 +69,7 @@ export function AmountInput({
         aria-label={label}
         aria-invalid={invalid || undefined}
         value={value}
+        disabled={disabled}
         onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => onChange(e.target.value)}
         className="min-w-0 flex-1 bg-transparent text-right text-base

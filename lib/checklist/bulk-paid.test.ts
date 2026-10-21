@@ -5,6 +5,7 @@ import {
   bulkPayFailureText,
   bulkScheduleIds,
   bulkUndoOutcome,
+  splitBulkUndo,
   type BulkUndoResult,
 } from "@/lib/checklist/bulk-paid";
 import { buildDueLabel } from "@/lib/checklist/labels";
@@ -335,6 +336,7 @@ describe("bulkUndoOutcome", () => {
     expect(bulkUndoOutcome(results(null, null, null), bulk.tickIds)).toEqual({
       untickIds: ["i1", "i2"],
       errors: [],
+      note: null,
     });
   });
 
@@ -342,6 +344,7 @@ describe("bulkUndoOutcome", () => {
     expect(bulkUndoOutcome(results(0, null, null), bulk.tickIds)).toEqual({
       untickIds: ["i2"],
       errors: ["Couldn't undo 1 of 3 collections — still recorded for ana"],
+      note: null,
     });
   });
 
@@ -349,6 +352,7 @@ describe("bulkUndoOutcome", () => {
     expect(bulkUndoOutcome(results(0, 0, 0), bulk.tickIds)).toEqual({
       untickIds: [],
       errors: ["Couldn't undo — the payments are still recorded"],
+      note: null,
     });
   });
 
@@ -408,6 +412,7 @@ describe("bulkUndoOutcome", () => {
     expect(bulkUndoOutcome([], onlyTicks.tickIds)).toEqual({
       untickIds: ["i2"],
       errors: [],
+      note: null,
     });
   });
 
@@ -420,5 +425,48 @@ describe("bulkUndoOutcome", () => {
     expect(bulkUndoOutcome(many, []).errors).toEqual([
       "Couldn't undo 5 of 6 collections — still recorded for a, b, c and 2 more",
     ]);
+  });
+
+  it("keeps manual-account installments: their rows stay ticked, with a note", () => {
+    const { undo, kept } = splitBulkUndo(
+      [t1, t2, t3],
+      (accountId) => accountId === "acc-s1",
+    );
+    expect(kept).toEqual([t1]);
+    expect(undo).toEqual([t2, t3]);
+
+    const out = bulkUndoOutcome(
+      [
+        { target: t2, failedAt: null },
+        { target: t3, failedAt: null },
+      ],
+      bulk.tickIds,
+      [t1],
+    );
+    // i1 (ana) is the kept one: not unticked, not "only ticked".
+    expect(out.untickIds).toEqual(["i2"]);
+    expect(out.errors).toEqual([]);
+    expect(out.note).toBe(
+      "1 payment kept for ana — manual accounts are changed on the account page",
+    );
+  });
+
+  it("never unticks a row with a kept installment even if another reset went through", () => {
+    const both = { ...t2, itemIds: ["i1"] };
+    const out = bulkUndoOutcome([{ target: both, failedAt: null }], ["i1"], [
+      t1,
+    ]);
+    expect(out.untickIds).toEqual([]);
+  });
+});
+
+describe("splitBulkUndo", () => {
+  it("sends held accounts' installments to kept", () => {
+    const a = { accountId: "a" } as Parameters<typeof splitBulkUndo>[0][0];
+    const b = { accountId: "b" } as Parameters<typeof splitBulkUndo>[0][0];
+    expect(splitBulkUndo([a, b, a], (id) => id === "a")).toEqual({
+      undo: [b],
+      kept: [a, a],
+    });
   });
 });

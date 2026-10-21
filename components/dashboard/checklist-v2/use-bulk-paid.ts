@@ -8,6 +8,7 @@ import { recordInSteps } from "@/components/dashboard/checklist-v2/record-steps"
 import {
   bulkPayFailureText,
   bulkUndoOutcome,
+  splitBulkUndo,
   type BulkPaid,
   type BulkUndoResult,
 } from "@/lib/checklist/bulk-paid";
@@ -17,6 +18,12 @@ import {
   tickedPaidRowsText,
 } from "@/lib/checklist/list-menu";
 import { todayDateValue } from "@/lib/checklist/dates";
+import {
+  loadAccountSummaries,
+  readCachedSummaries,
+  type AccountSummary,
+} from "@/lib/checklist/schedule-cache";
+import { blocksPaymentChanges } from "@/lib/checklist/manual-accounts";
 
 /** The mark all paid toast and its Undo (Global Constraints: 6000 ms). */
 const BULK_TOAST_MS = 6000;
@@ -65,11 +72,23 @@ export function useBulkPaid(
         undone = true;
         if ((await paid) === "failed") return;
         const today = todayDateValue();
+        // Manual accounts (or ones that couldn't be checked) are never reset
+        // from here: those installments stay paid, and the toast says so.
+        const ids = bulk.targets.map((t) => t.scheduleId);
+        const summaries: Record<string, AccountSummary> | null =
+          ids.length === 0
+            ? {}
+            : await loadAccountSummaries(ids).catch(() =>
+                readCachedSummaries(ids),
+              );
+        const { undo: toUndo, kept } = splitBulkUndo(bulk.targets, (id) =>
+          blocksPaymentChanges([id], summaries),
+        );
         // One after the other: server actions run one at a time anyway, and
         // the offline check (did the outbox grow?) can't then mistake
         // another installment's queued write for this one's.
         const results: BulkUndoResult[] = [];
-        for (const target of bulk.targets) {
+        for (const target of toUndo) {
           const { failedAt } = await recordInSteps(
             recordPayments,
             {
@@ -87,9 +106,14 @@ export function useBulkPaid(
         }
         // Only ticks this action set are taken back: rows it only ticked,
         // and rows with at least one of its payments reset (`bulkUndoOutcome`).
-        const { untickIds, errors } = bulkUndoOutcome(results, tickIds);
+        const { untickIds, errors, note } = bulkUndoOutcome(
+          results,
+          tickIds,
+          kept,
+        );
         if (untickIds.length > 0) setChecked(untickIds, false);
         for (const error of errors) toast.error(error);
+        if (note) toast(note);
       };
 
       const showToast = (text: string) =>

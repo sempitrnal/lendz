@@ -196,15 +196,29 @@ function nameList(names: string[]): string {
 export function bulkUndoOutcome(
   results: BulkUndoResult[],
   tickedIds: string[],
-): { untickIds: string[]; errors: string[] } {
+  /** Installments Undo left alone (manual accounts): their rows stay ticked. */
+  kept: BulkUndoTarget[] = [],
+): { untickIds: string[]; errors: string[]; note: string | null } {
   const ticked = new Set(tickedIds);
   const untick = new Set<string>();
-  const paidFor = new Set(results.flatMap((r) => r.target.itemIds));
+  const keptFor = new Set(kept.flatMap((t) => t.itemIds));
+  const paidFor = new Set([
+    ...results.flatMap((r) => r.target.itemIds),
+    ...keptFor,
+  ]);
   for (const id of tickedIds) if (!paidFor.has(id)) untick.add(id);
   for (const { target, failedAt } of results) {
     if (failedAt === 0) continue;
-    for (const id of target.itemIds) if (ticked.has(id)) untick.add(id);
+    for (const id of target.itemIds) {
+      if (ticked.has(id) && !keptFor.has(id)) untick.add(id);
+    }
   }
+  const note =
+    kept.length === 0
+      ? null
+      : `${kept.length === 1 ? "1 payment" : `${kept.length} payments`} kept for ${nameList(
+          kept.map((t) => t.name),
+        )} — manual accounts are changed on the account page`;
 
   const errors: string[] = [];
   const stillPaid = results.filter((r) => r.failedAt === 0);
@@ -233,5 +247,19 @@ export function bulkUndoOutcome(
           : `Couldn't put back ${notRestored.length} earlier payments (${peso(sum)}) for ${names} — re-enter them`,
     );
   }
-  return { untickIds: [...untick], errors };
+  return { untickIds: [...untick], errors, note };
+}
+
+/**
+ * Splits a bulk Undo's installments: those it may reset, and those it keeps
+ * because their account is manual or couldn't be checked (`held`).
+ */
+export function splitBulkUndo(
+  targets: BulkUndoTarget[],
+  held: (accountId: string) => boolean,
+): { undo: BulkUndoTarget[]; kept: BulkUndoTarget[] } {
+  const undo: BulkUndoTarget[] = [];
+  const kept: BulkUndoTarget[] = [];
+  for (const t of targets) (held(t.accountId) ? kept : undo).push(t);
+  return { undo, kept };
 }

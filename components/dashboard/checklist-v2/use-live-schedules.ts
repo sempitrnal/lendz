@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ACCOUNT_SUMMARIES_KEY } from "@/components/dashboard/checklist/use-record-payments";
 import {
+  loadAccountSummaries,
   loadSchedules,
   readCachedSchedules,
+  readCachedSummaries,
   type ScheduleDialogRow,
 } from "@/lib/checklist/schedule-cache";
 
@@ -51,4 +55,21 @@ export function useLiveSchedules(ids: string[]): LiveSchedules {
   }, [key]);
 
   return state;
+}
+
+/**
+ * Type + paid/left of the accounts behind `scheduleIds` (the pay dialog's
+ * query): live when online, the saved copy offline or while loading.
+ */
+export function useAccountSummaries(ids: string[]) {
+  const scheduleIds = useMemo(() => [...new Set(ids)].sort(), [ids]);
+  return useQuery({
+    queryKey: [ACCOUNT_SUMMARIES_KEY, ...scheduleIds],
+    queryFn: () => loadAccountSummaries(scheduleIds),
+    // Offline the cache answers; React Query would otherwise pause the fetch.
+    networkMode: "always",
+    enabled: scheduleIds.length > 0,
+    staleTime: 30_000,
+    placeholderData: () => readCachedSummaries(scheduleIds) ?? undefined,
+  });
 }

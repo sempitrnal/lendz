@@ -2,20 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AccountSummaryHeader } from "@/components/dashboard/checklist/payment-dialogs";
-import {
-  ACCOUNT_SUMMARIES_KEY,
-  useRecordPayments,
-} from "@/components/dashboard/checklist/use-record-payments";
-import {
-  loadAccountSummaries,
-  readCachedSummaries,
-  type ScheduleDialogRow,
-} from "@/lib/checklist/schedule-cache";
+import { useRecordPayments } from "@/components/dashboard/checklist/use-record-payments";
+import type { ScheduleDialogRow } from "@/lib/checklist/schedule-cache";
 import {
   amountPaidOnInstallment,
   remainingOnInstallment,
@@ -35,7 +27,11 @@ import {
   kindLabel,
   rowName,
 } from "@/components/dashboard/checklist-v2/collect-row";
-import { useLiveSchedules } from "@/components/dashboard/checklist-v2/use-live-schedules";
+import {
+  useAccountSummaries,
+  useLiveSchedules,
+} from "@/components/dashboard/checklist-v2/use-live-schedules";
+import { heldBackPointer } from "@/lib/checklist/manual-accounts";
 import { recordInSteps } from "@/components/dashboard/checklist-v2/record-steps";
 import {
   AmountInput,
@@ -95,16 +91,8 @@ export function PaySheet({
     overdueCutoff: overdueCutoffDateValue(),
   });
 
-  const scheduleIds = useMemo(() => [...lineIds].sort(), [lineIds]);
-  const { data: summaries, isPending: summariesPending } = useQuery({
-    queryKey: [ACCOUNT_SUMMARIES_KEY, ...scheduleIds],
-    queryFn: () => loadAccountSummaries(scheduleIds),
-    // Offline the cache answers; React Query would otherwise pause the fetch.
-    networkMode: "always",
-    enabled: scheduleIds.length > 0,
-    staleTime: 30_000,
-    placeholderData: () => readCachedSummaries(scheduleIds) ?? undefined,
-  });
+  const { data: summaries, isPending: summariesPending } =
+    useAccountSummaries(lineIds);
 
   const byAccount = new Map<string, ScheduleDialogRow[]>();
   for (const r of pay.open) {
@@ -146,6 +134,9 @@ export function PaySheet({
     let toastId: string | number | undefined;
     /** The pay's server result; set before the toast (and its Undo) shows. */
     let paid: Promise<"saved" | "queued" | "failed"> | null = null;
+    // A manual account's pay (or one whose account couldn't be checked) is
+    // never reset from here: no Undo, the account page instead.
+    const heldBack = heldBackPointer(pay.accountIds, summaries);
 
     const undo = async () => {
       // Never let the reset race the pay it takes back.
@@ -176,10 +167,15 @@ export function PaySheet({
         failureMessage: payFailureMessage(pay.calls),
         onApplied: () => {
           if (tick) setChecked([itemId], true);
-          toastId = toast(`${name} · ${peso(pay.total)} paid`, {
-            duration: PAY_TOAST_MS,
-            action: { label: "Undo", onClick: () => void undo() },
-          });
+          toastId = toast(
+            `${name} · ${peso(pay.total)} paid`,
+            heldBack
+              ? { duration: PAY_TOAST_MS, description: heldBack }
+              : {
+                  duration: PAY_TOAST_MS,
+                  action: { label: "Undo", onClick: () => void undo() },
+                },
+          );
           onClose();
         },
         onFailed: () => {

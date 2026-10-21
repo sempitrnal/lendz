@@ -23,7 +23,11 @@ import {
   kindLabel,
   rowName,
 } from "@/components/dashboard/checklist-v2/collect-row";
-import { useLiveSchedules } from "@/components/dashboard/checklist-v2/use-live-schedules";
+import {
+  useAccountSummaries,
+  useLiveSchedules,
+} from "@/components/dashboard/checklist-v2/use-live-schedules";
+import { heldBackPointer } from "@/lib/checklist/manual-accounts";
 import { recordInSteps } from "@/components/dashboard/checklist-v2/record-steps";
 import {
   AmountInput,
@@ -74,11 +78,23 @@ export function EditPaymentsSheet({
   const lineById = new Map(row.lines.map((l) => [l.id, l]));
   const loaded = new Set(live.rows.map((r) => r.id));
   const allLoaded = lineIds.every((id) => loaded.has(id));
+  const { data: summaries, isPending: summariesPending } =
+    useAccountSummaries(lineIds);
+  const cardAccounts = [...new Set(cards.map((c) => c.row.account_id))];
+  // Manual accounts (or ones that couldn't be checked) are only changed on
+  // the account page: a reset would orphan a rolled-over schedule or turn a
+  // recorded payment into money owed.
+  const heldBack =
+    summariesPending && !summaries
+      ? null
+      : heldBackPointer(cardAccounts, summaries);
+  const checking = summariesPending && !summaries && cards.length > 0;
+  const locked = checking || heldBack !== null;
   const ready = live.status === "ready";
-  const canSave = ready && !submitting && canSaveEdit(edit);
+  const canSave = ready && !submitting && !locked && canSaveEdit(edit);
 
   const save = async () => {
-    if (!canSave) return;
+    if (!canSave || locked) return;
     // Everything is read now: the sheet closes as soon as the change shows.
     const itemId = row.item.id;
     // Untick only when nothing on the row is paid any more. An installment
@@ -195,6 +211,7 @@ export function EditPaymentsSheet({
                         </p>
                       </div>
                       <AmountInput
+                        disabled={locked}
                         value={amounts[id]}
                         onChange={(v) => setTyped((t) => ({ ...t, [id]: v }))}
                         label={`Amount paid for ${kind.toLowerCase()} ${date}`}
@@ -211,6 +228,7 @@ export function EditPaymentsSheet({
                     )}
                     <div className="mt-2 flex gap-2">
                       <ShortcutChip
+                        disabled={locked}
                         active={target === card.due}
                         onClick={() =>
                           setTyped((t) => ({ ...t, [id]: String(card.due) }))
@@ -219,6 +237,7 @@ export function EditPaymentsSheet({
                         Paid in full
                       </ShortcutChip>
                       <ShortcutChip
+                        disabled={locked}
                         active={target === 0}
                         onClick={() => setTyped((t) => ({ ...t, [id]: "0" }))}
                       >
@@ -229,6 +248,24 @@ export function EditPaymentsSheet({
                 );
               })}
             </ul>
+          )}
+          {heldBack && cards.length > 0 && (
+            <p
+              className="mt-3 rounded-lg bg-amber-500/10 p-3 text-sm
+                text-amber-800 dark:text-amber-300"
+              role="note"
+            >
+              {heldBack}.{" "}
+              {borrowerId && (
+                <button
+                  type="button"
+                  onClick={onOpenBorrower}
+                  className="font-semibold underline underline-offset-2"
+                >
+                  Open the borrower page
+                </button>
+              )}
+            </p>
           )}
         </div>
       </div>
@@ -241,11 +278,13 @@ export function EditPaymentsSheet({
           onClick={() => void save()}
           className="h-12 w-full text-base"
         >
-          {live.status === "loading"
+          {live.status === "loading" || checking
             ? "Loading…"
             : live.status === "error"
               ? "Couldn't load"
-              : editButtonLabel(edit, peso)}
+              : heldBack && cards.length > 0
+                ? "Change it on the account page"
+                : editButtonLabel(edit, peso)}
         </Button>
       </SheetFooter>
     </>
@@ -254,10 +293,12 @@ export function EditPaymentsSheet({
 
 function ShortcutChip({
   active,
+  disabled,
   onClick,
   children,
 }: {
   active: boolean;
+  disabled?: boolean;
   onClick(): void;
   children: string;
 }) {
@@ -265,10 +306,11 @@ function ShortcutChip({
     <button
       type="button"
       aria-pressed={active}
+      disabled={disabled}
       onClick={onClick}
       className={cn(
         `shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium
-        transition-colors active:scale-95`,
+        transition-colors active:scale-95 disabled:opacity-50`,
         active
           ? "border-primary/40 bg-primary/10 text-primary"
           : "border-border bg-card text-muted-foreground",

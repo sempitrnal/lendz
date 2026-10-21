@@ -4,10 +4,14 @@ import { useRef } from "react";
 import { toast } from "sonner";
 import { useRecordPayments } from "@/components/dashboard/checklist/use-record-payments";
 import {
+  loadAccountSummaries,
   loadSchedules,
   readCachedSchedules,
+  readCachedSummaries,
+  type AccountSummary,
   type ScheduleDialogRow,
 } from "@/lib/checklist/schedule-cache";
+import { heldBackPointer } from "@/lib/checklist/manual-accounts";
 import { buildQuickPay } from "@/lib/checklist/quick-pay";
 import { overdueCutoffDateValue, todayDateValue } from "@/lib/checklist/dates";
 import type { RowView } from "@/lib/checklist/row-state";
@@ -45,12 +49,18 @@ export function useQuickPay(
       // only offline or when the live load fails. Every line of the row is
       // loaded so "fully paid" is judged on the same numbers.
       const allIds = [...new Set([...lineIds, ...row.lines.map((l) => l.id)])];
+      // The account types too: a manual account's pay gets no Undo.
+      const summariesLoad = loadAccountSummaries(lineIds).catch(
+        (): Record<string, AccountSummary> | null =>
+          readCachedSummaries(lineIds),
+      );
       let schedules: ScheduleDialogRow[];
       try {
         schedules = await loadSchedules(allIds);
       } catch {
         schedules = readCachedSchedules(allIds);
       }
+      const summaries = await summariesLoad;
       const loaded = new Set(schedules.map((s) => s.id));
       if (!lineIds.every((id) => loaded.has(id))) {
         // Never pay from the label's amounts.
@@ -73,6 +83,7 @@ export function useQuickPay(
       // Only a tick this pay set is taken back by its Undo or a failure.
       const tick = quick.settlesRow && !row.item.is_checked;
       const base = { accountIds: quick.accountIds, borrowerId, paymentDate };
+      const heldBack = heldBackPointer(quick.accountIds, summaries);
       let toastId: string | number | undefined;
       /** The pay's server result; set below before any toast (and Undo) shows. */
       let paid: Promise<"saved" | "queued" | "failed"> | null = null;
@@ -109,10 +120,15 @@ export function useQuickPay(
         plan: quick.pay,
         onApplied: () => {
           if (tick) setChecked([itemId], true);
-          toastId = toast(message(peso(quick.amount)), {
-            duration: PAY_TOAST_MS,
-            action: { label: "Undo", onClick: () => void undo() },
-          });
+          toastId = toast(
+            message(peso(quick.amount)),
+            heldBack
+              ? { duration: PAY_TOAST_MS, description: heldBack }
+              : {
+                  duration: PAY_TOAST_MS,
+                  action: { label: "Undo", onClick: () => void undo() },
+                },
+          );
         },
         onFailed: () => {
           if (tick) setChecked([itemId], false);
