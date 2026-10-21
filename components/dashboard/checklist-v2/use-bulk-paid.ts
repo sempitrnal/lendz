@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { toast } from "sonner";
+import { undoToast } from "@/components/dashboard/checklist-v2/undo-toasts";
 import { useRecordPayments } from "@/components/dashboard/checklist/use-record-payments";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import {
@@ -136,7 +137,7 @@ export function useBulkPaid(
       };
 
       const showToast = (text: string) =>
-        toast(text, {
+        undoToast(text, {
           id: toastId,
           duration: BULK_TOAST_MS,
           action: undoAction(undo, () => toast.dismiss(toastId)),

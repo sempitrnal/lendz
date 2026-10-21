@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { undoToast } from "@/components/dashboard/checklist-v2/undo-toasts";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -178,7 +179,7 @@ export function PaySheet({
         failureMessage: payFailureMessage(pay.calls),
         onApplied: () => {
           if (tick) setChecked([itemId], true);
-          toastId = toast(
+          toastId = undoToast(
             `${name} · ${peso(pay.total)} paid`,
             heldBack
               ? { duration: PAY_TOAST_MS, description: heldBack }

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { undoToast } from "@/components/dashboard/checklist-v2/undo-toasts";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useRecordPayments } from "@/components/dashboard/checklist/use-record-payments";
@@ -144,7 +145,7 @@ export function EditPaymentsSheet({
             plan: edit.first,
             failureMessage: failure.first,
             onApplied: () => {
-              toastId = toast(
+              toastId = undoToast(
                 edit.removesAll
                   ? `${name} · payment removed`
                   : `${name} · ${peso(edit.total)} paid`,

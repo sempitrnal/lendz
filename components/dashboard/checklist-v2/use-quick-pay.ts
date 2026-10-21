@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { toast } from "sonner";
+import { undoToast } from "@/components/dashboard/checklist-v2/undo-toasts";
 import { useRecordPayments } from "@/components/dashboard/checklist/use-record-payments";
 import {
   loadAccountSummaries,
@@ -132,7 +133,7 @@ export function useQuickPay(
         plan: quick.pay,
         onApplied: () => {
           if (tick) setChecked([itemId], true);
-          toastId = toast(
+          toastId = undoToast(
             message(peso(quick.amount)),
             heldBack
               ? { duration: PAY_TOAST_MS, description: heldBack }

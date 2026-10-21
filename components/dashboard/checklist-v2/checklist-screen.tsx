@@ -39,6 +39,10 @@ import {
   ListMenuSheet,
 } from "@/components/dashboard/checklist-v2/list-menu-sheets";
 import { useBulkPaid } from "@/components/dashboard/checklist-v2/use-bulk-paid";
+import {
+  dismissUndoToasts,
+  undoToast,
+} from "@/components/dashboard/checklist-v2/undo-toasts";
 import { ReleaseList } from "@/components/dashboard/checklist-v2/release-list";
 import { CreateAccountSheet } from "@/components/dashboard/checklist-v2/create-account-sheet";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
@@ -249,8 +253,9 @@ function ChecklistDay({ today }: { today: string }) {
 
   const changeDate = (next: string) => {
     if (next === date || createBusy()) return;
-    // Toasts (and their Undo) belong to the day they came from.
-    toast.dismiss();
+    // Undo toasts belong to the day they came from; error toasts that tell
+    // the owner to act stay.
+    dismissUndoToasts();
     setFilter("all");
     setSwipedId(null);
     setExpandedIds(new Set());
@@ -382,7 +387,7 @@ function ChecklistDay({ today }: { today: string }) {
         release();
         toast.dismiss(toastId);
       } else if (outcome === "queued" && !undone) {
-        toast(`${text(removed.length)}${QUEUED_SUFFIX}`, {
+        undoToast(`${text(removed.length)}${QUEUED_SUFFIX}`, {
           id: toastId,
           duration: REMOVE_TOAST_MS,
           action: { label: "Undo", onClick: () => void undo(removed) },
@@ -395,7 +400,7 @@ function ChecklistDay({ today }: { today: string }) {
       release();
       return;
     }
-    toast(text(removed.length), {
+    undoToast(text(removed.length), {
       id: toastId,
       duration: REMOVE_TOAST_MS,
       action: { label: "Undo", onClick: () => void undo(removed) },
@@ -523,7 +528,7 @@ function ChecklistDay({ today }: { today: string }) {
       // The row is back unticked (the hook said why): nothing to undo.
       if (outcome === "failed") toast.dismiss(toastId);
     });
-    toast(
+    undoToast(
       checkedOffWithoutAccountText((view.name || "release").toLowerCase()),
       {
         id: toastId,
@@ -624,10 +629,14 @@ function ChecklistDay({ today }: { today: string }) {
         used: false,
       };
       setLastPopulate(run);
-      toast.success(text, {
-        duration: POPULATE_TOAST_MS,
-        action: { label: "Undo", onClick: () => undoPopulate(run) },
-      });
+      undoToast(
+        text,
+        {
+          duration: POPULATE_TOAST_MS,
+          action: { label: "Undo", onClick: () => undoPopulate(run) },
+        },
+        "success",
+      );
     } finally {
       populatingRef.current = false;
       setPopulating(false);
