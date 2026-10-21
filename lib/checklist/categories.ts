@@ -1,3 +1,4 @@
+import { extractScheduleRefs } from "@/lib/checklist/labels";
 import type {
   ChecklistCategory,
   DailyChecklistItem,
@@ -27,11 +28,20 @@ export function resolveCategoryIds(categories: ChecklistCategory[]): {
   };
 }
 
+/**
+ * The tab an item shows on. Released-category items are releases, except a
+ * row that links installments (`#badge:date:…|<scheduleId>`): that is a
+ * collection filed under "released" and goes to Collect, where it can be
+ * paid like any other. (Owner ruling, final review I4; to go back to the
+ * category-only rule, drop the `extractScheduleRefs` condition.)
+ */
 export function tabOf(
   item: DailyChecklistItem,
   releasedId: string | null,
 ): ChecklistTab {
-  return releasedId !== null && item.category_id === releasedId
+  return releasedId !== null &&
+    item.category_id === releasedId &&
+    extractScheduleRefs(item.label).length === 0
     ? "release"
     : "collect";
 }

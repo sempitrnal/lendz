@@ -9,6 +9,8 @@ import type { ReleaseRowView } from "@/lib/checklist/release-items";
  * The release a row reads as, or null. A row that links installments
  * (`#badge:date:…|<scheduleId>`) is a collection filed under "released", not
  * a release: its amount is a payment, so it is never turned into an account.
+ * `tabOf` already sends such rows to Collect; this guard only matters if that
+ * rule is reverted, so it stays as a safety net.
  */
 export function releaseOf(view: ReleaseRowView): ParsedReleasedLabel | null {
   if (!view.parsed) return null;

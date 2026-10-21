@@ -3,6 +3,8 @@ import {
   resolveCategoryIds,
   tabOf,
 } from "@/lib/checklist/categories";
+import { buildRowView } from "@/lib/checklist/row-state";
+import { bulkPaidRows } from "@/lib/checklist/bulk-paid";
 import type {
   ChecklistCategory,
   DailyChecklistItem,
@@ -15,10 +17,13 @@ const cat = (id: string, name: string, sort_order = 0): ChecklistCategory => ({
   sort_order,
 });
 
-const item = (category_id: string | null): DailyChecklistItem => ({
+const item = (
+  category_id: string | null,
+  label = "x",
+): DailyChecklistItem => ({
   id: "i1",
   checklist_date: "2026-10-19",
-  label: "x",
+  label,
   is_checked: false,
   sort_order: 0,
   created_at: "2026-10-19T00:00:00Z",
@@ -68,5 +73,40 @@ describe("tabOf", () => {
   });
   it("is always collect without a released id", () => {
     expect(tabOf(item("r"), null)).toBe("collect");
+  });
+  const collection =
+    "[ana](/borrowers/b1)\n₱1,000 [Oct 21](#badge:date:2026-10-21|s1) [Loan](#badge:type:loan)";
+  it("sends a released-category row that links installments to collect", () => {
+    expect(tabOf(item("r", collection), "r")).toBe("collect");
+    expect(tabOf(item("x", collection), "r")).toBe("collect");
+    expect(tabOf(item(null, collection), "r")).toBe("collect");
+  });
+  it("keeps released-category rows without schedule links on release", () => {
+    expect(tabOf(item("r", "[ana](/borrowers/b1) 10,000 - 10 months"), "r")).toBe(
+      "release",
+    );
+    // A date badge with no schedule id links nothing.
+    expect(
+      tabOf(item("r", "[ana](/borrowers/b1) ₱500 [Oct 21](#badge:date:2026-10-21|)"), "r"),
+    ).toBe("release");
+  });
+  it("puts every item on exactly one tab", () => {
+    const items = [
+      item("r", collection),
+      item("r", "[ana](/borrowers/b1) 5,000 - 5 months"),
+      item("c", collection),
+      item("c", "note"),
+      item(null, "note"),
+    ];
+    const collect = items.filter((i) => tabOf(i, "r") === "collect");
+    const release = items.filter((i) => tabOf(i, "r") === "release");
+    expect(collect.length + release.length).toBe(items.length);
+    expect(release).toEqual([items[1]]);
+  });
+  it("a rerouted row is an ordinary collection row (pay, bulk, swipe)", () => {
+    const view = buildRowView(item("r", collection));
+    expect(view.model?.borrower).toEqual({ id: "b1", name: "ana" });
+    expect(view.lines.map((l) => l.id)).toEqual(["s1"]);
+    expect(bulkPaidRows([view])).toEqual([view]);
   });
 });
