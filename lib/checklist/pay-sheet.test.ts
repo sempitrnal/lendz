@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPaySheet,
+  isCustomRow,
   payButtonLabel,
   payFailureMessage,
   type PaySheetInput,
@@ -112,6 +113,46 @@ describe("buildPaySheet", () => {
     expect(pay.settlesRow).toBe(false);
     expect(pay.pendingByAccount.a1.partialAmount).toBe(500);
     expect(pay.calls).toBe(2);
+  });
+
+  it("a row's own Partial pays a typed amount while the others pay in full", () => {
+    const pay = buildPaySheet(
+      input({ customRows: { a: true }, amounts: { a: "500", b: "1" } }),
+    );
+    // b is not in partial mode, so its typed 1 is ignored: paid in full.
+    expect(pay.plan.partials).toEqual([{ id: "a", amount: 500 }]);
+    expect(pay.plan.paidIds).toEqual(["b"]);
+    expect(pay.total).toBe(1500);
+    expect(pay.custom).toBe(true);
+  });
+
+  it("an empty box on a row set to Partial pays nothing for it", () => {
+    const pay = buildPaySheet(
+      input({ customRows: { a: true }, amounts: { a: "" } }),
+    );
+    expect(pay.plan.paidIds).toEqual(["b"]);
+    expect(pay.total).toBe(1000);
+    expect(pay.invalidIds).toEqual([]);
+  });
+
+  it("a row can go back to full while the sheet-wide switch is on", () => {
+    const pay = buildPaySheet(
+      input({
+        custom: true,
+        customRows: { a: false },
+        amounts: { a: "5", b: "400" },
+      }),
+    );
+    expect(pay.plan.paidIds).toEqual(["a"]);
+    expect(pay.plan.partials).toEqual([{ id: "b", amount: 400 }]);
+  });
+
+  it("isCustomRow lets a row's own choice win over the sheet-wide one", () => {
+    expect(isCustomRow("a", false, undefined)).toBe(false);
+    expect(isCustomRow("a", true, undefined)).toBe(true);
+    expect(isCustomRow("a", true, { a: false })).toBe(false);
+    expect(isCustomRow("a", false, { a: true })).toBe(true);
+    expect(isCustomRow("b", false, { a: true })).toBe(false);
   });
 
   it("clamps an amount above what is left and counts it as paid", () => {

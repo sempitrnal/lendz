@@ -47,6 +47,7 @@ export function AmountInput({
   invalid,
   disabled,
   className,
+  autoFocus,
 }: {
   value: string;
   onChange(value: string): void;
@@ -54,6 +55,7 @@ export function AmountInput({
   invalid?: boolean;
   disabled?: boolean;
   className?: string;
+  autoFocus?: boolean;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   /** Digits and dots before the caret, restored after the commas change. */
@@ -88,6 +90,7 @@ export function AmountInput({
         aria-label={label}
         aria-invalid={invalid || undefined}
         ref={ref}
+        autoFocus={autoFocus}
         value={shown}
         disabled={disabled}
         onFocus={(e) => e.currentTarget.select()}

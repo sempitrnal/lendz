@@ -18,6 +18,7 @@ import { overdueCutoffDateValue, todayDateValue } from "@/lib/checklist/dates";
 import { cents } from "@/lib/checklist/amount-input";
 import {
   buildPaySheet,
+  isCustomRow,
   payButtonLabel,
   payFailureMessage,
 } from "@/lib/checklist/pay-sheet";
@@ -78,6 +79,8 @@ export function PaySheet({
   const live = useLiveSchedules(lineIds);
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [custom, setCustom] = useState(startPartial);
+  /** One installment's own "Partial", overriding the sheet-wide switch. */
+  const [customRows, setCustomRows] = useState<Record<string, boolean>>({});
   /** Only the amounts typed so far; the rest show what is left. */
   const [typed, setTyped] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -91,6 +94,7 @@ export function PaySheet({
     lineIds,
     picked,
     custom,
+    customRows,
     amounts,
     overdueCutoff: overdueCutoffDateValue(),
   });
@@ -285,8 +289,23 @@ export function PaySheet({
                       const left = cents(remainingOnInstallment(r));
                       const invalid = pay.invalidIds.includes(r.id);
                       const clamped = pay.clampedIds.includes(r.id);
+                      const rowCustom = isCustomRow(r.id, custom, customRows);
                       const toggle = () =>
                         setPicked((p) => ({ ...p, [r.id]: !on }));
+                      // Partial: start from an empty box, ticked, to type into.
+                      const startRowPartial = () => {
+                        setTyped((t) => ({ ...t, [r.id]: "" }));
+                        setPicked((p) => ({ ...p, [r.id]: true }));
+                        setCustomRows((c) => ({ ...c, [r.id]: true }));
+                      };
+                      const backToFull = () => {
+                        setTyped((t) => {
+                          const next = { ...t };
+                          delete next[r.id];
+                          return next;
+                        });
+                        setCustomRows((c) => ({ ...c, [r.id]: false }));
+                      };
                       return (
                         <div
                           key={r.id}
@@ -339,11 +358,18 @@ export function PaySheet({
                                     · {late}d late
                                   </span>
                                 )}
-                                {paidSoFar > 0 &&
-                                  ` · ${peso(paidSoFar)} already paid`}
                               </span>
+                              {paidSoFar > 0 && (
+                                <span
+                                  className="mt-0.5 block text-xs font-medium
+                                    text-primary"
+                                >
+                                  {peso(paidSoFar)} paid so far · {peso(left)}{" "}
+                                  left
+                                </span>
+                              )}
                             </span>
-                            {!custom && (
+                            {!rowCustom && (
                               <span
                                 className="shrink-0 text-sm font-semibold
                                   tabular-nums"
@@ -352,9 +378,24 @@ export function PaySheet({
                               </span>
                             )}
                           </button>
-                          {custom && (
+                          {!rowCustom && (
+                            <button
+                              type="button"
+                              onClick={startRowPartial}
+                              aria-label={`Pay part of ${kind.toLowerCase()} ${formatShortDate(
+                                r.due_date,
+                              ).toLowerCase()}`}
+                              className="flex h-9 shrink-0 items-center
+                                rounded-full border border-muted-foreground/40
+                                px-3 text-xs font-semibold active:bg-muted"
+                            >
+                              Partial
+                            </button>
+                          )}
+                          {rowCustom && (
                             <div className="w-28 shrink-0 space-y-0.5">
                               <AmountInput
+                                autoFocus={customRows[r.id] === true}
                                 value={amountOf(r)}
                                 onChange={(v) =>
                                   setTyped((t) => ({ ...t, [r.id]: v }))
@@ -378,6 +419,16 @@ export function PaySheet({
                                   ? "Not a number"
                                   : `of ${peso(left)}`}
                               </p>
+                              {customRows[r.id] === true && (
+                                <button
+                                  type="button"
+                                  onClick={backToFull}
+                                  className="block w-full text-right text-xs
+                                    font-medium text-primary active:opacity-70"
+                                >
+                                  Pay in full
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -401,7 +452,10 @@ export function PaySheet({
           {pay.open.length > 0 && (
             <button
               type="button"
-              onClick={() => setCustom((v) => !v)}
+              onClick={() => {
+                setCustom((v) => !v);
+                setCustomRows({});
+              }}
               className="text-sm font-medium text-primary active:opacity-70"
             >
               {custom ? "Use full amounts" : "Pay a different amount"}

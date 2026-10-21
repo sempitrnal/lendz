@@ -27,8 +27,10 @@ export type PaySheetInput = {
   lineIds: string[];
   /** Installments left ticked; a missing entry counts as ticked. */
   picked: Record<string, boolean>;
-  /** "Pay a different amount": the typed amounts apply. */
+  /** "Pay a different amount": the typed amounts apply to every installment. */
   custom: boolean;
+  /** One installment's own "Partial": overrides `custom` for that row. */
+  customRows?: Record<string, boolean>;
   amounts: Record<string, string>;
   overdueCutoff: string;
 };
@@ -52,11 +54,19 @@ export type PaySheetPlan = {
   undo: { reset: PaymentPlan; restore: PaymentPlan };
   /** How many server calls the pay makes. */
   calls: number;
-  /** "Pay a different amount" is on. */
+  /** A ticked installment pays a typed amount. */
   custom: boolean;
   /** Installments left ticked. */
   tickedCount: number;
 };
+
+/** Whether an installment pays a typed amount: its own "Partial" wins over
+ * the sheet-wide "Pay a different amount". */
+export const isCustomRow = (
+  id: string,
+  custom: boolean,
+  customRows?: Record<string, boolean>,
+) => customRows?.[id] ?? custom;
 
 /**
  * The pay sheet's choices: a ticked installment is paid in full, or with
@@ -69,6 +79,7 @@ export function buildPaySheet({
   lineIds,
   picked,
   custom,
+  customRows,
   amounts,
   overdueCutoff,
 }: PaySheetInput): PaySheetPlan {
@@ -83,7 +94,7 @@ export function buildPaySheet({
   const clampedIds: string[] = [];
   for (const row of open) {
     if (picked[row.id] === false) continue;
-    if (!custom) {
+    if (!isCustomRow(row.id, custom, customRows)) {
       choices[row.id] = { status: "paid", amount: "" };
       continue;
     }
@@ -148,7 +159,9 @@ export function buildPaySheet({
     pendingByAccount,
     undo: buildResetAndRestore(paidRows, overdueCutoff),
     calls: planCallCount(plan),
-    custom,
+    custom: open.some(
+      (r) => picked[r.id] !== false && isCustomRow(r.id, custom, customRows),
+    ),
     tickedCount: open.filter((r) => picked[r.id] !== false).length,
   };
 }
