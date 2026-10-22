@@ -286,6 +286,7 @@ export function Header({
         <div
           className="flex rounded-xl bg-secondary p-0.5 text-sm font-medium"
           role="tablist"
+          data-tour="checklist-tabs"
         >
           {(
             [

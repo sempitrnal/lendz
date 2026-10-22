@@ -246,6 +246,7 @@ export function CollectRow({
 
   return (
     <li
+      data-tour={expandable ? "checklist-multi-row" : undefined}
       className="relative overflow-hidden border-b border-border
         last:border-b-0"
     >
@@ -363,6 +364,7 @@ export function CollectRow({
                 <button
                   type="button"
                   aria-label={`Pay ${open.length} installments for ${name}`}
+                  data-tour="checklist-pay-pill"
                   onClick={guard(onPayRow)}
                   className="flex h-8 items-center rounded-full border
                     border-muted-foreground/40 px-2 lowercase text-xs
