@@ -253,17 +253,26 @@ export function TourSpotlight({
         </p>
         <h2 className="mt-0.5 text-base font-semibold">{step.title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
-        <div className="mt-3 flex items-center gap-3">
-          <div className="flex gap-1" aria-hidden="true">
-            {steps.map((_, i) => (
-              <span
-                key={i}
-                className={`size-1.5 rounded-full ${
-                  i === index ? "bg-primary" : "bg-muted-foreground/30"
-                }`}
-              />
-            ))}
-          </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          {steps.length > 6 ? (
+            // Too many for dots: they would push the buttons out of the popup.
+            <span
+              className="shrink-0 text-xs tabular-nums text-muted-foreground"
+            >
+              {index + 1} / {steps.length}
+            </span>
+          ) : (
+            <div className="flex shrink-0 gap-1" aria-hidden="true">
+              {steps.map((_, i) => (
+                <span
+                  key={i}
+                  className={`size-1.5 rounded-full ${
+                    i === index ? "bg-primary" : "bg-muted-foreground/30"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
           <button
             type="button"
             onClick={onSkip}
