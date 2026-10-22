@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { buildDueLabel } from "@/lib/checklist/labels";
 import type { DailyChecklistItem } from "@/lib/checklist/types";
 import { buildRowView } from "@/lib/checklist/row-state";
+import { readFileSync } from "node:fs";
 import {
+  AUTO_POPULATE_HOUR,
+  autoPopulateLabel,
   autoPopulateStamp,
   summarizeAutoPopulate,
 } from "@/lib/checklist/populate-summary";
@@ -37,8 +40,27 @@ function item(
 }
 
 describe("autoPopulateStamp", () => {
-  it("is 6:00:00 AM Manila on that day, as a UTC instant", () => {
-    expect(autoPopulateStamp("2026-10-22")).toBe("2026-10-21T22:00:00.000Z");
+  it("is the run hour, Manila time, on that day, as a UTC instant", () => {
+    const hh = String(AUTO_POPULATE_HOUR).padStart(2, "0");
+    expect(autoPopulateStamp("2026-10-22")).toBe(
+      new Date(`2026-10-22T${hh}:00:00+08:00`).toISOString(),
+    );
+  });
+  it("is labelled in 12-hour time", () => {
+    expect(autoPopulateLabel(1)).toBe("1 AM");
+    expect(autoPopulateLabel(6)).toBe("6 AM");
+    expect(autoPopulateLabel(12)).toBe("12 PM");
+    expect(autoPopulateLabel(0)).toBe("12 AM");
+    expect(autoPopulateLabel(13)).toBe("1 PM");
+  });
+  it("matches the Vercel cron: the hour in UTC is eight hours earlier", () => {
+    const { crons } = JSON.parse(readFileSync("vercel.json", "utf8")) as {
+      crons: { path: string; schedule: string }[];
+    };
+    const populate = crons.find((c) => c.path === "/api/cron/populate");
+    const [minute, hour] = populate!.schedule.split(" ");
+    expect(minute).toBe("0");
+    expect(Number(hour)).toBe((AUTO_POPULATE_HOUR - 8 + 24) % 24);
   });
 });
 
@@ -50,7 +72,7 @@ describe("summarizeAutoPopulate", () => {
     buildRowView(item(3, ["2026-10-22"], "2026-10-22T02:15:00.000Z")),
   ];
 
-  it("counts only the rows the 6 AM run stamped", () => {
+  it("counts only the rows the morning run stamped", () => {
     const s = summarizeAutoPopulate(rows, "2026-10-22");
     expect(s?.added).toBe(2);
   });

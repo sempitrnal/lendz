@@ -105,7 +105,7 @@ export const TOURS: Tour[] = [
       {
         target: '[data-tour="list-menu-entries"]',
         title: "Populate and more",
-        body: "Populate due adds everyone due today or up to 7 days late. You can also mark everything paid, undo a populate, or clear the list. Populate also runs by itself at 6 AM, and a summary of what it added shows when you open the app. Tap Next to close this.",
+        body: "Populate due adds everyone due today or up to 7 days late. You can also mark everything paid, undo a populate, or clear the list. Populate also runs by itself every morning, and a summary of what it added shows when you open the app. Tap Next to close this.",
         lazy: true,
         closesSheet: true,
       },

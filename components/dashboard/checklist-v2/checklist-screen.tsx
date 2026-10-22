@@ -75,6 +75,7 @@ import type {
 } from "@/lib/checklist/types";
 import { selectPopulateLabels } from "@/lib/checklist/populate";
 import {
+  autoPopulateLabel,
   summarizeAutoPopulate,
   summarySeenKey,
 } from "@/lib/checklist/populate-summary";
@@ -179,7 +180,7 @@ export type AddSheetRequest = {
   seq: number;
 };
 
-/** Whether this device has already shown the day's 6 AM summary. */
+/** Whether this device has already shown the day's morning summary. */
 function summarySeen(date: string): boolean {
   try {
     return localStorage.getItem(summarySeenKey(date)) !== null;
@@ -365,7 +366,7 @@ function ChecklistDay({ today }: { today: string }) {
     [collectItems, schedules],
   );
   const summary = useMemo(() => summarizeRows(rows), [rows]);
-  // What the 6 AM run added: shown once per device per day, in a sheet.
+  // What the morning run added: shown once per device per day, in a sheet.
   const autoSummary = useMemo(
     () => (date === today ? summarizeAutoPopulate(rows, date) : null),
     [rows, date, today],
@@ -891,7 +892,11 @@ function ChecklistDay({ today }: { today: string }) {
         </motion.div>
       )}
 
-      <Sheet open={summaryOpen} onClose={closeSummary} label="6 AM update">
+      <Sheet
+        open={summaryOpen}
+        onClose={closeSummary}
+        label={`${autoPopulateLabel()} update`}
+      >
         {autoSummary && (
           <PopulateSummarySheet summary={autoSummary} onClose={closeSummary} />
         )}

@@ -1,13 +1,27 @@
 import type { RowView } from "@/lib/checklist/row-state";
 
 /**
- * The `created_at` the 6 AM auto-populate gives its rows: exactly 6:00:00 AM
- * Philippine time (UTC+8) on that day. Rows added by hand carry the real
- * time they were made, so this is how the screen tells the two apart without
- * a database column.
+ * The hour (0-23, Philippine time) the daily auto-populate runs. Change it
+ * together with `vercel.json`: that cron is in UTC, eight hours earlier (the
+ * test beside this file checks they agree).
+ */
+export const AUTO_POPULATE_HOUR = 1;
+
+/** The run hour in 12-hour time, e.g. "1 AM", "6 AM". */
+export function autoPopulateLabel(hour = AUTO_POPULATE_HOUR): string {
+  const h12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${h12} ${hour < 12 ? "AM" : "PM"}`;
+}
+
+/**
+ * The `created_at` the auto-populate gives its rows: exactly the run hour,
+ * on the minute and second, Philippine time (UTC+8), on that day. Rows added
+ * by hand carry the real time they were made, so this is how the screen tells
+ * the two apart without a database column.
  */
 export function autoPopulateStamp(date: string): string {
-  return new Date(`${date}T06:00:00+08:00`).toISOString();
+  const hh = String(AUTO_POPULATE_HOUR).padStart(2, "0");
+  return new Date(`${date}T${hh}:00:00+08:00`).toISOString();
 }
 
 export type AutoPopulateSummary = {
@@ -20,7 +34,7 @@ export type AutoPopulateSummary = {
   left: number;
 };
 
-/** What the day's 6 AM run added, or null when it added nothing. */
+/** What the day's morning run added, or null when it added nothing. */
 export function summarizeAutoPopulate(
   rows: RowView[],
   date: string,

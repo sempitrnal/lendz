@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { manilaDate, populateDay } from "@/lib/checklist/auto-populate";
 
-/** 6:00 AM Philippine time (22:00 UTC the day before), see vercel.json. */
+/** Runs at `AUTO_POPULATE_HOUR` Philippine time (eight hours earlier in UTC), see vercel.json. */
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {

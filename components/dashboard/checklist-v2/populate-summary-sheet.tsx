@@ -5,10 +5,11 @@ import type { AutoPopulateSummary } from "@/lib/checklist/populate-summary";
 import type { RowView } from "@/lib/checklist/row-state";
 import { SheetFooter } from "@/components/dashboard/checklist-v2/sheet";
 import { peso } from "@/components/dashboard/checklist-v2/header";
+import { autoPopulateLabel } from "@/lib/checklist/populate-summary";
 import { rowName } from "@/components/dashboard/checklist-v2/collect-row";
 
 /**
- * The morning summary: what the 6 AM run added to today's list, split into
+ * The morning summary: what the morning run added to today's list, split into
  * due today and carried over. Render it inside `Sheet`.
  */
 export function PopulateSummarySheet({
@@ -21,7 +22,9 @@ export function PopulateSummarySheet({
   return (
     <>
       <div className="px-5 pt-2 pb-3">
-        <p className="text-xs font-medium text-muted-foreground">6 AM update</p>
+        <p className="text-xs font-medium text-muted-foreground">
+          {autoPopulateLabel()} update
+        </p>
         <h2 className="text-xl font-semibold tracking-tight">
           {`${summary.added} added to today's list`}
         </h2>
