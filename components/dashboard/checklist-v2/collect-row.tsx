@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { formatShortDate } from "@/lib/checklist/labels";
 import { plainLabelText, rowDisplayName } from "@/lib/checklist/row-name";
 import type { RowLine, RowView } from "@/lib/checklist/row-state";
+import { chipClass } from "@/components/dashboard/checklist/dom";
 import { peso } from "@/components/dashboard/checklist-v2/header";
 
 /** The swipe shows More only. */
@@ -53,7 +54,8 @@ export const originalTotal = (row: RowView) =>
 /** The muted second line of a collection row, per the spec's row table. */
 function subline(row: RowView): {
   text: string;
-  late: boolean;
+  /** "3d late": shown as the overdue pill after the text. */
+  lateLabel?: string;
   /** The installment types shown after the text: the one open schedule's, or
    * every schedule's on a paid row. */
   kinds?: string[];
@@ -61,23 +63,21 @@ function subline(row: RowView): {
   if (row.status === "paid") {
     return {
       text: "paid · tap to edit",
-      late: false,
       kinds: [...new Set(row.lines.map((l) => l.type))],
     };
   }
   const open = openLines(row);
   if (open.length > 1) {
     return {
-      text: `${open.length} due${row.lateDays > 0 ? ` · oldest ${row.lateDays}d late` : ""}`,
-      late: row.lateDays > 0,
+      text: `${open.length} due`,
+      lateLabel: row.lateDays > 0 ? `oldest ${row.lateDays}d late` : undefined,
     };
   }
   const line = open[0];
   const due = formatShortDate(line.due_date).toLowerCase();
-  const late = line.overdue ? ` · ${line.daysOverdue}d late` : "";
   return {
-    text: `${due}${late}`,
-    late: line.overdue,
+    text: due,
+    lateLabel: line.overdue ? `${line.daysOverdue}d late` : undefined,
     kinds: [line.type],
   };
 }
@@ -93,8 +93,6 @@ export type CollectRowProps = {
   onSwiped(open: boolean): void;
   /** Row tap with one open installment: the pay sheet. */
   onOpenPay(): void;
-  /** A row with payments (tap or its check): the edit-payments sheet. */
-  onEditPayments(): void;
   onMore(): void;
   /** The "Pay N" pill: the pay sheet (never pays at once). */
   onPayRow(): void;
@@ -123,7 +121,6 @@ export function CollectRow({
   swiped,
   onSwiped,
   onOpenPay,
-  onEditPayments,
   onMore,
   onPayRow,
   onPayAll,
@@ -180,9 +177,10 @@ export function CollectRow({
     // A note's tick is its own button; the rest of the row opens its menu
     // (Edit note, Remove), the way to them without a swipe.
     if (isNote) return onMore();
-    // Anything already recorded is edited by tapping the row; the chevron
-    // expands or collapses a multi-schedule row.
-    if (done || (expandable && hasPayments)) onEditPayments();
+    // A multi-schedule row opens the pay drawer with every schedule (paid
+    // ones too, each with its Undo); the chevron expands the row in place.
+    // A single paid row opens the same drawer.
+    if (done || (expandable && hasPayments)) onPayRow();
     else if (expandable) onExpandToggle();
     else onOpenPay();
   };
@@ -350,15 +348,15 @@ export function CollectRow({
               {done ? (
                 <button
                   type="button"
-                  aria-label={`Edit payments for ${name}`}
-                  onClick={guard(onEditPayments)}
-                  className="-mr-1 flex size-11 items-center justify-center"
+                  aria-label={`Payments for ${name}`}
+                  onClick={guard(onPayRow)}
+                  className="-mr-1 flex size-6 items-center justify-center"
                 >
                   <span
-                    className="flex size-8 items-center justify-center
+                    className="flex size-6 items-center justify-center
                       rounded-full bg-primary text-primary-foreground"
                   >
-                    <Check className="size-4" strokeWidth={3} />
+                    <Check className="size-3.5" strokeWidth={3} />
                   </span>
                 </button>
               ) : multi ? (
@@ -366,9 +364,9 @@ export function CollectRow({
                   type="button"
                   aria-label={`Pay ${open.length} installments for ${name}`}
                   onClick={guard(onPayRow)}
-                  className="flex h-9 items-center rounded-full border
-                    border-muted-foreground/40 px-3 text-sm font-semibold
-                    transition-colors active:bg-muted"
+                  className="flex h-8 items-center rounded-full border
+                    border-muted-foreground/40 px-2 lowercase text-xs
+                    font-semibold transition-colors active:bg-muted"
                 >
                   Pay {open.length}
                 </button>
@@ -377,11 +375,11 @@ export function CollectRow({
                   type="button"
                   aria-label={`Mark ${name} paid, ${peso(row.left)}`}
                   onClick={guard(onPayAll)}
-                  className="-mr-1 flex size-11 items-center justify-center"
+                  className="-mr-1 flex size-6 items-center justify-center"
                 >
                   <span
                     className={cn(
-                      `flex size-8 items-center justify-center rounded-full
+                      `flex size-6 items-center justify-center rounded-full
                         border text-muted-foreground transition-colors
                         active:bg-primary active:text-primary-foreground`,
                       row.status === "partial"
@@ -389,7 +387,7 @@ export function CollectRow({
                         : "border-muted-foreground/40",
                     )}
                   >
-                    <Check className="size-4" strokeWidth={2.5} />
+                    <Check className="size-3.5" strokeWidth={2.5} />
                   </span>
                 </button>
               )}
@@ -411,7 +409,6 @@ export function CollectRow({
                         line={line}
                         onOpen={guard(() => onOpenLine(line.id))}
                         onPay={guard(() => onPayLine(line.id))}
-                        onEdit={guard(onEditPayments)}
                       />
                     ))}
                     {multi && (
@@ -475,20 +472,22 @@ function RowText({
         {waiting && <WaitingIcon />}
       </p>
       <p
-        className={cn(
-          "truncate text-[10px]",
-          sub.late
-            ? "text-rose-700/80 font-semibold dark:text-rose-400"
-            : "text-muted-foreground font-semibold",
-        )}
+        className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5
+          text-[10px] font-semibold text-muted-foreground"
       >
         {sub.text}
+        {sub.lateLabel && <LatePill label={sub.lateLabel} />}
         {sub.kinds?.map((type) => (
-          <KindBadge key={type} type={type} compact className="ml-1.5" />
+          <KindBadge key={type} type={type} compact />
         ))}
       </p>
     </div>
   );
+}
+
+/** The old checklist's overdue pill. */
+function LatePill({ label }: { label: string }) {
+  return <span className={chipClass("overdue")}>{label}</span>;
 }
 
 /** The installment's type: purple for a loan, amber for a cash advance. */
@@ -505,7 +504,8 @@ export function KindBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 align-middle lowercase",
+        `inline-flex items-center gap-1 align-middle text-slate-600 lowercase
+        dark:text-slate-300`,
         className,
       )}
     >
@@ -548,14 +548,11 @@ function LineItem({
   line,
   onOpen,
   onPay,
-  onEdit,
 }: {
   line: RowLine;
-  /** Tapping the schedule itself: its pay sheet (a paid one: edit). */
+  /** Tapping the schedule itself, or a paid one's check: its pay drawer. */
   onOpen(event: ReactMouseEvent<HTMLButtonElement>): void;
   onPay(event: ReactMouseEvent<HTMLButtonElement>): void;
-  /** Opens the edit-payments sheet; a paid installment's check does this. */
-  onEdit(event: ReactMouseEvent<HTMLButtonElement>): void;
 }) {
   const paid = line.state === "paid";
   const due = formatShortDate(line.due_date).toLowerCase();
@@ -566,7 +563,7 @@ function LineItem({
     >
       <button
         type="button"
-        onClick={paid ? onEdit : onOpen}
+        onClick={onOpen}
         className="flex min-h-10 min-w-0 flex-1 items-center gap-3 text-left"
       >
         <div className="min-w-0 flex-1">
@@ -574,16 +571,12 @@ function LineItem({
             <KindBadge type={line.type} />
           </p>
           <p
-            className={cn(
-              "text-[10px]",
-              line.overdue
-                ? "text-rose-700/80 font-semibold dark:text-rose-400"
-                : "text-muted-foreground font-semibold",
-            )}
+            className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5
+              text-[10px] font-semibold text-muted-foreground"
           >
             {due}
-            {line.overdue ? ` · ${line.daysOverdue}d late` : ""}
-            {paid ? " · paid · tap to edit" : ""}
+            {line.overdue && <LatePill label={`${line.daysOverdue}d late`} />}
+            {paid ? "paid · tap to edit" : ""}
           </p>
         </div>
         <span className="shrink-0 text-right">
@@ -608,15 +601,15 @@ function LineItem({
         type="button"
         aria-label={
           paid
-            ? `Edit payment for ${kindLabel(line.type)} due ${due}`
+            ? `Payment for ${kindLabel(line.type)} due ${due}`
             : `Pay ${kindLabel(line.type)} due ${due}, ${peso(line.left)}`
         }
-        onClick={paid ? onEdit : onPay}
+        onClick={paid ? onOpen : onPay}
         className="flex size-10 items-center justify-center"
       >
         <span
           className={cn(
-            "flex size-8 items-center justify-center rounded-full border",
+            "flex size-6 items-center justify-center rounded-full border",
             paid
               ? "border-transparent bg-primary text-primary-foreground"
               : line.state === "partial"
@@ -624,7 +617,7 @@ function LineItem({
                 : "border-muted-foreground/40 text-muted-foreground",
           )}
         >
-          <Check className="size-4" strokeWidth={2.5} />
+          <Check className="size-3.5" strokeWidth={2.5} />
         </span>
       </button>
     </div>

@@ -13,9 +13,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  markSchedulesPaidAction,
-} from "@/lib/actions/schedules";
+import { Sheet, SheetFooter } from "@/components/dashboard/checklist-v2/sheet";
+import { markSchedulesPaidAction } from "@/lib/actions/schedules";
 import {
   amountPaidOnInstallment,
   remainingOnInstallment,
@@ -266,15 +265,24 @@ export function AccountSummaryHeader({
 export function ScheduleCheckDialog({
   item,
   mode = "check",
+  variant = "dialog",
+  lineIds,
   onClose,
   onConfirmed,
   onFailed,
 }: {
   item: DailyChecklistItem | null;
   mode?: "check" | "edit";
+  /** A centred dialog (the classic widget) or a bottom drawer (the mobile screen). */
+  variant?: "dialog" | "drawer";
+  /** Only these installments of the item (default: all it links). */
+  lineIds?: string[];
   onClose: () => void;
-  /** Called as soon as the choices are applied locally, before the server answers. */
-  onConfirmed: () => void;
+  /**
+   * Called as soon as the choices are applied locally, before the server
+   * answers. `settlesAll`: every linked installment is paid once this lands.
+   */
+  onConfirmed: (result: { settlesAll: boolean }) => void;
   /** Called if the server then rejects them, to undo whatever onConfirmed did. */
   onFailed?: () => void;
 }) {
@@ -282,9 +290,15 @@ export function ScheduleCheckDialog({
   const [loading, setLoading] = useState(false);
   const [choices, setChoices] = useState<Record<string, ScheduleChoice>>({});
   const [submitting, setSubmitting] = useState(false);
+  const lineKey = lineIds?.join(",") ?? "";
   const refs = useMemo(
-    () => (item ? extractScheduleRefs(item.label) : []),
-    [item?.id, item?.label],
+    () =>
+      item
+        ? extractScheduleRefs(item.label).filter(
+            (r) => !lineKey || lineKey.split(",").includes(r.id),
+          )
+        : [],
+    [item?.id, item?.label, lineKey],
   );
   const borrower = useMemo(
     () => (item ? extractBorrowerMention(item.label) : null),
@@ -392,11 +406,24 @@ export function ScheduleCheckDialog({
   };
 
   const undoRows = rows.filter((row) => choices[row.id]?.status === "undo");
+  // Only undos are picked: the button says so instead of "check off".
+  const undoOnly =
+    undoRows.length > 0 &&
+    rows.every(
+      (row) => !choices[row.id]?.status || choices[row.id]?.status === "undo",
+    );
 
   const handleConfirm = async () => {
     // Everything is read up front: the dialog's state resets once it closes.
     const plan = buildPaymentPlan(rows, choices, overdueCutoffDateValue());
     const undoneCount = undoRows.length;
+    const paidNow = new Set(plan.paidIds);
+    // Every installment this dialog shows ends up paid (the item may link
+    // more that it doesn't show).
+    const settlesAll =
+      rows.length > 0 &&
+      rows.every((r) => r.status === "paid" || paidNow.has(r.id)) &&
+      !undoRows.length;
     const accountIds = [...new Set(rows.map((r) => r.account_id))];
 
     setSubmitting(true);
@@ -412,7 +439,7 @@ export function ScheduleCheckDialog({
               ? `Undid ${undoneCount} payment${undoneCount === 1 ? "" : "s"}`
               : "Payment schedule updated",
           );
-          onConfirmed();
+          onConfirmed({ settlesAll });
         },
         onFailed,
       });
@@ -420,6 +447,360 @@ export function ScheduleCheckDialog({
       setSubmitting(false);
     }
   };
+
+  const title = (
+    <>
+      <span>Update payment status</span>
+      {borrower ? (
+        <MentionPill
+          name={borrower.name}
+          href={`/borrowers/${borrower.id}`}
+          checked={false}
+          color={borrowerColor}
+          asLink={false}
+        />
+      ) : null}
+    </>
+  );
+  const description =
+    mode === "edit" ? (
+      <>Undo or change what&apos;s been recorded.</>
+    ) : (
+      <>
+        Mark {borrowerName ? `${borrowerName}'s` : "the"} linked collection
+        {rows.length === 1 ? "" : "s"} as paid or partial before checking this
+        off.
+      </>
+    );
+  const body = loading ? (
+    <div
+      className="py-6 text-center text-sm text-slate-500
+        dark:text-muted-foreground"
+    >
+      Loading…
+    </div>
+  ) : rows.length === 0 ? (
+    <div
+      className="py-6 text-center text-sm text-slate-500
+        dark:text-muted-foreground"
+    >
+      Couldn&apos;t find the linked schedule — it may have been removed.
+    </div>
+  ) : (
+    <div className="space-y-3 pt-2">
+      {rows.filter((row) => row.status !== "paid").length > 1 && (
+        <button
+          type="button"
+          onClick={() =>
+            setChoices((prev) => {
+              const next = { ...prev };
+              for (const row of rows) {
+                if (row.status === "paid") continue;
+                next[row.id] = {
+                  status: "paid",
+                  amount: prev[row.id]?.amount ?? "",
+                };
+              }
+              return next;
+            })
+          }
+          className="w-full cursor-pointer rounded-md border border-emerald-500
+            bg-emerald-50 px-2 py-1.5 text-sm font-semibold text-emerald-900
+            lowercase transition hover:bg-emerald-100 dark:border-emerald-400/50
+            dark:bg-emerald-400/10 dark:text-emerald-200"
+        >
+          Mark all paid
+        </button>
+      )}
+      {accountGroups.map((group, groupIndex) => {
+        const summary = summaries?.[group.accountId] ?? null;
+        return (
+          <section
+            key={group.accountId}
+            // One container per account: its type and progress together
+            // with its schedules, set apart from the other accounts.
+            className={`space-y-2.5 rounded-2xl bg-slate-100/70 p-3
+              dark:bg-muted/30 ${ENTER_ANIMATION}`}
+            style={{ animationDelay: `${groupIndex * 80}ms` }}
+          >
+            {summary ? (
+              <div className="px-0.5">
+                <AccountSummaryHeader
+                  summary={summary}
+                  pending={pendingPayment(group.rows, choices)}
+                />
+              </div>
+            ) : summariesPending ? (
+              <div className="space-y-1.5 px-0.5">
+                <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                <div className="h-1.5 animate-pulse rounded-full bg-muted" />
+              </div>
+            ) : null}
+            {group.rows.map((row, rowIndex) => {
+              const choice = choices[row.id];
+              const chosen = choice?.status ?? null;
+              const paidSoFar = amountPaidOnInstallment(row);
+              const due = Math.max(0, Number(row.amount_due ?? 0));
+              const remaining = remainingOnInstallment(row);
+              const state: ScheduleState =
+                row.status === "paid"
+                  ? "paid"
+                  : paidSoFar > 0
+                    ? "partial"
+                    : row.due_date < overdueCutoffDateValue()
+                      ? "overdue"
+                      : "unpaid";
+              const undoing = chosen === "undo";
+              const isPaid = state === "paid";
+              const undoButton = (wide: boolean) => (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setChoice(row.id, {
+                      status: undoing ? null : "undo",
+                    })
+                  }
+                  aria-pressed={undoing}
+                  aria-label={`Undo ₱${paidSoFar.toLocaleString()} payment`}
+                  className={`${ACTION_BUTTON} flex items-center justify-center
+                    gap-1.5 ${wide ? "w-full" : "px-3"} ${
+                      undoing
+                        ? `border-orange-500 bg-orange-100 text-orange-900
+                          dark:border-orange-400/50 dark:bg-orange-400/20
+                          dark:text-orange-200`
+                        : `border-dashed border-slate-300 bg-white/70
+                          text-slate-600 hover:border-orange-500
+                          hover:bg-orange-50 dark:border-border dark:bg-card
+                          dark:text-muted-foreground`
+                    }`}
+                >
+                  <Undo2 className="size-3.5" />
+                  {wide ? "Undo payment" : "Undo"}
+                </button>
+              );
+              return (
+                <div
+                  key={row.id}
+                  className={`rounded-xl border p-3 shadow-sm
+                    transition-[background-color,border-color,box-shadow]
+                    duration-300 ${
+                      undoing
+                        ? SCHEDULE_CARD.undo
+                        : isPaid
+                          ? SCHEDULE_CARD.paid
+                          : state === "partial"
+                            ? SCHEDULE_CARD.partial
+                            : SCHEDULE_CARD.plain
+                    } ${ENTER_ANIMATION}`}
+                  style={{
+                    animationDelay: `${groupIndex * 80 + (rowIndex + 1) * 60}ms`,
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          className="text-sm font-semibold text-slate-800
+                            dark:text-foreground"
+                        >
+                          {formatShortDate(row.due_date)}
+                        </span>
+                        {undoing ? (
+                          <span className={chipClass("unpaid")}>
+                            will reset to unpaid
+                          </span>
+                        ) : (
+                          <span className={chipClass(STATE_CHIP[state])}>
+                            {STATE_LABEL[state]}
+                          </span>
+                        )}
+                      </div>
+                      {state === "partial" && !undoing && (
+                        <p className="text-xs text-muted-foreground
+                          tabular-nums">
+                          <span className={PAID_TEXT.partial}>
+                            ₱{paidSoFar.toLocaleString()}
+                          </span>{" "}
+                          of ₱{due.toLocaleString()} paid
+                        </p>
+                      )}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p
+                        className={`text-base leading-tight font-semibold
+                          tabular-nums ${
+                            isPaid && !undoing
+                              ? PAID_TEXT.paid
+                              : "text-slate-800 dark:text-foreground"
+                          }`}
+                      >
+                        ₱
+                        {(isPaid && !undoing
+                          ? paidSoFar
+                          : undoing
+                            ? due
+                            : remaining
+                        ).toLocaleString()}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {isPaid && !undoing ? "paid" : "due"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    {isPaid ? (
+                      // Nothing left to pay — the only action is undo.
+                      undoButton(true)
+                    ) : (
+                      <div
+                        className={`grid gap-1.5 ${
+                          hasPayment(row)
+                            ? "grid-cols-[1fr_1fr_auto]"
+                            : "grid-cols-2"
+                          }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setChoice(row.id, {
+                              status: chosen === "paid" ? null : "paid",
+                            })
+                          }
+                          className={`${ACTION_BUTTON} ${
+                            chosen === "paid"
+                              ? `border-emerald-500 bg-emerald-200
+                                text-emerald-950 dark:border-emerald-400/50
+                                dark:bg-emerald-400/25 dark:text-emerald-200`
+                              : `border-slate-300 bg-white text-slate-600
+                                hover:border-emerald-500 hover:bg-emerald-50
+                                dark:border-border dark:bg-card
+                                dark:text-muted-foreground`
+                            }`}
+                        >
+                          Paid
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setChoice(row.id, {
+                              status: chosen === "partial" ? null : "partial",
+                            })
+                          }
+                          className={`${ACTION_BUTTON} ${
+                            chosen === "partial"
+                              ? `border-violet-500 bg-violet-200 text-violet-950
+                                dark:border-violet-400/50 dark:bg-violet-400/25
+                                dark:text-violet-200`
+                              : `border-slate-300 bg-white text-slate-600
+                                hover:border-violet-500 hover:bg-violet-50
+                                dark:border-border dark:bg-card
+                                dark:text-muted-foreground`
+                            }`}
+                        >
+                          Partial
+                        </button>
+                        {hasPayment(row) && undoButton(false)}
+                      </div>
+                    )}
+                  </div>
+
+                  {chosen === "partial" && (
+                    <label
+                      className="mt-2 flex cursor-text items-center gap-1.5
+                        rounded-md border border-slate-300 bg-white px-2.5
+                        py-1.5 transition-colors focus-within:border-violet-400
+                        focus-within:ring-3 focus-within:ring-violet-500/15
+                        dark:border-border dark:bg-background
+                        dark:focus-within:border-violet-400/60"
+                    >
+                      <span className="text-sm font-semibold
+                        text-muted-foreground">
+                        ₱
+                      </span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={remaining}
+                        step="0.01"
+                        placeholder="0"
+                        aria-label="Amount paid"
+                        autoFocus
+                        onFocus={(e) => e.currentTarget.select()}
+                        value={choice?.amount ?? ""}
+                        onChange={(e) =>
+                          setChoice(row.id, { amount: e.target.value })
+                        }
+                        className="min-w-0 flex-1 bg-transparent text-sm
+                          font-semibold text-slate-700 outline-none
+                          [appearance:textfield] dark:text-foreground
+                          [&::-webkit-inner-spin-button]:appearance-none
+                          [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                      <span
+                        className={`shrink-0 text-xs tabular-nums ${
+                          Number.parseFloat(choice?.amount || "0") > remaining
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-muted-foreground"
+                          }`}
+                      >
+                        of ₱{remaining.toLocaleString()}
+                      </span>
+                    </label>
+                  )}
+                </div>
+              );
+            })}
+          </section>
+        );
+      })}
+    </div>
+  );
+  const buttons = (
+    <>
+      <Button
+        variant="outline"
+        onClick={onClose}
+        disabled={submitting}
+        className="lowercase"
+      >
+        Cancel
+      </Button>
+      <Button
+        onClick={handleConfirm}
+        disabled={loading || submitting}
+        variant={undoOnly ? "destructive" : "default"}
+        className="lowercase"
+      >
+        {submitting
+          ? "Saving…"
+          : undoOnly
+            ? `Undo ${undoRows.length} payment${undoRows.length === 1 ? "" : "s"}`
+            : mode === "edit"
+              ? "Save changes"
+              : "Confirm & check off"}
+      </Button>
+    </>
+  );
+
+  if (variant === "drawer") {
+    return (
+      <Sheet open={open} onClose={onClose} label="Update payment status">
+        <div className="px-5 pt-2 pb-3">
+          <div
+            className="flex flex-col items-start gap-1.5 text-xl font-semibold
+              tracking-tight"
+          >
+            {title}
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          <div className="mt-2">{body}</div>
+        </div>
+        <SheetFooter className="flex justify-end gap-2">{buttons}</SheetFooter>
+      </Sheet>
+    );
+  }
 
   return (
     <Dialog
@@ -435,349 +816,15 @@ export function ScheduleCheckDialog({
               className="flex flex-col items-start gap-1.5 text-xl font-semibold
                 tracking-tight"
             >
-              <span>Update payment status</span>
-              {borrower ? (
-                <MentionPill
-                  name={borrower.name}
-                  href={`/borrowers/${borrower.id}`}
-                  checked={false}
-                  color={borrowerColor}
-                  asLink={false}
-                />
-              ) : null}
+              {title}
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
-              {mode === "edit" ? (
-                <>Undo or change what&apos;s been recorded.</>
-              ) : (
-                <>
-                  Mark {borrowerName ? `${borrowerName}'s` : "the"} linked
-                  collection{rows.length === 1 ? "" : "s"} as paid or partial
-                  before checking this off.
-                </>
-              )}
+              {description}
             </DialogDescription>
           </div>
         </DialogHeader>
-
-        {loading ? (
-          <div
-            className="py-6 text-center text-sm text-slate-500
-              dark:text-muted-foreground"
-          >
-            Loading…
-          </div>
-        ) : rows.length === 0 ? (
-          <div
-            className="py-6 text-center text-sm text-slate-500
-              dark:text-muted-foreground"
-          >
-            Couldn&apos;t find the linked schedule — it may have been removed.
-          </div>
-        ) : (
-          <div className="space-y-3 pt-2">
-            {rows.filter((row) => row.status !== "paid").length > 1 && (
-              <button
-                type="button"
-                onClick={() =>
-                  setChoices((prev) => {
-                    const next = { ...prev };
-                    for (const row of rows) {
-                      if (row.status === "paid") continue;
-                      next[row.id] = {
-                        status: "paid",
-                        amount: prev[row.id]?.amount ?? "",
-                      };
-                    }
-                    return next;
-                  })
-                }
-                className="w-full cursor-pointer rounded-md border
-                  border-emerald-500 bg-emerald-50 px-2 py-1.5 text-sm
-                  font-semibold text-emerald-900 lowercase transition
-                  hover:bg-emerald-100 dark:border-emerald-400/50
-                  dark:bg-emerald-400/10 dark:text-emerald-200"
-              >
-                Mark all paid
-              </button>
-            )}
-            {accountGroups.map((group, groupIndex) => {
-              const summary = summaries?.[group.accountId] ?? null;
-              return (
-                <section
-                  key={group.accountId}
-                  // One container per account: its type and progress together
-                  // with its schedules, set apart from the other accounts.
-                  className={`space-y-2.5 rounded-2xl bg-slate-100/70 p-3
-                    dark:bg-muted/30 ${ENTER_ANIMATION}`}
-                  style={{ animationDelay: `${groupIndex * 80}ms` }}
-                >
-                  {summary ? (
-                    <div className="px-0.5">
-                      <AccountSummaryHeader
-                        summary={summary}
-                        pending={pendingPayment(group.rows, choices)}
-                      />
-                    </div>
-                  ) : summariesPending ? (
-                    <div className="space-y-1.5 px-0.5">
-                      <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                      <div className="h-1.5 animate-pulse rounded-full bg-muted" />
-                    </div>
-                  ) : null}
-                  {group.rows.map((row, rowIndex) => {
-                    const choice = choices[row.id];
-                    const chosen = choice?.status ?? null;
-                    const paidSoFar = amountPaidOnInstallment(row);
-                    const due = Math.max(0, Number(row.amount_due ?? 0));
-                    const remaining = remainingOnInstallment(row);
-                    const state: ScheduleState =
-                      row.status === "paid"
-                        ? "paid"
-                        : paidSoFar > 0
-                          ? "partial"
-                          : row.due_date < overdueCutoffDateValue()
-                            ? "overdue"
-                            : "unpaid";
-                    const undoing = chosen === "undo";
-                    const isPaid = state === "paid";
-                    const undoButton = (wide: boolean) => (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setChoice(row.id, {
-                            status: undoing ? null : "undo",
-                          })
-                        }
-                        aria-pressed={undoing}
-                        aria-label={`Undo ₱${paidSoFar.toLocaleString()} payment`}
-                        className={`${ACTION_BUTTON} flex items-center
-                          justify-center gap-1.5 ${wide ? "w-full" : "px-3"} ${
-                            undoing
-                              ? `border-orange-500 bg-orange-100 text-orange-900
-                                dark:border-orange-400/50 dark:bg-orange-400/20
-                                dark:text-orange-200`
-                              : `border-dashed border-slate-300 bg-white/70
-                                text-slate-600 hover:border-orange-500
-                                hover:bg-orange-50 dark:border-border
-                                dark:bg-card dark:text-muted-foreground`
-                          }`}
-                      >
-                        <Undo2 className="size-3.5" />
-                        {wide ? "Undo payment" : "Undo"}
-                      </button>
-                    );
-                    return (
-                      <div
-                        key={row.id}
-                        className={`rounded-xl border p-3 shadow-sm
-                          transition-[background-color,border-color,box-shadow]
-                          duration-300 ${
-                            undoing
-                              ? SCHEDULE_CARD.undo
-                              : isPaid
-                                ? SCHEDULE_CARD.paid
-                                : state === "partial"
-                                  ? SCHEDULE_CARD.partial
-                                  : SCHEDULE_CARD.plain
-                          } ${ENTER_ANIMATION}`}
-                        style={{
-                          animationDelay: `${groupIndex * 80 + (rowIndex + 1) * 60}ms`,
-                        }}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 space-y-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span
-                                className="text-sm font-semibold text-slate-800
-                                  dark:text-foreground"
-                              >
-                                {formatShortDate(row.due_date)}
-                              </span>
-                              {undoing ? (
-                                <span className={chipClass("unpaid")}>
-                                  will reset to unpaid
-                                </span>
-                              ) : (
-                                <span className={chipClass(STATE_CHIP[state])}>
-                                  {STATE_LABEL[state]}
-                                </span>
-                              )}
-                            </div>
-                            {state === "partial" && !undoing && (
-                              <p
-                                className="text-xs text-muted-foreground
-                                  tabular-nums"
-                              >
-                                <span className={PAID_TEXT.partial}>
-                                  ₱{paidSoFar.toLocaleString()}
-                                </span>{" "}
-                                of ₱{due.toLocaleString()} paid
-                              </p>
-                            )}
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p
-                              className={`text-base leading-tight font-semibold
-                                tabular-nums ${
-                                  isPaid && !undoing
-                                    ? PAID_TEXT.paid
-                                    : "text-slate-800 dark:text-foreground"
-                                }`}
-                            >
-                              ₱
-                              {(isPaid && !undoing
-                                ? paidSoFar
-                                : undoing
-                                  ? due
-                                  : remaining
-                              ).toLocaleString()}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground">
-                              {isPaid && !undoing ? "paid" : "due"}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-3">
-                          {isPaid ? (
-                            // Nothing left to pay — the only action is undo.
-                            undoButton(true)
-                          ) : (
-                            <div
-                              className={`grid gap-1.5 ${
-                                hasPayment(row)
-                                  ? "grid-cols-[1fr_1fr_auto]"
-                                  : "grid-cols-2"
-                                }`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setChoice(row.id, {
-                                    status: chosen === "paid" ? null : "paid",
-                                  })
-                                }
-                                className={`${ACTION_BUTTON} ${
-                                  chosen === "paid"
-                                    ? `border-emerald-500 bg-emerald-200
-                                      text-emerald-950
-                                      dark:border-emerald-400/50
-                                      dark:bg-emerald-400/25
-                                      dark:text-emerald-200`
-                                    : `border-slate-300 bg-white text-slate-600
-                                      hover:border-emerald-500
-                                      hover:bg-emerald-50 dark:border-border
-                                      dark:bg-card dark:text-muted-foreground`
-                                  }`}
-                              >
-                                Paid
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setChoice(row.id, {
-                                    status:
-                                      chosen === "partial" ? null : "partial",
-                                  })
-                                }
-                                className={`${ACTION_BUTTON} ${
-                                  chosen === "partial"
-                                    ? `border-violet-500 bg-violet-200
-                                      text-violet-950 dark:border-violet-400/50
-                                      dark:bg-violet-400/25
-                                      dark:text-violet-200`
-                                    : `border-slate-300 bg-white text-slate-600
-                                      hover:border-violet-500 hover:bg-violet-50
-                                      dark:border-border dark:bg-card
-                                      dark:text-muted-foreground`
-                                  }`}
-                              >
-                                Partial
-                              </button>
-                              {hasPayment(row) && undoButton(false)}
-                            </div>
-                          )}
-                        </div>
-
-                        {chosen === "partial" && (
-                          <label
-                            className="mt-2 flex cursor-text items-center
-                              gap-1.5 rounded-md border border-slate-300
-                              bg-white px-2.5 py-1.5 transition-colors
-                              focus-within:border-violet-400 focus-within:ring-3
-                              focus-within:ring-violet-500/15 dark:border-border
-                              dark:bg-background
-                              dark:focus-within:border-violet-400/60"
-                          >
-                            <span
-                              className="text-sm font-semibold
-                                text-muted-foreground"
-                            >
-                              ₱
-                            </span>
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              min={0}
-                              max={remaining}
-                              step="0.01"
-                              placeholder="0"
-                              aria-label="Amount paid"
-                              autoFocus
-                              onFocus={(e) => e.currentTarget.select()}
-                              value={choice?.amount ?? ""}
-                              onChange={(e) =>
-                                setChoice(row.id, { amount: e.target.value })
-                              }
-                              className="min-w-0 flex-1 bg-transparent text-sm
-                                font-semibold text-slate-700 outline-none
-                                [appearance:textfield] dark:text-foreground
-                                [&::-webkit-inner-spin-button]:appearance-none
-                                [&::-webkit-outer-spin-button]:appearance-none"
-                            />
-                            <span
-                              className={`shrink-0 text-xs tabular-nums ${
-                                Number.parseFloat(choice?.amount || "0") >
-                                remaining
-                                  ? "text-amber-600 dark:text-amber-400"
-                                  : "text-muted-foreground"
-                                }`}
-                            >
-                              of ₱{remaining.toLocaleString()}
-                            </span>
-                          </label>
-                        )}
-                      </div>
-                    );
-                  })}
-                </section>
-              );
-            })}
-          </div>
-        )}
-
-        <DialogFooter className="gap-2">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={submitting}
-            className="lowercase"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={loading || submitting}
-            className="lowercase"
-          >
-            {submitting
-              ? "Saving…"
-              : mode === "edit"
-                ? "Save changes"
-                : "Confirm & check off"}
-          </Button>
-        </DialogFooter>
+        {body}
+        <DialogFooter className="gap-2">{buttons}</DialogFooter>
       </DialogContent>
     </Dialog>
   );

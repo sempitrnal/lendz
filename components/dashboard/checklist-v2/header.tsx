@@ -204,27 +204,33 @@ export function Header({
           </button>
         )}
 
-        {tab === "release" &&
-          (loading ? (
-            <div className="mt-2 flex items-center gap-2" aria-busy="true">
-              <span className="sr-only">Loading the day</span>
-              <span
-                className="h-9 w-32 animate-pulse rounded-lg bg-muted"
-                aria-hidden="true"
-              />
-            </div>
-          ) : (
-            <div className="mt-2 flex items-baseline gap-2">
-              <span
-                className="text-3xl font-semibold tracking-tight tabular-nums"
-              >
-                {peso(releaseTotal)}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {releasedDayText(date === today)}
-              </span>
-            </div>
-          ))}
+        {tab === "release" && (
+          // Same height as the Collect block (the figure, then the progress
+          // bar's row), so switching tabs doesn't move the list.
+          <div className="mt-2">
+            {loading ? (
+              <div className="flex items-center gap-2" aria-busy="true">
+                <span className="sr-only">Loading the day</span>
+                <span
+                  className="h-9 w-32 animate-pulse rounded-lg bg-muted"
+                  aria-hidden="true"
+                />
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-2">
+                <span
+                  className="text-3xl font-semibold tracking-tight tabular-nums"
+                >
+                  {peso(releaseTotal)}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {releasedDayText(date === today)}
+                </span>
+              </div>
+            )}
+            <div className="mt-2 h-1.5" aria-hidden="true" />
+          </div>
+        )}
 
         {tab === "collect" && (
           <div className="mt-2">

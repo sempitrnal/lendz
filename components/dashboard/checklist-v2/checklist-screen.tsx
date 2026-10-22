@@ -27,7 +27,7 @@ import {
 } from "@/components/dashboard/checklist-v2/collect-row";
 import { useQuickPay } from "@/components/dashboard/checklist-v2/use-quick-pay";
 import { Sheet } from "@/components/dashboard/checklist-v2/sheet";
-import { PaySheet } from "@/components/dashboard/checklist-v2/pay-sheet";
+import { ScheduleCheckDialog } from "@/components/dashboard/checklist/payment-dialogs";
 import { EditPaymentsSheet } from "@/components/dashboard/checklist-v2/edit-payments-sheet";
 import { AddSheet } from "@/components/dashboard/checklist-v2/add-sheet";
 import {
@@ -173,6 +173,14 @@ export type AddSheetRequest = {
   seq: number;
 };
 
+/** Sets (or, with null, removes) one query param without a navigation. */
+function setUrlParam(key: string, value: string | null) {
+  const url = new URL(window.location.href);
+  if (value === null) url.searchParams.delete(key);
+  else url.searchParams.set(key, value);
+  window.history.replaceState(null, "", url);
+}
+
 /**
  * The mobile checklist. On wide screens it is a centred phone-width column.
  *
@@ -193,8 +201,28 @@ export default function ChecklistScreen() {
 
 function ChecklistDay({ today }: { today: string }) {
   const reduceMotion = useReducedMotion();
-  const [date, setDate] = useState(today);
-  const [tab, setTab] = useState<ChecklistTab>("collect");
+  // The day lives in the URL too (`?date=2026-10-20`); today has no param, so
+  // a reload on a later day opens on that day, not the old one.
+  const [date, setDate] = useState(() => {
+    const value = new URLSearchParams(window.location.search).get("date");
+    return value &&
+      /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      !isNaN(Date.parse(value))
+      ? value
+      : today;
+  });
+  // The tab lives in the URL (`?tab=collect` or `?tab=release`) so a reload or
+  // a shared link opens on it. This only mounts on the client, so reading the
+  // address here is safe.
+  const [tab, setTabState] = useState<ChecklistTab>(() =>
+    new URLSearchParams(window.location.search).get("tab") === "release"
+      ? "release"
+      : "collect",
+  );
+  const setTab = (next: ChecklistTab) => {
+    setTabState(next);
+    setUrlParam("tab", next);
+  };
   const [filter, setFilter] = useState<ChecklistFilter>("all");
   /** The one row whose swipe actions are showing. */
   const [swipedId, setSwipedId] = useState<string | null>(null);
@@ -229,6 +257,8 @@ function ChecklistDay({ today }: { today: string }) {
   /** A populate under way, so a double tap fetches and inserts once. */
   const populatingRef = useRef(false);
   const sheetSeq = useRef(0);
+  /** The row a pay just ticked, so a refused pay can untick it. */
+  const tickedByPayRef = useRef<string | null>(null);
   /** Rows whose Remove is under way, so a double tap removes (and toasts) once. */
   const removingRef = useRef(new Set<string>());
   const router = useRouter();
@@ -287,6 +317,7 @@ function ChecklistDay({ today }: { today: string }) {
     // "Undo populate" is for the day it was populated on.
     setLastPopulate(null);
     setDate(next);
+    setUrlParam("date", next === today ? null : next);
   };
 
   const { collectItems, releaseItems } = useMemo(
@@ -827,25 +858,31 @@ function ChecklistDay({ today }: { today: string }) {
         </motion.div>
       )}
 
-      <Sheet open={payOpen} onClose={closeSheet} label="Record payment">
-        {payOpen && sheetRow && rowSheet && (
-          <PaySheet
-            key={rowSheet.seq}
-            row={sheetRow}
-            startPartial={rowSheet.kind === "partial"}
-            onlyLineId={rowSheet.lineId}
-            setChecked={setChecked}
-            onClose={closeSheet}
-            onEditRecorded={() =>
-              requestSheet("editPayments", sheetRow.item.id)
-            }
-            onOpenBorrower={() => openBorrower(sheetRow)}
-            // The gesture-free path to the row menu (Edit item, Open
-            // borrower page, Remove; the spec's open question 2).
-            onMore={() => requestSheet("more", sheetRow.item.id)}
-          />
-        )}
-      </Sheet>
+      <ScheduleCheckDialog
+        variant="drawer"
+        item={payOpen && sheetRow ? sheetRow.item : null}
+        lineIds={rowSheet?.lineId ? [rowSheet.lineId] : undefined}
+        onClose={closeSheet}
+        onConfirmed={({ settlesAll }) => {
+          const row = sheetRow;
+          const only = rowSheet?.lineId;
+          closeSheet();
+          if (!row || row.item.is_checked) return;
+          // Tick only when this pay settles the whole row: the installments
+          // the dialog showed, and any it didn't.
+          const others = only ? row.lines.filter((l) => l.id !== only) : [];
+          if (settlesAll && others.every((l) => l.state === "paid")) {
+            tickedByPayRef.current = row.item.id;
+            setChecked([row.item.id], true);
+          }
+        }}
+        onFailed={() => {
+          // The server refused it after the row was ticked: untick it again.
+          const id = tickedByPayRef.current;
+          tickedByPayRef.current = null;
+          if (id) setChecked([id], false);
+        }}
+      />
       <Sheet
         open={editOpen}
         onClose={closeSheet}
@@ -1006,12 +1043,9 @@ function ChecklistDay({ today }: { today: string }) {
 
 function ListSkeleton() {
   return (
-    <div className="mt-3 space-y-3 px-3" aria-busy="true">
+    <div className="mt-3 space-y-3" aria-busy="true">
       {[1, 2].map((i) => (
-        <div
-          key={i}
-          className="overflow-hidden rounded-2xl border border-border bg-card"
-        >
+        <div key={i} className="overflow-hidden border-y border-border bg-card">
           <div className="h-8 animate-pulse bg-muted/60" />
           {[1, 2, 3].map((j) => (
             <div

@@ -73,15 +73,13 @@ export function ReleaseList({
   );
 
   return (
-    <div className="mt-3 space-y-3 px-3">
+    <div className="mt-3 space-y-3">
       {views.length === 0 ? (
-        <p className="py-10 text-center text-sm text-muted-foreground">
+        <p className="px-3 py-10 text-center text-sm text-muted-foreground">
           No releases on this day yet. Add one with New release.
         </p>
       ) : (
-        <section
-          className="overflow-hidden rounded-2xl border border-border bg-card"
-        >
+        <section className="overflow-hidden border-y border-border bg-card">
           {groups.map((g) => {
             const isCollapsed = collapsed.has(g.key);
             const done = g.rows.filter((v) => v.item.is_checked).length;
@@ -151,14 +149,14 @@ export function ReleaseList({
       )}
       <Button
         variant="outline"
-        className="h-11 w-full gap-2"
+        className="mx-3 h-11 w-[calc(100%-1.5rem)] gap-2"
         disabled={disabled}
         onClick={onNewRelease}
       >
         <HandCoins className="size-4" />
         New release
       </Button>
-      <p className="pt-2 text-center text-xs text-muted-foreground">
+      <p className="px-3 pt-2 text-center text-xs text-muted-foreground">
         Typed notes are read for you: amount, term and dates fill the form.
       </p>
     </div>

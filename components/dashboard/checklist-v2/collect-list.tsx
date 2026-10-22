@@ -202,7 +202,6 @@ export function CollectList({
                   onOpenPay={() => api.onRequest(row, "openPay")}
                   onPayRow={() => api.onRequest(row, "payRow")}
                   onOpenLine={(lineId) => api.onRequest(row, "openPay", lineId)}
-                  onEditPayments={() => api.onRequest(row, "editPayments")}
                   onMore={() => api.onRequest(row, "more")}
                   onPayAll={() => api.onPayAll(row)}
                   onPayLine={(lineId) => api.onPayLine(row, lineId)}
@@ -220,18 +219,14 @@ export function CollectList({
   const carryCollapsed = collapsed.has(CARRY_KEY);
 
   return (
-    <div className="mt-3 space-y-3 px-3">
+    <div className="mt-3 space-y-3">
       {todayGroups.length > 0 && (
-        <section
-          className="overflow-hidden rounded-2xl border border-border bg-card"
-        >
+        <section className="overflow-hidden border-y border-border bg-card">
           {todayGroups.map((g) => renderGroup(g, "t"))}
         </section>
       )}
       {carriedGroups.length > 0 && (
-        <section
-          className="overflow-hidden rounded-2xl border border-border bg-card"
-        >
+        <section className="overflow-hidden border-y border-border bg-card">
           <button
             type="button"
             onClick={() => toggle(CARRY_KEY)}
