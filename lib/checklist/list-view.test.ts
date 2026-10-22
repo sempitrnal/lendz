@@ -56,6 +56,27 @@ describe("list-view", () => {
 
   it("summarizeRows totals the list", () => {
     const s = summarizeRows(rows);
-    expect(s).toEqual({ left: 350.3, due: 650.2, collected: 299.9, done: 1, count: 4 });
+    expect(s).toEqual({
+      left: 350.3,
+      due: 650.2,
+      collected: 299.9,
+      done: 1,
+      count: 4,
+      leftToday: 350.3,
+      leftCarried: 0,
+    });
+  });
+
+  it("summarizeRows splits what is left into due today and carried over", () => {
+    const mixed = [
+      row("t1", { status: "unpaid", total: 100, left: 100 }),
+      row("t2", { status: "partial", total: 300, left: 100.1 }),
+      row("c1", { status: "unpaid", total: 50.2, left: 50.2, carried: true }),
+      row("c2", { status: "paid", total: 80, left: 0, carried: true }),
+    ];
+    const s = summarizeRows(mixed);
+    expect(s.leftToday).toBe(200.1);
+    expect(s.leftCarried).toBe(50.2);
+    expect(s.leftToday + s.leftCarried).toBeCloseTo(s.left, 2);
   });
 });

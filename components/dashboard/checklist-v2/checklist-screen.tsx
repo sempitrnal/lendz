@@ -898,7 +898,11 @@ function ChecklistDay({ today }: { today: string }) {
         label={`${autoPopulateLabel()} update`}
       >
         {autoSummary && (
-          <PopulateSummarySheet summary={autoSummary} onClose={closeSummary} />
+          <PopulateSummarySheet
+            summary={autoSummary}
+            borrowers={borrowers}
+            onClose={closeSummary}
+          />
         )}
       </Sheet>
       <ScheduleCheckDialog

@@ -32,6 +32,8 @@ const FILTERS: [ChecklistFilter, string][] = [
 
 export type HeaderSummary = {
   left: number;
+  leftToday: number;
+  leftCarried: number;
   due: number;
   collected: number;
   done: number;
@@ -233,6 +235,7 @@ export function Header({
                 </span>
               </div>
             )}
+            <div className="mt-1 h-4" aria-hidden="true" />
             <div className="mt-2 h-1.5" aria-hidden="true" />
           </div>
         )}
@@ -265,6 +268,31 @@ export function Header({
                 </span>
               </div>
             )}
+            {/* Due today and carried over, apart. The Release block below keeps
+                a blank line of the same height so switching tabs doesn't move. */}
+            <div
+              className="mt-1 flex h-4 items-center gap-3 text-xs tabular-nums
+                text-muted-foreground"
+            >
+              {loading ? (
+                <span
+                  className="h-3 w-40 animate-pulse rounded bg-muted/70"
+                  aria-hidden="true"
+                />
+              ) : (
+                <>
+                  <span>
+                    {peso(summary.leftToday)}{" "}
+                    {date === today ? "due today" : "due this day"}
+                  </span>
+                  {summary.leftCarried > 0 && (
+                    <span className="text-amber-700 dark:text-amber-400">
+                      {peso(summary.leftCarried)} carried over
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
             <div
               className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary"
               role="progressbar"
