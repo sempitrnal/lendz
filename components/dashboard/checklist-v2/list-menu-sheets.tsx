@@ -2,7 +2,15 @@
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { BookOpen, Check, Plus, Settings2, Trash2, Undo2 } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  Plus,
+  Settings2,
+  Sunrise,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -109,6 +117,8 @@ export function ListMenuSheet({
   onClear,
   onManageCategories,
   onGuide,
+  morningLabel,
+  onMorning,
 }: {
   isToday: boolean;
   /** Rows Mark all paid is for (`bulkPaidRows`). */
@@ -127,6 +137,10 @@ export function ListMenuSheet({
   onManageCategories(): void;
   /** Starts the checklist guide tour. */
   onGuide(): void;
+  /** Today's morning-run label ("1 AM update") when it added rows, else null. */
+  morningLabel: string | null;
+  /** Opens that summary again. */
+  onMorning(): void;
 }) {
   const taken = useRef(false);
   const once = (fn: () => void) => () => {
@@ -175,6 +189,14 @@ export function ListMenuSheet({
             danger
             disabled={disabled}
             onClick={once(onClear)}
+          />
+        )}
+        {morningLabel && (
+          <MenuButton
+            icon={<Sunrise className="size-4" />}
+            title={morningLabel}
+            hint="What the morning run added to this list"
+            onClick={once(onMorning)}
           />
         )}
         <MenuButton

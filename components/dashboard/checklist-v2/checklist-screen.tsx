@@ -374,8 +374,23 @@ function ChecklistDay({ today }: { today: string }) {
   const [summaryClosed, setSummaryClosed] = useState<Set<string>>(
     () => new Set(),
   );
+  // Opened again from the "⋯" menu, for this day only.
+  const [summaryReopenedFor, setSummaryReopenedFor] = useState<string | null>(
+    null,
+  );
+  // A beat after the screen is up: a sheet that opens while the page is still
+  // hydrating dims it before React has finished (a hydration warning).
+  const [summaryReady, setSummaryReady] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSummaryReady(true), 600);
+    return () => clearTimeout(timer);
+  }, []);
   const summaryOpen =
-    !!autoSummary && !loading && !summaryClosed.has(date) && !summarySeen(date);
+    summaryReady &&
+    !!autoSummary &&
+    !loading &&
+    (summaryReopenedFor === date ||
+      (!summaryClosed.has(date) && !summarySeen(date)));
   const closeSummary = () => {
     try {
       localStorage.setItem(summarySeenKey(date), "1");
@@ -383,6 +398,7 @@ function ChecklistDay({ today }: { today: string }) {
       // Storage blocked: it shows again next visit.
     }
     setSummaryClosed((prev) => new Set(prev).add(date));
+    setSummaryReopenedFor(null);
   };
   /** What "Mark all paid" is for: the Collect rows not fully paid. */
   const bulkRows = useMemo(() => bulkPaidRows(rows), [rows]);
@@ -995,6 +1011,11 @@ function ChecklistDay({ today }: { today: string }) {
               void populate();
             }}
             onMarkAll={() => openList("bulk")}
+            morningLabel={autoSummary ? `${autoPopulateLabel()} update` : null}
+            onMorning={() => {
+              closeList();
+              setSummaryReopenedFor(date);
+            }}
             onGuide={() => {
               closeList();
               setUrlParam("tour", GUIDE_TOUR_ID);
