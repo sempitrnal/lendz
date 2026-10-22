@@ -6,6 +6,7 @@ import { TourSpotlight } from "@/components/tours/tour-spotlight";
 import {
   markSeen,
   nextTour,
+  onPage,
   playableSteps,
   readSeen,
   tourById,
@@ -30,7 +31,10 @@ const blocked = () =>
  */
 export function TourProvider() {
   const pathname = usePathname();
-  const replayId = useSearchParams().get("tour");
+  const search = useSearchParams();
+  const replayId = search.get("tour");
+  // Any query change (the checklist's tab, its day) may bring new targets.
+  const query = search.toString();
   const [active, setActive] = useState<Active | null>(null);
   // Tours finished or skipped this visit, so a replay (whose `?tour` param is
   // removed on close) is not started again as a normal first-time tour.
@@ -38,7 +42,7 @@ export function TourProvider() {
 
   useEffect(() => {
     const replayTour = tourById(TOURS, replayId);
-    const replay = !!replayTour && replayTour.page === pathname;
+    const replay = !!replayTour && onPage(replayTour.page, pathname);
     const tour = replay
       ? replayTour
       : nextTour(TOURS, pathname, [...readSeen(), ...closed.current]);
@@ -67,7 +71,7 @@ export function TourProvider() {
       // Leaving the page closes the tour without marking it seen.
       setActive(null);
     };
-  }, [pathname, replayId]);
+  }, [pathname, replayId, query]);
 
   if (!active) return null;
 

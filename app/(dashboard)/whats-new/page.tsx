@@ -31,16 +31,26 @@ export default function WhatsNewPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-[15px] font-semibold">{tour.title}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatDate(tour.date)} · {tour.steps.length} steps
+                  {formatDate(tour.date)} · {tour.steps.length} step
+                  {tour.steps.length === 1 ? "" : "s"}
                 </p>
               </div>
-              <Link
-                href={`${tour.page}?tour=${tour.id}`}
-                className="rounded-full border border-border px-3 py-1.5 text-sm
-                  font-medium active:bg-muted"
-              >
-                Replay
-              </Link>
+              {tour.page.endsWith("/*") ? (
+                // No single page to send them to: it plays on any of them.
+                <span className="text-xs text-muted-foreground">
+                  Plays when you open one
+                </span>
+              ) : (
+                <Link
+                  href={`${tour.page}?${
+                    tour.replayQuery ? `${tour.replayQuery}&` : ""
+                  }tour=${tour.id}`}
+                  className="rounded-full border border-border px-3 py-1.5
+                    text-sm font-medium active:bg-muted"
+                >
+                  Replay
+                </Link>
+              )}
             </li>
           ))}
         </ul>

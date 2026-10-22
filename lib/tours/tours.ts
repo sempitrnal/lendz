@@ -29,4 +29,31 @@ export const TOURS: Tour[] = [
       },
     ],
   },
+  {
+    id: "2026-10-22-release-accounts",
+    title: "Open a created release",
+    date: "2026-10-22",
+    page: "/daily-checklist",
+    replayQuery: "tab=release",
+    steps: [
+      {
+        target: '[data-tour="release-created-row"]',
+        title: "Created releases open the account",
+        body: "Tap a release marked Created to jump to the account it made.",
+      },
+    ],
+  },
+  {
+    id: "2026-10-22-borrower-accounts",
+    title: "Open an account",
+    date: "2026-10-22",
+    page: "/borrowers/*",
+    steps: [
+      {
+        target: '[data-tour="account-card"]',
+        title: "The whole card opens the account",
+        body: "Tap anywhere on an account card, including the coloured band at the top, to open it.",
+      },
+    ],
+  },
 ];

@@ -480,6 +480,7 @@ export const AccountCard = memo(function AccountCard({
 
   return (
     <div
+      data-tour="account-card"
       className={`relative overflow-hidden rounded-lg border border-slate-200
         bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06)]
         transition-[transform,opacity] duration-200 active:scale-[0.985]

@@ -44,6 +44,16 @@ describe("nextTour", () => {
   });
 });
 
+describe("nextTour with a wildcard page", () => {
+  const tours = [tour("2026-10-01-w", "/borrowers/*")];
+  it("matches any path under the prefix, not the prefix itself", () => {
+    expect(nextTour(tours, "/borrowers/abc", [])?.id).toBe("2026-10-01-w");
+    expect(nextTour(tours, "/borrowers/abc/edit", [])?.id).toBe("2026-10-01-w");
+    expect(nextTour(tours, "/borrowers", [])).toBeNull();
+    expect(nextTour(tours, "/borrowersX/abc", [])).toBeNull();
+  });
+});
+
 describe("tourById", () => {
   const tours = [tour("2026-10-01-a", "/x")];
   it("finds a known id", () => {

@@ -15,12 +15,21 @@ export type Tour = {
   title: string;
   /** ISO date of the release. */
   date: string;
-  /** Pathname the tour runs on. */
+  /** Pathname the tour runs on; `/borrowers/*` matches any page below it. */
   page: string;
   steps: TourStep[];
+  /** Extra query for Replay, e.g. "tab=release" to open the tab it is on. */
+  replayQuery?: string;
 };
 
 export const SEEN_KEY = "lendz-tours-seen";
+
+/** Whether a tour's `page` covers this pathname. */
+export function onPage(page: string, pathname: string): boolean {
+  return page.endsWith("/*")
+    ? pathname.startsWith(page.slice(0, -1))
+    : page === pathname;
+}
 
 /** The oldest tour for this page that has not been seen. */
 export function nextTour(
@@ -28,7 +37,9 @@ export function nextTour(
   pathname: string,
   seen: string[],
 ): Tour | null {
-  return tours.find((t) => t.page === pathname && !seen.includes(t.id)) ?? null;
+  return (
+    tours.find((t) => onPage(t.page, pathname) && !seen.includes(t.id)) ?? null
+  );
 }
 
 export function tourById(tours: Tour[], id: string | null): Tour | null {

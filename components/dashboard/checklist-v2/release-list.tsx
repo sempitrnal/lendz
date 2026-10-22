@@ -226,6 +226,7 @@ function ReleaseRow({
 
   return (
     <li
+      data-tour={state === "created" ? "release-created-row" : undefined}
       onClick={openAccount}
       className={cn(
         state === "created" && "cursor-pointer",
