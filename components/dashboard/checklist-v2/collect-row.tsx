@@ -246,7 +246,13 @@ export function CollectRow({
 
   return (
     <li
-      data-tour={expandable ? "checklist-multi-row" : undefined}
+      data-tour={
+        expandable
+          ? "checklist-multi-row"
+          : isNote
+            ? undefined
+            : "checklist-row"
+      }
       className="relative overflow-hidden border-b border-border
         last:border-b-0"
     >
@@ -376,6 +382,7 @@ export function CollectRow({
                 <button
                   type="button"
                   aria-label={`Mark ${name} paid, ${peso(row.left)}`}
+                  data-tour="checklist-check"
                   onClick={guard(onPayAll)}
                   className="-mr-1 flex size-6 items-center justify-center"
                 >
@@ -456,6 +463,7 @@ function RowText({
         {borrowerId ? (
           <Link
             href={`/borrowers/${borrowerId}`}
+            data-tour="checklist-name"
             draggable={false}
             onClick={onNameClick}
             className={namePillClass}

@@ -102,7 +102,10 @@ export function Header({
     <>
       <div className="px-4 pt-3">
         <div className="flex items-center justify-between">
-          <div className="relative flex min-w-0 items-center gap-0.5">
+          <div
+            data-tour="checklist-date"
+            className="relative flex min-w-0 items-center gap-0.5"
+          >
             <button
               type="button"
               aria-label="Previous day"
@@ -164,6 +167,7 @@ export function Header({
             {tab === "collect" && (
               <button
                 type="button"
+                data-tour="checklist-menu"
                 onClick={onMenu}
                 disabled={loading}
                 aria-label={`${
@@ -180,6 +184,7 @@ export function Header({
             )}
             <button
               type="button"
+              data-tour="checklist-add"
               onClick={onAdd}
               // Writes made before the day has loaded wouldn't show.
               disabled={loading}
@@ -233,7 +238,7 @@ export function Header({
         )}
 
         {tab === "collect" && (
-          <div className="mt-2">
+          <div className="mt-2" data-tour="checklist-summary">
             {loading ? (
               <div className="flex items-center gap-2" aria-busy="true">
                 <span className="sr-only">Loading the day</span>
@@ -298,6 +303,9 @@ export function Header({
               key={key}
               type="button"
               role="tab"
+              data-tour={
+                key === "release" ? "checklist-release-tab" : undefined
+              }
               aria-selected={tab === key}
               onClick={() => onTabChange(key)}
               className={cn(
@@ -322,7 +330,10 @@ export function Header({
           ))}
         </div>
         {tab === "collect" && (
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
+          <div
+            data-tour="checklist-filters"
+            className="-mx-4 flex gap-2 overflow-x-auto px-4"
+          >
             {FILTERS.map(([key, label]) => (
               <button
                 key={key}

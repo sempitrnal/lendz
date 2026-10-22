@@ -78,6 +78,7 @@ import {
   summarizeAutoPopulate,
   summarySeenKey,
 } from "@/lib/checklist/populate-summary";
+import { GUIDE_TOUR_ID } from "@/lib/tours/tours";
 import { PopulateSummarySheet } from "@/components/dashboard/checklist-v2/populate-summary-sheet";
 import { bulkPaidRows } from "@/lib/checklist/bulk-paid";
 import {
@@ -985,6 +986,10 @@ function ChecklistDay({ today }: { today: string }) {
               void populate();
             }}
             onMarkAll={() => openList("bulk")}
+            onGuide={() => {
+              closeList();
+              setUrlParam("tour", GUIDE_TOUR_ID);
+            }}
             onUndoPopulate={() => {
               closeList();
               if (lastPopulate) undoPopulate(lastPopulate);

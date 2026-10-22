@@ -151,6 +151,7 @@ export function ReleaseList({
       )}
       <Button
         variant="outline"
+        data-tour="release-new"
         className="mx-3 h-11 w-[calc(100%-1.5rem)] gap-2"
         disabled={disabled}
         onClick={onNewRelease}
@@ -236,7 +237,7 @@ function ReleaseRow({
         highlight && "bg-primary/5",
       )}
     >
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1" data-tour="release-row">
         <p
           className={cn(
             "truncate text-[15px] font-bold lowercase",

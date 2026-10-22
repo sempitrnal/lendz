@@ -44,6 +44,16 @@ describe("nextTour", () => {
   });
 });
 
+describe("nextTour with a manual tour", () => {
+  it("never starts a tour marked auto: false by itself", () => {
+    const manual = { ...tour("2026-10-01-guide", "/x"), auto: false };
+    expect(nextTour([manual], "/x", [])).toBeNull();
+    expect(nextTour([manual, tour("2026-10-02-b", "/x")], "/x", [])?.id).toBe(
+      "2026-10-02-b",
+    );
+  });
+});
+
 describe("nextTour with a wildcard page", () => {
   const tours = [tour("2026-10-01-w", "/borrowers/*")];
   it("matches any path under the prefix, not the prefix itself", () => {

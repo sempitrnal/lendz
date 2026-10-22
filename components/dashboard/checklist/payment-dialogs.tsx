@@ -673,6 +673,7 @@ export function ScheduleCheckDialog({
                       undoButton(true)
                     ) : (
                       <div
+                        data-tour="pay-schedule-actions"
                         className={`grid gap-1.5 ${
                           hasPayment(row)
                             ? "grid-cols-[1fr_1fr_auto]"
@@ -780,6 +781,7 @@ export function ScheduleCheckDialog({
     <>
       <Button
         variant="outline"
+        data-tour="pay-cancel"
         onClick={onClose}
         disabled={submitting}
         className="lowercase"

@@ -148,6 +148,7 @@ export function CollectList({
       >
         <button
           type="button"
+          data-tour="checklist-group"
           onClick={() => toggle(key)}
           aria-expanded={!isCollapsed}
           className={cn(

@@ -36,11 +36,21 @@ export function TourProvider() {
   // Any query change (the checklist's tab, its day) may bring new targets.
   const query = search.toString();
   const [active, setActive] = useState<Active | null>(null);
+  // Whether a tour is on screen, for the effect below to read.
+  const running = useRef(false);
+  useEffect(() => {
+    running.current = active !== null;
+  }, [active]);
   // Tours finished or skipped this visit, so a replay (whose `?tour` param is
   // removed on close) is not started again as a normal first-time tour.
   const closed = useRef(new Set<string>());
 
+  // Leaving the page closes the tour without marking it seen (a query change,
+  // like the checklist's tab, does not: a guide switches tabs itself).
+  useEffect(() => () => setActive(null), [pathname]);
+
   useEffect(() => {
+    if (running.current) return;
     const replayTour = tourById(TOURS, replayId);
     const replay = !!replayTour && onPage(replayTour.page, pathname);
     const tour = replay
@@ -66,11 +76,7 @@ export function TourProvider() {
       }
     }, POLL_MS);
 
-    return () => {
-      clearInterval(timer);
-      // Leaving the page closes the tour without marking it seen.
-      setActive(null);
-    };
+    return () => clearInterval(timer);
   }, [pathname, replayId, query]);
 
   if (!active) return null;

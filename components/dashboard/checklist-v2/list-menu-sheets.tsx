@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Check, Plus, Settings2, Trash2, Undo2 } from "lucide-react";
+import { BookOpen, Check, Plus, Settings2, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -108,6 +108,7 @@ export function ListMenuSheet({
   onUndoPopulate,
   onClear,
   onManageCategories,
+  onGuide,
 }: {
   isToday: boolean;
   /** Rows Mark all paid is for (`bulkPaidRows`). */
@@ -124,6 +125,8 @@ export function ListMenuSheet({
   onUndoPopulate(): void;
   onClear(): void;
   onManageCategories(): void;
+  /** Starts the checklist guide tour. */
+  onGuide(): void;
 }) {
   const taken = useRef(false);
   const once = (fn: () => void) => () => {
@@ -174,6 +177,12 @@ export function ListMenuSheet({
             onClick={once(onClear)}
           />
         )}
+        <MenuButton
+          icon={<BookOpen className="size-4" />}
+          title="Checklist guide"
+          hint="A walkthrough of everything on this screen"
+          onClick={once(onGuide)}
+        />
         <li>
           <Link
             href="/daily-checklist/categories"

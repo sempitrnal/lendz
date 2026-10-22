@@ -48,7 +48,7 @@ export default function WhatsNewPage() {
                   className="rounded-full border border-border px-3 py-1.5
                     text-sm font-medium active:bg-muted"
                 >
-                  Replay
+                  {tour.auto === false ? "Start" : "Replay"}
                 </Link>
               )}
             </li>
