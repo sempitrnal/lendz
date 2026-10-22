@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 import { useMemo, useState, type CSSProperties } from "react";
 import {
   Check,
@@ -163,6 +165,29 @@ export function ReleaseList({
   );
 }
 
+/**
+ * Where a created release's account is. The item never stored which account it
+ * made, so this finds it again: the borrower's account with the same
+ * principal (the one on the release date if several). No match, or offline:
+ * the borrower's page.
+ */
+async function createdAccountPath(view: ReleaseRowView): Promise<string> {
+  const fallback = view.borrowerId ? `/borrowers/${view.borrowerId}` : "/";
+  const values = view.parsed?.initialValues;
+  if (!view.borrowerId || !values?.principal_amount) return fallback;
+  const { data } = await supabase
+    .from("accounts")
+    .select("id, release_date")
+    .eq("borrower_id", view.borrowerId)
+    .eq("principal_amount", values.principal_amount)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  const accounts = (data ?? []) as { id: string; release_date: string }[];
+  const match =
+    accounts.find((a) => a.release_date === values.release_date) ?? accounts[0];
+  return match ? `/accounts/${match.id}` : fallback;
+}
+
 function ReleaseRow({
   view,
   mark,
@@ -188,10 +213,22 @@ function ReleaseRow({
   // A row with no borrower mention shows its whole note as the title.
   const title = view.name || view.typed;
   const plainDone = state === "plain" && view.item.is_checked;
+  const router = useRouter();
+  // A created release opens the account it made.
+  const openAccount = (event: React.MouseEvent) => {
+    if (state !== "created") return;
+    if ((event.target as Element).closest("button, a")) return;
+    void createdAccountPath(view).then(
+      (path) => router.push(path),
+      () => view.borrowerId && router.push(`/borrowers/${view.borrowerId}`),
+    );
+  };
 
   return (
     <li
+      onClick={openAccount}
       className={cn(
+        state === "created" && "cursor-pointer",
         `flex items-center gap-3 border-b border-border px-4 py-3
         transition-colors duration-700 motion-reduce:transition-none
         last:border-b-0`,

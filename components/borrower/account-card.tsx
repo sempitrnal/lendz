@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { memo, useRef } from "react";
+import { cloneElement, memo, useRef } from "react";
 import { formatDate } from "@/lib/utils";
 import AccountCardMenu from "./account-card-menu";
 import {
@@ -347,6 +347,14 @@ export const AccountCard = memo(function AccountCard({
     />
   );
 
+  // The band opens the account too: the same button, hidden from keyboards and
+  // screen readers (the pane's one button already covers them).
+  const bandButton = cloneElement(paneButton, {
+    tabIndex: -1,
+    "aria-hidden": true,
+    "aria-label": undefined,
+  });
+
   const summaryPane = (
     <div className="relative px-4 pt-3 pb-3">
       {paneButton}
@@ -481,9 +489,10 @@ export const AccountCard = memo(function AccountCard({
     >
       {/* Band: coloured by kind of account; release age, rate and status */}
       <div
-        className={`flex items-center gap-2.5 py-2 pr-12 pl-3
+        className={`relative flex items-center gap-2.5 py-2 pr-12 pl-3
           ${TONES[tone].band}`}
       >
+        {bandButton}
         {releaseYmd && (
           <CalendarTile
             date={releaseYmd}

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Check, Undo2 } from "lucide-react";
 import {
   Dialog,
@@ -311,6 +313,7 @@ export function ScheduleCheckDialog({
     [borrowers, borrower?.id],
   );
   const recordPayments = useRecordPayments();
+  const router = useRouter();
   const open = refs.length > 0;
   const scheduleIds = useMemo(() => refs.map((r) => r.id).sort(), [refs]);
   const { data: summaries, isPending: summariesPending } = useQuery({
@@ -519,17 +522,31 @@ export function ScheduleCheckDialog({
             key={group.accountId}
             // One container per account: its type and progress together
             // with its schedules, set apart from the other accounts.
-            className={`space-y-2.5 rounded-2xl bg-slate-100/70 p-3
-              dark:bg-muted/30 ${ENTER_ANIMATION}`}
+            // Tapping the account's card (its type and progress) opens the
+            // account page; the schedules and their buttons keep working.
+            onClick={(e) => {
+              if (
+                (e.target as Element).closest(
+                  "button, input, label, a, [data-schedule-card]",
+                )
+              )
+                return;
+              router.push(`/accounts/${group.accountId}`);
+            }}
+            className={`cursor-pointer space-y-2.5 rounded-2xl bg-slate-100/70
+              p-3 dark:bg-muted/30 ${ENTER_ANIMATION}`}
             style={{ animationDelay: `${groupIndex * 80}ms` }}
           >
             {summary ? (
-              <div className="px-0.5">
+              <Link
+                href={`/accounts/${group.accountId}`}
+                className="block px-0.5"
+              >
                 <AccountSummaryHeader
                   summary={summary}
                   pending={pendingPayment(group.rows, choices)}
                 />
-              </div>
+              </Link>
             ) : summariesPending ? (
               <div className="space-y-1.5 px-0.5">
                 <div className="h-4 w-24 animate-pulse rounded bg-muted" />
@@ -581,6 +598,7 @@ export function ScheduleCheckDialog({
               return (
                 <div
                   key={row.id}
+                  data-schedule-card
                   className={`rounded-xl border p-3 shadow-sm
                     transition-[background-color,border-color,box-shadow]
                     duration-300 ${
