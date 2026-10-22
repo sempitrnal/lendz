@@ -44,8 +44,14 @@ export function playableSteps(
   return steps.filter((s) => exists(s.target));
 }
 
-const browserStorage = () =>
-  typeof window === "undefined" ? undefined : window.localStorage;
+/** `window.localStorage` itself can throw (blocked site data). */
+function browserStorage(): Storage | undefined {
+  try {
+    return typeof window === "undefined" ? undefined : window.localStorage;
+  } catch {
+    return undefined;
+  }
+}
 
 export function readSeen(
   storage: Pick<Storage, "getItem"> | undefined = browserStorage(),

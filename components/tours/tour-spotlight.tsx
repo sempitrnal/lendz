@@ -71,21 +71,28 @@ export function TourSpotlight({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
+  // The popup only exists once the target has been measured.
+  const ready = box !== null;
   useLayoutEffect(() => {
     if (popupRef.current) setPopupHeight(popupRef.current.offsetHeight);
-  }, [index]);
+  }, [index, ready]);
 
+  // Focus moves into the popup when it first appears and back when it closes.
   useEffect(() => {
+    if (!ready) return;
     const previous = document.activeElement as HTMLElement | null;
     popupRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
+    };
+  }, [ready]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onSkip();
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      if (previous?.isConnected) previous.focus({ preventScroll: true });
-    };
+    return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

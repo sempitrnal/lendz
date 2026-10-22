@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { TourSpotlight } from "@/components/tours/tour-spotlight";
 import {
@@ -32,11 +32,16 @@ export function TourProvider() {
   const pathname = usePathname();
   const replayId = useSearchParams().get("tour");
   const [active, setActive] = useState<Active | null>(null);
+  // Tours finished or skipped this visit, so a replay (whose `?tour` param is
+  // removed on close) is not started again as a normal first-time tour.
+  const closed = useRef(new Set<string>());
 
   useEffect(() => {
     const replayTour = tourById(TOURS, replayId);
     const replay = !!replayTour && replayTour.page === pathname;
-    const tour = replay ? replayTour : nextTour(TOURS, pathname, readSeen());
+    const tour = replay
+      ? replayTour
+      : nextTour(TOURS, pathname, [...readSeen(), ...closed.current]);
     if (!tour) return;
 
     // Lists load after the page: wait for every target, then start with
@@ -67,6 +72,7 @@ export function TourProvider() {
   if (!active) return null;
 
   const close = () => {
+    closed.current.add(active.tour.id);
     if (!active.replay) markSeen(active.tour.id);
     else {
       // So a reload doesn't replay it again.

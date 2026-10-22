@@ -103,3 +103,20 @@ describe("markSeen", () => {
     ).not.toThrow();
   });
 });
+
+describe("storage whose getter throws", () => {
+  it("reads as empty and never throws", async () => {
+    const { vi } = await import("vitest");
+    vi.stubGlobal("window", {
+      get localStorage(): Storage {
+        throw new Error("SecurityError");
+      },
+    });
+    try {
+      expect(readSeen()).toEqual([]);
+      expect(() => markSeen("a")).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
