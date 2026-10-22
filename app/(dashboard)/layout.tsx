@@ -7,6 +7,8 @@ import BottomNav from "@/components/bottom-nav";
 import SidebarNav from "@/components/sidebar-nav";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import RealtimeProvider from "@/components/realtime-provider";
+import { Suspense } from "react";
+import { TourProvider } from "@/components/tours/tour-provider";
 
 export default async function DashboardLayout({
   children,
@@ -34,6 +36,9 @@ export default async function DashboardLayout({
       <SidebarNav />
       <SiteHeader isLoggedIn logoutAction={logout} />
       <BottomNav />
+      <Suspense fallback={null}>
+        <TourProvider />
+      </Suspense>
       <main
         className="mt-10 flex-1 py-6 sm:mt-0 md:py-0
           md:pl-[calc(var(--sidebar-width))] lg:pl-[calc(var(--sidebar-width))]"
