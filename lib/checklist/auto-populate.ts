@@ -3,6 +3,7 @@ import { loadDueGroups } from "@/lib/checklist/due-groups";
 import { newRowSortOrders } from "@/lib/checklist/day-items";
 import { resolveCategoryIds } from "@/lib/checklist/categories";
 import { selectPopulateLabels } from "@/lib/checklist/populate";
+import { autoPopulateStamp } from "@/lib/checklist/populate-summary";
 import type { DailyChecklistItem } from "@/lib/checklist/types";
 
 /** Unpaid schedules carry over onto the checklist this many days (as the app's Populate due). */
@@ -45,7 +46,8 @@ export async function populateDay(
 
   const rows = labels.map((label) => ({ label, categoryId: collectId }));
   const sortOrders = newRowSortOrders(items, rows);
-  const createdAt = new Date().toISOString();
+  // The stamp is how the checklist finds what this run added (its summary).
+  const createdAt = autoPopulateStamp(date);
   const { error } = await supabase.from("daily_checklist_items").insert(
     rows.map((row, i) => ({
       id: crypto.randomUUID(),

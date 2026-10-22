@@ -74,6 +74,11 @@ import type {
   DueChecklistGroup,
 } from "@/lib/checklist/types";
 import { selectPopulateLabels } from "@/lib/checklist/populate";
+import {
+  summarizeAutoPopulate,
+  summarySeenKey,
+} from "@/lib/checklist/populate-summary";
+import { PopulateSummarySheet } from "@/components/dashboard/checklist-v2/populate-summary-sheet";
 import { bulkPaidRows } from "@/lib/checklist/bulk-paid";
 import {
   addedBorrowersText,
@@ -172,6 +177,15 @@ export type AddSheetRequest = {
   editItemId: string | null;
   seq: number;
 };
+
+/** Whether this device has already shown the day's 6 AM summary. */
+function summarySeen(date: string): boolean {
+  try {
+    return localStorage.getItem(summarySeenKey(date)) !== null;
+  } catch {
+    return false;
+  }
+}
 
 /** Sets (or, with null, removes) one query param without a navigation. */
 function setUrlParam(key: string, value: string | null) {
@@ -350,6 +364,24 @@ function ChecklistDay({ today }: { today: string }) {
     [collectItems, schedules],
   );
   const summary = useMemo(() => summarizeRows(rows), [rows]);
+  // What the 6 AM run added: shown once per device per day, in a sheet.
+  const autoSummary = useMemo(
+    () => (date === today ? summarizeAutoPopulate(rows, date) : null),
+    [rows, date, today],
+  );
+  const [summaryClosed, setSummaryClosed] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const summaryOpen =
+    !!autoSummary && !loading && !summaryClosed.has(date) && !summarySeen(date);
+  const closeSummary = () => {
+    try {
+      localStorage.setItem(summarySeenKey(date), "1");
+    } catch {
+      // Storage blocked: it shows again next visit.
+    }
+    setSummaryClosed((prev) => new Set(prev).add(date));
+  };
   /** What "Mark all paid" is for: the Collect rows not fully paid. */
   const bulkRows = useMemo(() => bulkPaidRows(rows), [rows]);
   const counts = useMemo(() => filterCounts(rows), [rows]);
@@ -858,6 +890,11 @@ function ChecklistDay({ today }: { today: string }) {
         </motion.div>
       )}
 
+      <Sheet open={summaryOpen} onClose={closeSummary} label="6 AM update">
+        {autoSummary && (
+          <PopulateSummarySheet summary={autoSummary} onClose={closeSummary} />
+        )}
+      </Sheet>
       <ScheduleCheckDialog
         variant="drawer"
         item={payOpen && sheetRow ? sheetRow.item : null}
