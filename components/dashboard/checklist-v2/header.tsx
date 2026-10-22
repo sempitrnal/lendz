@@ -117,41 +117,56 @@ export function Header({
             >
               <ChevronLeft className="size-5" />
             </button>
-            <button
-              type="button"
-              aria-label={`${headerDate(date, today)}${
-                relative ? ` (${relative})` : ""
-              }, pick a date`}
-              onClick={openDatePicker}
-              className="flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-1"
-            >
-              <span
-                className="truncate text-xs font-semibold tracking-wider
-                  text-muted-foreground uppercase"
+            {/* The real date input sits invisibly over the label, so a tap
+                lands on it: the phone's own picker opens on every browser
+                (a script can't open one from a 1px hidden input on iOS). The
+                button underneath is for keyboards and screen readers. */}
+            <div className="relative min-w-0">
+              <button
+                type="button"
+                aria-label={`${headerDate(date, today)}${
+                  relative ? ` (${relative})` : ""
+                }, pick a date`}
+                onClick={openDatePicker}
+                className="flex min-w-0 items-center gap-1.5 rounded-lg px-1
+                  py-1"
               >
-                {headerDate(date, today)}
-              </span>
-              {relative && (
                 <span
-                  className="shrink-0 rounded-full bg-muted px-2 py-0.5
-                    text-[11px] font-semibold text-muted-foreground"
+                  className="truncate text-xs font-semibold tracking-wider
+                    text-muted-foreground uppercase"
                 >
-                  {relative}
+                  {headerDate(date, today)}
                 </span>
-              )}
-            </button>
-            <input
-              ref={dateInputRef}
-              type="date"
-              value={date}
-              onChange={(e) => {
-                if (e.target.value) onDateChange(e.target.value);
-              }}
-              tabIndex={-1}
-              aria-hidden
-              className="pointer-events-none absolute bottom-0 left-8 size-px
-                opacity-0"
-            />
+                {relative && (
+                  <span
+                    className="shrink-0 rounded-full bg-muted px-2 py-0.5
+                      text-[11px] font-semibold text-muted-foreground"
+                  >
+                    {relative}
+                  </span>
+                )}
+              </button>
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={date}
+                onChange={(e) => {
+                  if (e.target.value) onDateChange(e.target.value);
+                }}
+                // Desktop browsers only open the picker from the icon; ask.
+                onClick={(e) => {
+                  try {
+                    e.currentTarget.showPicker();
+                  } catch {
+                    // Already open, or not supported: the tap did its job.
+                  }
+                }}
+                tabIndex={-1}
+                aria-hidden
+                className="absolute inset-0 h-full w-full cursor-pointer
+                  opacity-0"
+              />
+            </div>
             <button
               type="button"
               aria-label="Next day"
