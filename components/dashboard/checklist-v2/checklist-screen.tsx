@@ -242,8 +242,6 @@ function ChecklistDay({ today }: { today: string }) {
   const [filter, setFilter] = useState<ChecklistFilter>("all");
   /** The one row whose swipe actions are showing. */
   const [swipedId, setSwipedId] = useState<string | null>(null);
-  /** Rows with several schedules shown expanded. */
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   /**
    * The row sheet asked for (pay, edit payments, partial, note, row menu);
    * each renders from it below.
@@ -324,7 +322,6 @@ function ChecklistDay({ today }: { today: string }) {
     dismissUndoToasts();
     setFilter("all");
     setSwipedId(null);
-    setExpandedIds(new Set());
     setRowSheet(null);
     setAddSheet(null);
     setListSheet(null);
@@ -805,14 +802,6 @@ function ChecklistDay({ today }: { today: string }) {
     onSwiped: (itemId, open) =>
       // Opening one row closes the other; closing only clears its own.
       setSwipedId((prev) => (open ? itemId : prev === itemId ? null : prev)),
-    expandedIds,
-    onExpandToggle: (itemId) =>
-      setExpandedIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(itemId)) next.delete(itemId);
-        else next.add(itemId);
-        return next;
-      }),
     waitingIds,
     flashIds,
     onRequest: (row, kind, lineId) => {

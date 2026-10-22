@@ -33,8 +33,6 @@ export type RowRequest =
 export type CollectRowsApi = {
   swipedId: string | null;
   onSwiped(itemId: string, open: boolean): void;
-  expandedIds: Set<string>;
-  onExpandToggle(itemId: string): void;
   waitingIds: Set<string>;
   flashIds: Set<string>;
   /** `lineId`: the one schedule a pay request is about. */
@@ -198,8 +196,6 @@ export function CollectList({
                   highlight={api.flashIds.has(id)}
                   swiped={api.swipedId === id}
                   onSwiped={(open) => api.onSwiped(id, open)}
-                  expanded={api.expandedIds.has(id)}
-                  onExpandToggle={() => api.onExpandToggle(id)}
                   onOpenPay={() => api.onRequest(row, "openPay")}
                   onPayRow={() => api.onRequest(row, "payRow")}
                   onOpenLine={(lineId) => api.onRequest(row, "openPay", lineId)}

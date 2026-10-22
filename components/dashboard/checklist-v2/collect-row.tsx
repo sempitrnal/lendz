@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import {
-  AnimatePresence,
-  motion,
-  useAnimationControls,
-  type TapInfo,
-} from "framer-motion";
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+import { motion, useAnimationControls, type TapInfo } from "framer-motion";
 import { Check, ChevronDown, CloudUpload, NotebookPen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatShortDate } from "@/lib/checklist/labels";
@@ -105,8 +105,6 @@ export type CollectRowProps = {
   /** A plain note's tick. */
   onTick(): void;
   /** Row tap with several open installments. */
-  onExpandToggle(): void;
-  expanded: boolean;
 };
 
 /**
@@ -127,9 +125,16 @@ export function CollectRow({
   onOpenLine,
   onPayLine,
   onTick,
-  onExpandToggle,
-  expanded,
 }: CollectRowProps) {
+  // Open or closed lives here, not on the screen: a toggle re-renders this row
+  // only, not the whole list.
+  const [expanded, setExpanded] = useState(false);
+  // The schedules mount on the first open and stay, so closing can animate.
+  const [bodyMounted, setBodyMounted] = useState(false);
+  const onExpandToggle = () => {
+    setBodyMounted(true);
+    setExpanded((v) => !v);
+  };
   const controls = useAnimationControls();
   const dragged = useRef(false);
   const downAt = useRef<{ x: number; y: number } | null>(null);
@@ -403,42 +408,49 @@ export function CollectRow({
               )}
             </div>
 
-            <AnimatePresence initial={false}>
-              {expanded && expandable && (
-                <motion.div
-                  key="expanded"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div
-                    data-tour="checklist-lines"
-                    className="mx-4 mb-3 rounded-xl bg-muted/50 px-3 py-1"
-                  >
-                    {row.lines.map((line) => (
-                      <LineItem
-                        key={line.id}
-                        line={line}
-                        onOpen={guard(() => onOpenLine(line.id))}
-                        onPay={guard(() => onPayLine(line.id))}
-                      />
-                    ))}
-                    {multi && (
-                      <button
-                        type="button"
-                        onClick={guard(onPayAll)}
-                        className="my-2 w-full rounded-lg bg-primary/10 py-2
-                          text-sm font-semibold text-primary
-                          active:bg-primary/20"
-                      >
-                        Pay all {peso(row.left)}
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {expandable && (
+              // Open and close by animating the grid row from 0fr to 1fr: the
+              // browser does it in CSS, with no measuring on every frame.
+              <div
+                inert={!expanded}
+                className={cn(
+                  `grid transition-[grid-template-rows,opacity] duration-200
+                    ease-out motion-reduce:transition-none`,
+                  expanded
+                    ? "grid-rows-[1fr] opacity-100"
+                    : "grid-rows-[0fr] opacity-0",
+                )}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  {bodyMounted && (
+                    <div
+                      data-tour="checklist-lines"
+                      className="mx-4 mb-3 rounded-xl bg-muted/50 px-3 py-1"
+                    >
+                      {row.lines.map((line) => (
+                        <LineItem
+                          key={line.id}
+                          line={line}
+                          onOpen={guard(() => onOpenLine(line.id))}
+                          onPay={guard(() => onPayLine(line.id))}
+                        />
+                      ))}
+                      {multi && (
+                        <button
+                          type="button"
+                          onClick={guard(onPayAll)}
+                          className="my-2 w-full rounded-lg bg-primary/10 py-2
+                            text-sm font-semibold text-primary
+                            active:bg-primary/20"
+                        >
+                          Pay all {peso(row.left)}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
       </motion.div>
