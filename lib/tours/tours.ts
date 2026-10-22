@@ -1,6 +1,10 @@
 import type { Tour } from "@/lib/tours/logic";
 
-/** The whole-checklist walkthrough: started from the "⋯" menu or What's new. */
+/**
+ * The whole-checklist walkthrough. It plays once by itself on the first visit
+ * after the deploy that added it, and can be started again from the "⋯" menu
+ * or What's new.
+ */
 export const GUIDE_TOUR_ID = "2026-10-22-checklist-guide";
 
 /**
@@ -14,6 +18,8 @@ export const TOURS: Tour[] = [
     title: "Checklist update",
     date: "2026-10-22",
     page: "/daily-checklist",
+    // The guide covers this; it stays here to replay, but no longer starts by itself.
+    auto: false,
     steps: [
       {
         target: '[data-tour="checklist-tabs"]',
@@ -37,7 +43,6 @@ export const TOURS: Tour[] = [
     title: "Checklist guide",
     date: "2026-10-22",
     page: "/daily-checklist",
-    auto: false,
     steps: [
       {
         target: '[data-tour="checklist-date"]',
@@ -176,6 +181,8 @@ export const TOURS: Tour[] = [
     title: "Open a created release",
     date: "2026-10-22",
     page: "/daily-checklist",
+    // The guide covers this; it stays here to replay, but no longer starts by itself.
+    auto: false,
     replayQuery: "tab=release",
     steps: [
       {
@@ -203,6 +210,8 @@ export const TOURS: Tour[] = [
     title: "Open an account from the payment sheet",
     date: "2026-10-22",
     page: "/daily-checklist",
+    // The guide covers this; it stays here to replay, but no longer starts by itself.
+    auto: false,
     steps: [
       {
         target: '[data-tour="checklist-pay-pill"]',

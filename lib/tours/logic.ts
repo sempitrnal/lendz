@@ -26,7 +26,7 @@ export type Tour = {
   /** Pathname the tour runs on; `/borrowers/*` matches any page below it. */
   page: string;
   steps: TourStep[];
-  /** `false`: only started on request (a guide), never by itself on a visit. */
+  /** `false`: only started on request (replay), never by itself on a visit. */
   auto?: boolean;
   /** Extra query for Replay, e.g. "tab=release" to open the tab it is on. */
   replayQuery?: string;

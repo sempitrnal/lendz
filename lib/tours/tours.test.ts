@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { TOURS } from "@/lib/tours/tours";
+import { nextTour } from "@/lib/tours/logic";
+import { GUIDE_TOUR_ID, TOURS } from "@/lib/tours/tours";
 
 describe("TOURS", () => {
   it("has unique, well-formed ids", () => {
@@ -15,5 +16,9 @@ describe("TOURS", () => {
         expect(s.target).toMatch(/^\[data-tour="[a-z0-9-]+"\]$/);
       }
     }
+  });
+  it("a first visit to the checklist plays only the guide", () => {
+    expect(nextTour(TOURS, "/daily-checklist", [])?.id).toBe(GUIDE_TOUR_ID);
+    expect(nextTour(TOURS, "/daily-checklist", [GUIDE_TOUR_ID])).toBeNull();
   });
 });
