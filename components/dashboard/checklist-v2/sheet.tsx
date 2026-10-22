@@ -41,6 +41,13 @@ export function Sheet({
     >
       <DrawerContent
         aria-describedby={undefined}
+        // A tour pointing into the sheet must not close it by taking focus or
+        // taps.
+        onInteractOutside={(e) => {
+          if ((e.target as Element | null)?.closest?.("[data-tour-overlay]")) {
+            e.preventDefault();
+          }
+        }}
         className="z-[9999] mx-auto max-h-[88dvh] max-w-md overflow-hidden
           rounded-t-3xl border-t border-border bg-card
           pb-[env(safe-area-inset-bottom)] outline-none

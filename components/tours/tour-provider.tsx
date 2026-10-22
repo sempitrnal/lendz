@@ -75,11 +75,12 @@ export function TourProvider() {
 
   if (!active) return null;
 
-  const close = () => {
+  const close = (viaTap = false) => {
     closed.current.add(active.tour.id);
     if (!active.replay) markSeen(active.tour.id);
-    else {
-      // So a reload doesn't replay it again.
+    else if (!viaTap) {
+      // So a reload doesn't replay it again. (Not after a tap: that tap may be
+      // navigating, and changing the address now would cancel it.)
       const url = new URL(window.location.href);
       url.searchParams.delete("tour");
       window.history.replaceState(null, "", url);
@@ -93,7 +94,7 @@ export function TourProvider() {
       tour={active.tour}
       steps={active.steps}
       onFinish={close}
-      onSkip={close}
+      onSkip={() => close()}
     />
   );
 }

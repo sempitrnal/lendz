@@ -75,6 +75,15 @@ describe("playableSteps", () => {
   });
 });
 
+describe("playableSteps with lazy steps", () => {
+  it("keeps a lazy step even though its target isn't there yet", () => {
+    const steps = [step("a"), { ...step("later"), lazy: true }, step("gone")];
+    expect(
+      playableSteps(steps, (sel) => sel === "a").map((s) => s.target),
+    ).toEqual(["a", "later"]);
+  });
+});
+
 describe("readSeen", () => {
   it("is empty for a missing key, bad JSON or a non-array", () => {
     expect(readSeen(fakeStorage())).toEqual([]);

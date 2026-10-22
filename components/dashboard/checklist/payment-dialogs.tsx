@@ -519,6 +519,7 @@ export function ScheduleCheckDialog({
         const summary = summaries?.[group.accountId] ?? null;
         return (
           <section
+            data-tour="pay-account-card"
             key={group.accountId}
             // One container per account: its type and progress together
             // with its schedules, set apart from the other accounts.

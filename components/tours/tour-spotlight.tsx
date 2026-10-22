@@ -24,7 +24,8 @@ export function TourSpotlight({
 }: {
   tour: Tour;
   steps: TourStep[];
-  onFinish(): void;
+  /** `viaTap`: the last step was finished by tapping its target, which may navigate. */
+  onFinish(viaTap?: boolean): void;
   onSkip(): void;
 }) {
   const [index, setIndex] = useState(0);
@@ -40,33 +41,94 @@ export function TourSpotlight({
 
   const next = () => (last ? onFinish() : setIndex((i) => i + 1));
 
-  // Track the target: scroll it into view, then follow scroll and resize.
+  // Track the target: scroll it into view, then follow scroll and resize. A
+  // lazy step waits (up to 3 s) for its target to appear, e.g. inside a sheet
+  // the previous step's tap opens; a click step moves on when it is tapped.
   useEffect(() => {
-    const el = document.querySelector(step.target);
-    // The target went away mid-tour: skip the step.
-    if (!el) {
-      queueMicrotask(() => (last ? onFinish() : setIndex((i) => i + 1)));
-      return;
-    }
-    el.scrollIntoView({
-      block: "center",
-      behavior: reduceMotion ? "auto" : "smooth",
-    });
-    const update = () => {
-      const r = el.getBoundingClientRect();
-      setBox({
-        top: r.top - PAD,
-        left: r.left - PAD,
-        width: r.width + PAD * 2,
-        height: r.height + PAD * 2,
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    let detach = () => {};
+    const advance = (viaTap = false) =>
+      queueMicrotask(() => {
+        if (cancelled) return;
+        if (last) onFinish(viaTap);
+        else setIndex((i) => i + 1);
       });
+
+    const attach = (el: Element) => {
+      el.scrollIntoView({
+        block: "center",
+        behavior: reduceMotion ? "auto" : "smooth",
+      });
+      // Follow the target every frame: it may be sliding (a sheet opening),
+      // scrolling or resizing. Only a changed rectangle re-renders.
+      let frame = 0;
+      let last: [number, number, number, number] | null = null;
+      const track = () => {
+        // The list may re-render and replace the element: look it up again.
+        const current = document.querySelector(step.target);
+        if (!current) {
+          frame = requestAnimationFrame(track);
+          return;
+        }
+        const r = current.getBoundingClientRect();
+        const now: [number, number, number, number] = [
+          r.top,
+          r.left,
+          r.width,
+          r.height,
+        ];
+        if (!last || now.some((v, i) => v !== last![i])) {
+          last = now;
+          setBox({
+            top: r.top - PAD,
+            left: r.left - PAD,
+            width: r.width + PAD * 2,
+            height: r.height + PAD * 2,
+          });
+        }
+        frame = requestAnimationFrame(track);
+      };
+      const onClick = (e: MouseEvent) => {
+        if ((e.target as Element | null)?.closest?.(step.target)) {
+          setTimeout(() => advance(true), 0);
+        }
+      };
+      track();
+      if (step.advanceOn === "click") {
+        document.addEventListener("click", onClick, true);
+      }
+      detach = () => {
+        cancelAnimationFrame(frame);
+        document.removeEventListener("click", onClick, true);
+      };
     };
-    update();
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
+
+    const found = document.querySelector(step.target);
+    if (found) attach(found);
+    else if (step.lazy) {
+      // Hide the previous step's hole while we wait.
+      queueMicrotask(() => !cancelled && setBox(null));
+      const started = Date.now();
+      timer = setInterval(() => {
+        const el = document.querySelector(step.target);
+        if (el) {
+          clearInterval(timer);
+          attach(el);
+        } else if (Date.now() - started >= 3000) {
+          clearInterval(timer);
+          advance();
+        }
+      }, 100);
+    } else {
+      // The target went away mid-tour: skip the step.
+      advance();
+    }
+
     return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
+      cancelled = true;
+      clearInterval(timer);
+      detach();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
@@ -118,9 +180,51 @@ export function TourSpotlight({
   const motion = reduceMotion ? "" : "transition-all duration-200";
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000]">
-      {/* Swallows taps on the dimmed screen. */}
-      <div className="absolute inset-0" aria-hidden="true" />
+    // The root lets taps through; the parts below take them back. (A sheet
+    // that is open sets `pointer-events: none` on the page, so they are set
+    // explicitly.)
+    <div
+      data-tour-overlay
+      className="pointer-events-none fixed inset-0 z-[10000]"
+    >
+      {/* Swallows taps on the dimmed screen; a click step leaves its hole open. */}
+      {step.advanceOn === "click" ? (
+        <>
+          <div
+            className="pointer-events-auto absolute inset-x-0 top-0"
+            style={{ height: Math.max(0, box.top) }}
+            aria-hidden="true"
+          />
+          <div
+            className="pointer-events-auto absolute inset-x-0 bottom-0"
+            style={{ top: box.top + box.height }}
+            aria-hidden="true"
+          />
+          <div
+            className="pointer-events-auto absolute left-0"
+            style={{
+              top: box.top,
+              height: box.height,
+              width: Math.max(0, box.left),
+            }}
+            aria-hidden="true"
+          />
+          <div
+            className="pointer-events-auto absolute right-0"
+            style={{
+              top: box.top,
+              height: box.height,
+              left: box.left + box.width,
+            }}
+            aria-hidden="true"
+          />
+        </>
+      ) : (
+        <div
+          className="pointer-events-auto absolute inset-0"
+          aria-hidden="true"
+        />
+      )}
       <div
         aria-hidden="true"
         className={`pointer-events-none absolute rounded-xl ${motion}`}
@@ -139,8 +243,9 @@ export function TourSpotlight({
         aria-modal="true"
         aria-label={tour.title}
         tabIndex={-1}
-        className={`absolute rounded-2xl border border-border bg-card p-4
-          text-card-foreground shadow-xl outline-none ${motion}`}
+        className={`pointer-events-auto absolute rounded-2xl border
+          border-border bg-card p-4 text-card-foreground shadow-xl outline-none
+          ${motion}`}
         style={{ top, left, width }}
       >
         <p className="text-xs font-medium text-muted-foreground">
@@ -176,9 +281,15 @@ export function TourSpotlight({
               Back
             </Button>
           )}
-          <Button type="button" size="sm" onClick={next}>
-            {last ? "Done" : "Next"}
-          </Button>
+          {step.advanceOn === "click" ? (
+            <span className="text-xs font-medium text-primary">
+              Tap it to continue
+            </span>
+          ) : (
+            <Button type="button" size="sm" onClick={next}>
+              {last ? "Done" : "Next"}
+            </Button>
+          )}
         </div>
       </div>
     </div>,

@@ -56,4 +56,25 @@ export const TOURS: Tour[] = [
       },
     ],
   },
+  {
+    id: "2026-10-22-payment-accounts",
+    title: "Open an account from the payment sheet",
+    date: "2026-10-22",
+    page: "/daily-checklist",
+    steps: [
+      {
+        target: '[data-tour="checklist-pay-pill"]',
+        title: "Open the payment sheet",
+        body: "Tap Pay to open the payment sheet.",
+        advanceOn: "click",
+      },
+      {
+        target: '[data-tour="pay-account-card"]',
+        title: "Tap the account card",
+        body: "Tap the card with the progress bar to open that account's page.",
+        advanceOn: "click",
+        lazy: true,
+      },
+    ],
+  },
 ];

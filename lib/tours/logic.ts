@@ -7,6 +7,10 @@ export type TourStep = {
   body: string;
   /** Preferred side of the target for the popup; it flips if it doesn't fit. */
   placement?: "top" | "bottom";
+  /** The step moves on when the highlighted element is tapped (it stays tappable). */
+  advanceOn?: "click";
+  /** The target only appears later (after the previous step's tap), so it isn't needed to start. */
+  lazy?: boolean;
 };
 
 export type Tour = {
@@ -47,12 +51,12 @@ export function tourById(tours: Tour[], id: string | null): Tour | null {
   return tours.find((t) => t.id === id) ?? null;
 }
 
-/** Steps whose target is on screen; a missing one never leaves a hole. */
+/** Steps whose target is on screen (or is lazy); a missing one never leaves a hole. */
 export function playableSteps(
   steps: TourStep[],
   exists: (selector: string) => boolean,
 ): TourStep[] {
-  return steps.filter((s) => exists(s.target));
+  return steps.filter((s) => s.lazy || exists(s.target));
 }
 
 /** `window.localStorage` itself can throw (blocked site data). */
