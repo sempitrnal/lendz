@@ -9,6 +9,10 @@ export type TourStep = {
   placement?: "top" | "bottom";
   /** The step moves on when the highlighted element is tapped (it stays tappable). */
   advanceOn?: "click";
+  /** The highlighted element is usable (try it) while Next stays the way on. */
+  interactive?: boolean;
+  /** Next first closes the sheet this step is inside (a sheet with no Close button). */
+  closesSheet?: boolean;
   /** The target only appears later (after the previous step's tap), so it isn't needed to start. */
   lazy?: boolean;
 };

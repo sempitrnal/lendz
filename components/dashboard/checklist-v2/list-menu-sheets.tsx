@@ -139,7 +139,7 @@ export function ListMenuSheet({
       <h2 className="text-lg font-semibold">
         {isToday ? "Today's list" : "This day's list"}
       </h2>
-      <ul className="mt-3 space-y-2">
+      <ul data-tour="list-menu-entries" className="mt-3 space-y-2">
         <MenuButton
           icon={<Plus className="size-4" />}
           title={populating ? "Populating…" : "Populate due"}

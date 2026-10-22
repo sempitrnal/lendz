@@ -303,9 +303,7 @@ export function Header({
               key={key}
               type="button"
               role="tab"
-              data-tour={
-                key === "release" ? "checklist-release-tab" : undefined
-              }
+              data-tour={`checklist-${key}-tab`}
               aria-selected={tab === key}
               onClick={() => onTabChange(key)}
               className={cn(

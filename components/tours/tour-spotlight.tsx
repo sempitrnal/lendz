@@ -38,8 +38,18 @@ export function TourSpotlight({
   );
   const step = steps[index];
   const last = index === steps.length - 1;
+  // The highlighted element can be used: tapped to move on, or just tried.
+  const holeOpen = step.advanceOn === "click" || step.interactive === true;
 
-  const next = () => (last ? onFinish() : setIndex((i) => i + 1));
+  const next = () => {
+    const go = () => (last ? onFinish() : setIndex((i) => i + 1));
+    if (!step.closesSheet) return go();
+    // A sheet with no Close button: send it the Escape key, then carry on.
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    setTimeout(go, 350);
+  };
 
   // Track the target: scroll it into view, then follow scroll and resize. A
   // lazy step waits (up to 3 s) for its target to appear, e.g. inside a sheet
@@ -151,7 +161,7 @@ export function TourSpotlight({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onSkip();
+      if (e.key === "Escape" && e.isTrusted) onSkip();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -188,7 +198,7 @@ export function TourSpotlight({
       className="pointer-events-none fixed inset-0 z-[10000]"
     >
       {/* Swallows taps on the dimmed screen; a click step leaves its hole open. */}
-      {step.advanceOn === "click" ? (
+      {holeOpen ? (
         <>
           <div
             className="pointer-events-auto absolute inset-x-0 top-0"
@@ -250,6 +260,14 @@ export function TourSpotlight({
       >
         <p className="text-xs font-medium text-muted-foreground">
           {tour.title}
+          {holeOpen && (
+            <span
+              className="ml-2 rounded-full bg-primary/10 px-1.5 py-0.5
+                text-primary"
+            >
+              Your turn
+            </span>
+          )}
         </p>
         <h2 className="mt-0.5 text-base font-semibold">{step.title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>

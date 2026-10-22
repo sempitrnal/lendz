@@ -84,12 +84,19 @@ export function TourProvider() {
   const close = (viaTap = false) => {
     closed.current.add(active.tour.id);
     if (!active.replay) markSeen(active.tour.id);
-    else if (!viaTap) {
-      // So a reload doesn't replay it again. (Not after a tap: that tap may be
-      // navigating, and changing the address now would cancel it.)
-      const url = new URL(window.location.href);
-      url.searchParams.delete("tour");
-      window.history.replaceState(null, "", url);
+    else {
+      // So a reload doesn't replay it again. After a tap that may be
+      // navigating, wait and only clean up if we are still on this page
+      // (changing the address mid-navigation would cancel it).
+      const here = window.location.pathname;
+      const clean = () => {
+        if (window.location.pathname !== here) return;
+        const url = new URL(window.location.href);
+        url.searchParams.delete("tour");
+        window.history.replaceState(null, "", url);
+      };
+      if (viaTap) setTimeout(clean, 1000);
+      else clean();
     }
     setActive(null);
   };

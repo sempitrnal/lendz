@@ -855,6 +855,7 @@ export function AddSheet({
           )}
           <textarea
             ref={textRef}
+            data-tour="add-note"
             rows={2}
             value={text}
             disabled={disabled}

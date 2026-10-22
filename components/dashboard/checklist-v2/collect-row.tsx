@@ -313,6 +313,7 @@ export function CollectRow({
                 <button
                   type="button"
                   aria-expanded={expanded}
+                  data-tour="checklist-expand"
                   aria-label={`${expanded ? "Hide" : "Show"} ${row.lines.length} schedules for ${name}`}
                   onClick={guard(onExpandToggle)}
                   className="-mx-1 flex size-11 shrink-0 items-center
@@ -411,7 +412,10 @@ export function CollectRow({
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="mx-4 mb-3 rounded-xl bg-muted/50 px-3 py-1">
+                  <div
+                    data-tour="checklist-lines"
+                    className="mx-4 mb-3 rounded-xl bg-muted/50 px-3 py-1"
+                  >
                     {row.lines.map((line) => (
                       <LineItem
                         key={line.id}
