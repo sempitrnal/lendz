@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/populate",
-      "schedule": "0 17 * * *"
+      "schedule": "0 21 * * *"
     }
   ]
 }

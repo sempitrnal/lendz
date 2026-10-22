@@ -5,7 +5,7 @@ import type { RowView } from "@/lib/checklist/row-state";
  * together with `vercel.json`: that cron is in UTC, eight hours earlier (the
  * test beside this file checks they agree).
  */
-export const AUTO_POPULATE_HOUR = 1;
+export const AUTO_POPULATE_HOUR = 5;
 
 /** The run hour in 12-hour time, e.g. "1 AM", "6 AM". */
 export function autoPopulateLabel(hour = AUTO_POPULATE_HOUR): string {
