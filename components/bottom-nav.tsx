@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   Settings,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -45,6 +46,7 @@ const ALL_ITEMS: NavItem[] = [
   { href: "/calendar", label: "calendar", Icon: CalendarDays },
   { href: "/categories", label: "categories", Icon: Tag },
   { href: "/deleted", label: "trash", Icon: Trash2 },
+  { href: "/whats-new", label: "what's new", Icon: Sparkles },
 ];
 
 export default function BottomNav() {

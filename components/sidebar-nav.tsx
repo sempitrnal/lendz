@@ -16,6 +16,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   TrendingUp,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -64,6 +65,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/deleted", label: "Trash", Icon: Trash2 },
       { href: "/settings", label: "Settings", Icon: Settings },
+      { href: "/whats-new", label: "What's new", Icon: Sparkles },
     ],
   },
 ];
