@@ -2,10 +2,24 @@
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { BookOpen, Check, Plus, Settings2, Trash2, Undo2 } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  Plus,
+  Settings2,
+  Trash2,
+  Undo2,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import {
+  celebrationSoundEnabled,
+  setCelebrationSound,
+} from "@/lib/checklist/celebrate";
+import { playChaChing, primeAudio } from "@/lib/sound/cha-ching";
 import { SheetFooter } from "@/components/dashboard/checklist-v2/sheet";
 import { SheetListSkeleton } from "@/components/dashboard/checklist-v2/sheet-parts";
 import { peso } from "@/components/dashboard/checklist-v2/header";
@@ -128,6 +142,7 @@ export function ListMenuSheet({
   /** Starts the checklist guide tour. */
   onGuide(): void;
 }) {
+  const [soundOn, setSoundOn] = useState(() => celebrationSoundEnabled());
   const taken = useRef(false);
   const once = (fn: () => void) => () => {
     if (taken.current) return;
@@ -177,6 +192,25 @@ export function ListMenuSheet({
             onClick={once(onClear)}
           />
         )}
+        <MenuButton
+          icon={
+            soundOn ? (
+              <Volume2 className="size-4" />
+            ) : (
+              <VolumeX className="size-4" />
+            )
+          }
+          title={`Cha-ching sound: ${soundOn ? "on" : "off"}`}
+          hint="Plays when a payment earns profit"
+          onClick={() => {
+            const next = !soundOn;
+            setSoundOn(next);
+            setCelebrationSound(next);
+            // This tap unlocks audio, and turning it on plays a preview.
+            primeAudio();
+            if (next) playChaChing();
+          }}
+        />
         <MenuButton
           icon={<BookOpen className="size-4" />}
           title="Checklist guide"

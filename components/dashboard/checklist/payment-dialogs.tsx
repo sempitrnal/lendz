@@ -435,6 +435,8 @@ export function ScheduleCheckDialog({
     try {
       await recordPayments({
         plan,
+        // A real payment: "+₱500!" when it earns profit.
+        celebrateProfit: true,
         accountIds,
         borrowerId: borrower ? borrower.id : null,
         paymentDate: todayDateValue(),

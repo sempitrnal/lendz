@@ -153,6 +153,7 @@ export function useBulkPaid(
 
       paid = recordPayments({
         plan: bulk.plan,
+        celebrateProfit: true,
         accountIds: bulk.accountIds,
         // Several borrowers: their pages are refreshed below.
         borrowerId: null,

@@ -8,9 +8,12 @@ import {
 import {
   actionWasQueued,
   applyPaymentsToCache,
+  readCachedSchedules,
   refreshCachedAccounts,
   undoPaymentsInCache,
 } from "@/lib/checklist/schedule-cache";
+import { celebrate } from "@/lib/checklist/celebrate";
+import { profitGained } from "@/lib/checklist/profit";
 import type { PaymentPlan } from "@/lib/checklist/payment-plan";
 import { getPendingOutboxCount } from "@/lib/offline/outbox";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
@@ -22,6 +25,11 @@ export type RecordPaymentsInput = {
   accountIds: string[];
   borrowerId: string | null;
   paymentDate: string;
+  /**
+   * Celebrate ("+₱500!" and a cha-ching) when this earns profit. Only for a
+   * real payment: an Undo or an edit also records payments and must stay quiet.
+   */
+  celebrateProfit?: boolean;
   /** After the local result shows, before the server answers. */
   onApplied?: () => void;
   /** After a refusal, once the local result is put back. */
@@ -50,6 +58,7 @@ export function useRecordPayments() {
     accountIds,
     borrowerId,
     paymentDate,
+    celebrateProfit = false,
     onApplied,
     onFailed,
     failureMessage = DEFAULT_FAILURE_MESSAGE,
@@ -58,9 +67,21 @@ export function useRecordPayments() {
 
     // Show the result now. Line statuses read the saved schedules, so those are
     // updated here; the server catches up below, and a failure puts both back.
+    // What this earns, read before the saved copy changes.
+    const gained = celebrateProfit
+      ? profitGained(
+          plan.payments,
+          new Map(
+            readCachedSchedules(plan.payments.map((p) => p.scheduleId)).map(
+              (r) => [r.id, r],
+            ),
+          ),
+        )
+      : 0;
     undoPaymentsInCache(plan.undoCalls.map((c) => c.scheduleId));
     applyPaymentsToCache(plan.payments);
     onApplied?.();
+    celebrate(gained);
 
     try {
       await Promise.all([

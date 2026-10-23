@@ -43,3 +43,24 @@ export function profitOnInstallment(amountPaid: number, share: number): number {
 export function installmentProfit(amountDue: number, share: number): number {
   return cents(Math.max(0, amountDue - share));
 }
+
+/**
+ * The profit a set of payments adds: for each schedule, the profit collected
+ * after the payment minus before it (nothing until its principal share is
+ * covered). Schedules with no saved share, or not found, add nothing.
+ */
+export function profitGained(
+  payments: { scheduleId: string; amount: number }[],
+  rows: Map<string, { amount_paid: number; principal_share?: number }>,
+): number {
+  let total = 0;
+  for (const { scheduleId, amount } of payments) {
+    const row = rows.get(scheduleId);
+    if (!row || row.principal_share === undefined) continue;
+    const before = Number(row.amount_paid ?? 0);
+    total +=
+      profitOnInstallment(before + amount, row.principal_share) -
+      profitOnInstallment(before, row.principal_share);
+  }
+  return cents(total);
+}

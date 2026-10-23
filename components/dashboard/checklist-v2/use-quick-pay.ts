@@ -131,6 +131,7 @@ export function useQuickPay(
       paid = recordPayments({
         ...base,
         plan: quick.pay,
+        celebrateProfit: true,
         onApplied: () => {
           if (tick) setChecked([itemId], true);
           toastId = undoToast(

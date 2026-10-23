@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   installmentProfit,
   principalShare,
+  profitGained,
   profitOnInstallment,
 } from "@/lib/checklist/profit";
 
@@ -106,5 +107,42 @@ describe("installmentProfit", () => {
   });
   it("rounds to centavos", () => {
     expect(installmentProfit(100.119, 33.3333)).toBe(66.79);
+  });
+});
+
+describe("profitGained", () => {
+  const rows = new Map([
+    ["a", { amount_paid: 0, principal_share: 2000 }],
+    ["b", { amount_paid: 1500, principal_share: 2000 }],
+    ["c", { amount_paid: 2200, principal_share: 2000 }],
+    ["d", { amount_paid: 0 }],
+  ]);
+  it("is the profit a payment adds beyond the principal share", () => {
+    expect(profitGained([{ scheduleId: "a", amount: 2450 }], rows)).toBe(450);
+  });
+  it("counts only the part past the principal share on a part-paid schedule", () => {
+    // 1500 paid of a 2000 share: paying 950 more reaches 2450, so 450 profit.
+    expect(profitGained([{ scheduleId: "b", amount: 950 }], rows)).toBe(450);
+    // Still under the share: nothing gained yet.
+    expect(profitGained([{ scheduleId: "b", amount: 400 }], rows)).toBe(0);
+  });
+  it("counts only the new profit when profit was already collected", () => {
+    expect(profitGained([{ scheduleId: "c", amount: 250 }], rows)).toBe(250);
+  });
+  it("adds up several schedules and skips unknown ones", () => {
+    expect(
+      profitGained(
+        [
+          { scheduleId: "a", amount: 2450 },
+          { scheduleId: "c", amount: 250 },
+          { scheduleId: "d", amount: 999 },
+          { scheduleId: "zzz", amount: 100 },
+        ],
+        rows,
+      ),
+    ).toBe(700);
+  });
+  it("is 0 for no payments", () => {
+    expect(profitGained([], rows)).toBe(0);
   });
 });

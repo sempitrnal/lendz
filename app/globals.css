@@ -292,3 +292,89 @@
     font-size: 16px !important;
   }
 }
+
+/* The "+₱500!" celebration when a payment earns profit (checklist). */
+@keyframes celebrate-pop {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0) scale(0.5);
+  }
+  18% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1.18);
+  }
+  32% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  78% {
+    opacity: 1;
+    transform: translate3d(0, -6px, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -28px, 0) scale(1);
+  }
+}
+
+@keyframes celebrate-glow {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes celebrate-spark {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx), var(--dy), 0) scale(0.4);
+  }
+}
+
+@keyframes celebrate-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  15%,
+  80% {
+    opacity: 1;
+  }
+}
+
+/* Only transform and opacity animate, each element on its own layer: the work
+   stays on the GPU, so it stays smooth on an iPhone. */
+.celebrate-text {
+  animation: celebrate-pop 1.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.celebrate-glow {
+  animation: celebrate-glow 1.3s ease-out both;
+  will-change: opacity;
+}
+
+.celebrate-spark {
+  animation: celebrate-spark 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebrate-text {
+    animation: celebrate-fade 1.3s both;
+  }
+  .celebrate-glow,
+  .celebrate-spark {
+    display: none;
+  }
+}
