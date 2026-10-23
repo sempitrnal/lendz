@@ -362,7 +362,7 @@ export function Header({
       {/* Sticks under the mobile top bar (4rem) or the site header (66px). */}
       <div
         className="sticky top-16 z-20 sm:top-[66px] mt-3 space-y-2 border-b
-          border-border bg-background/95 px-4 pt-2 pb-2.5 backdrop-blur"
+          border-border bg-background px-4 pt-2 pb-2.5"
       >
         <div
           className="flex rounded-xl bg-secondary p-0.5 text-sm font-medium"

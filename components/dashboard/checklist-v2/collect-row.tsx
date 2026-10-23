@@ -409,13 +409,17 @@ export function CollectRow({
             </div>
 
             {expandable && (
-              // Open and close by animating the grid row from 0fr to 1fr: the
-              // browser does it in CSS, with no measuring on every frame.
+              // Open and close by animating the grid row from 0fr to 1fr in CSS.
+              // On a touch device (an iPhone's WebKit re-lays the list out on
+              // every frame, and it lagged) the rows change at once and only
+              // the content fades, which costs no layout.
               <div
                 inert={!expanded}
                 className={cn(
                   `grid transition-[grid-template-rows,opacity] duration-200
-                    ease-out motion-reduce:transition-none`,
+                    ease-out motion-reduce:transition-none
+                    [@media(hover:none)]:transition-opacity
+                    [@media(hover:none)]:duration-150`,
                   expanded
                     ? "grid-rows-[1fr] opacity-100"
                     : "grid-rows-[0fr] opacity-0",
@@ -602,7 +606,7 @@ function LineItem({
           >
             {due}
             {line.overdue && <LatePill label={`${line.daysOverdue}d late`} />}
-            {paid ? "paid · tap to edit" : ""}
+            {paid ? " paid · tap to edit" : ""}
           </p>
         </div>
         <span className="shrink-0 text-right">
