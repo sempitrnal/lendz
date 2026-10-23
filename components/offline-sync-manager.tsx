@@ -6,12 +6,15 @@ import { useOnline } from "@/hooks/use-online";
 import { warmChecklistCache } from "@/lib/checklist/offline-cache";
 import { requestOutboxReplay } from "@/lib/offline/outbox";
 import { readStored, writeStored } from "@/lib/offline/storage";
+import { parseRefreshScope, urlsToRefresh } from "@/lib/offline/refresh-scope";
 
 /** Written after each build by scripts/offline-manifest.mjs. */
 type OfflineManifest = {
   buildId: string;
   /** Every static file of the build (`/_next/static/...`). */
   assets: string[];
+  /** Which saved pages this build re-downloads ("all" or "checklist"). */
+  refresh?: string;
 };
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often to check while app is open
@@ -146,20 +149,25 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
           ),
         ];
 
-        // A new app version re-downloads every saved page (and the JS/CSS
-        // they need). Each page carries the build it was saved from, and the
+        // A new app version fetches the JS/CSS it needs and re-downloads the
+        // saved pages its manifest names (`refresh`: all of them, or just the
+        // checklist's). Each page carries the build it was saved from, and the
         // router turns a mismatch into a full reload of that old page, old
-        // code and all, so none can be kept. Saved pages outside the list
-        // are dropped once the pass is done. Without a manifest (dev)
+        // code and all, so an old page works only while its old files are
+        // kept. After a full refresh, saved pages and files outside the new
+        // build are dropped once the pass is done. Without a manifest (dev)
         // versions aren't tracked.
         const manifest = await fetchManifest();
         if (cancelled) return;
         const synced = readStored<OfflineManifest>(SYNCED_MANIFEST_KEY);
         const newVersion =
           manifest !== null && manifest.buildId !== synced?.buildId;
-        const refresh = newVersion
-          ? urls.filter((url) => !url.startsWith("/api/"))
-          : [];
+        // A deploy that only changed the checklist re-downloads just its
+        // pages; the rest (and the old build's files) are kept as they are
+        // and refresh when visited online, or at the next full deploy.
+        const scope = parseRefreshScope(manifest?.refresh);
+        const fullRefresh = newVersion && scope === "all";
+        const refresh = newVersion ? urlsToRefresh(urls, scope) : [];
 
         // Otherwise prefetch only when the route list changed (new entity or
         // route). Visited pages refresh themselves via the SW's network-first
@@ -185,7 +193,7 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
           hash: listHash,
           refresh,
           assets: manifest?.assets ?? null,
-          prune: newVersion,
+          prune: fullRefresh,
         });
       } catch {
         // Queries failed — retry on next tick

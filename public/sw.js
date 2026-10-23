@@ -652,10 +652,10 @@ function getQueuedUrls(db) {
 // refreshes them all: each saved page carries the build it came from, and
 // the router reloads into an old build's page when they don't match).
 // `assets` is every static file of the new version: missing ones are fetched
-// so pages work offline, and once the pass completes, cached files no longer
-// in the list are dropped. With `prune`, saved pages outside `urls` (other
-// query strings, deleted records) are dropped then too: they're from the old
-// build.
+// so pages work offline. With `prune` (a full refresh), once the pass
+// completes cached files no longer in the list are dropped, and saved pages
+// outside `urls` (other query strings, deleted records) too: they're from the
+// old build. Without it nothing old is dropped.
 async function seedPrefetchQueue(urls, hash, refresh, assets, prune) {
   const db = await openPrefetchDb();
   try {
@@ -716,7 +716,10 @@ async function seedPrefetchQueue(urls, hash, refresh, assets, prune) {
           // Lets the page tell this worker (which understood `refresh`) from
           // an older one that ignored it.
           refreshed: Array.isArray(refresh),
-          assets: Array.isArray(assets) ? assets : null,
+          // Old files are dropped only after a full refresh: after a
+          // checklist-only deploy the other saved pages still run the old
+          // build and need its files.
+          assets: prune && Array.isArray(assets) ? assets : null,
           keep: prune ? urls : null,
         });
         return tx;

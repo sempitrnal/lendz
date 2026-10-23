@@ -9,6 +9,9 @@
  * - `assets`: every static file of this build, so the worker can fetch the
  *   new ones ahead of time (pages offline need their chunks) and drop the
  *   ones no longer used.
+ * - `refresh`: which saved pages a new build re-downloads: "all", or
+ *   "checklist" for a deploy that only changed the checklist (the other pages
+ *   and the old build's files are kept until the next "all" deploy).
  */
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -17,6 +20,10 @@ const NEXT = ".next";
 const OUT = join("public", "offline-manifest.json");
 
 const buildId = readFileSync(join(NEXT, "BUILD_ID"), "utf8").trim();
+
+// Set this to "all" (or build with OFFLINE_REFRESH=all) for any deploy that
+// changes pages other than the checklist, so they are saved again too.
+const REFRESH = process.env.OFFLINE_REFRESH ?? "checklist";
 
 function listFiles(dir) {
   const out = [];
@@ -36,5 +43,5 @@ const assets = listFiles(staticDir)
   )
   .sort();
 
-writeFileSync(OUT, JSON.stringify({ buildId, assets }));
-console.log(`offline manifest: ${assets.length} assets`);
+writeFileSync(OUT, JSON.stringify({ buildId, assets, refresh: REFRESH }));
+console.log(`offline manifest: ${assets.length} assets, refresh ${REFRESH}`);
