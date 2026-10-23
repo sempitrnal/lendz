@@ -1,8 +1,40 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { keyboardInset } from "@/lib/keyboard-inset";
+
+/** Follows the on-screen keyboard while `active`: null when there is none. */
+function useKeyboardInset(active: boolean) {
+  const [inset, setInset] = useState<ReturnType<typeof keyboardInset>>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!active || !vv) return;
+    const update = () => {
+      const next = keyboardInset({
+        innerHeight: window.innerHeight,
+        vvHeight: vv.height,
+        vvOffsetTop: vv.offsetTop,
+      });
+      // Same numbers: keep the old object, so nothing re-renders.
+      setInset((prev) =>
+        prev?.bottom === next?.bottom && prev?.maxHeight === next?.maxHeight
+          ? prev
+          : next,
+      );
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      setInset(null);
+    };
+  }, [active]);
+  return inset;
+}
 
 /**
  * A bottom sheet on the shadcn drawer (vaul): backdrop, grab handle, drag
@@ -29,6 +61,8 @@ export function Sheet({
   // ones on screen while the drawer slides out.
   const [shown, setShown] = useState(children);
   if (open && shown !== children) setShown(children);
+  // With the keyboard up the sheet lifts above it and shrinks to what is left.
+  const keyboard = useKeyboardInset(open);
 
   return (
     <Drawer
@@ -48,6 +82,11 @@ export function Sheet({
             e.preventDefault();
           }
         }}
+        style={
+          keyboard
+            ? { bottom: keyboard.bottom, maxHeight: keyboard.maxHeight }
+            : undefined
+        }
         className="z-[9999] mx-auto max-h-[88dvh] max-w-md overflow-hidden
           rounded-t-3xl border-t border-border bg-card
           pb-[env(safe-area-inset-bottom)] outline-none
