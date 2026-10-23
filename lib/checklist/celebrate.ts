@@ -5,18 +5,24 @@
  */
 
 export const CELEBRATE_EVENT = "lendz:celebrate";
-export type CelebrateDetail = { amount: number };
+export type CelebrateDetail = { amount: number; partial: boolean };
 
-/** Announces profit gained; nothing for zero or less. */
+/**
+ * Announces profit gained; nothing for zero or less. `partial` is for a
+ * payment that only covers part of a schedule (it gets its own sound).
+ */
 export function celebrate(
   amount: number,
   target: EventTarget | undefined = typeof window === "undefined"
     ? undefined
     : window,
+  partial = false,
 ): void {
   if (!(amount > 0) || !target) return;
   target.dispatchEvent(
-    new CustomEvent<CelebrateDetail>(CELEBRATE_EVENT, { detail: { amount } }),
+    new CustomEvent<CelebrateDetail>(CELEBRATE_EVENT, {
+      detail: { amount, partial },
+    }),
   );
 }
 

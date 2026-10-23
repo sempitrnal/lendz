@@ -38,10 +38,11 @@ export function CelebrationHost() {
     });
 
     const onCelebrate = (event: Event) => {
-      const { amount } = (event as CustomEvent<CelebrateDetail>).detail;
+      const { amount, partial } = (event as CustomEvent<CelebrateDetail>)
+        .detail;
       count.current += 1;
       setShown({ id: count.current, amount });
-      if (celebrationSoundEnabled()) playChaChing();
+      if (celebrationSoundEnabled()) playChaChing(partial ? "partial" : "full");
       clearTimeout(timer.current);
       timer.current = setTimeout(() => setShown(null), SHOW_MS);
     };

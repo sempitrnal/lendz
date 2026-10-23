@@ -23,7 +23,16 @@ describe("celebrate", () => {
       seen.push((e as CustomEvent<CelebrateDetail>).detail),
     );
     celebrate(500, target);
-    expect(seen).toEqual([{ amount: 500 }]);
+    expect(seen).toEqual([{ amount: 500, partial: false }]);
+  });
+  it("says when the payment was a partial one", () => {
+    const target = new EventTarget();
+    const seen: CelebrateDetail[] = [];
+    target.addEventListener(CELEBRATE_EVENT, (e) =>
+      seen.push((e as CustomEvent<CelebrateDetail>).detail),
+    );
+    celebrate(120, target, true);
+    expect(seen).toEqual([{ amount: 120, partial: true }]);
   });
   it("says nothing for no profit", () => {
     const target = new EventTarget();

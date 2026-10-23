@@ -81,7 +81,12 @@ export function useRecordPayments() {
     undoPaymentsInCache(plan.undoCalls.map((c) => c.scheduleId));
     applyPaymentsToCache(plan.payments);
     onApplied?.();
-    celebrate(gained);
+    // Only partial choices (nothing marked paid) get the partial sound.
+    celebrate(
+      gained,
+      undefined,
+      plan.partials.length > 0 && plan.paidIds.length === 0,
+    );
 
     try {
       await Promise.all([

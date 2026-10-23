@@ -26,23 +26,29 @@ function getContext(): AudioContext | null {
   return context;
 }
 
-const CLIP_URL = "/sounds/cha-ching.mp3";
-let clip: AudioBuffer | null = null;
-let clipLoading = false;
+/** "full" is a schedule paid in full; "partial" only part of one. */
+export type ChaChingKind = "full" | "partial";
 
-/** Fetches and decodes the recording once; failures leave the synth in use. */
-function loadClip(ctx: AudioContext): void {
-  if (clip || clipLoading) return;
-  clipLoading = true;
-  fetch(CLIP_URL)
+const CLIP_URLS: Record<ChaChingKind, string> = {
+  full: "/sounds/cha-ching.mp3",
+  partial: "/sounds/partial.mp3",
+};
+const clips: Partial<Record<ChaChingKind, AudioBuffer>> = {};
+const clipsLoading = new Set<ChaChingKind>();
+
+/** Fetches and decodes a recording once; failures leave the synth in use. */
+function loadClip(ctx: AudioContext, kind: ChaChingKind): void {
+  if (clips[kind] || clipsLoading.has(kind)) return;
+  clipsLoading.add(kind);
+  fetch(CLIP_URLS[kind])
     .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject()))
     .then((bytes) => ctx.decodeAudioData(bytes))
     .then((buffer) => {
-      clip = buffer;
+      clips[kind] = buffer;
     })
     .catch(() => {})
     .finally(() => {
-      clipLoading = false;
+      clipsLoading.delete(kind);
     });
 }
 
@@ -51,14 +57,16 @@ export function primeAudio(): void {
   const ctx = getContext();
   if (!ctx) return;
   if (ctx.state === "suspended") void ctx.resume().catch(() => {});
-  loadClip(ctx);
+  loadClip(ctx, "full");
+  loadClip(ctx, "partial");
 }
 
-export function playChaChing(): void {
+export function playChaChing(kind: ChaChingKind = "full"): void {
   const ctx = getContext();
   if (!ctx) return;
   if (ctx.state === "suspended") void ctx.resume().catch(() => {});
-  loadClip(ctx);
+  loadClip(ctx, kind);
+  const clip = clips[kind];
   if (clip) {
     try {
       const source = ctx.createBufferSource();
