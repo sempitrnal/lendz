@@ -13,6 +13,8 @@ const SHOW_MS = 1400;
 const SPARKS = 14;
 /** Gold and green coins flying out from the middle. */
 const COLORS = ["#fbbf24", "#34d399", "#f59e0b", "#10b981"];
+/** A partial payment: purple instead of gold and green. */
+const PARTIAL_COLORS = ["#c084fc", "#a855f7", "#e9d5ff", "#9333ea"];
 
 const pesoAmount = (n: number) =>
   n.toLocaleString("en-US", { maximumFractionDigits: 2 });
@@ -22,9 +24,11 @@ const pesoAmount = (n: number) =>
  * payment earns profit (see `celebrate`). It never takes a tap.
  */
 export function CelebrationHost() {
-  const [shown, setShown] = useState<{ id: number; amount: number } | null>(
-    null,
-  );
+  const [shown, setShown] = useState<{
+    id: number;
+    amount: number;
+    partial: boolean;
+  } | null>(null);
   const count = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -40,9 +44,9 @@ export function CelebrationHost() {
     const onCelebrate = (event: Event) => {
       const { amount, partial } = (event as CustomEvent<CelebrateDetail>)
         .detail;
-      count.current += 1;
-      setShown({ id: count.current, amount });
       if (celebrationSoundEnabled()) playChaChing(partial ? "partial" : "full");
+      count.current += 1;
+      setShown({ id: count.current, amount, partial });
       clearTimeout(timer.current);
       timer.current = setTimeout(() => setShown(null), SHOW_MS);
     };
@@ -63,9 +67,15 @@ export function CelebrationHost() {
       className="pointer-events-none fixed inset-0 z-[10001] flex items-center
         justify-center"
     >
-      <span className="sr-only">₱{pesoAmount(shown.amount)} profit</span>
+      <span className="sr-only">
+        {shown.partial
+          ? "oi! kuwang man!"
+          : `₱${pesoAmount(shown.amount)} profit`}
+      </span>
       <div
-        className="celebrate-glow absolute inset-0 bg-emerald-400/15"
+        className={`celebrate-glow absolute inset-0 ${
+          shown.partial ? "bg-purple-400/15" : "bg-emerald-400/15"
+        }`}
         aria-hidden="true"
       />
       {Array.from({ length: SPARKS }, (_, i) => {
@@ -78,7 +88,9 @@ export function CelebrationHost() {
             className="celebrate-spark absolute size-3.5 rounded-full"
             style={
               {
-                backgroundColor: COLORS[i % COLORS.length],
+                backgroundColor: (shown.partial ? PARTIAL_COLORS : COLORS)[
+                  i % COLORS.length
+                ],
                 "--dx": `${Math.round(Math.cos(angle) * radius)}px`,
                 "--dy": `${Math.round(Math.sin(angle) * radius)}px`,
                 animationDelay: `${(i % 4) * 30}ms`,
@@ -90,11 +102,16 @@ export function CelebrationHost() {
       <p
         key={shown.id}
         aria-hidden="true"
-        className="celebrate-text relative rounded-3xl bg-background/90 px-7
-          py-3 text-6xl font-black tracking-tight text-emerald-500
-          shadow-[0_12px_44px_rgba(16,185,129,0.4)] dark:text-emerald-400"
+        className={`celebrate-text relative rounded-3xl bg-background/90 px-7
+          py-3 font-black tracking-tight ${
+            shown.partial
+              ? `max-w-[88vw] text-center text-4xl text-purple-600
+                shadow-[0_12px_44px_rgba(147,51,234,0.4)] dark:text-purple-400`
+              : `text-6xl text-emerald-500
+                shadow-[0_12px_44px_rgba(16,185,129,0.4)] dark:text-emerald-400`
+          }`}
       >
-        +₱{pesoAmount(shown.amount)}!
+        {shown.partial ? "oi! kuwang man!" : `+₱${pesoAmount(shown.amount)}!`}
       </p>
     </div>,
     document.body,

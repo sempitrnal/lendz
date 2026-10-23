@@ -9,7 +9,8 @@ export type CelebrateDetail = { amount: number; partial: boolean };
 
 /**
  * Announces profit gained; nothing for zero or less. `partial` is for a
- * payment that only covers part of a schedule (it gets its own sound).
+ * payment that only covers part of a schedule: it always fires, whatever it
+ * earned, with its own sound and a "kuwang" message instead of the profit.
  */
 export function celebrate(
   amount: number,
@@ -18,7 +19,7 @@ export function celebrate(
     : window,
   partial = false,
 ): void {
-  if (!(amount > 0) || !target) return;
+  if (!target || (!(amount > 0) && !partial)) return;
   target.dispatchEvent(
     new CustomEvent<CelebrateDetail>(CELEBRATE_EVENT, {
       detail: { amount, partial },

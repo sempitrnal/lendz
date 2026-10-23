@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { useWideScreen } from "@/lib/hooks/use-wide-screen";
 import {
   useEffect,
   useMemo,
@@ -236,6 +238,10 @@ function ChecklistDay({ today }: { today: string }) {
       ? "release"
       : "collect",
   );
+  // Desktop width shows both lists at once, so neither tab is ever "left".
+  const wide = useWideScreen();
+  const collectShown = wide || tab === "collect";
+  const releaseShown = wide || tab === "release";
   const setTab = (next: ChecklistTab) => {
     setTabState(next);
     setUrlParam("tab", next);
@@ -434,10 +440,10 @@ function ChecklistDay({ today }: { today: string }) {
     : null;
   // Edit item is for collection rows; a row removed meanwhile closes it.
   const addOpen = !!addSheet && (!addSheet.editItemId || !!editRow?.model);
-  const menuOpen = listSheet?.kind === "menu" && tab === "collect";
+  const menuOpen = listSheet?.kind === "menu" && collectShown;
   // Closes by itself once nothing is left to mark.
   const bulkOpen =
-    listSheet?.kind === "bulk" && tab === "collect" && bulkRows.length > 0;
+    listSheet?.kind === "bulk" && collectShown && bulkRows.length > 0;
   const openBorrower = (row: RowView) => {
     const id = rowBorrower(row)?.id;
     if (!id) return;
@@ -604,9 +610,9 @@ function ChecklistDay({ today }: { today: string }) {
     : null;
   // Closes by itself if the item is gone or the tab is left.
   const releaseMenuOpen =
-    !!releaseView && tab === "release" && releaseSheet?.kind === "menu";
+    !!releaseView && releaseShown && releaseSheet?.kind === "menu";
   const releaseEditOpen =
-    !!releaseView && tab === "release" && releaseSheet?.kind === "edit";
+    !!releaseView && releaseShown && releaseSheet?.kind === "edit";
   const openReleaseBorrower = (view: ReleaseRowView) => {
     const id = extractBorrowerMention(view.item.label)?.id;
     if (!id) return;
@@ -828,7 +834,7 @@ function ChecklistDay({ today }: { today: string }) {
   };
 
   return (
-    <div className="mx-auto max-w-md pb-32">
+    <div className={cn("mx-auto pb-32", wide ? "max-w-5xl" : "max-w-md")}>
       <Header
         date={date}
         today={today}
@@ -843,7 +849,8 @@ function ChecklistDay({ today }: { today: string }) {
         onFilterChange={setFilter}
         counts={counts}
         loading={loading}
-        onAdd={() => openAdd(tab)}
+        onAdd={openAdd}
+        wide={wide}
         onMenu={() => openList("menu")}
       />
 
@@ -851,6 +858,38 @@ function ChecklistDay({ today }: { today: string }) {
 
       {loading ? (
         <ListSkeleton />
+      ) : wide ? (
+        // Side by side: no tab switch, each list scrolls with the page.
+        <div className="grid grid-cols-2 divide-x divide-border">
+          <div className="min-w-0">
+            <CollectList
+              rows={rows}
+              filter={filter}
+              borrowers={borrowers}
+              isToday={date === today}
+              api={rowsApi}
+              populating={populating}
+              onPopulate={() => void populate()}
+            />
+          </div>
+          <div className="min-w-0">
+            <ReleaseList
+              views={releaseViews}
+              borrowers={borrowers}
+              createMarks={createMarks}
+              waitingIds={waitingIds}
+              flashIds={flashIds}
+              disabled={loading}
+              onCreate={openCreate}
+              onCheckOff={(view) => {
+                if (loading || releaseState(view) !== "check-off") return;
+                tickCreated(view.item.id);
+              }}
+              onMenu={openReleaseMenu}
+              onNewRelease={() => openAdd("release")}
+            />
+          </div>
+        </div>
       ) : (
         // A short fade and slide from the side the other tab is on; the
         // content swaps at once, so nothing waits on the animation.

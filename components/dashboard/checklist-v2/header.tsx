@@ -65,6 +65,7 @@ export function Header({
   loading,
   onAdd,
   onMenu,
+  wide,
 }: {
   date: string;
   today: string;
@@ -81,10 +82,12 @@ export function Header({
   counts: Record<ChecklistFilter, number>;
   /** The day is still loading: show placeholders, not zeros. */
   loading: boolean;
-  /** Opens the add sheet for the current tab. Off while the day loads. */
-  onAdd(): void;
+  /** Opens the add sheet for a tab. Off while the day loads. */
+  onAdd(tab: ChecklistTab): void;
   /** Opens the Collect list menu ("⋯"). Off while the day loads. */
   onMenu(): void;
+  /** Desktop width: both lists show side by side, with no tab switch. */
+  wide: boolean;
 }) {
   const reduceMotion = useReducedMotion();
   const dateInputRef = useRef<HTMLInputElement>(null);
@@ -93,6 +96,67 @@ export function Header({
     summary.due > 0
       ? Math.min(100, (summary.collected / summary.due) * 100)
       : 0;
+
+  const showCollect = wide || tab === "collect";
+  const showRelease = wide || tab === "release";
+
+  const menuButton = (
+    <button
+      type="button"
+      data-tour="checklist-menu"
+      onClick={onMenu}
+      disabled={loading}
+      aria-label={`${date === today ? "Today's" : "This day's"} list options`}
+      className="relative flex size-9 shrink-0 items-center justify-center
+        rounded-full border border-border bg-card after:absolute
+        after:-inset-[5px] after:content-[''] text-muted-foreground
+        transition-opacity active:scale-95 disabled:opacity-40"
+    >
+      <MoreHorizontal className="size-5" />
+    </button>
+  );
+  const addButton = (kind: ChecklistTab) => (
+    <button
+      type="button"
+      data-tour="checklist-add"
+      onClick={() => onAdd(kind)}
+      // Writes made before the day has loaded wouldn't show.
+      disabled={loading}
+      aria-label={kind === "release" ? "Add a release" : "Add an item"}
+      className="relative flex size-9 shrink-0 items-center justify-center
+        rounded-full bg-primary text-primary-foreground shadow-sm after:absolute
+        after:-inset-1 after:content-[''] transition-opacity active:scale-95
+        disabled:opacity-40"
+    >
+      <Plus className="size-5" />
+    </button>
+  );
+
+  const filterChips = (
+    <div
+      data-tour="checklist-filters"
+      className={cn("flex gap-2 overflow-x-auto", !wide && "-mx-4 px-4")}
+    >
+      {FILTERS.map(([key, label]) => (
+        <button
+          key={key}
+          type="button"
+          aria-pressed={filter === key}
+          onClick={() => onFilterChange(key)}
+          className={cn(
+            `shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium
+            transition-colors active:scale-95`,
+            filter === key
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border bg-card text-muted-foreground",
+          )}
+        >
+          {label}
+          {!loading && ` ${counts[key]}`}
+        </button>
+      ))}
+    </div>
+  );
 
   const openDatePicker = () => {
     const input = dateInputRef.current;
@@ -107,8 +171,10 @@ export function Header({
 
   return (
     <>
-      <div className="px-4 pt-3">
-        <div className="flex items-center justify-between">
+      <div className={cn("pt-3", !wide && "px-4")}>
+        <div
+          className={cn("flex items-center justify-between", wide && "px-4")}
+        >
           <div
             data-tour="checklist-date"
             className="relative flex min-w-0 items-center gap-0.5"
@@ -184,251 +250,243 @@ export function Header({
           </div>
           {/* 36px buttons with 44px tap areas (4px around each border box,
               meeting in the 8px gap; the bordered one measures from inside
-              its 1px border, hence 5px). */}
-          <div className="flex shrink-0 items-center gap-2">
-            {tab === "collect" && (
-              <button
-                type="button"
-                data-tour="checklist-menu"
-                onClick={onMenu}
-                disabled={loading}
-                aria-label={`${
-                  date === today ? "Today's" : "This day's"
-                } list options`}
-                className="relative flex size-9 shrink-0 items-center
-                  justify-center rounded-full border border-border bg-card
-                  after:absolute after:-inset-[5px] after:content-['']
-                  text-muted-foreground transition-opacity active:scale-95
-                  disabled:opacity-40"
-              >
-                <MoreHorizontal className="size-5" />
-              </button>
-            )}
-            <button
-              type="button"
-              data-tour="checklist-add"
-              onClick={onAdd}
-              // Writes made before the day has loaded wouldn't show.
-              disabled={loading}
-              aria-label={tab === "release" ? "Add a release" : "Add an item"}
-              className="relative flex size-9 shrink-0 items-center
-                justify-center rounded-full bg-primary text-primary-foreground
-                shadow-sm after:absolute after:-inset-1 after:content-['']
-                transition-opacity active:scale-95 disabled:opacity-40"
-            >
-              <Plus className="size-5" />
-            </button>
-          </div>
+              its 1px border, hence 5px). Side by side, each list has its own
+              beside its title. */}
+          {!wide && (
+            <div className="flex shrink-0 items-center gap-2">
+              {tab === "collect" && menuButton}
+              {addButton(tab)}
+            </div>
+          )}
         </div>
 
         {date !== today && (
           <button
             type="button"
             onClick={() => onDateChange(today)}
-            className="mt-1 text-xs font-semibold text-primary"
+            className={cn(
+              "mt-1 text-xs font-semibold text-primary",
+              wide && "mx-4",
+            )}
           >
             Back to today
           </button>
         )}
 
-        {tab === "release" && (
-          // Same height as the Collect block (the figure, then the progress
-          // bar's row), so switching tabs doesn't move the list.
-          <div className="mt-2">
-            {loading ? (
-              <div className="flex items-center gap-2" aria-busy="true">
-                <span className="sr-only">Loading the day</span>
-                <span
-                  className="h-9 w-32 animate-pulse rounded-lg bg-muted"
-                  aria-hidden="true"
-                />
-              </div>
-            ) : (
-              <div className="flex items-baseline gap-2">
-                <span
-                  className="text-3xl font-semibold tracking-tight tabular-nums"
-                >
-                  {peso(releaseTotal)}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {releasedDayText(date === today)}
-                </span>
-              </div>
-            )}
-            {/* Two lines, the height of Collect's breakdown and profit lines, so
-                switching tabs doesn't move the list. */}
-            <p className="mt-1 h-4 truncate text-xs text-muted-foreground">
-              {!loading && releaseHintLines(releaseCount, date === today)[0]}
-            </p>
-            <p className="mt-0.5 h-4 truncate text-xs text-muted-foreground">
-              {!loading && releaseHintLines(releaseCount, date === today)[1]}
-            </p>
-            <div className="mt-2 h-1.5" aria-hidden="true" />
-          </div>
-        )}
-
-        {tab === "collect" && (
-          <div className="mt-2" data-tour="checklist-summary">
-            {loading ? (
-              <div className="flex items-center gap-2" aria-busy="true">
-                <span className="sr-only">Loading the day</span>
-                <span
-                  className="h-9 w-32 animate-pulse rounded-lg bg-muted"
-                  aria-hidden="true"
-                />
-                <span
-                  className="ml-auto h-4 w-16 animate-pulse rounded bg-muted/70"
-                  aria-hidden="true"
-                />
-              </div>
-            ) : (
-              <div className="flex items-baseline gap-2">
-                <span
-                  className="text-3xl font-semibold tracking-tight tabular-nums"
-                >
-                  {peso(summary.left)}
-                </span>
-                <span className="text-sm text-muted-foreground">left</span>
-                <span className="ml-auto text-sm text-muted-foreground
-                  tabular-nums">
-                  {summary.done}/{summary.count} paid
-                </span>
-              </div>
-            )}
-            {/* Due today and carried over, apart. The Release block below keeps
-                a blank line of the same height so switching tabs doesn't move. */}
-            <div
-              className="mt-1 flex h-4 items-center gap-3 text-xs tabular-nums
-                text-muted-foreground"
-            >
+        <div
+          className={cn(
+            wide && "grid grid-cols-2 divide-x divide-border [&>*]:px-4",
+          )}
+        >
+          {showCollect && (
+            <div className="mt-2" data-tour="checklist-summary">
               {loading ? (
-                <span
-                  className="h-3 w-40 animate-pulse rounded bg-muted/70"
-                  aria-hidden="true"
-                />
+                <div className="flex items-center gap-2" aria-busy="true">
+                  <span className="sr-only">Loading the day</span>
+                  <span
+                    className="h-9 w-32 animate-pulse rounded-lg bg-muted"
+                    aria-hidden="true"
+                  />
+                  <span
+                    className="ml-auto h-4 w-16 animate-pulse rounded
+                      bg-muted/70"
+                    aria-hidden="true"
+                  />
+                </div>
               ) : (
-                <>
-                  <span>
-                    <span className="font-semibold">
-                      {peso(summary.leftToday)}
-                    </span>{" "}
-                    {date === today ? "due today" : "due this day"}
+                <div className="flex items-baseline gap-2">
+                  <span
+                    className="text-3xl font-semibold tracking-tight
+                      tabular-nums"
+                  >
+                    {peso(summary.left)}
                   </span>
-                  {summary.leftCarried > 0 && (
-                    <span className="text-amber-700 dark:text-amber-400">
-                      <span className="font-semibold">
-                        {peso(summary.leftCarried)}
-                      </span>{" "}
-                      carried over
-                    </span>
-                  )}
-                </>
+                  <span className="text-sm text-muted-foreground">left</span>
+                  <span
+                    className="ml-auto text-sm text-muted-foreground
+                      tabular-nums"
+                  >
+                    {summary.done}/{summary.count} paid
+                  </span>
+                </div>
               )}
-            </div>
-            <div
-              className="mt-0.5 flex h-4 items-center text-xs tabular-nums
-                text-muted-foreground"
-            >
-              {loading ? (
-                <span
-                  className="h-3 w-28 animate-pulse rounded bg-muted/70"
-                  aria-hidden="true"
-                />
-              ) : (
-                <span className="text-emerald-700 dark:text-emerald-400">
-                  <span className="font-semibold">{peso(summary.profit)}</span>{" "}
-                  profit collected
-                </span>
-              )}
-            </div>
-            <div
-              className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary"
-              role="progressbar"
-              aria-label="Collected"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={loading ? undefined : Math.round(progress)}
-            >
+              {/* Due today and carried over, apart. The Release block below keeps
+                a blank line of the same height so switching tabs doesn't move. */}
               <div
-                className="h-full rounded-full bg-primary transition-all
-                  duration-500"
-                style={{ width: `${progress}%` }}
-              />
+                className="mt-1 flex h-4 items-center gap-3 text-xs tabular-nums
+                  text-muted-foreground"
+              >
+                {loading ? (
+                  <span
+                    className="h-3 w-40 animate-pulse rounded bg-muted/70"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <>
+                    <span>
+                      <span className="font-semibold">
+                        {peso(summary.leftToday)}
+                      </span>{" "}
+                      {date === today ? "due today" : "due this day"}
+                    </span>
+                    {summary.leftCarried > 0 && (
+                      <span className="text-amber-700 dark:text-amber-400">
+                        <span className="font-semibold">
+                          {peso(summary.leftCarried)}
+                        </span>{" "}
+                        carried over
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+              <div
+                className="mt-0.5 flex h-4 items-center text-xs tabular-nums
+                  text-muted-foreground"
+              >
+                {loading ? (
+                  <span
+                    className="h-3 w-28 animate-pulse rounded bg-muted/70"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <span className="text-emerald-700 dark:text-emerald-400">
+                    <span className="font-semibold">
+                      {peso(summary.profit)}
+                    </span>{" "}
+                    profit collected
+                  </span>
+                )}
+              </div>
+              <div
+                className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary"
+                role="progressbar"
+                aria-label="Collected"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={loading ? undefined : Math.round(progress)}
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-all
+                    duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          {showRelease && (
+            // Same height as the Collect block (the figure, then the progress
+            // bar's row), so switching tabs doesn't move the list.
+            <div className="mt-2">
+              {loading ? (
+                <div className="flex items-center gap-2" aria-busy="true">
+                  <span className="sr-only">Loading the day</span>
+                  <span
+                    className="h-9 w-32 animate-pulse rounded-lg bg-muted"
+                    aria-hidden="true"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-2">
+                  <span
+                    className="text-3xl font-semibold tracking-tight
+                      tabular-nums"
+                  >
+                    {peso(releaseTotal)}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {releasedDayText(date === today)}
+                  </span>
+                </div>
+              )}
+              {/* Two lines, the height of Collect's breakdown and profit lines, so
+                switching tabs doesn't move the list. */}
+              <p className="mt-1 h-4 truncate text-xs text-muted-foreground">
+                {!loading && releaseHintLines(releaseCount, date === today)[0]}
+              </p>
+              <p className="mt-0.5 h-4 truncate text-xs text-muted-foreground">
+                {!loading && releaseHintLines(releaseCount, date === today)[1]}
+              </p>
+              <div className="mt-2 h-1.5" aria-hidden="true" />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Sticks under the mobile top bar (4rem) or the site header (66px). */}
-      <div
-        className="sticky top-16 z-20 sm:top-[66px] mt-3 space-y-2 border-b
-          border-border bg-background px-4 pt-2 pb-2.5"
-      >
+      {wide ? (
         <div
-          className="flex rounded-xl bg-secondary p-0.5 text-sm font-medium"
-          role="tablist"
-          data-tour="checklist-tabs"
+          className="sticky top-16 z-20 sm:top-[66px] mt-3 grid grid-cols-2
+            divide-x divide-border border-b border-border bg-background
+            [&>*]:px-4 [&>*]:py-2.5"
         >
-          {(
-            [
-              ["collect", loading ? "Collect" : `Collect ${collectCount}`],
-              ["release", loading ? "Release" : `Release ${releaseCount}`],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              data-tour={`checklist-${key}-tab`}
-              aria-selected={tab === key}
-              onClick={() => onTabChange(key)}
-              className={cn(
-                "relative flex-1 rounded-[10px] py-1.5 transition-colors",
-                tab === key ? "text-foreground" : "text-muted-foreground",
-              )}
-            >
-              {tab === key && (
-                // The white pill slides to the tab you pick.
-                <motion.span
-                  layoutId="checklist-tab-pill"
-                  className="absolute inset-0 rounded-[10px] bg-card shadow-sm"
-                  transition={
-                    reduceMotion
-                      ? { duration: 0 }
-                      : { type: "spring", stiffness: 500, damping: 40 }
-                  }
-                />
-              )}
-              <span className="relative">{label}</span>
-            </button>
-          ))}
+          <div className="min-w-0 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-semibold">
+                {loading ? "Collect" : `Collect ${collectCount}`}
+              </span>
+              <div className="flex items-center gap-2">
+                {menuButton}
+                {addButton("collect")}
+              </div>
+            </div>
+            {filterChips}
+          </div>
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <span className="py-2 text-sm font-semibold">
+              {loading ? "Release" : `Release ${releaseCount}`}
+            </span>
+            {addButton("release")}
+          </div>
         </div>
-        {tab === "collect" && (
+      ) : (
+        <div
+          className="sticky top-16 z-20 sm:top-[66px] mt-3 space-y-2 border-b
+            border-border bg-background px-4 pt-2 pb-2.5"
+        >
           <div
-            data-tour="checklist-filters"
-            className="-mx-4 flex gap-2 overflow-x-auto px-4"
+            className="flex rounded-xl bg-secondary p-0.5 text-sm font-medium"
+            role="tablist"
+            data-tour="checklist-tabs"
           >
-            {FILTERS.map(([key, label]) => (
+            {(
+              [
+                ["collect", loading ? "Collect" : `Collect ${collectCount}`],
+                ["release", loading ? "Release" : `Release ${releaseCount}`],
+              ] as const
+            ).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
-                aria-pressed={filter === key}
-                onClick={() => onFilterChange(key)}
+                role="tab"
+                data-tour={`checklist-${key}-tab`}
+                aria-selected={tab === key}
+                onClick={() => onTabChange(key)}
                 className={cn(
-                  `shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium
-                  transition-colors active:scale-95`,
-                  filter === key
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border bg-card text-muted-foreground",
+                  "relative flex-1 rounded-[10px] py-1.5 transition-colors",
+                  tab === key ? "text-foreground" : "text-muted-foreground",
                 )}
               >
-                {label}
-                {!loading && ` ${counts[key]}`}
+                {tab === key && (
+                  // The white pill slides to the tab you pick.
+                  <motion.span
+                    layoutId="checklist-tab-pill"
+                    className="absolute inset-0 rounded-[10px] bg-card
+                      shadow-sm"
+                    transition={
+                      reduceMotion
+                        ? { duration: 0 }
+                        : { type: "spring", stiffness: 500, damping: 40 }
+                    }
+                  />
+                )}
+                <span className="relative">{label}</span>
               </button>
             ))}
           </div>
-        )}
-      </div>
+          {tab === "collect" && filterChips}
+        </div>
+      )}
     </>
   );
 }

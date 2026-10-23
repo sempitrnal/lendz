@@ -85,7 +85,7 @@ export function useRecordPayments() {
     celebrate(
       gained,
       undefined,
-      plan.partials.length > 0 && plan.paidIds.length === 0,
+      celebrateProfit && plan.partials.length > 0 && plan.paidIds.length === 0,
     );
 
     try {

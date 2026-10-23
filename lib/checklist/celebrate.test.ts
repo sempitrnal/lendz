@@ -42,6 +42,15 @@ describe("celebrate", () => {
     celebrate(-5, target);
     expect(count).toBe(0);
   });
+  it("still fires for a partial payment that earns nothing yet", () => {
+    const target = new EventTarget();
+    const seen: CelebrateDetail[] = [];
+    target.addEventListener(CELEBRATE_EVENT, (e) =>
+      seen.push((e as CustomEvent<CelebrateDetail>).detail),
+    );
+    celebrate(0, target, true);
+    expect(seen).toEqual([{ amount: 0, partial: true }]);
+  });
 });
 
 describe("celebration sound setting", () => {
