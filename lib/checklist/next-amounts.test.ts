@@ -40,6 +40,23 @@ describe("mapBorrowerNextAmounts", () => {
     });
   });
 
+  it("carries each due's profit through when the API gives one", () => {
+    const data = {
+      accounts: [{ id: "a1", type: "loan" }],
+      metrics: {
+        a1: {
+          dueCollections: [
+            { id: "s1", due_date: "2026-10-25", amount: 50, profit: 12.5 },
+            { id: "s2", due_date: "2026-10-26", amount: 50 },
+          ],
+        },
+      },
+    };
+    const { items } = mapBorrowerNextAmounts(data, CUTOFF);
+    expect(items[0].profit).toBe(12.5);
+    expect(items[1].profit).toBeUndefined();
+  });
+
   it("skips pending manual accounts and lists manual accounts with balance", () => {
     const data = {
       accounts: [

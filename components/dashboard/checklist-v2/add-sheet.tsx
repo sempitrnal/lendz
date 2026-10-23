@@ -12,6 +12,7 @@ import type { ChecklistItemsApi } from "@/components/dashboard/checklist-v2/use-
 import { SheetFooter } from "@/components/dashboard/checklist-v2/sheet";
 import { AmountInput } from "@/components/dashboard/checklist-v2/sheet-parts";
 import { peso } from "@/components/dashboard/checklist-v2/header";
+import { ProfitText } from "@/components/dashboard/checklist/profit-text";
 import {
   atQuery,
   labelParts,
@@ -646,6 +647,7 @@ export function AddSheet({
                     title={kindName(d.type)}
                     subtitle={formatShortDate(d.due_date).toLowerCase()}
                     amount={d.amount}
+                    profit={d.profit}
                   />
                 </li>
               ))}
@@ -996,12 +998,15 @@ function DueToggle({
   title,
   subtitle,
   amount,
+  profit,
 }: {
   on: boolean;
   onToggle(): void;
   title: string;
   subtitle?: string;
   amount: number;
+  /** What this due earns once paid, when known. */
+  profit?: number;
 }) {
   return (
     <button
@@ -1035,6 +1040,7 @@ function DueToggle({
             {subtitle}
           </span>
         )}
+        <ProfitText amount={profit} className="block text-xs" />
       </span>
       <span className="shrink-0 text-sm font-semibold tabular-nums">
         {peso(amount)}

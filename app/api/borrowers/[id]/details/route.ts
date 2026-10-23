@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { installmentDots } from "@/lib/payment-schedule/installment-dots";
+import { installmentProfit, principalShare } from "@/lib/checklist/profit";
 import {
   accountBalances,
   isInstallmentFullyPaid,
@@ -159,6 +160,11 @@ export async function GET(
         id: String((row as any).id ?? ""),
         due_date: String((row as any).due_date ?? "").slice(0, 10),
         amount: remainingOnInstallment(row as any),
+        // What this due earns once paid, for the checklist's next-dues list.
+        profit: installmentProfit(
+          Number((row as any).amount_due ?? 0),
+          principalShare(account),
+        ),
         status: (row as any).status,
       }));
     const overdueRows = rows.filter(

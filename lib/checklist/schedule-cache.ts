@@ -182,7 +182,7 @@ export async function fetchSchedules(
     const { data, error } = await supabase
       .from("payment_schedules")
       .select(
-        `${SCHEDULE_COLUMNS}, accounts(principal_amount, term_months, payment_frequency)`,
+        `${SCHEDULE_COLUMNS}, accounts(principal_amount, term_months, payment_frequency, term_installments, schedule_mode)`,
       )
       .in("id", ids.slice(i, i + 50));
     if (error) throw new Error(error.message);

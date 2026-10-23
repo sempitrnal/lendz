@@ -168,6 +168,7 @@ export function offerDues(
       due_date: f.due_date,
       amount: f.amount,
       type: lineType(f.type),
+      ...(f.profit !== undefined ? { profit: f.profit } : {}),
     });
   }
   return { offered, alreadyListed };

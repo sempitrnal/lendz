@@ -108,6 +108,22 @@ describe("buildRowView", () => {
     expect(v.profit).toBe(200);
   });
 
+  it("a line's installment profit is its amount minus its principal share, or unknown", () => {
+    const lines = [
+      { due: "2026-10-10", amount: 1000 },
+      { due: "2026-10-10", amount: 1000 },
+    ];
+    const map = new Map([
+      sched(0, { amount_due: 1000, principal_share: 800 }),
+      // No share known (an older cached row): shown as unknown, not 0.
+      sched(1, { amount_due: 1000 }),
+    ]);
+    const v = buildRowView(item(lines), map);
+    expect(v.lines.map((l) => l.installmentProfit)).toEqual([200, null]);
+    // No saved schedule at all: unknown too.
+    expect(buildRowView(item(lines)).lines[0].installmentProfit).toBeNull();
+  });
+
   it("a line with no saved schedule follows the tick", () => {
     const lines = [{ due: "2026-10-10", amount: 100 }];
     const open = buildRowView(item(lines));

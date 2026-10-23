@@ -21,6 +21,8 @@ export type DueChecklistItem = {
   due_date: string;
   amount: number;
   type: "loan" | "cash_advance";
+  /** What it earns once paid (beyond its principal share), when known. */
+  profit?: number;
 };
 
 export type DueChecklistGroup = {

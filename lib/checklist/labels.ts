@@ -344,6 +344,8 @@ export type NextCollectionItem = {
   due_date: string;
   amount: number;
   type: string;
+  /** What this due earns once paid (beyond its principal share), when known. */
+  profit?: number;
   /** Already present in the text being edited (pre-checked in the dropdown). */
   existing?: boolean;
   /** Comes from a manual-schedule account (schedules added by hand). */

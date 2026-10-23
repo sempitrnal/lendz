@@ -59,6 +59,9 @@ export function mapBorrowerNextAmounts(
         due_date,
         amount,
         type: String(a.type ?? ""),
+        ...(typeof (c as { profit?: unknown }).profit === "number"
+          ? { profit: (c as { profit: number }).profit }
+          : {}),
         ...(isManual ? { manual: true } : {}),
       });
     }

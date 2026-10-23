@@ -220,6 +220,21 @@ describe("dues step", () => {
     expect(alreadyListed).toBe(1);
   });
 
+  it("carries each offered due's profit", () => {
+    const withProfit = [
+      {
+        id: "p1",
+        due_date: "2026-10-25",
+        amount: 100,
+        type: "loan",
+        profit: 25,
+      },
+      { id: "p2", due_date: "2026-10-26", amount: 100, type: "loan" },
+    ];
+    const { offered } = offerDues(withProfit, new Set(), []);
+    expect(offered.map((o) => o.profit)).toEqual([25, undefined]);
+  });
+
   it("offers the edited item's own dues again", () => {
     const listed = listedScheduleIds(dayItems, "i1");
     expect(offerDues(fetched, listed, []).offered.map((o) => o.id)).toContain(

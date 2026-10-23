@@ -14,6 +14,7 @@ import { formatShortDate } from "@/lib/checklist/labels";
 import { plainLabelText, rowDisplayName } from "@/lib/checklist/row-name";
 import type { RowLine, RowView } from "@/lib/checklist/row-state";
 import { chipClass } from "@/components/dashboard/checklist/dom";
+import { ProfitText } from "@/components/dashboard/checklist/profit-text";
 import { peso } from "@/components/dashboard/checklist-v2/header";
 
 /** The swipe shows More only. */
@@ -59,6 +60,8 @@ function subline(row: RowView): {
   /** The installment types shown after the text: the one open schedule's, or
    * every schedule's on a paid row. */
   kinds?: string[];
+  /** The single open schedule's profit once paid, when known. */
+  profit?: number | null;
 } {
   if (row.status === "paid") {
     return {
@@ -79,6 +82,7 @@ function subline(row: RowView): {
     text: due,
     lateLabel: line.overdue ? `${line.daysOverdue}d late` : undefined,
     kinds: [line.type],
+    profit: line.installmentProfit,
   };
 }
 
@@ -510,6 +514,7 @@ function RowText({
         {sub.kinds?.map((type) => (
           <KindBadge key={type} type={type} compact />
         ))}
+        <ProfitText amount={sub.profit} />
       </p>
     </div>
   );
@@ -606,6 +611,7 @@ function LineItem({
           >
             {due}
             {line.overdue && <LatePill label={`${line.daysOverdue}d late`} />}
+            {!paid && <ProfitText amount={line.installmentProfit} />}
             {paid ? " paid · tap to edit" : ""}
           </p>
         </div>

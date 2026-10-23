@@ -15,6 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ProfitText } from "@/components/dashboard/checklist/profit-text";
+import { installmentProfit } from "@/lib/checklist/profit";
 import { Sheet, SheetFooter } from "@/components/dashboard/checklist-v2/sheet";
 import { markSchedulesPaidAction } from "@/lib/actions/schedules";
 import {
@@ -634,6 +636,13 @@ export function ScheduleCheckDialog({
                           </span>
                         )}
                       </div>
+                      {row.principal_share !== undefined && (
+                        <p className="text-xs">
+                          <ProfitText
+                            amount={installmentProfit(due, row.principal_share)}
+                          />
+                        </p>
+                      )}
                       {state === "partial" && !undoing && (
                         <p className="text-xs text-muted-foreground
                           tabular-nums">
