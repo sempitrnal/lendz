@@ -44,6 +44,8 @@ export function summarizeRows(rows: RowView[]): {
   leftToday: number;
   /** What is left on rows that are only from earlier days. */
   leftCarried: number;
+  /** Profit collected on all the rows. */
+  profit: number;
 } {
   const due = cents(rows.reduce((s, r) => s + r.total, 0));
   const left = cents(rows.reduce((s, r) => s + r.left, 0));
@@ -53,6 +55,7 @@ export function summarizeRows(rows: RowView[]): {
   return {
     leftToday: cents(left - leftCarried),
     leftCarried,
+    profit: cents(rows.reduce((s, r) => s + r.profit, 0)),
     left,
     due,
     collected: cents(due - left),

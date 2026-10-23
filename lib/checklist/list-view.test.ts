@@ -20,6 +20,7 @@ function row(
     lateDays: 0,
     dueOnDay: false,
     carried: false,
+    profit: 0,
     ...p,
   };
 }
@@ -64,7 +65,17 @@ describe("list-view", () => {
       count: 4,
       leftToday: 350.3,
       leftCarried: 0,
+      profit: 0,
     });
+  });
+
+  it("summarizeRows totals the profit collected on the rows", () => {
+    const withProfit = [
+      row("p1", { status: "paid", total: 100, left: 0, profit: 12.5 }),
+      row("p2", { status: "partial", total: 300, left: 100, profit: 30.25 }),
+      row("p3", { status: "unpaid", total: 50, left: 50 }),
+    ];
+    expect(summarizeRows(withProfit).profit).toBe(42.75);
   });
 
   it("summarizeRows splits what is left into due today and carried over", () => {

@@ -7,6 +7,7 @@ import {
   type ScheduleBalanceInput,
 } from "@/lib/payment-schedule/schedule-balances";
 import { extractScheduleRefs } from "@/lib/checklist/labels";
+import { principalShare, type AccountTerms } from "@/lib/checklist/profit";
 import { overdueCutoffDateValue } from "@/lib/checklist/dates";
 import { readStored, writeStored } from "@/lib/offline/storage";
 import { getPendingOutboxCount } from "@/lib/offline/outbox";
@@ -28,6 +29,11 @@ export type ScheduleDialogRow = {
   amount_paid: number;
   remaining_amount: number;
   status: string;
+  /**
+   * This installment's share of its account's principal (for the profit
+   * figure). Missing on rows saved before it existed: profit is then unknown.
+   */
+  principal_share?: number;
 };
 
 export type AccountSummary = {
@@ -175,10 +181,19 @@ export async function fetchSchedules(
   for (let i = 0; i < ids.length; i += 50) {
     const { data, error } = await supabase
       .from("payment_schedules")
-      .select(SCHEDULE_COLUMNS)
+      .select(
+        `${SCHEDULE_COLUMNS}, accounts(principal_amount, term_months, payment_frequency)`,
+      )
       .in("id", ids.slice(i, i + 50));
     if (error) throw new Error(error.message);
-    all.push(...((data ?? []) as ScheduleDialogRow[]));
+    type Fetched = ScheduleDialogRow & {
+      accounts: AccountTerms | AccountTerms[] | null;
+    };
+    for (const raw of (data ?? []) as unknown as Fetched[]) {
+      const { accounts, ...row } = raw;
+      const account = Array.isArray(accounts) ? accounts[0] : accounts;
+      all.push({ ...row, principal_share: principalShare(account ?? null) });
+    }
   }
   cacheSchedules(all);
   return all;

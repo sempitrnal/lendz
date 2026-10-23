@@ -34,6 +34,8 @@ export type HeaderSummary = {
   left: number;
   leftToday: number;
   leftCarried: number;
+  /** Profit collected on the day's rows. */
+  profit: number;
   due: number;
   collected: number;
   done: number;
@@ -251,6 +253,7 @@ export function Header({
               </div>
             )}
             <div className="mt-1 h-4" aria-hidden="true" />
+            <div className="mt-0.5 h-4" aria-hidden="true" />
             <div className="mt-2 h-1.5" aria-hidden="true" />
           </div>
         )}
@@ -306,6 +309,21 @@ export function Header({
                     </span>
                   )}
                 </>
+              )}
+            </div>
+            <div
+              className="mt-0.5 flex h-4 items-center text-xs tabular-nums
+                text-muted-foreground"
+            >
+              {loading ? (
+                <span
+                  className="h-3 w-28 animate-pulse rounded bg-muted/70"
+                  aria-hidden="true"
+                />
+              ) : (
+                <span className="text-emerald-700 dark:text-emerald-400">
+                  {peso(summary.profit)} profit collected
+                </span>
               )}
             </div>
             <div

@@ -1,3 +1,4 @@
+import { profitOnInstallment } from "@/lib/checklist/profit";
 import {
   collectionRowModel,
   type CollectionRowLine,
@@ -19,6 +20,8 @@ export type RowLine = CollectionRowLine & {
   overdue: boolean;
   /** What is recorded as paid on the saved schedule (0 with none saved). */
   recorded: number;
+  /** Profit collected on it: paid beyond its principal share (0 when unknown). */
+  profit: number;
   /** The installment's own amount: the saved schedule's, else the label's. */
   original: number;
 };
@@ -32,6 +35,8 @@ export type RowView = {
   status: RowStatus;
   left: number;
   total: number;
+  /** Profit collected on the row's installments. */
+  profit: number;
   lateDays: number;
   dueOnDay: boolean;
   carried: boolean;
@@ -73,6 +78,13 @@ function buildLine(
     paid: cents((row ? Number(row.amount_due) : line.amount) - left),
     overdue,
     recorded: row ? cents(amountPaidOnInstallment(row)) : 0,
+    profit:
+      row?.principal_share === undefined
+        ? 0
+        : profitOnInstallment(
+            amountPaidOnInstallment(row),
+            row.principal_share,
+          ),
     original: row ? cents(Number(row.amount_due)) : line.amount,
   };
 }
@@ -90,6 +102,7 @@ export function buildRowView(
       status: item.is_checked ? "paid" : "unpaid",
       left: 0,
       total: 0,
+      profit: 0,
       lateDays: 0,
       dueOnDay: false,
       carried: false,
@@ -117,6 +130,7 @@ export function buildRowView(
     status,
     left,
     total: model.total,
+    profit: cents(lines.reduce((sum, l) => sum + l.profit, 0)),
     lateDays,
     dueOnDay: lines.some(
       (l) => l.state !== "paid" && l.due_date.slice(0, 10) === day,
