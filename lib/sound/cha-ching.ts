@@ -1,7 +1,8 @@
 /**
- * A cash-register "cha-ching", made with the Web Audio API so there is no
- * sound file to ship: a short filtered-noise "cha" followed by a bright
- * bell "ching".
+ * The "cha-ching": a recorded voice clip (`/sounds/cha-ching.mp3`), decoded
+ * once and played through the Web Audio API for instant playback. Until it
+ * has loaded (or if it can't), a synthesized cash-register sound stands in:
+ * a short filtered-noise "cha" followed by a bright bell "ching".
  *
  * Browsers only let audio start from a tap, and the payment finishes after the
  * tap, so `primeAudio` runs on the first touch of the page to unlock it.
@@ -25,16 +26,50 @@ function getContext(): AudioContext | null {
   return context;
 }
 
+const CLIP_URL = "/sounds/cha-ching.mp3";
+let clip: AudioBuffer | null = null;
+let clipLoading = false;
+
+/** Fetches and decodes the recording once; failures leave the synth in use. */
+function loadClip(ctx: AudioContext): void {
+  if (clip || clipLoading) return;
+  clipLoading = true;
+  fetch(CLIP_URL)
+    .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject()))
+    .then((bytes) => ctx.decodeAudioData(bytes))
+    .then((buffer) => {
+      clip = buffer;
+    })
+    .catch(() => {})
+    .finally(() => {
+      clipLoading = false;
+    });
+}
+
 /** Unlocks audio from inside a tap. Safe to call again. */
 export function primeAudio(): void {
   const ctx = getContext();
-  if (ctx && ctx.state === "suspended") void ctx.resume().catch(() => {});
+  if (!ctx) return;
+  if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+  loadClip(ctx);
 }
 
 export function playChaChing(): void {
   const ctx = getContext();
   if (!ctx) return;
   if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+  loadClip(ctx);
+  if (clip) {
+    try {
+      const source = ctx.createBufferSource();
+      source.buffer = clip;
+      source.connect(ctx.destination);
+      source.start();
+      return;
+    } catch {
+      // Fall through to the synthesized sound.
+    }
+  }
   try {
     const t = ctx.currentTime;
 

@@ -146,7 +146,7 @@ self.addEventListener("fetch", (event) => {
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname === "/favicon.ico" ||
-    /\.(svg|png|ico|webp|jpg|jpeg|woff2?|ttf|otf)$/.test(url.pathname)
+    /\.(svg|png|ico|webp|jpg|jpeg|mp3|woff2?|ttf|otf)$/.test(url.pathname)
   ) {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
     return;
