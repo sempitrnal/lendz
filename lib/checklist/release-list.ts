@@ -181,6 +181,24 @@ export function releaseTotal(views: ReleaseRowView[]): number {
   return centavos / 100;
 }
 
+/**
+ * The two Bisaya lines under the Release tab's total: how many releases the
+ * day has, and how to turn one into an account.
+ */
+export function releaseHintLines(
+  count: number,
+  isToday: boolean,
+): [string, string] {
+  const when = isToday ? "karong adlawa" : "niining adlawa";
+  const first =
+    count > 0
+      ? `${count} ka release ${when}`
+      : isToday
+        ? `Wala pay release ${when}`
+        : `Walay release ${when}`;
+  return [first, "Pindota ang “Create account” aron himoon nga account."];
+}
+
 /** The words after the total. */
 export function releasedDayText(isToday: boolean): string {
   return isToday ? "released today" : "released this day";

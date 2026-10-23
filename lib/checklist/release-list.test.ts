@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildReleaseView } from "@/lib/checklist/release-items";
 import {
   releasedDayText,
+  releaseHintLines,
   releaseNote,
   releaseOf,
   canLeaveCreate,
@@ -138,6 +139,24 @@ describe("releasedDayText", () => {
   it("says today or this day", () => {
     expect(releasedDayText(true)).toBe("released today");
     expect(releasedDayText(false)).toBe("released this day");
+  });
+});
+
+describe("releaseHintLines", () => {
+  it("counts the releases in Bisaya, today or another day", () => {
+    expect(releaseHintLines(3, true)[0]).toBe("3 ka release karong adlawa");
+    expect(releaseHintLines(1, false)[0]).toBe("1 ka release niining adlawa");
+  });
+  it("says there are none yet when there are none", () => {
+    expect(releaseHintLines(0, true)[0]).toBe("Wala pay release karong adlawa");
+    expect(releaseHintLines(0, false)[0]).toBe(
+      "Walay release niining adlawa",
+    );
+  });
+  it("always tells how to turn a release into an account", () => {
+    expect(releaseHintLines(2, true)[1]).toBe(
+      "Pindota ang “Create account” aron himoon nga account.",
+    );
   });
 });
 

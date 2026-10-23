@@ -7,7 +7,10 @@ import { cn } from "@/lib/utils";
 import { relativeDayLabel, shiftDateValue } from "@/lib/checklist/dates";
 import type { ChecklistFilter } from "@/lib/checklist/list-view";
 import type { ChecklistTab } from "@/lib/checklist/categories";
-import { releasedDayText } from "@/lib/checklist/release-list";
+import {
+  releaseHintLines,
+  releasedDayText,
+} from "@/lib/checklist/release-list";
 
 export const peso = (n: number) =>
   `₱${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
@@ -252,8 +255,14 @@ export function Header({
                 </span>
               </div>
             )}
-            <div className="mt-1 h-4" aria-hidden="true" />
-            <div className="mt-0.5 h-4" aria-hidden="true" />
+            {/* Two lines, the height of Collect's breakdown and profit lines, so
+                switching tabs doesn't move the list. */}
+            <p className="mt-1 h-4 truncate text-xs text-muted-foreground">
+              {!loading && releaseHintLines(releaseCount, date === today)[0]}
+            </p>
+            <p className="mt-0.5 h-4 truncate text-xs text-muted-foreground">
+              {!loading && releaseHintLines(releaseCount, date === today)[1]}
+            </p>
             <div className="mt-2 h-1.5" aria-hidden="true" />
           </div>
         )}
@@ -300,12 +309,17 @@ export function Header({
               ) : (
                 <>
                   <span>
-                    {peso(summary.leftToday)}{" "}
+                    <span className="font-semibold">
+                      {peso(summary.leftToday)}
+                    </span>{" "}
                     {date === today ? "due today" : "due this day"}
                   </span>
                   {summary.leftCarried > 0 && (
                     <span className="text-amber-700 dark:text-amber-400">
-                      {peso(summary.leftCarried)} carried over
+                      <span className="font-semibold">
+                        {peso(summary.leftCarried)}
+                      </span>{" "}
+                      carried over
                     </span>
                   )}
                 </>
@@ -322,7 +336,8 @@ export function Header({
                 />
               ) : (
                 <span className="text-emerald-700 dark:text-emerald-400">
-                  {peso(summary.profit)} profit collected
+                  <span className="font-semibold">{peso(summary.profit)}</span>{" "}
+                  profit collected
                 </span>
               )}
             </div>
