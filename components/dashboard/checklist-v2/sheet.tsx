@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { keyboardInset } from "@/lib/keyboard-inset";
@@ -37,6 +37,31 @@ function useKeyboardInset(active: boolean) {
 }
 
 /**
+ * Puts the page back where it was when the sheet opened. Typing in a sheet
+ * (a partial amount) makes iOS scroll the page to show the field, and it stays
+ * there after the keyboard goes away.
+ */
+function useRestoreScroll(open: boolean) {
+  const saved = useRef<number | null>(null);
+  useEffect(() => {
+    if (open) {
+      saved.current = window.scrollY;
+      return;
+    }
+    const y = saved.current;
+    saved.current = null;
+    if (y === null) return;
+    // Right away, and again once the keyboard and the slide-out are done.
+    const put = () => {
+      if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+    };
+    put();
+    const timers = [150, 450].map((ms) => setTimeout(put, ms));
+    return () => timers.forEach(clearTimeout);
+  }, [open]);
+}
+
+/**
  * A bottom sheet on the shadcn drawer (vaul): backdrop, grab handle, drag
  * down to dismiss, rounded top, capped at 88dvh with its content scrolling.
  *
@@ -63,6 +88,7 @@ export function Sheet({
   if (open && shown !== children) setShown(children);
   // With the keyboard up the sheet lifts above it and shrinks to what is left.
   const keyboard = useKeyboardInset(open);
+  useRestoreScroll(open);
 
   return (
     <Drawer
