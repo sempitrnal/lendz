@@ -52,11 +52,25 @@ function loadClip(ctx: AudioContext, kind: ChaChingKind): void {
     });
 }
 
-/** Unlocks audio from inside a tap. Safe to call again. */
+/**
+ * Unlocks audio from inside a tap. Safe to call again, and worth calling on
+ * every tap: iOS suspends (or "interrupts") the context when the app goes to
+ * the background or a call comes in, and only a tap can wake it again.
+ */
 export function primeAudio(): void {
   const ctx = getContext();
   if (!ctx) return;
-  if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+  // iOS 17+: play like media, so the silent switch doesn't mute it.
+  try {
+    const session = (
+      navigator as Navigator & { audioSession?: { type: string } }
+    ).audioSession;
+    if (session && session.type !== "playback") session.type = "playback";
+  } catch {
+    // Not supported: the sound still plays with the switch off.
+  }
+  // "interrupted" is iOS-only and not in the DOM types.
+  if ((ctx.state as string) !== "running") void ctx.resume().catch(() => {});
   loadClip(ctx, "full");
   loadClip(ctx, "partial");
 }
@@ -64,7 +78,7 @@ export function primeAudio(): void {
 export function playChaChing(kind: ChaChingKind = "full"): void {
   const ctx = getContext();
   if (!ctx) return;
-  if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+  if ((ctx.state as string) !== "running") void ctx.resume().catch(() => {});
   loadClip(ctx, kind);
   const clip = clips[kind];
   if (clip) {

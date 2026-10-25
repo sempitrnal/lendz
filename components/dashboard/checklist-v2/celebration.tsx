@@ -35,11 +35,11 @@ export function CelebrationHost() {
   useEffect(() => {
     // Audio can only start from a tap: unlock it on the first touch of the
     // page, so the sound is allowed when the payment finishes later.
+    // On every tap, not just the first: iOS puts the audio to sleep when the
+    // app is backgrounded, and only a tap wakes it.
     const prime = () => primeAudio();
-    window.addEventListener("pointerdown", prime, {
-      once: true,
-      capture: true,
-    });
+    window.addEventListener("pointerdown", prime, { capture: true });
+    window.addEventListener("touchend", prime, { capture: true });
 
     const onCelebrate = (event: Event) => {
       const { amount, partial } = (event as CustomEvent<CelebrateDetail>)
@@ -53,6 +53,7 @@ export function CelebrationHost() {
     window.addEventListener(CELEBRATE_EVENT, onCelebrate);
     return () => {
       window.removeEventListener("pointerdown", prime, { capture: true });
+      window.removeEventListener("touchend", prime, { capture: true });
       window.removeEventListener(CELEBRATE_EVENT, onCelebrate);
       clearTimeout(timer.current);
     };

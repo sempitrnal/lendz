@@ -14,6 +14,7 @@ import { formatShortDate } from "@/lib/checklist/labels";
 import { plainLabelText, rowDisplayName } from "@/lib/checklist/row-name";
 import type { RowLine, RowView } from "@/lib/checklist/row-state";
 import { chipClass } from "@/components/dashboard/checklist/dom";
+import { totalProfit } from "@/lib/checklist/profit";
 import { ProfitText } from "@/components/dashboard/checklist/profit-text";
 import { peso } from "@/components/dashboard/checklist-v2/header";
 
@@ -60,7 +61,7 @@ function subline(row: RowView): {
   /** The installment types shown after the text: the one open schedule's, or
    * every schedule's on a paid row. */
   kinds?: string[];
-  /** The single open schedule's profit once paid, when known. */
+  /** The open schedule's (or all open schedules') profit once paid. */
   profit?: number | null;
 } {
   if (row.status === "paid") {
@@ -74,6 +75,8 @@ function subline(row: RowView): {
     return {
       text: `${open.length} due`,
       lateLabel: row.lateDays > 0 ? `oldest ${row.lateDays}d late` : undefined,
+      // What all of them earn once paid.
+      profit: totalProfit(open.map((l) => l.installmentProfit)),
     };
   }
   const line = open[0];

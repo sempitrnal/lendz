@@ -64,3 +64,11 @@ export function profitGained(
   }
   return cents(total);
 }
+
+/** The sum of several schedules' profit; null when none of them is known. */
+export function totalProfit(
+  amounts: (number | null | undefined)[],
+): number | null {
+  const known = amounts.filter((a): a is number => typeof a === "number");
+  return known.length === 0 ? null : cents(known.reduce((a, b) => a + b, 0));
+}

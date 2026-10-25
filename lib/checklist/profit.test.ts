@@ -4,6 +4,7 @@ import {
   principalShare,
   profitGained,
   profitOnInstallment,
+  totalProfit,
 } from "@/lib/checklist/profit";
 
 describe("principalShare", () => {
@@ -144,5 +145,15 @@ describe("profitGained", () => {
   });
   it("is 0 for no payments", () => {
     expect(profitGained([], rows)).toBe(0);
+  });
+});
+
+describe("totalProfit", () => {
+  it("adds what the schedules earn, skipping unknown ones", () => {
+    expect(totalProfit([600, null, 400.5])).toBe(1000.5);
+  });
+  it("is null when none is known", () => {
+    expect(totalProfit([null, null])).toBeNull();
+    expect(totalProfit([])).toBeNull();
   });
 });
