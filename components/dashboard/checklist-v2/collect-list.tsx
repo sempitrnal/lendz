@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { groupColorStyle } from "@/lib/checklist/group-color";
+import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -141,7 +142,7 @@ export function CollectList({
     return (
       <div
         key={key}
-        style={g.color ? ({ "--grp": g.color } as CSSProperties) : undefined}
+        style={groupColorStyle(g.color)}
         className="border-b border-border last:border-b-0"
       >
         <button

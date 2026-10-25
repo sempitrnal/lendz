@@ -29,7 +29,8 @@ const SPRING = { type: "spring", stiffness: 500, damping: 40 } as const;
  * category colour (`--grp`, set by the list), sky when it has none.
  */
 export const namePillClass = `inline-block max-w-full min-w-0 truncate
-  rounded-md border border-[color-mix(in_srgb,var(--grp,#0ea5e9)_30%,transparent)]
+  rounded-md border border-[var(--grp-border,color-mix(in_srgb,var(--grp,#0ea5e9)_30%,transparent))]
+  dark:border-[color-mix(in_srgb,var(--grp,#0ea5e9)_30%,transparent)]
   bg-[color-mix(in_srgb,var(--grp,#0ea5e9)_12%,transparent)] px-2.5 py-1
   text-sm leading-none font-semibold text-slate-700 lowercase
   dark:text-slate-200 mb-1`;

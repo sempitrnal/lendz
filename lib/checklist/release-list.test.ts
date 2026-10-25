@@ -13,6 +13,7 @@ import {
   type CreateEvent,
   type CreateMarks,
   releaseRowState,
+  releaseProgress,
   releaseSummary,
   releaseTotal,
 } from "@/lib/checklist/release-list";
@@ -334,5 +335,19 @@ describe("tickAfterCreateText", () => {
     expect(tickAfterCreateText("queued", true)).toBe(
       tickAfterCreateText("queued", false),
     );
+  });
+});
+
+describe("releaseProgress", () => {
+  it("counts the parsed releases and how many are created (ticked)", () => {
+    const views = [
+      item(FULL),
+      item("[a](/borrowers/b2) 5,000.10 c.a. for 110426", true, "i2"),
+      item(PLAIN, false, "i3"),
+    ].map(buildReleaseView);
+    expect(releaseProgress(views)).toEqual({ created: 1, total: 2 });
+  });
+  it("is empty without releases", () => {
+    expect(releaseProgress([])).toEqual({ created: 0, total: 0 });
   });
 });

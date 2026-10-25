@@ -4,6 +4,7 @@ import {
   principalShare,
   profitGained,
   profitOnInstallment,
+  monthProfit,
   totalProfit,
 } from "@/lib/checklist/profit";
 
@@ -155,5 +156,31 @@ describe("totalProfit", () => {
   it("is null when none is known", () => {
     expect(totalProfit([null, null])).toBeNull();
     expect(totalProfit([])).toBeNull();
+  });
+});
+
+describe("monthProfit", () => {
+  const monthly = {
+    principal_amount: 10000,
+    term_months: 5,
+    payment_frequency: "monthly",
+  };
+  it("adds each schedule's paid amount beyond its principal share", () => {
+    // Share is 2,000: 2,600 earns 600; 1,500 earns nothing; unpaid earns nothing.
+    expect(
+      monthProfit([
+        { amount_paid: 2600, accounts: monthly },
+        { amount_paid: 1500, accounts: monthly },
+        { amount_paid: 0, accounts: monthly },
+      ]),
+    ).toBe(600);
+  });
+  it("accepts the account as a one-item list, and skips a missing one", () => {
+    expect(
+      monthProfit([
+        { amount_paid: 2500, accounts: [monthly] },
+        { amount_paid: 2500, accounts: null },
+      ]),
+    ).toBe(500);
   });
 });

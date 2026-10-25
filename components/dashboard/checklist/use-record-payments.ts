@@ -111,6 +111,7 @@ export function useRecordPayments() {
       void refreshCachedAccounts(accountIds).catch(() => {});
       if (borrowerId) invalidateBorrowerDetails(borrowerId);
       queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["checklist-month-profit"] });
       return "saved";
     } catch (err) {
       if (await actionWasQueued(queuedBefore)) {
@@ -123,6 +124,7 @@ export function useRecordPayments() {
       // Put the saved numbers back to what the server has.
       void refreshCachedAccounts(accountIds).catch(() => {});
       queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["checklist-month-profit"] });
       onFailed?.();
       if (failureMessage !== null) toast.error(failureMessage);
       return "failed";

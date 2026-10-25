@@ -72,3 +72,29 @@ export function totalProfit(
   const known = amounts.filter((a): a is number => typeof a === "number");
   return known.length === 0 ? null : cents(known.reduce((a, b) => a + b, 0));
 }
+
+/**
+ * The profit collected on a month's schedules: each one's paid amount beyond
+ * its principal share, added up. A schedule whose account didn't come back is
+ * skipped, since its share is unknown. (The account arrives as one object or a
+ * one-item list, depending on the query.)
+ */
+export function monthProfit(
+  rows: {
+    amount_paid: number | null;
+    accounts: AccountTerms | AccountTerms[] | null;
+  }[],
+): number {
+  let total = 0;
+  for (const row of rows) {
+    const account = Array.isArray(row.accounts)
+      ? row.accounts[0]
+      : row.accounts;
+    if (!account) continue;
+    total += profitOnInstallment(
+      Number(row.amount_paid ?? 0),
+      principalShare(account),
+    );
+  }
+  return cents(total);
+}

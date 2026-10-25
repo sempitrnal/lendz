@@ -225,3 +225,18 @@ export function tickAfterCreateText(
 /** The toast after "Check off without account". */
 export const checkedOffWithoutAccountText = (name: string) =>
   `${name} checked off without an account`;
+
+/** How many of the day's releases are created (ticked); plain notes don't count. */
+export function releaseProgress(views: ReleaseRowView[]): {
+  created: number;
+  total: number;
+} {
+  let created = 0;
+  let total = 0;
+  for (const v of views) {
+    if (!releaseOf(v)) continue;
+    total += 1;
+    if (v.created) created += 1;
+  }
+  return { created, total };
+}

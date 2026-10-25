@@ -1,9 +1,10 @@
 "use client";
 
+import { groupColorStyle } from "@/lib/checklist/group-color";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState } from "react";
 import {
   Check,
   ChevronDown,
@@ -88,9 +89,7 @@ export function ReleaseList({
             return (
               <div
                 key={g.key}
-                style={
-                  g.color ? ({ "--grp": g.color } as CSSProperties) : undefined
-                }
+                style={groupColorStyle(g.color)}
                 className="border-b border-border last:border-b-0"
               >
                 <button
@@ -262,14 +261,16 @@ function ReleaseRow({
           )}
         </p>
         {summary && (
-          <p className="text-xs text-muted-foreground tabular-nums">
+          <p
+            className="text-xs font-semibold text-muted-foreground tabular-nums"
+          >
             {summary}
           </p>
         )}
         {view.name && note && (
           <p
-            className="text-[11px] break-words text-muted-foreground/70
-              lowercase"
+            className="text-[11px] font-semibold break-words
+              text-muted-foreground/70 lowercase"
           >
             “{note}”
           </p>

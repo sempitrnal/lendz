@@ -1,5 +1,6 @@
 "use client";
 
+import { useMonthProfit } from "@/components/dashboard/checklist-v2/use-month-profit";
 import { cn } from "@/lib/utils";
 import { useWideScreen } from "@/lib/hooks/use-wide-screen";
 import {
@@ -65,6 +66,7 @@ import {
   checkedOffWithoutAccountText,
   reduceCreateMarks,
   releaseRowState,
+  releaseProgress,
   releaseTotal,
   tickAfterCreateText,
   type CreateEvent,
@@ -352,6 +354,10 @@ function ChecklistDay({ today }: { today: string }) {
     () => releaseItems.map(buildReleaseView),
     [releaseItems],
   );
+  const releaseDone = useMemo(
+    () => releaseProgress(releaseViews),
+    [releaseViews],
+  );
   const releasedTotal = useMemo(
     () => releaseTotal(releaseViews),
     [releaseViews],
@@ -370,6 +376,7 @@ function ChecklistDay({ today }: { today: string }) {
     [collectItems, schedules],
   );
   const summary = useMemo(() => summarizeRows(rows), [rows]);
+  const monthProfit = useMonthProfit(date);
   // What the morning run added: shown once per device per day, in a sheet.
   const autoSummary = useMemo(
     () => (date === today ? summarizeAutoPopulate(rows, date) : null),
@@ -851,6 +858,8 @@ function ChecklistDay({ today }: { today: string }) {
         loading={loading}
         onAdd={openAdd}
         wide={wide}
+        monthProfit={monthProfit}
+        releaseProgress={releaseDone}
         onMenu={() => openList("menu")}
       />
 

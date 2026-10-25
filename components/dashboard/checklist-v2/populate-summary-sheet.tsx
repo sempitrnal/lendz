@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, type CSSProperties } from "react";
+import { groupColorStyle } from "@/lib/checklist/group-color";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import { groupByBorrowerCategory } from "@/lib/checklist/labels";
@@ -101,9 +102,7 @@ function Section({
         {groups.map((g) => (
           <div
             key={g.key}
-            style={
-              g.color ? ({ "--grp": g.color } as CSSProperties) : undefined
-            }
+            style={groupColorStyle(g.color)}
             className="border-b border-border last:border-b-0"
           >
             <div

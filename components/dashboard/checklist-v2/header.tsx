@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { relativeDayLabel, shiftDateValue } from "@/lib/checklist/dates";
@@ -24,6 +23,15 @@ function headerDate(value: string, today: string) {
     day: "numeric",
     ...(value.slice(0, 4) !== today.slice(0, 4) ? { year: "numeric" } : {}),
   });
+}
+
+/** "this month", or the month's name when another month's day is showing. */
+function monthLabel(value: string, today: string) {
+  if (value.slice(0, 7) === today.slice(0, 7)) return "this month";
+  const [y, m] = value.split("-").map(Number);
+  return `in ${new Date(y, m - 1, 1).toLocaleDateString("en-US", {
+    month: "short",
+  })}`;
 }
 
 const FILTERS: [ChecklistFilter, string][] = [
@@ -66,6 +74,8 @@ export function Header({
   onAdd,
   onMenu,
   wide,
+  monthProfit,
+  releaseProgress,
 }: {
   date: string;
   today: string;
@@ -88,8 +98,11 @@ export function Header({
   onMenu(): void;
   /** Desktop width: both lists show side by side, with no tab switch. */
   wide: boolean;
+  /** Profit collected over the viewed day's month; null while it loads. */
+  monthProfit: number | null;
+  /** Releases created so far, of the day's parsed ones. */
+  releaseProgress: { created: number; total: number };
 }) {
-  const reduceMotion = useReducedMotion();
   const dateInputRef = useRef<HTMLInputElement>(null);
   const relative = relativeDayLabel(date, today);
   const progress =
@@ -97,6 +110,10 @@ export function Header({
       ? Math.min(100, (summary.collected / summary.due) * 100)
       : 0;
 
+  const releasePercent =
+    releaseProgress.total > 0
+      ? Math.round((releaseProgress.created / releaseProgress.total) * 100)
+      : 0;
   const showCollect = wide || tab === "collect";
   const showRelease = wide || tab === "release";
 
@@ -144,8 +161,8 @@ export function Header({
           aria-pressed={filter === key}
           onClick={() => onFilterChange(key)}
           className={cn(
-            `shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium
-            transition-colors active:scale-95`,
+            `shrink-0 rounded-full border px-2 py-1 text-xs lowercase
+            font-semibold transition-colors active:scale-95`,
             filter === key
               ? "border-primary/40 bg-primary/10 text-primary"
               : "border-border bg-card text-muted-foreground",
@@ -310,6 +327,21 @@ export function Header({
                   </span>
                 </div>
               )}
+
+              <div
+                className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary"
+                role="progressbar"
+                aria-label="Collected"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={loading ? undefined : Math.round(progress)}
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-all
+                    duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
               {/* Due today and carried over, apart. The Release block below keeps
                 a blank line of the same height so switching tabs doesn't move. */}
               <div
@@ -322,7 +354,7 @@ export function Header({
                     aria-hidden="true"
                   />
                 ) : (
-                  <>
+                  <div className="font-medium flex gap-2">
                     <span>
                       <span className="font-semibold">
                         {peso(summary.leftToday)}
@@ -337,7 +369,7 @@ export function Header({
                         carried over
                       </span>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
               <div
@@ -350,27 +382,24 @@ export function Header({
                     aria-hidden="true"
                   />
                 ) : (
-                  <span className="text-emerald-700 dark:text-emerald-400">
-                    <span className="font-semibold">
-                      {peso(summary.profit)}
-                    </span>{" "}
-                    profit collected
+                  <span
+                    className="flex gap-3 font-semibold text-emerald-700
+                      dark:text-emerald-400"
+                  >
+                    <span>
+                      <span className="font-black">{peso(summary.profit)}</span>{" "}
+                      profit collected
+                    </span>
+                    {monthProfit !== null && (
+                      <span>
+                        <span className="font-extrabold">
+                          {peso(monthProfit)}
+                        </span>{" "}
+                        {monthLabel(date, today)}
+                      </span>
+                    )}
                   </span>
                 )}
-              </div>
-              <div
-                className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary"
-                role="progressbar"
-                aria-label="Collected"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={loading ? undefined : Math.round(progress)}
-              >
-                <div
-                  className="h-full rounded-full bg-primary transition-all
-                    duration-500"
-                  style={{ width: `${progress}%` }}
-                />
               </div>
             </div>
           )}
@@ -397,17 +426,44 @@ export function Header({
                   <span className="text-sm text-muted-foreground">
                     {releasedDayText(date === today)}
                   </span>
+                  {releaseProgress.total > 0 && (
+                    <span
+                      className="ml-auto text-sm text-muted-foreground
+                        tabular-nums"
+                    >
+                      {releaseProgress.created}/{releaseProgress.total} created
+                    </span>
+                  )}
                 </div>
               )}
               {/* Two lines, the height of Collect's breakdown and profit lines, so
                 switching tabs doesn't move the list. */}
-              <p className="mt-1 h-4 truncate text-xs text-muted-foreground">
+              <p
+                className="mt-1 h-4 truncate text-xs font-semibold
+                  text-muted-foreground"
+              >
                 {!loading && releaseHintLines(releaseCount, date === today)[0]}
               </p>
-              <p className="mt-0.5 h-4 truncate text-xs text-muted-foreground">
+              <p
+                className="mt-0.5 h-4 truncate text-xs font-semibold
+                  text-muted-foreground"
+              >
                 {!loading && releaseHintLines(releaseCount, date === today)[1]}
               </p>
-              <div className="mt-2 h-1.5" aria-hidden="true" />
+              <div
+                className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary"
+                role="progressbar"
+                aria-label="Created"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={loading ? undefined : releasePercent}
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-all
+                    duration-500"
+                  style={{ width: `${releasePercent}%` }}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -422,7 +478,7 @@ export function Header({
         >
           <div className="min-w-0 space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold">
+              <span className="text-xs font-semibold">
                 {loading ? "Collect" : `Collect ${collectCount}`}
               </span>
               <div className="flex items-center gap-2">
@@ -445,10 +501,23 @@ export function Header({
             border-border bg-background px-4 pt-2 pb-2.5"
         >
           <div
-            className="flex rounded-xl bg-secondary p-0.5 text-sm font-medium"
+            className="relative flex rounded-xl bg-secondary p-0.5 text-sm
+              font-semibold"
             role="tablist"
             data-tour="checklist-tabs"
           >
+            {/* The white pill slides to the tab you pick. It moves only when
+                the tab changes: a layout animation would also play whenever
+                the header above it changes height (switching the date). */}
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)]
+                rounded-[10px] bg-card shadow-sm transition-transform
+                duration-200 ease-out motion-reduce:transition-none"
+              style={{
+                transform: tab === "release" ? "translateX(100%)" : "none",
+              }}
+            />
             {(
               [
                 ["collect", loading ? "Collect" : `Collect ${collectCount}`],
@@ -467,19 +536,6 @@ export function Header({
                   tab === key ? "text-foreground" : "text-muted-foreground",
                 )}
               >
-                {tab === key && (
-                  // The white pill slides to the tab you pick.
-                  <motion.span
-                    layoutId="checklist-tab-pill"
-                    className="absolute inset-0 rounded-[10px] bg-card
-                      shadow-sm"
-                    transition={
-                      reduceMotion
-                        ? { duration: 0 }
-                        : { type: "spring", stiffness: 500, damping: 40 }
-                    }
-                  />
-                )}
                 <span className="relative">{label}</span>
               </button>
             ))}
