@@ -536,8 +536,9 @@ export default async function Dashboard({
         profit,
       };
     });
+    // The global top bar steps aside here, so pull up over its offset.
     return (
-      <main className="relative mx-auto px-4 py-6 pb-20">
+      <main className="relative mx-auto -mt-16 px-4 pt-3 pb-20 sm:mt-0 sm:py-6">
         <WalletHome
           summary={summary}
           currentMonth={currentMonth}

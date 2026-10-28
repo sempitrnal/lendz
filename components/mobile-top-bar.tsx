@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import HeaderSearch from "@/components/header-search";
+import { useWalletDashboard } from "@/components/use-wallet-dashboard";
 
 const HIDE_ALL_PATHS = ["/login"];
 const HIDE_BACK_PATHS = [
@@ -20,11 +21,12 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [searchFocused, setSearchFocused] = useState(false);
+  const walletDashboard = useWalletDashboard();
 
   const hideAll =
     HIDE_ALL_PATHS.includes(pathname) ||
     (pathname.startsWith("/accounts/") && pathname.endsWith("/view"));
-  if (hideAll) return null;
+  if (hideAll || walletDashboard) return null;
 
   const showToggleOnly = HIDE_BACK_PATHS.some((p) => pathname === p);
 

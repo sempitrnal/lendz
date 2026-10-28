@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "./theme-toggle";
 import HeaderSearch from "./header-search";
+import { useWalletDashboard } from "./use-wallet-dashboard";
 
 type SiteHeaderProps = {
   isLoggedIn: boolean;
@@ -24,6 +25,7 @@ export default function SiteHeader({
   const pathname = usePathname();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const walletDashboard = useWalletDashboard();
 
   if (pathname === "/login") return null;
 
@@ -41,11 +43,12 @@ export default function SiteHeader({
         className="relative mx-auto flex w-full max-w-7xl md:max-w-full
           items-center justify-between px-4 py-[14.5px] sm:px-6"
       >
-        {isLoggedIn && (
+        {isLoggedIn && !walletDashboard && (
           <div className="flex flex-1 items-center gap-5">
             <HeaderSearch onFocusChange={setSearchFocused} />
           </div>
         )}
+        {walletDashboard && <div className="flex-1" />}
         <div
           className={`flex items-center gap-3 overflow-hidden transition-all
             duration-200 ease-in-out ${

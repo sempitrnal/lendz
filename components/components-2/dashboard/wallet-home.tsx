@@ -25,6 +25,7 @@ import {
 } from "@/lib/dashboard-data";
 import MonthPicker from "@/components/month-picker";
 import HeaderSearch from "@/components/header-search";
+import ThemeToggle from "@/components/theme-toggle";
 
 export type RecentPayment = {
   id: string;
@@ -220,13 +221,8 @@ export function WalletHome({
             from-emerald-600 to-emerald-500"
         />
         <div className="relative z-20 flex items-center gap-3">
-          <span
-            className="flex size-9 shrink-0 items-center justify-center
-              rounded-full bg-white/25 text-sm font-bold"
-          >
-            U
-          </span>
           <HeaderSearch onColor className="flex-1 sm:max-w-none" />
+          <ThemeToggle size="icon-sm" />
           <Link
             href="/upcoming"
             aria-label="Overdue"
