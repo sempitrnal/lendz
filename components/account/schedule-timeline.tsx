@@ -224,9 +224,8 @@ export function ScheduleTimeline({
     });
   }
   const total = all.length;
-  const nextIndex = all.findIndex(
-    (s) => s.status === "pending" || s.status === "overdue",
-  );
+  // "Next up" is the first pending schedule; overdue ones have their own section.
+  const nextIndex = all.findIndex((s) => s.status === "pending");
   const today = todayDateValue();
 
   const { paidRows, partialRows, overdueRows, nextRow, upcomingRows } =
