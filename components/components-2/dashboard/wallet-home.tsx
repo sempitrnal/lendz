@@ -207,7 +207,7 @@ export function WalletHome({
       sub: formatPeso(summary.duesToday),
       href: "/daily-checklist",
       icon: CalendarClock,
-      tone: "from-amber-200 to-orange-100 text-amber-900",
+      tone: "from-amber-200 to-orange-100 text-amber-900 dark:from-amber-500/25 dark:to-orange-500/10 dark:text-amber-200",
     },
     {
       title:
@@ -217,14 +217,14 @@ export function WalletHome({
       sub: formatPeso(summary.overdue),
       href: "/upcoming",
       icon: AlertTriangle,
-      tone: "from-rose-200 to-pink-100 text-rose-900",
+      tone: "from-rose-200 to-pink-100 text-rose-900 dark:from-rose-500/25 dark:to-pink-500/10 dark:text-rose-200",
     },
     {
       title: `${collectedPct}% of this month`,
       sub: `${formatPeso(Math.max(0, currentMonth.toCollectThisMonth - currentMonth.collected))} to go`,
       href: "/due-this-month",
       icon: Sparkles,
-      tone: "from-emerald-200 to-teal-100 text-emerald-900",
+      tone: "from-emerald-200 to-teal-100 text-emerald-900 dark:from-emerald-500/25 dark:to-teal-500/10 dark:text-emerald-200",
     },
   ];
 
@@ -576,7 +576,7 @@ export function WalletHome({
                 href={b.href}
                 className={cn(
                   `relative w-56 shrink-0 snap-start overflow-hidden rounded-2xl
-                  bg-linear-to-br p-4 dark:from-card dark:to-card`,
+                  bg-linear-to-br p-4`,
                   b.tone,
                 )}
               >
