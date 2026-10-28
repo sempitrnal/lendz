@@ -1,13 +1,16 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ThemeToggle from "@/components/theme-toggle";
 import HeaderSearch from "@/components/header-search";
 import { usePageOwnsMobileHeader } from "@/components/use-wallet-dashboard";
+
+/** Scroll distance (px) over which the green bar fills in. */
+const FILL_DISTANCE = 56;
 
 const HIDE_ALL_PATHS = ["/login"];
 const HIDE_BACK_PATHS = [
@@ -24,6 +27,31 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const router = useRouter();
   const [searchFocused, setSearchFocused] = useState(false);
   const ownsHeader = usePageOwnsMobileHeader();
+  const fillRef = useRef<HTMLDivElement>(null);
+
+  // On a page with its own green band the bar starts see-through, so it reads
+  // as part of the band, and fills in as you scroll. It writes the opacity
+  // straight to the element: no re-render per scroll frame.
+  useEffect(() => {
+    if (!ownsHeader) return;
+    let raf = 0;
+    const update = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const fill = fillRef.current;
+        if (fill) {
+          const p = Math.min(1, Math.max(0, window.scrollY / FILL_DISTANCE));
+          fill.style.opacity = String(p);
+        }
+      });
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", update);
+    };
+  }, [ownsHeader, pathname]);
 
   const hideAll =
     HIDE_ALL_PATHS.includes(pathname) ||
@@ -50,10 +78,18 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
         // On the pages that draw their own green band, the bar turns green and
         // stays mounted, so moving between them only swaps what's below it.
         ownsHeader &&
-          `border-transparent bg-emerald-600 px-4 dark:border-transparent
-          dark:bg-emerald-600`,
+          `border-transparent bg-transparent px-4 dark:border-transparent
+          dark:bg-transparent`,
       )}
     >
+      {ownsHeader && (
+        <div
+          ref={fillRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 bg-emerald-600
+            opacity-0 shadow-md shadow-emerald-900/20"
+        />
+      )}
       {showToggleOnly ? (
         <div
           className={`shrink-0 overflow-hidden transition-all duration-200
