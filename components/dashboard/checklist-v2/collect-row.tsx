@@ -15,6 +15,7 @@ import { plainLabelText, rowDisplayName } from "@/lib/checklist/row-name";
 import type { RowLine, RowView } from "@/lib/checklist/row-state";
 import { chipClass } from "@/components/dashboard/checklist/dom";
 import { totalProfit } from "@/lib/checklist/profit";
+import { showsPartial } from "@/lib/checklist/partial-display";
 import { ProfitText } from "@/components/dashboard/checklist/profit-text";
 import { peso } from "@/components/dashboard/checklist-v2/header";
 
@@ -112,7 +113,8 @@ export type CollectRowProps = {
   onPayLine(lineId: string): void;
   /** A plain note's tick. */
   onTick(): void;
-  /** Row tap with several open installments. */
+  /** Schedules paid on the viewed day: a part payment shows only for these. */
+  paidIds?: ReadonlySet<string> | null;
 };
 
 /**
@@ -133,7 +135,13 @@ export function CollectRow({
   onOpenLine,
   onPayLine,
   onTick,
+  paidIds,
 }: CollectRowProps) {
+  // A part payment shows only on the day it was paid; other days just show
+  // what is left.
+  const partialShown =
+    paidSoFar(row) > 0 &&
+    row.lines.some((l) => l.recorded > 0 && showsPartial(l.id, paidIds));
   // Open or closed lives here, not on the screen: a toggle re-renders this row
   // only, not the whole list.
   const [expanded, setExpanded] = useState(false);
@@ -342,7 +350,7 @@ export function CollectRow({
                 </button>
               )}
               <span className="shrink-0 text-right">
-                {paidSoFar(row) > 0 && (
+                {partialShown && (
                   <span className="flex items-center justify-end">
                     <PaidBadge amount={paidSoFar(row)} />
                     <span
@@ -360,7 +368,7 @@ export function CollectRow({
                     done && "text-muted-foreground opacity-55",
                   )}
                   aria-label={
-                    paidSoFar(row) > 0 ? `${peso(row.left)} left` : undefined
+                    partialShown ? `${peso(row.left)} left` : undefined
                   }
                 >
                   {peso(done ? row.total : row.left)}
@@ -443,6 +451,7 @@ export function CollectRow({
                         <LineItem
                           key={line.id}
                           line={line}
+                          showPartial={showsPartial(line.id, paidIds)}
                           onOpen={guard(() => onOpenLine(line.id))}
                           onPay={guard(() => onPayLine(line.id))}
                         />
@@ -585,10 +594,13 @@ function WaitingIcon() {
 /** One installment inside an expanded row, with its own check. */
 function LineItem({
   line,
+  showPartial,
   onOpen,
   onPay,
 }: {
   line: RowLine;
+  /** Whether this schedule was paid on the viewed day (see `showsPartial`). */
+  showPartial: boolean;
   /** Tapping the schedule itself, or a paid one's check: its pay drawer. */
   onOpen(event: ReactMouseEvent<HTMLButtonElement>): void;
   onPay(event: ReactMouseEvent<HTMLButtonElement>): void;
@@ -620,7 +632,7 @@ function LineItem({
           </p>
         </div>
         <span className="shrink-0 text-right">
-          {line.state === "partial" && (
+          {line.state === "partial" && showPartial && (
             <span className="flex items-center justify-end">
               <PaidBadge amount={line.recorded} />
               <span

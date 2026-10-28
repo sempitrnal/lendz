@@ -41,6 +41,8 @@ export type CollectRowsApi = {
   onPayAll(row: RowView): void;
   onPayLine(row: RowView, lineId: string): void;
   onTick(row: RowView): void;
+  /** Schedules paid on the viewed day; null until known. */
+  paidIds: ReadonlySet<string> | null;
 };
 
 const CARRY_KEY = "carry";
@@ -204,6 +206,7 @@ export function CollectList({
                   onPayAll={() => api.onPayAll(row)}
                   onPayLine={(lineId) => api.onPayLine(row, lineId)}
                   onTick={() => api.onTick(row)}
+                  paidIds={api.paidIds}
                 />
               );
             })}
