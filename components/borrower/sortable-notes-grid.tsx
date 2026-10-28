@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, ChevronUp, ChevronDown } from "lucide-react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
@@ -74,7 +74,7 @@ function SortableNote({
 
   return (
     <div ref={setNodeRef} style={style} className="group relative">
-      <motion.div
+      <m.div
         variants={cardVariants}
         initial="hidden"
         animate="visible"
@@ -108,7 +108,7 @@ function SortableNote({
             <span className="text-xs text-slate-400">No preview</span>
           </div>
         )}
-      </motion.div>
+      </m.div>
 
       {/* Desktop drag handle */}
       <button

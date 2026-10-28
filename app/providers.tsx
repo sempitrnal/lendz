@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { queryClient } from "@/lib/query-client";
 import { FontSizeProvider } from "@/components/font-size-provider";
+import { MotionProvider } from "@/components/motion-provider";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
@@ -15,7 +16,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        <FontSizeProvider>{children}</FontSizeProvider>
+        <FontSizeProvider>
+          <MotionProvider>{children}</MotionProvider>
+        </FontSizeProvider>
       </NextThemesProvider>
     </QueryClientProvider>
   );

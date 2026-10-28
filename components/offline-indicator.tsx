@@ -3,16 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  AnimatePresence,
-  LazyMotion,
-  m,
-  useReducedMotion,
-} from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 
-// The animation features load after first paint instead of with every page.
-const loadMotionFeatures = () =>
-  import("framer-motion").then((mod) => mod.domMax);
 import {
   ChevronUp,
   CloudCheck,
@@ -58,7 +50,7 @@ const TONES: Record<Tone, string> = {
 
 /** Frosted surface shared with the bottom nav. */
 const GLASS =
-  "border border-border/70 bg-card/85 shadow-lg shadow-black/10 backdrop-blur-xl supports-[backdrop-filter]:bg-card/70 dark:shadow-black/30";
+  "border border-border/70 bg-card/95 shadow-lg shadow-black/10 dark:shadow-black/30";
 
 export function OfflineIndicator() {
   const quality = useConnectionQuality();
@@ -273,7 +265,7 @@ export function OfflineIndicator() {
   // Sits just above the mobile bottom nav (its height plus the safe area),
   // and in the corner on wider screens where there is no nav.
   return (
-    <LazyMotion features={loadMotionFeatures}>
+    <>
       <div
         data-queue-menu
         className="fixed right-4
@@ -500,6 +492,6 @@ export function OfflineIndicator() {
           )}
         </AnimatePresence>
       </div>
-    </LazyMotion>
+    </>
   );
 }

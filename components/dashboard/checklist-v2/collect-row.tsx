@@ -7,7 +7,7 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { motion, useAnimationControls, type TapInfo } from "framer-motion";
+import { m, useAnimationControls, type TapInfo } from "framer-motion";
 import { Check, ChevronDown, CloudUpload, NotebookPen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatShortDate } from "@/lib/checklist/labels";
@@ -277,7 +277,7 @@ export function CollectRow({
         {actionButton("More", "bg-slate-400 dark:bg-slate-500", onMore)}
       </div>
 
-      <motion.div
+      <m.div
         drag="x"
         dragDirectionLock
         dragConstraints={{ left: -width, right: 0 }}
@@ -465,7 +465,7 @@ export function CollectRow({
             )}
           </>
         )}
-      </motion.div>
+      </m.div>
     </li>
   );
 }

@@ -29,8 +29,7 @@ export function StickyBorrowerStrip({
     <>
       <div
         className="sticky top-16 z-40 border-b border-slate-300/60 bg-white
-          dark:bg-background backdrop-blur-md dark:border-slate-700/60 sm:top-16
-          md:top-16"
+          dark:bg-background dark:border-slate-700/60 sm:top-16 md:top-16"
       >
         <div className="flex items-center justify-between px-4 py-3">
           <button
@@ -122,8 +121,7 @@ export function StickyBorrowerStrip({
         <div
           className={`absolute top-full right-0 left-0 z-30 overflow-hidden
             border-x border-b border-slate-300/60 bg-white dark:bg-background
-            backdrop-blur-md transition-all duration-300 ease-out
-            dark:border-slate-700/60
+            transition-all duration-300 ease-out dark:border-slate-700/60
             ${open ? "max-h-[440px] opacity-100" : "max-h-0 opacity-0"}`}
         >
           <div className="px-4 pb-4">

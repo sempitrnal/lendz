@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import confetti from "canvas-confetti";
 import {
   Dialog,
@@ -115,26 +115,26 @@ export function ImpasNaBanner({ profit }: { profit: number }) {
     <Dialog open={visible} onOpenChange={setVisible}>
       <DialogContent className="data-closed:zoom-out-100! top-0! left-0! flex h-svh max-h-none! w-screen max-w-none! translate-x-0! translate-y-0! flex-col items-center justify-center gap-4 rounded-none border-none bg-green-400 text-center shadow-none duration-500! dark:bg-green-400">
         <DialogTitle asChild>
-          {/* <motion.p
+          {/* <m.p
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.4 }}
             className="text-[5rem] font-black text-white lg:text-[10rem]"
           >
             impas :)
-          </motion.p> */}
+          </m.p> */}
         </DialogTitle>
         <DialogDescription asChild>
-          <motion.p
+          <m.p
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.4 }}
             className="text-[3rem] font-black tracking-tight text-[#3c1961]! lg:text-[3rem]"
           >
             impas! congrats ma {"<3"}
-          </motion.p>
+          </m.p>
         </DialogDescription>
-        <motion.p
+        <m.p
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45, duration: 0.4 }}
@@ -142,7 +142,7 @@ export function ImpasNaBanner({ profit }: { profit: number }) {
         >
           +₱
           <AnimatedNumber value={animatedProfit} duration={900} /> profit
-        </motion.p>
+        </m.p>
       </DialogContent>
     </Dialog>
   );

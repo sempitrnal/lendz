@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   CalendarClock,
   CheckCircle2,
@@ -228,7 +228,7 @@ function AccountProgress() {
   const percent = Math.round((totalPaid / totalDue) * 100);
 
   return (
-    <motion.section
+    <m.section
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       className="mx-auto max-w-3xl px-4 pt-4"
@@ -298,7 +298,7 @@ function AccountProgress() {
           </div>
         </div>
       </div>
-    </motion.section>
+    </m.section>
   );
 }
 
@@ -321,7 +321,7 @@ function ScheduleTimelineItem({
       : 0;
 
   return (
-    <motion.li
+    <m.li
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -446,7 +446,7 @@ function ScheduleTimelineItem({
 
         <AnimatePresence>
           {open && (
-            <motion.div
+            <m.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -490,18 +490,18 @@ function ScheduleTimelineItem({
                   Note
                 </button>
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>
-    </motion.li>
+    </m.li>
   );
 }
 
 function ScheduleTimeline() {
   const nextIndex = schedules.findIndex((s) => s.status !== "paid");
   return (
-    <motion.section
+    <m.section
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: 0.1 }}
@@ -528,7 +528,7 @@ function ScheduleTimeline() {
           />
         ))}
       </ul>
-    </motion.section>
+    </m.section>
   );
 }
 
@@ -566,7 +566,7 @@ function AccountBreakdown() {
         </button>
         <AnimatePresence>
           {open && (
-            <motion.div
+            <m.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -595,7 +595,7 @@ function AccountBreakdown() {
                   <span className="font-bold">{formatMoney(totalDue)}</span>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>

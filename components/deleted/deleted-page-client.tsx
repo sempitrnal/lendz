@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { supabase } from "@/lib/supabase/client";
 import {
   revalidateBorrowersPage,
@@ -327,7 +327,7 @@ export default function DeletedPageClient({
             {borrowers.map((b) => {
               const selected = selectedBorrowerIds.has(b.id);
               return (
-                <motion.div
+                <m.div
                   key={b.id}
                   layout
                   initial={{ opacity: 0, y: 8 }}
@@ -395,7 +395,7 @@ export default function DeletedPageClient({
                       {b.contact}
                     </span>
                   )}
-                </motion.div>
+                </m.div>
               );
             })}
           </div>
@@ -453,7 +453,7 @@ export default function DeletedPageClient({
               const selected = selectedAccountIds.has(a.id);
               const principal = Number(a.principal_amount ?? 0);
               return (
-                <motion.div
+                <m.div
                   key={a.id}
                   layout
                   initial={{ opacity: 0, y: 8 }}
@@ -528,7 +528,7 @@ export default function DeletedPageClient({
                       </span>
                     </p>
                   </div>
-                </motion.div>
+                </m.div>
               );
             })}
           </div>

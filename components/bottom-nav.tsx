@@ -77,8 +77,7 @@ export default function BottomNav() {
       >
         <div
           className="flex w-full max-w-md items-center gap-1 rounded-2xl border
-            border-border/70 bg-card/80 p-1.5 shadow-lg shadow-black/20
-            backdrop-blur-md supports-[backdrop-filter]:bg-card/70"
+            border-border/70 bg-card/95 p-1.5 shadow-lg shadow-black/20"
         >
           {PRIMARY_ITEMS.map(({ href, label, Icon }) => {
             const isActive = isActivePath(pathname, href);

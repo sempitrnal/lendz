@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  motion,
+  m,
   AnimatePresence,
   animate,
   useDragControls,
@@ -159,7 +159,7 @@ export function ScheduleTimelineItem({
   }
 
   return (
-    <motion.li
+    <m.li
       initial={reduceMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 400, damping: 32 }}
@@ -168,12 +168,12 @@ export function ScheduleTimelineItem({
       className="relative"
     >
       {onDelete ? (
-        <motion.div
+        <m.div
           style={{ opacity: actionOpacity }}
           className="absolute top-0 right-0 flex w-14 justify-end pt-3"
           aria-hidden={!revealed}
         >
-          <motion.button
+          <m.button
             type="button"
             tabIndex={revealed ? 0 : -1}
             onClick={() => {
@@ -201,10 +201,10 @@ export function ScheduleTimelineItem({
           >
             <Trash2 className="size-4" />
             {confirming ? "confirm" : "delete"}
-          </motion.button>
-        </motion.div>
+          </m.button>
+        </m.div>
       ) : null}
-      <motion.div
+      <m.div
         drag={canSwipe ? "x" : false}
         dragControls={dragControls}
         dragListener={false}
@@ -336,7 +336,7 @@ export function ScheduleTimelineItem({
         {hasExpand ? (
           <AnimatePresence initial={false}>
             {open ? (
-              <motion.div
+              <m.div
                 initial={reduceMotion ? false : { height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
@@ -350,11 +350,11 @@ export function ScheduleTimelineItem({
                   {actions}
                   {history}
                 </div>
-              </motion.div>
+              </m.div>
             ) : null}
           </AnimatePresence>
         ) : null}
-      </motion.div>
-    </motion.li>
+      </m.div>
+    </m.li>
   );
 }

@@ -9,7 +9,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { triggerHaptic } from "@/lib/haptics";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import {
   CalendarClock,
   ChartPie,
@@ -460,7 +460,7 @@ export function ScheduleTimeline({
           </button>
           <AnimatePresence initial={false}>
             {paidOpen && (
-              <motion.ul
+              <m.ul
                 initial={reduceMotion ? false : { height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
@@ -468,7 +468,7 @@ export function ScheduleTimeline({
                 className="overflow-hidden"
               >
                 <div className="space-y-2 pt-2">{renderRows(paidRows)}</div>
-              </motion.ul>
+              </m.ul>
             )}
           </AnimatePresence>
         </>

@@ -34,8 +34,8 @@ export default function CategoryDetailStrip({
 
   return (
     <div
-      className="sticky top-10 sm:top-16 z-30 -mx-4 bg-background/80
-        backdrop-blur-md relative dark:bg-background/80"
+      className="sticky top-10 sm:top-16 z-30 -mx-4 bg-background/95 relative
+        dark:bg-background/95"
     >
       <button
         type="button"
@@ -104,9 +104,9 @@ export default function CategoryDetailStrip({
       {/* Expandable summary grid */}
       <div
         className={`absolute left-0 right-0 top-full z-30 grid overflow-hidden
-          bg-background/95 backdrop-blur-md border-b border-slate-200/60
-          dark:border-slate-700/60 transition-[grid-template-rows] duration-300
-          ease-in-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+          bg-background/95 border-b border-slate-200/60 dark:border-slate-700/60
+          transition-[grid-template-rows] duration-300 ease-in-out
+          ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
       >
         <div className="overflow-hidden">
           <div className="px-4 pb-4 pt-2">

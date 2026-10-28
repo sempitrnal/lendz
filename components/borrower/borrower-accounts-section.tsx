@@ -67,7 +67,7 @@ import {
   wasMadeOffline,
   type PendingAccount,
 } from "@/lib/offline/pending-accounts";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { StickyBorrowerStrip } from "./sticky-borrower-strip";
 
 const groupVariants = {
@@ -913,14 +913,14 @@ export default function BorrowerAccountsSection({
         )}
 
         {!accounts || accounts.length === 0 ? (
-          <motion.div
+          <m.div
             className="rounded-xl border border-dashed p-10 text-center"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
           >
             <p className="text-gray-500">No accounts yet</p>
-          </motion.div>
+          </m.div>
         ) : (
           (() => {
             const {
@@ -941,7 +941,7 @@ export default function BorrowerAccountsSection({
               accent: string,
             ) =>
               group.length === 0 ? null : (
-                <motion.div
+                <m.div
                   variants={groupVariants}
                   // Visible in the server HTML; "hidden" would leave the whole
                   // list blank until the page hydrates.
@@ -973,14 +973,14 @@ export default function BorrowerAccountsSection({
                     </span>
                     <span className="h-px flex-1 bg-slate-200/80 dark:bg-border" />
                   </div>
-                  <motion.div
+                  <m.div
                     className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
                     variants={cardContainerVariants}
                   >
                     {group.map((account) => {
-                      const m = accountMetricsById[account.id];
+                      const accountMetrics = accountMetricsById[account.id];
                       return (
-                        <motion.div
+                        <m.div
                           key={account.id}
                           variants={cardVariants}
                           initial={false}
@@ -993,16 +993,16 @@ export default function BorrowerAccountsSection({
                             onPrefetch={stablePrefetchAccount}
                             onEdit={stableEditAccount}
                             onActivate={setActivatingAccount}
-                            metrics={m}
+                            metrics={accountMetrics}
                             selectionMode={selectionMode}
                             selected={selectedAccountIds.has(account.id)}
                             onToggleSelect={stableToggleSelect}
                           />
-                        </motion.div>
+                        </m.div>
                       );
                     })}
-                  </motion.div>
-                </motion.div>
+                  </m.div>
+                </m.div>
               );
 
             return (
@@ -1058,7 +1058,7 @@ export default function BorrowerAccountsSection({
         )}
 
         {deletedAccounts.length > 0 && (
-          <motion.div
+          <m.div
             className="mt-10"
             initial="hidden"
             whileInView="visible"
@@ -1096,7 +1096,7 @@ export default function BorrowerAccountsSection({
               )}
             </div>
 
-            <motion.div
+            <m.div
               className="flex flex-col gap-2"
               variants={cardContainerVariants}
             >
@@ -1128,7 +1128,7 @@ export default function BorrowerAccountsSection({
                 const isPermaDeleting = permaDeletingIds.has(account.id);
 
                 return (
-                  <motion.div
+                  <m.div
                     key={account.id}
                     variants={cardVariants}
                     // Each row animates itself: one added after the section
@@ -1231,11 +1231,11 @@ export default function BorrowerAccountsSection({
                         )}
                       </button>
                     </div>
-                  </motion.div>
+                  </m.div>
                 );
               })}
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
 
         {/* Speed-dial FAB — portalled to body to escape PageTransition transform stacking context */}
@@ -1377,7 +1377,7 @@ export default function BorrowerAccountsSection({
         />
 
         {/* <NotesCanvas borrowerId={borrowerId} initialData={borrower?.notes_canvas} /> */}
-        <motion.div
+        <m.div
           className="mt-10"
           initial="hidden"
           whileInView="visible"
@@ -1385,7 +1385,7 @@ export default function BorrowerAccountsSection({
           variants={notesVariants}
         >
           {notes.length === 0 ? null : (
-            <motion.div
+            <m.div
               className="mb-4"
               initial={{ opacity: 0, x: -10 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -1397,7 +1397,7 @@ export default function BorrowerAccountsSection({
               }}
             >
               <h2 className="text-xl font-black uppercase">Notes</h2>
-            </motion.div>
+            </m.div>
           )}
 
           <SortableNotesGrid
@@ -1409,7 +1409,7 @@ export default function BorrowerAccountsSection({
               setIsNotesOpen(true);
             }}
           />
-        </motion.div>
+        </m.div>
 
         <Dialog open={isNotesOpen} onOpenChange={setIsNotesOpen}>
           <DialogContent

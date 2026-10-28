@@ -54,7 +54,7 @@ export default function CategoryCard({
         {isLoading && (
           <div
             className="absolute inset-0 z-10 flex items-center justify-center
-              rounded-2xl bg-white/80 backdrop-blur-sm dark:bg-card/80"
+              rounded-2xl bg-white/90 dark:bg-card/80"
           >
             <div
               className="h-5 w-5 animate-spin rounded-full border-2

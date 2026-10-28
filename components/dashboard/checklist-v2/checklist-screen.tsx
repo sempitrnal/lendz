@@ -11,7 +11,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useRouter } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import { useCachedSchedules } from "@/components/dashboard/checklist/use-cached-schedules";
@@ -902,7 +902,7 @@ function ChecklistDay({ today }: { today: string }) {
       ) : (
         // A short fade and slide from the side the other tab is on; the
         // content swaps at once, so nothing waits on the animation.
-        <motion.div
+        <m.div
           key={tab}
           initial={{
             opacity: 0,
@@ -938,7 +938,7 @@ function ChecklistDay({ today }: { today: string }) {
               onNewRelease={() => openAdd("release")}
             />
           )}
-        </motion.div>
+        </m.div>
       )}
 
       <CelebrationHost />
