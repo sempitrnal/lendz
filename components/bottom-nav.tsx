@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { QuickActionsButton } from "@/components/quick-actions";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { Tabs, TabsList, TabsTrigger } from "@/components/motion/tabs";
 import {
   LayoutDashboard,
   Users,
@@ -51,7 +52,16 @@ const ALL_ITEMS: NavItem[] = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  // The tapped tab shows as selected at once, until the new page's path lands.
+  const [tapped, setTapped] = useState<{ href: string; from: string } | null>(
+    null,
+  );
+  const routeHref =
+    PRIMARY_ITEMS.find(({ href }) => isActivePath(pathname, href))?.href ?? "";
+  const activeHref =
+    tapped && tapped.from === pathname ? tapped.href : routeHref;
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -79,34 +89,34 @@ export default function BottomNav() {
           className="flex w-full max-w-md items-center gap-1 rounded-2xl border
             border-border/70 bg-card/95 p-1.5 shadow-lg shadow-black/20"
         >
-          {PRIMARY_ITEMS.map(({ href, label, Icon }) => {
-            const isActive = isActivePath(pathname, href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={isActive ? "page" : undefined}
-                className={`group relative flex flex-1 flex-col items-center
-                justify-center gap-1 rounded-xl py-2 transition-all duration-200
-                ${
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : `text-muted-foreground hover:text-foreground
-                      active:bg-muted`
-                }`}
-              >
-                <Icon
-                  className="size-5"
-                  strokeWidth={isActive ? 2.5 : 2}
-                  aria-hidden="true"
-                />
-                <span className="text-[10px] font-bold leading-none
-                  tracking-tight">
+          <Tabs
+            value={activeHref}
+            onValueChange={(href) => {
+              setTapped({ href, from: pathname ?? "" });
+              router.push(href);
+            }}
+            variant="pill"
+            icons="selected"
+            className="flex-1"
+          >
+            <TabsList
+              aria-label="Pages"
+              className="flex w-full justify-between gap-0 bg-transparent p-0"
+            >
+              {PRIMARY_ITEMS.map(({ href, label, Icon }) => (
+                <TabsTrigger
+                  key={href}
+                  value={href}
+                  icon={<Icon className="size-4" aria-hidden="true" />}
+                  onMouseEnter={() => router.prefetch(href)}
+                  onTouchStart={() => router.prefetch(href)}
+                  className="px-2.5 py-2.5 text-xs font-bold tracking-tight"
+                >
                   {label}
-                </span>
-              </Link>
-            );
-          })}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
           <QuickActionsButton />
 
