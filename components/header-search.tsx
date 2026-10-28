@@ -186,9 +186,9 @@ export default function HeaderSearch({
             onColor &&
               `rounded-full border-transparent bg-white/20 font-semibold
               text-white placeholder:text-white/70 focus:border-white/40
-              focus:bg-white/25 dark:border-transparent dark:bg-white/20
-              dark:text-white dark:placeholder:text-white/70
-              dark:focus:border-white/40`,
+              focus:bg-white/25 dark:border-transparent dark:bg-white/10
+              dark:focus:bg-white/15 dark:text-white
+              dark:placeholder:text-white/70 dark:focus:border-white/40`,
           )}
         />
 

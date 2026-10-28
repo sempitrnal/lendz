@@ -239,7 +239,8 @@ export function WalletHome({
         <div
           aria-hidden="true"
           className="absolute inset-0 rounded-b-3xl bg-linear-to-b
-            sm:rounded-3xl from-emerald-600 to-emerald-500"
+            sm:rounded-3xl from-emerald-600 to-emerald-500 dark:from-emerald-950
+            dark:to-emerald-900"
         />
         <div className="relative z-20 hidden items-center gap-3 sm:flex">
           <HeaderSearch onColor className="flex-1 sm:max-w-none" />

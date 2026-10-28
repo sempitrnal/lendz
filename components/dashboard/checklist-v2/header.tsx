@@ -205,7 +205,8 @@ export function Header({
           <div
             aria-hidden="true"
             className="absolute inset-0 rounded-b-3xl bg-linear-to-b
-              from-emerald-600 to-emerald-500"
+              from-emerald-600 to-emerald-500 dark:from-emerald-950
+              dark:to-emerald-900"
           />
           <div className="relative z-20 flex items-center justify-between
             sm:mt-0">

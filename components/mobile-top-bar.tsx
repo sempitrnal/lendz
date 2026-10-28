@@ -87,7 +87,7 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
           ref={fillRef}
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 -z-10 bg-emerald-600
-            opacity-0 shadow-md shadow-emerald-900/20"
+            dark:bg-emerald-950 opacity-0 shadow-md shadow-emerald-900/20"
         />
       )}
       {showToggleOnly ? (
