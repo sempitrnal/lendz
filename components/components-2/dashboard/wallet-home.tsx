@@ -230,18 +230,18 @@ export function WalletHome({
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-6">
-      {/* No z-index here: the green wash paints under the cards, while the
-          search row (z-20) and its dropdown stay above them. */}
+      {/* No z-index here: the green wash paints under the cards. On a phone the
+          search lives in the persistent top bar above; the row here is for
+          wider screens. */}
       <div
-        className="relative -mx-4 px-4 pt-[max(1rem,env(safe-area-inset-top))]
-          pb-20 text-white sm:mx-0"
+        className="relative -mx-4 px-4 pt-20 pb-20 text-white sm:mx-0 sm:pt-4"
       >
         <div
           aria-hidden="true"
           className="absolute inset-0 rounded-b-3xl bg-linear-to-b
             sm:rounded-3xl from-emerald-600 to-emerald-500"
         />
-        <div className="relative z-20 flex items-center gap-3">
+        <div className="relative z-20 hidden items-center gap-3 sm:flex">
           <HeaderSearch onColor className="flex-1 sm:max-w-none" />
           <ThemeToggle size="icon-sm" />
           <Link
@@ -258,7 +258,7 @@ export function WalletHome({
             )}
           </Link>
         </div>
-        <p className="relative mt-4 text-sm font-bold">utangz dashboard</p>
+        <p className="relative text-sm font-bold sm:mt-4">utangz dashboard</p>
         <p className="relative text-xs font-semibold opacity-80">
           {currentMonth.label}
         </p>

@@ -1,16 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import Link from "next/link";
-import {
-  Bell,
-  ChevronLeft,
-  ChevronRight,
-  MoreHorizontal,
-  Plus,
-} from "lucide-react";
-import HeaderSearch from "@/components/header-search";
-import ThemeToggle from "@/components/theme-toggle";
+import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { relativeDayLabel, shiftDateValue } from "@/lib/checklist/dates";
 import type { ChecklistFilter } from "@/lib/checklist/list-view";
@@ -203,34 +194,21 @@ export function Header({
       "relative flex size-9 shrink-0 items-center justify-center rounded-full transition-opacity active:scale-95 disabled:opacity-40 after:absolute after:-inset-1 after:content-['']";
     return (
       <>
-        {/* The green band: search, date row, then the day's figures. It
+        {/* The green band: date row, then the day's figures. The search above it
+            is the persistent mobile top bar. It
             paints behind the cards with no z-index of its own; the rows that
             need to sit above (search dropdown, buttons) carry z-20. */}
         <div
-          className="relative -mt-16 px-4
-            pt-[max(1rem,env(safe-area-inset-top))] pb-14 text-white sm:mt-0"
+          className="relative -mt-16 px-4 pt-[4.75rem] pb-14 text-white sm:mt-0
+            sm:pt-4"
         >
           <div
             aria-hidden="true"
             className="absolute inset-0 rounded-b-3xl bg-linear-to-b
               from-emerald-600 to-emerald-500"
           />
-          <div className="relative z-20 flex items-center gap-3 sm:hidden">
-            <HeaderSearch onColor className="flex-1" />
-            <ThemeToggle size="icon-sm" />
-            <Link
-              href="/upcoming"
-              aria-label="Overdue"
-              className="relative shrink-0"
-            >
-              <Bell className="size-5" aria-hidden="true" />
-            </Link>
-          </div>
-
-          <div
-            className="relative z-20 mt-3 flex items-center justify-between
-              sm:mt-0"
-          >
+          <div className="relative z-20 flex items-center justify-between
+            sm:mt-0">
             <div
               data-tour="checklist-date"
               className="relative flex min-w-0 items-center gap-0.5"

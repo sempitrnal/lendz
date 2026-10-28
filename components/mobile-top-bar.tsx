@@ -2,7 +2,9 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Bell } from "lucide-react";
+import { cn } from "@/lib/utils";
 import ThemeToggle from "@/components/theme-toggle";
 import HeaderSearch from "@/components/header-search";
 import { usePageOwnsMobileHeader } from "@/components/use-wallet-dashboard";
@@ -26,7 +28,7 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const hideAll =
     HIDE_ALL_PATHS.includes(pathname) ||
     (pathname.startsWith("/accounts/") && pathname.endsWith("/view"));
-  if (hideAll || ownsHeader) return null;
+  if (hideAll) return null;
 
   const showToggleOnly = HIDE_BACK_PATHS.some((p) => pathname === p);
 
@@ -40,9 +42,17 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
 
   return (
     <div
-      className="dark:border-border/50 dark:bg-background fixed top-0 right-0
-        left-0 z-40 flex h-16 items-center gap-2 border-b border-slate-200
-        bg-background px-2 sm:hidden print:hidden"
+      className={cn(
+        `dark:border-border/50 dark:bg-background fixed top-0 right-0 left-0
+        z-40 flex h-16 items-center gap-2 border-b border-slate-200
+        bg-background px-2 transition-colors duration-200 sm:hidden
+        print:hidden`,
+        // On the pages that draw their own green band, the bar turns green and
+        // stays mounted, so moving between them only swaps what's below it.
+        ownsHeader &&
+          `border-transparent bg-emerald-600 px-4 dark:border-transparent
+          dark:bg-emerald-600`,
+      )}
     >
       {showToggleOnly ? (
         <div
@@ -71,7 +81,11 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
         </div>
       )}
       {isLoggedIn && (
-        <HeaderSearch className="flex-1" onFocusChange={setSearchFocused} />
+        <HeaderSearch
+          className="flex-1"
+          onColor={ownsHeader}
+          onFocusChange={setSearchFocused}
+        />
       )}
       <div
         className={`shrink-0 overflow-hidden transition-all duration-200
@@ -81,6 +95,17 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
       >
         <ThemeToggle size="icon-sm" />
       </div>
+      {ownsHeader && (
+        <Link
+          href="/upcoming"
+          aria-label="Overdue"
+          className={`shrink-0 text-white transition-all duration-200 ${
+            searchFocused ? "max-w-0 opacity-0" : "max-w-10 opacity-100"
+          }`}
+        >
+          <Bell className="size-5" aria-hidden="true" />
+        </Link>
+      )}
     </div>
   );
 }
