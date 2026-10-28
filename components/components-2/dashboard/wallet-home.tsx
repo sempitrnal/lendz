@@ -159,7 +159,7 @@ export function WalletHome({
     },
     {
       label: "Due today",
-      href: "/due-this-month",
+      href: "/daily-checklist",
       icon: CalendarClock,
       tone: "bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400",
       badge: summary.duesTodaySchedules,
