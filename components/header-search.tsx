@@ -250,9 +250,9 @@ export default function HeaderSearch({
             z-50 mt-1 overflow-hidden rounded-xl border border-slate-300
             bg-white shadow-sm dark:shadow-none`,
             onColor &&
-              `left-0 -right-[4.75rem] mt-3 rounded-2xl border-0 bg-card
-              shadow-xl ring-1 shadow-emerald-900/10 ring-black/5 dark:border-0
-              dark:ring-white/10`,
+              `-left-2 -right-4 sm:left-0 sm:-right-[4.75rem] mt-3 rounded-2xl
+              border-0 bg-card shadow-xl ring-1 shadow-emerald-900/10
+              ring-black/5 dark:border-0 dark:ring-white/10`,
           )}
         >
           {!isQuery && (
