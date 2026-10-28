@@ -11,7 +11,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useRouter } from "next/navigation";
-import { m, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import { useCachedSchedules } from "@/components/dashboard/checklist/use-cached-schedules";

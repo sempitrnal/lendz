@@ -7,7 +7,7 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { m, useAnimationControls, type TapInfo } from "framer-motion";
+import { m, useAnimationControls, type TapInfo } from "motion/react";
 import { Check, ChevronDown, CloudUpload, NotebookPen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatShortDate } from "@/lib/checklist/labels";

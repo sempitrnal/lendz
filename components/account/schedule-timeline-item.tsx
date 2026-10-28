@@ -9,7 +9,7 @@ import {
   useMotionValue,
   useReducedMotion,
   useTransform,
-} from "framer-motion";
+} from "motion/react";
 import { ChevronDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScheduleSelection } from "@/components/schedule-selection-provider";

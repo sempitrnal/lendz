@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { animate, useReducedMotion } from "framer-motion";
+import { animate, useReducedMotion } from "motion/react";
 import { formatPeso } from "@/lib/dashboard-data";
 
 const formatters = {

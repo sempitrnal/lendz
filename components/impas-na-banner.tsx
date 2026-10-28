@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { m } from "framer-motion";
+import { m } from "motion/react";
 import confetti from "canvas-confetti";
 import {
   Dialog,

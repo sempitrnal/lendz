@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { m } from "framer-motion";
+import { m } from "motion/react";
 import { supabase } from "@/lib/supabase/client";
 import {
   revalidateBorrowersPage,

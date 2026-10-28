@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, m, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 
 import {
   ChevronUp,

@@ -9,7 +9,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { triggerHaptic } from "@/lib/haptics";
-import { AnimatePresence, m, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import {
   CalendarClock,
   ChartPie,

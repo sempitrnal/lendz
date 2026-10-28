@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, ChevronUp, ChevronDown } from "lucide-react";
-import { m } from "framer-motion";
+import { m } from "motion/react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";

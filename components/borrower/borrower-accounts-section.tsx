@@ -67,7 +67,7 @@ import {
   wasMadeOffline,
   type PendingAccount,
 } from "@/lib/offline/pending-accounts";
-import { m } from "framer-motion";
+import { m } from "motion/react";
 import { StickyBorrowerStrip } from "./sticky-borrower-strip";
 
 const groupVariants = {
