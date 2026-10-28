@@ -11,7 +11,6 @@ import { SummaryCards } from "@/components/components-2/dashboard/summary-cards"
 import { MonthlyCollections } from "@/components/components-2/dashboard/monthly-collections";
 import { ProfitPerMonth } from "@/components/components-2/dashboard/profit-per-month";
 import { LoansReleased } from "@/components/components-2/dashboard/loans-released";
-import { CashFlowForecast } from "@/components/components-2/dashboard/cash-flow-forecast";
 import { OverdueAging } from "@/components/components-2/dashboard/overdue-aging";
 import { ProfitPerCategory } from "@/components/components-2/dashboard/profit-per-category";
 import { SidePanel } from "@/components/components-2/dashboard/side-panel";
@@ -20,7 +19,6 @@ import type {
   CurrentMonthData,
   ProfitCategoryItem,
   MonthlyProfit,
-  CashFlowWeek,
   OverdueBucket,
   OverdueBorrower,
 } from "@/lib/dashboard-data";
@@ -55,7 +53,6 @@ type BorrowerNameRow = {
 const TZ = "Asia/Manila";
 const CHART_MONTHS = 12;
 const AVG_PROFIT_MONTHS = 6;
-const FORECAST_WEEKS = 8;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Shift a YYYY-MM-DD date by whole days without touching local timezones. */
@@ -82,14 +79,6 @@ function monthLabel(monthKey: string, month: "short" | "long") {
   return new Date(`${monthKey}-01T00:00:00Z`).toLocaleDateString("en-US", {
     month,
     year: month === "long" ? "numeric" : undefined,
-    timeZone: "UTC",
-  });
-}
-
-function shortDate(iso: string) {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
     timeZone: "UTC",
   });
 }
@@ -282,26 +271,6 @@ export default async function Dashboard({
   let overdueTotal = 0;
   let overdueCount = 0;
 
-  const weekStart = (() => {
-    // Monday of the current week (Manila date).
-    const dow = new Date(`${todayIso}T00:00:00Z`).getUTCDay();
-    return addDays(todayIso, -((dow + 6) % 7));
-  })();
-  const forecastEnd = addDays(weekStart, FORECAST_WEEKS * 7 - 1);
-  const cashFlow: CashFlowWeek[] = Array.from(
-    { length: FORECAST_WEEKS },
-    (_, i) => {
-      const start = addDays(weekStart, i * 7);
-      const end = addDays(start, 6);
-      return {
-        label: i === 0 ? "this wk" : shortDate(start),
-        range: `${shortDate(i === 0 ? todayIso : start)} – ${shortDate(end)}`,
-        expected: 0,
-        count: 0,
-      };
-    },
-  );
-
   for (const row of openSchedules) {
     const remaining = remainingOnInstallment(row);
     if (remaining <= 0) continue;
@@ -339,10 +308,6 @@ export default async function Dashboard({
         cur.oldestDaysLate = Math.max(cur.oldestDaysLate, daysLate);
         overdueByBorrower.set(borrowerId, cur);
       }
-    } else if (row.due_date <= forecastEnd) {
-      const week = Math.floor(daysBetween(weekStart, row.due_date) / 7);
-      cashFlow[week].expected += remaining;
-      cashFlow[week].count += 1;
     }
   }
 
@@ -512,9 +477,6 @@ export default async function Dashboard({
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
-          <div className="dash-rise" style={rise(5)}>
-            <CashFlowForecast weeks={cashFlow} />
-          </div>
           <div className="flex items-center gap-2 pt-2">
             <MonthPicker currentMonth={activeMonth} />
           </div>
