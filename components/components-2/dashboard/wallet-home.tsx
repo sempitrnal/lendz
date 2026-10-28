@@ -314,6 +314,41 @@ export function WalletHome({
           </dl>
         </div>
 
+        <div className={card}>
+          <p className="mb-3 text-sm font-bold text-card-foreground/80">
+            Profit per month
+          </p>
+          <div className="flex h-24 items-end gap-1.5">
+            {chartMonths.map((m) => (
+              <div
+                key={m.key}
+                className="flex h-full flex-1 flex-col items-center justify-end"
+              >
+                <div
+                  className={cn(
+                    "w-full rounded-t-md",
+                    m.isCurrent ? "bg-emerald-400" : "bg-emerald-300/70",
+                  )}
+                  style={{
+                    height: `${Math.max(2, (m.actual / maxProfit) * 100)}%`,
+                  }}
+                  title={`${m.month}: ${formatPeso(m.actual)}`}
+                />
+              </div>
+            ))}
+          </div>
+          <div
+            className="mt-1 flex gap-1.5 text-[10px] font-semibold
+              text-muted-foreground"
+          >
+            {chartMonths.map((m) => (
+              <span key={m.key} className="flex-1 text-center">
+                {m.short}
+              </span>
+            ))}
+          </div>
+        </div>
+
         <div className={cn(card, "overflow-hidden p-0")}>
           <div className="flex gap-1 bg-emerald-50 p-1.5 dark:bg-emerald-500/10">
             {(["outstanding", "profit"] as const).map((k) => (
@@ -564,41 +599,6 @@ export function WalletHome({
               })}
             </ul>
           )}
-        </div>
-
-        <div className={card}>
-          <p className="mb-3 text-sm font-bold text-card-foreground/80">
-            Profit per month
-          </p>
-          <div className="flex h-24 items-end gap-1.5">
-            {chartMonths.map((m) => (
-              <div
-                key={m.key}
-                className="flex h-full flex-1 flex-col items-center justify-end"
-              >
-                <div
-                  className={cn(
-                    "w-full rounded-t-md",
-                    m.isCurrent ? "bg-emerald-400" : "bg-emerald-300/70",
-                  )}
-                  style={{
-                    height: `${Math.max(2, (m.actual / maxProfit) * 100)}%`,
-                  }}
-                  title={`${m.month}: ${formatPeso(m.actual)}`}
-                />
-              </div>
-            ))}
-          </div>
-          <div
-            className="mt-1 flex gap-1.5 text-[10px] font-semibold
-              text-muted-foreground"
-          >
-            {chartMonths.map((m) => (
-              <span key={m.key} className="flex-1 text-center">
-                {m.short}
-              </span>
-            ))}
-          </div>
         </div>
 
         <div className={card}>
