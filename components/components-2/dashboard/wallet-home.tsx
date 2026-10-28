@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   formatPeso,
+  formatPesoCompact,
   type CurrentMonthData,
   type DashboardSummary,
   type MonthlyProfit,
@@ -146,7 +147,24 @@ export function WalletHome({
       ? (summary.outstandingPrincipal / summary.outstanding) * 100
       : 0;
   const chartMonths = profitPerMonth.slice(-6);
-  const maxProfit = Math.max(1, ...chartMonths.map((m) => m.actual));
+  const maxProfit = Math.max(
+    1,
+    ...chartMonths.map((m) => Math.max(m.actual, m.expected)),
+  );
+  const thisMonth = chartMonths[chartMonths.length - 1];
+  const lastMonth = chartMonths[chartMonths.length - 2];
+  const profitDelta =
+    thisMonth && lastMonth && lastMonth.actual > 0
+      ? Math.round(
+          ((thisMonth.actual - lastMonth.actual) / lastMonth.actual) * 100,
+        )
+      : null;
+  const profitTotal = chartMonths.reduce((sum, m) => sum + m.actual, 0);
+  const profitAvg = chartMonths.length ? profitTotal / chartMonths.length : 0;
+  const bestMonth = chartMonths.reduce<MonthlyProfit | null>(
+    (best, m) => (!best || m.actual > best.actual ? m : best),
+    null,
+  );
   const agingTotal = overdueBuckets.reduce((s, b) => s + b.amount, 0);
 
   const shortcuts = [
@@ -315,30 +333,81 @@ export function WalletHome({
         </div>
 
         <div className={card}>
-          <p className="mb-3 text-sm font-bold text-card-foreground/80">
-            Profit per month
-          </p>
-          <div className="flex h-24 items-end gap-1.5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-card-foreground/80">
+                Profit per month
+              </p>
+              <p
+                className="mt-1 text-2xl font-bold tracking-tight
+                  text-card-foreground/80 tabular-nums"
+              >
+                {mask(formatPeso(thisMonth?.actual ?? 0))}
+              </p>
+              <p className="text-xs font-semibold text-muted-foreground">
+                {thisMonth?.month} · of{" "}
+                {mask(formatPeso(thisMonth?.expected ?? 0))} expected
+              </p>
+            </div>
+            {profitDelta != null && (
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-2.5 py-1 text-xs font-bold",
+                  profitDelta >= 0
+                    ? `bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20
+                      dark:text-emerald-300`
+                    : `bg-rose-100 text-rose-700 dark:bg-rose-500/20
+                      dark:text-rose-300`,
+                )}
+              >
+                {profitDelta >= 0 ? "▲" : "▼"} {Math.abs(profitDelta)}% vs last
+                month
+              </span>
+            )}
+          </div>
+
+          <div className="mt-5 flex h-32 items-end gap-2">
             {chartMonths.map((m) => (
               <div
                 key={m.key}
-                className="flex h-full flex-1 flex-col items-center justify-end"
+                className="flex h-full flex-1 flex-col items-center justify-end
+                  gap-1"
+                title={`${m.month}: ${formatPeso(m.actual)} of ${formatPeso(m.expected)}`}
               >
-                <div
+                <span
                   className={cn(
-                    "w-full rounded-t-md",
-                    m.isCurrent ? "bg-emerald-400" : "bg-emerald-300/70",
+                    "text-[10px] font-bold tabular-nums",
+                    m.isCurrent
+                      ? "text-orange-600 dark:text-orange-400"
+                      : "text-muted-foreground",
                   )}
-                  style={{
-                    height: `${Math.max(2, (m.actual / maxProfit) * 100)}%`,
-                  }}
-                  title={`${m.month}: ${formatPeso(m.actual)}`}
-                />
+                >
+                  {hide ? "•••" : formatPesoCompact(m.actual)}
+                </span>
+                <div className="relative w-full flex-1">
+                  {/* What the month was due to earn, behind what it did. */}
+                  <div
+                    className="absolute inset-x-0 bottom-0 rounded-t-lg
+                      bg-amber-100 dark:bg-amber-500/10"
+                    style={{ height: `${(m.expected / maxProfit) * 100}%` }}
+                  />
+                  <div
+                    className={cn(
+                      "absolute inset-x-0 bottom-0 rounded-t-lg bg-linear-to-t",
+                      m.isCurrent
+                        ? "from-orange-500 to-amber-300"
+                        : "from-amber-400 to-amber-200",
+                    )}
+                    style={{
+                      height: `${Math.max(2, (m.actual / maxProfit) * 100)}%`,
+                    }}
+                  />
+                </div>
               </div>
             ))}
           </div>
           <div
-            className="mt-1 flex gap-1.5 text-[10px] font-semibold
+            className="mt-1.5 flex gap-2 text-[10px] font-semibold
               text-muted-foreground"
           >
             {chartMonths.map((m) => (
@@ -347,6 +416,42 @@ export function WalletHome({
               </span>
             ))}
           </div>
+
+          <dl className="mt-4 grid grid-cols-3 gap-2 border-t pt-3">
+            <div>
+              <dt className="text-[11px] font-semibold text-muted-foreground">
+                6-mo total
+              </dt>
+              <dd
+                className="text-sm font-bold text-card-foreground/80
+                  tabular-nums"
+              >
+                {mask(formatPeso(profitTotal))}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[11px] font-semibold text-muted-foreground">
+                Avg / month
+              </dt>
+              <dd
+                className="text-sm font-bold text-card-foreground/80
+                  tabular-nums"
+              >
+                {mask(formatPeso(profitAvg))}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[11px] font-semibold text-muted-foreground">
+                Best month
+              </dt>
+              <dd className="text-sm font-bold text-card-foreground/80">
+                {bestMonth?.short}{" "}
+                <span className="tabular-nums">
+                  {mask(formatPesoCompact(bestMonth?.actual ?? 0))}
+                </span>
+              </dd>
+            </div>
+          </dl>
         </div>
 
         <div className={cn(card, "overflow-hidden p-0")}>
