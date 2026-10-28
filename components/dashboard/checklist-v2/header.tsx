@@ -75,6 +75,7 @@ export function Header({
   onMenu,
   wide,
   monthProfit,
+  dayProfit,
   releaseProgress,
 }: {
   date: string;
@@ -100,6 +101,8 @@ export function Header({
   wide: boolean;
   /** Profit collected over the viewed day's month; null while it loads. */
   monthProfit: number | null;
+  /** Profit from the payments made on this day; null until it loads. */
+  dayProfit: number | null;
   /** Releases created so far, of the day's parsed ones. */
   releaseProgress: { created: number; total: number };
 }) {
@@ -387,7 +390,9 @@ export function Header({
                       dark:text-emerald-400"
                   >
                     <span>
-                      <span className="font-black">{peso(summary.profit)}</span>{" "}
+                      <span className="font-black">
+                        {peso(dayProfit ?? summary.profit)}
+                      </span>{" "}
                       profit collected
                     </span>
                     {monthProfit !== null && (

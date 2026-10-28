@@ -4,6 +4,7 @@ import {
   principalShare,
   profitGained,
   profitOnInstallment,
+  dayProfit,
   monthProfit,
   totalProfit,
 } from "@/lib/checklist/profit";
@@ -182,5 +183,67 @@ describe("monthProfit", () => {
         { amount_paid: 2500, accounts: null },
       ]),
     ).toBe(500);
+  });
+});
+
+describe("dayProfit", () => {
+  const share = new Map([["s1", 800]]);
+
+  it("counts the profit a payment adds beyond the principal share", () => {
+    expect(
+      dayProfit([{ scheduleId: "s1", amount: 1000 }], new Map(), share),
+    ).toBe(200);
+  });
+
+  it("counts a partial under the principal share as no profit that day", () => {
+    expect(
+      dayProfit([{ scheduleId: "s1", amount: 500 }], new Map(), share),
+    ).toBe(0);
+  });
+
+  it("counts the profit of the payment that crosses the share on its own day", () => {
+    // 500 was paid on an earlier day; today's 500 takes it to 1000: 200 profit.
+    expect(
+      dayProfit(
+        [{ scheduleId: "s1", amount: 500 }],
+        new Map([["s1", 500]]),
+        share,
+      ),
+    ).toBe(200);
+  });
+
+  it("counts nothing for a schedule already past its share before today's payment only for the new amount", () => {
+    // 1000 paid earlier (200 profit already counted then); 100 more is 100 profit.
+    expect(
+      dayProfit(
+        [{ scheduleId: "s1", amount: 100 }],
+        new Map([["s1", 1000]]),
+        share,
+      ),
+    ).toBe(100);
+  });
+
+  it("runs several payments to one schedule in order and adds schedules together", () => {
+    const shares = new Map([
+      ["s1", 800],
+      ["s2", 100],
+    ]);
+    expect(
+      dayProfit(
+        [
+          { scheduleId: "s1", amount: 600 },
+          { scheduleId: "s1", amount: 400 },
+          { scheduleId: "s2", amount: 150 },
+        ],
+        new Map(),
+        shares,
+      ),
+    ).toBe(250);
+  });
+
+  it("skips schedules with no known principal share", () => {
+    expect(
+      dayProfit([{ scheduleId: "x", amount: 900 }], new Map(), share),
+    ).toBe(0);
   });
 });

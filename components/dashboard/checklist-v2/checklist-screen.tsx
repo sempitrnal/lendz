@@ -1,5 +1,6 @@
 "use client";
 
+import { useDayProfit } from "@/components/dashboard/checklist-v2/use-day-profit";
 import { useMonthProfit } from "@/components/dashboard/checklist-v2/use-month-profit";
 import { cn } from "@/lib/utils";
 import { useWideScreen } from "@/lib/hooks/use-wide-screen";
@@ -377,6 +378,7 @@ function ChecklistDay({ today }: { today: string }) {
   );
   const summary = useMemo(() => summarizeRows(rows), [rows]);
   const monthProfit = useMonthProfit(date);
+  const dayProfit = useDayProfit(date);
   // What the morning run added: shown once per device per day, in a sheet.
   const autoSummary = useMemo(
     () => (date === today ? summarizeAutoPopulate(rows, date) : null),
@@ -859,6 +861,7 @@ function ChecklistDay({ today }: { today: string }) {
         onAdd={openAdd}
         wide={wide}
         monthProfit={monthProfit}
+        dayProfit={dayProfit}
         releaseProgress={releaseDone}
         onMenu={() => openList("menu")}
       />

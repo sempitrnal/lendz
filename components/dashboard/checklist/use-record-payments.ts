@@ -112,6 +112,7 @@ export function useRecordPayments() {
       if (borrowerId) invalidateBorrowerDetails(borrowerId);
       queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
       queryClient.invalidateQueries({ queryKey: ["checklist-month-profit"] });
+      queryClient.invalidateQueries({ queryKey: ["checklist-day-profit"] });
       return "saved";
     } catch (err) {
       if (await actionWasQueued(queuedBefore)) {
@@ -125,6 +126,7 @@ export function useRecordPayments() {
       void refreshCachedAccounts(accountIds).catch(() => {});
       queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
       queryClient.invalidateQueries({ queryKey: ["checklist-month-profit"] });
+      queryClient.invalidateQueries({ queryKey: ["checklist-day-profit"] });
       onFailed?.();
       if (failureMessage !== null) toast.error(failureMessage);
       return "failed";

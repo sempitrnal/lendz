@@ -98,3 +98,30 @@ export function monthProfit(
   }
   return cents(total);
 }
+
+/**
+ * The profit the payments of one day add. `payments` are that day's, in the
+ * order they were made; `before` is what each schedule had been paid on
+ * earlier days. A payment earns profit only for the part that lifts the
+ * schedule's total past its principal share, so a partial under the share
+ * earns nothing that day and the payment that crosses it earns the profit then.
+ * Schedules with no known share add nothing.
+ */
+export function dayProfit(
+  payments: { scheduleId: string; amount: number }[],
+  before: Map<string, number>,
+  shares: Map<string, number>,
+): number {
+  const paid = new Map(before);
+  let total = 0;
+  for (const { scheduleId, amount } of payments) {
+    const share = shares.get(scheduleId);
+    const prior = paid.get(scheduleId) ?? 0;
+    paid.set(scheduleId, prior + amount);
+    if (share === undefined) continue;
+    total +=
+      profitOnInstallment(prior + amount, share) -
+      profitOnInstallment(prior, share);
+  }
+  return cents(total);
+}
