@@ -1,5 +1,6 @@
 "use client";
 
+import { BorrowerFab } from "@/components/borrower/borrower-fab";
 import {
   ArrowLeft,
   Plus,
@@ -1238,64 +1239,21 @@ export default function BorrowerAccountsSection({
           </m.div>
         )}
 
-        {/* Speed-dial FAB — portalled to body to escape PageTransition transform stacking context */}
+        {/* Portalled to body to escape PageTransition's transform stacking context */}
         {isMounted &&
           createPortal(
-            <div
-              className="fixed right-4 bottom-[76px] z-[2] flex flex-col
-                items-end gap-2"
-            >
-              {fabOpen && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFabOpen(false);
-                      setSelectedNote(null);
-                      setIsNotesOpen(true);
-                    }}
-                    className="dark:border-border flex items-center gap-2
-                      rounded-full border border-slate-300 bg-yellow-300 px-4
-                      py-2.5 text-sm font-semibold text-slate-700 transition
-                      active:translate-y-px active:dark:bg-yellow-500
-                      dark:text-slate-600
-                      dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
-                  >
-                    <Plus className="size-3" /> note
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFabOpen(false);
-                      setEditingAccount(null);
-                      setIsAccountDialogOpen(true);
-                    }}
-                    className="dark:border-border flex items-center gap-2
-                      rounded-full border border-slate-300 bg-emerald-300 px-4
-                      py-2.5 text-sm font-semibold text-slate-700 transition
-                      active:translate-y-px active:dark:bg-emerald-600
-                      dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)]"
-                  >
-                    <Plus className="size-3" /> loan
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={() => setFabOpen((v) => !v)}
-                aria-label={fabOpen ? "Close actions" : "Open actions"}
-                className={`dark:border-border dark:text-background flex size-14
-                items-center justify-center rounded-full border-slate-300
-                text-slate-600 transition-all duration-300 active:scale-95
-                dark:shadow-[3px_3px_0px_0px_rgb(0_0_0/0.5)] ${
-                  fabOpen
-                    ? "rotate-45 bg-red-400 dark:bg-red-500"
-                    : "bg-green-300 dark:bg-green-400"
-                }`}
-              >
-                <Plus className="size-5" />
-              </button>
-            </div>,
+            <BorrowerFab
+              open={fabOpen}
+              onOpenChange={setFabOpen}
+              onAddLoan={() => {
+                setEditingAccount(null);
+                setIsAccountDialogOpen(true);
+              }}
+              onAddNote={() => {
+                setSelectedNote(null);
+                setIsNotesOpen(true);
+              }}
+            />,
             document.body,
           )}
 
