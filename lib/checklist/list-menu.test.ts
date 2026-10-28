@@ -29,9 +29,9 @@ describe("toast texts", () => {
     );
   });
 
-  it("loads seven days of carry-over and words a failed load", () => {
+  it("loads all the carry-over and words a failed load", () => {
     expect(dueGroupsUrl("2026-10-20")).toBe(
-      "/api/checklist/due?date=2026-10-20&back=7",
+      "/api/checklist/due?date=2026-10-20&back=all",
     );
     expect(dueGroupsErrorText(true)).toBe("Failed to load due collections");
     expect(dueGroupsErrorText(false)).toBe(

@@ -8,9 +8,10 @@ export async function GET(request: Request) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: "Invalid date" }, { status: 400 });
   }
-  // Also carry over unpaid schedules due up to `back` days before `date`
-  // (capped at 7).
-  const back = Math.min(7, Math.max(0, Number(params.get("back")) || 0));
+  // Also carry over unpaid schedules due before `date`: `back=all` for any
+  // number of days, or `back=<days>` for a limit.
+  const backParam = params.get("back");
+  const back = backParam === "all" ? null : Math.max(0, Number(backParam) || 0);
 
   try {
     const supabase = await createSupabaseServer();

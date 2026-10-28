@@ -29,7 +29,6 @@ import {
   bulkScheduleIds,
   type BulkPaid,
 } from "@/lib/checklist/bulk-paid";
-import { CARRY_OVER_DAYS } from "@/lib/checklist/list-menu";
 import { overdueCutoffDateValue, todayDateValue } from "@/lib/checklist/dates";
 import type { RowView } from "@/lib/checklist/row-state";
 
@@ -160,7 +159,7 @@ export function ListMenuSheet({
           title={populating ? "Populating…" : "Populate due"}
           hint={`Everyone due ${
             isToday ? "today" : "this day"
-          } or up to ${CARRY_OVER_DAYS} days late who isn't listed yet`}
+          } or still unpaid from earlier who isn't listed yet`}
           disabled={disabled || populating}
           onClick={once(onPopulate)}
         />

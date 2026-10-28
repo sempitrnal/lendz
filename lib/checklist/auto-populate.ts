@@ -6,9 +6,6 @@ import { selectPopulateLabels } from "@/lib/checklist/populate";
 import { autoPopulateStamp } from "@/lib/checklist/populate-summary";
 import type { DailyChecklistItem } from "@/lib/checklist/types";
 
-/** Unpaid schedules carry over onto the checklist this many days (as the app's Populate due). */
-const CARRY_OVER_DAYS = 7;
-
 /** The Philippine calendar day (UTC+8, no daylight saving) for an instant. */
 export function manilaDate(now: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -40,7 +37,7 @@ export async function populateDay(
   if (existingError) throw new Error(existingError.message);
   const items = (existing ?? []) as DailyChecklistItem[];
 
-  const groups = await loadDueGroups(supabase, date, CARRY_OVER_DAYS);
+  const groups = await loadDueGroups(supabase, date, null);
   const labels = selectPopulateLabels(groups, items);
   if (labels.length === 0) return { added: 0 };
 

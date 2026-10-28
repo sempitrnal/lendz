@@ -3,9 +3,6 @@
  * populate, Clear all and Mark all paid.
  */
 
-/** Unpaid schedules carry over onto the checklist for this many days. */
-export const CARRY_OVER_DAYS = 7;
-
 export const NOTHING_NEW_TO_ADD =
   "Nothing new to add — everyone due or carried over is already listed";
 
@@ -37,9 +34,9 @@ export const tickedPaidRowsText = (n: number) =>
 export const clearedItemsText = (n: number) =>
   `Cleared ${plural(n, "item", "items")}`;
 
-/** The due-collections URL for a day (that day and the 7 days before). */
+/** The due-collections URL for a day (that day and every unpaid day before). */
 export const dueGroupsUrl = (date: string) =>
-  `/api/checklist/due?date=${date}&back=${CARRY_OVER_DAYS}`;
+  `/api/checklist/due?date=${date}&back=all`;
 
 /** Why the due collections couldn't be loaded (the old widget's wording). */
 export const dueGroupsErrorText = (online: boolean) =>

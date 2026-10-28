@@ -34,15 +34,16 @@ const one = <T>(value: T | T[] | null | undefined): T | null =>
  */
 async function loadDueRows(
   supabase: Supabase,
-  startDate: string,
+  startDate: string | null,
   date: string,
 ) {
-  const { data, error } = await supabase
+  let query = supabase
     .from("payment_schedules")
     .select(
       `${SCHEDULE_COLUMNS}, accounts!inner(id, borrower_id, type, schedule_mode, borrowers!inner(id, first_name, last_name))`,
-    )
-    .gte("due_date", startDate)
+    );
+  if (startDate) query = query.gte("due_date", startDate);
+  const { data, error } = await query
     .lte("due_date", date)
     .neq("status", "paid")
     .in("accounts.type", ["loan", "cash_advance"])
@@ -73,10 +74,13 @@ async function loadDueRows(
       .select("id, borrower_id, type, schedule_mode")
       .in("type", ["loan", "cash_advance"])
       .is("deleted_at", null),
-    supabase
-      .from("payment_schedules")
-      .select(SCHEDULE_COLUMNS)
-      .gte("due_date", startDate)
+    (startDate
+      ? supabase
+          .from("payment_schedules")
+          .select(SCHEDULE_COLUMNS)
+          .gte("due_date", startDate)
+      : supabase.from("payment_schedules").select(SCHEDULE_COLUMNS)
+    )
       .lte("due_date", date)
       .neq("status", "paid"),
     supabase
@@ -104,16 +108,20 @@ async function loadDueRows(
 
 /**
  * Per borrower, what is still owed on schedules due from `back` days before
- * `date` up to `date` (the checklist's "due" groups), sorted by name.
+ * `date` up to `date` (the checklist's "due" groups), sorted by name. A `back`
+ * of null has no limit: every unpaid schedule due on or before `date`.
  */
 export async function loadDueGroups(
   supabase: Supabase,
   date: string,
-  back: number,
+  back: number | null,
 ): Promise<DueChecklistGroup[]> {
-  const start = new Date(`${date}T00:00:00Z`);
-  start.setUTCDate(start.getUTCDate() - back);
-  const startDate = start.toISOString().slice(0, 10);
+  let startDate: string | null = null;
+  if (back !== null) {
+    const start = new Date(`${date}T00:00:00Z`);
+    start.setUTCDate(start.getUTCDate() - back);
+    startDate = start.toISOString().slice(0, 10);
+  }
   const dueRows = await loadDueRows(supabase, startDate, date);
 
   const groups = new Map<string, DueChecklistGroup>();

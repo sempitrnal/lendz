@@ -128,9 +128,6 @@ const MENU_ITEM =
 /** A row rewritten by "Add carry-over": its new label and the one it replaced. */
 type ExtendedRow = { id: string; label: string; previous: string };
 
-/** Unpaid schedules carry over onto the checklist for this many days after their due date. */
-const CARRY_OVER_DAYS = 7;
-
 /** Section for rows whose every collection is from an earlier day; listed last. */
 const CARRY_OVER_KEY = "carried-over";
 
@@ -138,7 +135,7 @@ async function fetchDueGroups(
   targetDate: string,
 ): Promise<DueChecklistGroup[]> {
   const res = await fetch(
-    `/api/checklist/due?date=${targetDate}&back=${CARRY_OVER_DAYS}`,
+    `/api/checklist/due?date=${targetDate}&back=all`,
   );
   if (!res.ok) {
     throw new Error(
@@ -1533,7 +1530,7 @@ export default function DailyNotesWidget() {
         .flatMap((i) => extractBorrowerMention(i.label)?.id ?? []),
     );
     // Every borrower with something unlisted due on the date or still unpaid
-    // from the last CARRY_OVER_DAYS days, one row each.
+    // that are still unpaid, one row each.
     const labels = groups
       .filter((g) => !listedBorrowers.has(g.borrower_id))
       .map((g) => ({ ...g, items: g.items.filter((i) => !already.has(i.id)) }))
@@ -1596,7 +1593,7 @@ export default function DailyNotesWidget() {
 
   /**
    * TEMP: rewrites every unticked collection row on `targetDate` to also carry
-   * that borrower's unpaid schedules from the last CARRY_OVER_DAYS that aren't
+   * that borrower's unpaid schedules that are still unpaid and aren't
    * listed anywhere on the day yet. Remove once old rows have been backfilled.
    */
   const extendPopulated = async (targetDate: string) => {
