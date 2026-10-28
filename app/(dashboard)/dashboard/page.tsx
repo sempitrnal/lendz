@@ -1,6 +1,11 @@
 import type { CSSProperties } from "react";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { logPageView } from "@/lib/audit";
+import {
+  principalShare,
+  profitOnInstallment,
+  type AccountTerms,
+} from "@/lib/checklist/profit";
 import { getAllPaymentSchedules } from "@/lib/cache/schedules";
 import {
   isInstallmentFullyPaid,
@@ -13,6 +18,10 @@ import { ProfitPerMonth } from "@/components/components-2/dashboard/profit-per-m
 import { LoansReleased } from "@/components/components-2/dashboard/loans-released";
 import { OverdueAging } from "@/components/components-2/dashboard/overdue-aging";
 import { ProfitPerCategory } from "@/components/components-2/dashboard/profit-per-category";
+import {
+  WalletHome,
+  type RecentPayment,
+} from "@/components/components-2/dashboard/wallet-home";
 import { SidePanel } from "@/components/components-2/dashboard/side-panel";
 import type {
   DashboardSummary,
@@ -94,7 +103,7 @@ const AGING_BUCKETS = [
 export default async function Dashboard({
   searchParams,
 }: {
-  searchParams?: Promise<{ month?: string }>;
+  searchParams?: Promise<{ month?: string; view?: string }>;
 }) {
   const params = searchParams ? await searchParams : {};
   const supabase = await createSupabaseServer();
@@ -439,6 +448,111 @@ export default async function Dashboard({
 
   // Stagger index for the entrance animation, in reading order.
   const rise = (i: number) => ({ "--rise-i": i }) as CSSProperties;
+
+  if (params.view !== "classic") {
+    type AccountInfo = AccountTerms & {
+      id: string;
+      type: string | null;
+      interest_type: string | null;
+      interest_rate: number | null;
+      borrowers: unknown;
+    };
+    type ScheduleInfo = { due_date: string | null; accounts: unknown };
+    type PaymentRow = {
+      id: string;
+      schedule_id: string;
+      amount: number | null;
+      payment_date: string | null;
+      created_at: string;
+      payment_schedules: unknown;
+    };
+    const { data: paymentRows } = await supabase
+      .from("schedule_payments")
+      .select(
+        "id, schedule_id, amount, payment_date, created_at, payment_schedules(due_date, accounts(id, type, interest_type, interest_rate, principal_amount, term_months, payment_frequency, term_installments, schedule_mode, borrowers(id, first_name, last_name)))",
+      )
+      .order("created_at", { ascending: false })
+      .limit(6);
+    const recent = (paymentRows ?? []) as PaymentRow[];
+    // Everything already paid on those installments, to split each payment's
+    // profit from what came before it.
+    const { data: siblingRows } = recent.length
+      ? await supabase
+          .from("schedule_payments")
+          .select("id, schedule_id, amount, created_at")
+          .in("schedule_id", [...new Set(recent.map((r) => r.schedule_id))])
+      : {
+          data: [] as Omit<PaymentRow, "payment_date" | "payment_schedules">[],
+        };
+    const siblings = (siblingRows ?? []) as Omit<
+      PaymentRow,
+      "payment_date" | "payment_schedules"
+    >[];
+    const one = <T,>(v: T | T[] | null | undefined): T | null =>
+      Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
+    const shortDay = (day: string) =>
+      day === todayIso
+        ? "Today"
+        : day === addDays(todayIso, -1)
+          ? "Yesterday"
+          : new Date(`${day}T00:00:00Z`).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              timeZone: "UTC",
+            });
+    const payments: RecentPayment[] = recent.map((row) => {
+      const schedule = one(row.payment_schedules as ScheduleInfo | null);
+      const account = one(schedule?.accounts as AccountInfo | null);
+      const borrower = one(account?.borrowers as BorrowerNameRow | null);
+      const amount = Number(row.amount ?? 0);
+      const before = siblings
+        .filter(
+          (o) =>
+            o.schedule_id === row.schedule_id &&
+            (o.created_at < row.created_at ||
+              (o.created_at === row.created_at && o.id < row.id)),
+        )
+        .reduce((sum, o) => sum + Number(o.amount ?? 0), 0);
+      const share = principalShare(account);
+      const profit = account
+        ? profitOnInstallment(before + amount, share) -
+          profitOnInstallment(before, share)
+        : null;
+      const day = row.payment_date ?? row.created_at.slice(0, 10);
+      return {
+        id: row.id,
+        borrowerId: borrower?.id ?? null,
+        accountId: account?.id ?? null,
+        name:
+          [borrower?.first_name, borrower?.last_name]
+            .filter(Boolean)
+            .join(" ") || "Unknown borrower",
+        amount,
+        date: shortDay(day),
+        loanType: account?.type ?? null,
+        frequency: account?.payment_frequency ?? null,
+        rate: account?.interest_rate ?? null,
+        dueDate: schedule?.due_date ? shortDay(schedule.due_date) : null,
+        profit,
+      };
+    });
+    return (
+      <main className="relative mx-auto px-4 py-6 pb-20">
+        <WalletHome
+          summary={summary}
+          currentMonth={currentMonth}
+          activeMonth={activeMonth}
+          profitPerMonth={profitPerMonth}
+          overdueBuckets={overdueBuckets.map((b) => ({
+            ...b,
+            amount: Math.round(b.amount),
+          }))}
+          topOverdue={topOverdueBorrowers}
+          payments={payments}
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="relative isolate mx-auto px-4 py-6 pb-20 lg:px-8">
