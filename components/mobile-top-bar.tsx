@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Bell } from "lucide-react";
@@ -8,6 +9,10 @@ import { cn } from "@/lib/utils";
 import ThemeToggle from "@/components/theme-toggle";
 import HeaderSearch from "@/components/header-search";
 import { usePageOwnsMobileHeader } from "@/components/use-wallet-dashboard";
+
+/** The band's top colour (emerald-600 / emerald-950), for the status bar. */
+const THEME_LIGHT = "#059669";
+const THEME_DARK = "#022c22";
 
 /** Scroll distance (px) over which the green bar fills in. */
 const FILL_DISTANCE = 56;
@@ -28,6 +33,19 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [searchFocused, setSearchFocused] = useState(false);
   const ownsHeader = usePageOwnsMobileHeader();
   const fillRef = useRef<HTMLDivElement>(null);
+  const { resolvedTheme } = useTheme();
+
+  // The phone's status bar takes its colour from the theme-color tag. On a page
+  // with a green band, match the band, so the status bar, the top bar and the
+  // band read as one piece; elsewhere leave the tag out.
+  useEffect(() => {
+    if (!ownsHeader) return;
+    const meta = document.createElement("meta");
+    meta.name = "theme-color";
+    meta.content = resolvedTheme === "dark" ? THEME_DARK : THEME_LIGHT;
+    document.head.appendChild(meta);
+    return () => meta.remove();
+  }, [ownsHeader, resolvedTheme]);
 
   // On a page with its own green band the bar starts see-through, so it reads
   // as part of the band, and fills in as you scroll. It writes the opacity

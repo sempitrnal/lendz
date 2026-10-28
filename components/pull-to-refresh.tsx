@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { usePageOwnsMobileHeader } from "@/components/use-wallet-dashboard";
 
 const PULL_THRESHOLD = 72; // px to trigger
 const MAX_PULL = 130; // px hard cap
@@ -11,6 +12,7 @@ const REFRESH_HOLD_MS = 900; // how long to hold loading before snapping back
 
 export function PullToRefresh({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const ownsHeader = usePageOwnsMobileHeader();
   const [distance, setDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -212,6 +214,18 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
     >
+      {/* Where the page draws its own green band, the band slides down with the
+          content on a pull, so what it uncovers is green too, not the page
+          colour. Behind the content (earlier in the DOM), reaching up past the
+          container's top where the band's pulled-up margin sits. */}
+      {ownsHeader && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 -top-16 h-48
+            bg-emerald-600 sm:hidden dark:bg-emerald-950"
+        />
+      )}
+
       {/* Pull indicator — translateY only, no layout-triggering props */}
       <div
         ref={indicatorRef}
