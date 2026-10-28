@@ -19,6 +19,14 @@ interface HeaderSearchProps {
   onFocusChange?: (focused: boolean) => void;
 }
 
+/** First letters of the first and last word of a name. */
+function initials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  const last = words.length > 1 ? words[words.length - 1] : "";
+  return words[0][0] + (last[0] ?? "");
+}
+
 function loadRecentIds(): string[] {
   return loadRecentBorrowers().map((b) => b.id);
 }
@@ -242,7 +250,7 @@ export default function HeaderSearch({
             z-50 mt-1 overflow-hidden rounded-xl border border-slate-300
             bg-white shadow-sm dark:shadow-none`,
             onColor &&
-              `-left-[3.25rem] -right-9 mt-3 rounded-2xl border-0 bg-card
+              `left-0 -right-[4.75rem] mt-3 rounded-2xl border-0 bg-card
               shadow-xl ring-1 shadow-emerald-900/10 ring-black/5 dark:border-0
               dark:ring-white/10`,
           )}
@@ -296,7 +304,7 @@ export default function HeaderSearch({
                     text-emerald-700 dark:bg-emerald-500/20
                     dark:text-emerald-300"
                 >
-                  {(s.first_name?.[0] ?? "") + (s.last_name?.[0] ?? "")}
+                  {initials(`${s.first_name} ${s.last_name}`)}
                 </span>
               )}
               <span className="flex min-w-0 flex-1 flex-col gap-1">
