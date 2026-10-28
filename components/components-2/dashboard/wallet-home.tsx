@@ -214,11 +214,14 @@ export function WalletHome({
     <div className="mx-auto max-w-2xl space-y-4 pb-6">
       {/* No z-index here: the green wash paints under the cards, while the
           search row (z-20) and its dropdown stay above them. */}
-      <div className="relative px-4 pt-4 pb-20 text-white">
+      <div
+        className="relative -mx-4 px-4 pt-[max(1rem,env(safe-area-inset-top))]
+          pb-20 text-white sm:mx-0"
+      >
         <div
           aria-hidden="true"
-          className="absolute inset-0 rounded-3xl bg-linear-to-b
-            from-emerald-600 to-emerald-500"
+          className="absolute inset-0 rounded-b-3xl bg-linear-to-b
+            sm:rounded-3xl from-emerald-600 to-emerald-500"
         />
         <div className="relative z-20 flex items-center gap-3">
           <HeaderSearch onColor className="flex-1 sm:max-w-none" />
