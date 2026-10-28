@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, Search, X, XCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import {
@@ -13,6 +14,8 @@ import {
 
 interface HeaderSearchProps {
   className?: string;
+  /** Translucent-white field for sitting on a coloured header. */
+  onColor?: boolean;
   onFocusChange?: (focused: boolean) => void;
 }
 
@@ -22,6 +25,7 @@ function loadRecentIds(): string[] {
 
 export default function HeaderSearch({
   className,
+  onColor = false,
   onFocusChange,
 }: HeaderSearchProps) {
   const router = useRouter();
@@ -119,8 +123,10 @@ export default function HeaderSearch({
     >
       <div className="relative flex items-center">
         <Search
-          className="text-muted-foreground pointer-events-none absolute left-3
-            size-4"
+          className={cn(
+            "text-muted-foreground pointer-events-none absolute left-3 size-4",
+            onColor && "text-white/80",
+          )}
           aria-hidden
         />
         <input
@@ -163,11 +169,19 @@ export default function HeaderSearch({
           aria-label="Search borrowers"
           aria-autocomplete="list"
           aria-expanded={showSuggestions}
-          className="dark:border-border dark:bg-card dark:text-foreground
+          className={cn(
+            `dark:border-border dark:bg-card dark:text-foreground
             dark:placeholder:text-muted-foreground h-9 w-full rounded-lg border
             border-slate-300 bg-white py-2 pr-14 pl-9 text-sm text-slate-600
             outline-none placeholder:text-slate-400 transition
-            focus:border-slate-400 dark:focus:border-slate-500"
+            focus:border-slate-400 dark:focus:border-slate-500`,
+            onColor &&
+              `rounded-full border-transparent bg-white/20 font-semibold
+              text-white placeholder:text-white/70 focus:border-white/40
+              focus:bg-white/25 dark:border-transparent dark:bg-white/20
+              dark:text-white dark:placeholder:text-white/70
+              dark:focus:border-white/40`,
+          )}
         />
 
         {/* Clear button */}
@@ -179,11 +193,16 @@ export default function HeaderSearch({
               setDebouncedQuery("");
               inputRef.current?.focus();
             }}
-            className={`dark:text-muted-foreground absolute top-1/2 z-10
-            -translate-y-1/2 rounded-md p-1 text-slate-400 transition
-            hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/10
-            dark:hover:text-foreground
-            ${showSuggestions ? "right-8" : "right-2.5"}`}
+            className={cn(
+              `dark:text-muted-foreground absolute top-1/2 z-10 -translate-y-1/2
+              rounded-md p-1 text-slate-400 transition hover:bg-slate-100
+              hover:text-slate-600 dark:hover:bg-white/10
+              dark:hover:text-foreground`,
+              showSuggestions ? "right-8" : "right-2.5",
+              onColor &&
+                `text-white/80 hover:bg-white/15 hover:text-white
+                dark:text-white/80 dark:hover:text-white`,
+            )}
             aria-label="Clear search"
           >
             <XCircle className="size-3.5" />
@@ -198,10 +217,15 @@ export default function HeaderSearch({
               setShowSuggestions(false);
               inputRef.current?.blur();
             }}
-            className="dark:text-muted-foreground absolute top-1/2 right-2.5
-              z-10 -translate-y-1/2 rounded-md p-1 text-slate-400 transition
+            className={cn(
+              `dark:text-muted-foreground absolute top-1/2 right-2.5 z-10
+              -translate-y-1/2 rounded-md p-1 text-slate-400 transition
               hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/10
-              dark:hover:text-foreground"
+              dark:hover:text-foreground`,
+              onColor &&
+                `text-white/80 hover:bg-white/15 hover:text-white
+                dark:text-white/80 dark:hover:text-white`,
+            )}
             aria-label="Close search"
           >
             <X className="size-3.5" />
@@ -213,16 +237,26 @@ export default function HeaderSearch({
         <div
           role="listbox"
           onMouseDown={(e) => e.preventDefault()}
-          className="dark:border-border dark:bg-card absolute top-full right-0
-            left-0 z-50 mt-1 overflow-hidden rounded-xl border border-slate-300
-            bg-white shadow-sm dark:shadow-none"
+          className={cn(
+            `dark:border-border dark:bg-card absolute top-full right-0 left-0
+            z-50 mt-1 overflow-hidden rounded-xl border border-slate-300
+            bg-white shadow-sm dark:shadow-none`,
+            onColor &&
+              `-left-[3.25rem] -right-9 mt-3 rounded-2xl border-0 bg-card
+              shadow-xl ring-1 shadow-emerald-900/10 ring-black/5 dark:border-0
+              dark:ring-white/10`,
+          )}
         >
           {!isQuery && (
             <div
-              className="dark:border-border/40 flex items-center gap-1.5
-                border-b border-slate-100 px-3 py-1.5 text-[10px] font-black
-                uppercase tracking-wide text-slate-400
-                dark:text-muted-foreground"
+              className={cn(
+                `dark:border-border/40 flex items-center gap-1.5 border-b
+                border-slate-100 px-3 py-1.5 text-[10px] font-black uppercase
+                tracking-wide text-slate-400 dark:text-muted-foreground`,
+                onColor &&
+                  `border-0 bg-emerald-50 px-4 py-2 text-emerald-700
+                  dark:bg-emerald-500/10 dark:text-emerald-300`,
+              )}
             >
               <Clock className="size-3" />
               Recently visited
@@ -239,18 +273,39 @@ export default function HeaderSearch({
                 navigate(s);
               }}
               onMouseEnter={() => setActiveIndex(i)}
-              className={`dark:border-border/50 flex w-full items-center
-              justify-between gap-3 border-b border-secondary px-3 py-2.5
-              text-left transition-colors last:border-b-0 ${
+              className={cn(
+                `dark:border-border/50 flex w-full items-center justify-between
+                gap-3 border-b border-secondary px-3 py-2.5 text-left
+                transition-colors last:border-b-0`,
                 i === activeIndex
                   ? "dark:bg-muted bg-secondary/50"
-                  : "dark:bg-card bg-white"
-              }`}
+                  : "dark:bg-card bg-white",
+                onColor &&
+                  `gap-3 border-0 px-4 py-3 ${
+                    i === activeIndex
+                      ? "bg-emerald-50 dark:bg-emerald-500/10"
+                      : "bg-card dark:bg-card"
+                  }`,
+              )}
             >
+              {onColor && (
+                <span
+                  aria-hidden="true"
+                  className="flex size-9 shrink-0 items-center justify-center
+                    rounded-full bg-emerald-100 text-sm font-bold uppercase
+                    text-emerald-700 dark:bg-emerald-500/20
+                    dark:text-emerald-300"
+                >
+                  {(s.first_name?.[0] ?? "") + (s.last_name?.[0] ?? "")}
+                </span>
+              )}
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <span
-                  className="dark:text-foreground truncate text-base font-bold
-                    text-slate-600 lowercase"
+                  className={cn(
+                    `dark:text-foreground truncate text-base font-bold
+                    text-slate-600 lowercase`,
+                    onColor && "text-sm text-card-foreground/80",
+                  )}
                 >
                   {s.first_name} {s.last_name}
                 </span>
@@ -264,11 +319,14 @@ export default function HeaderSearch({
                       {cats.map((cat) => (
                         <span
                           key={cat.id}
-                          className="inline-flex items-center gap-1 rounded-full border
+                          className={cn(
+                            `inline-flex items-center gap-1 rounded-full border
                             border-slate-900/10 bg-secondary/30 px-2 py-0.5 text-[11px]
                             font-semibold text-slate-600 capitalize
                             dark:border-white/10 dark:bg-slate-800
-                            dark:text-slate-300"
+                            dark:text-slate-300`,
+                            onColor && "border-0 bg-muted dark:bg-white/10",
+                          )}
                         >
                           <span
                             className="size-1.5 shrink-0 rounded-full"
