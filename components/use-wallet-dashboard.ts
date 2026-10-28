@@ -11,3 +11,13 @@ export function useWalletDashboard() {
   const params = useSearchParams();
   return pathname === "/dashboard" && params.get("view") !== "classic";
 }
+
+/**
+ * True where the page draws its own green top band on a phone: the wallet
+ * dashboard and the checklist. The global mobile top bar steps aside there.
+ */
+export function usePageOwnsMobileHeader() {
+  const pathname = usePathname();
+  const walletDashboard = useWalletDashboard();
+  return walletDashboard || pathname === "/daily-checklist";
+}
