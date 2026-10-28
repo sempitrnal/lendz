@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatPeso, type MonthlyProfit } from "@/lib/dashboard-data";
 import { SectionHeading } from "./section-heading";
+import { DashCard } from "./dash-card";
 import {
   BarGradient,
   HeadlineStat,
@@ -98,11 +99,10 @@ export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
   );
 
   return (
-    <section
+    <DashCard
       className="rounded-xl border border-emerald-100 bg-linear-to-br
-        from-emerald-50/60 via-card to-teal-50/60 p-6 shadow-sm
-        dark:border-border dark:from-emerald-500/5 dark:via-card
-        dark:to-teal-500/5"
+        from-emerald-50/60 via-card to-teal-50/60 p-6 dark:border-border
+        dark:from-emerald-500/5 dark:via-card dark:to-teal-500/5"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <SectionHeading
@@ -149,7 +149,9 @@ export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
         />
       </div>
 
-      <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+      <div
+        className="mt-4 flex items-center gap-4 text-xs text-muted-foreground"
+      >
         <span className="flex items-center gap-1.5">
           <span className="size-2.5 rounded-sm bg-primary" aria-hidden="true" />
           collected profit
@@ -187,10 +189,7 @@ export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
               tick={axisTick}
               tickFormatter={pesoAxisTick}
             />
-            <Tooltip
-              cursor={chartCursor}
-              content={<ChartTooltip />}
-            />
+            <Tooltip cursor={chartCursor} content={<ChartTooltip />} />
             <Bar
               dataKey="expected"
               fill="var(--border)"
@@ -231,6 +230,6 @@ export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
           </div>
         ))}
       </div>
-    </section>
+    </DashCard>
   );
 }

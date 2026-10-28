@@ -8,6 +8,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
+import { DashCard } from "./dash-card";
 
 const quickActions = [
   {
@@ -49,9 +50,9 @@ export function SidePanel({
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <section
+      <DashCard
         className="relative overflow-hidden rounded-xl border border-border
-          bg-primary p-6 text-primary-foreground shadow-sm"
+          bg-primary p-6 text-primary-foreground"
       >
         <CalendarRange
           className="pointer-events-none absolute -right-6 -bottom-6 size-36
@@ -72,16 +73,17 @@ export function SidePanel({
         </p>
         <Link
           href="/due-this-month"
-          className="relative mt-4 inline-flex w-full items-center justify-center gap-1
-            rounded-lg bg-primary-foreground/15 px-4 py-2 text-sm font-medium
-            transition-colors hover:bg-primary-foreground/25"
+          className="relative mt-4 inline-flex w-full items-center
+            justify-center gap-1 rounded-lg bg-primary-foreground/15 px-4 py-2
+            text-sm font-medium transition-colors
+            hover:bg-primary-foreground/25"
         >
           View all
           <ChevronRight className="size-4" aria-hidden="true" />
         </Link>
-      </section>
+      </DashCard>
 
-      <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+      <DashCard className="rounded-xl border border-border bg-card p-6">
         <h2 className="text-lg font-semibold text-card-foreground">
           quick actions
         </h2>
@@ -98,8 +100,8 @@ export function SidePanel({
                 <span className="flex items-center gap-3">
                   <span
                     className={`flex size-8 items-center justify-center
-                      rounded-md transition-transform group-hover:scale-110
-                      ${action.tint}`}
+                    rounded-md transition-transform group-hover:scale-110
+                    ${action.tint}`}
                   >
                     <action.icon className="size-4" aria-hidden="true" />
                   </span>
@@ -114,7 +116,7 @@ export function SidePanel({
             </li>
           ))}
         </ul>
-      </section>
+      </DashCard>
     </div>
   );
 }

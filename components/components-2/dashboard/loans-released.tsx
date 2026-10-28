@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { formatPeso, type MonthlyProfit } from "@/lib/dashboard-data";
 import { SectionHeading } from "./section-heading";
+import { DashCard } from "./dash-card";
 import {
   BarGradient,
   HeadlineStat,
@@ -60,7 +61,7 @@ export function LoansReleased({ months }: { months: MonthlyProfit[] }) {
   const profit = data.reduce((s, m) => s + m.actual, 0);
 
   return (
-    <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+    <DashCard className="rounded-xl border border-border bg-card p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <SectionHeading
           icon={HandCoins}
@@ -87,7 +88,10 @@ export function LoansReleased({ months }: { months: MonthlyProfit[] }) {
 
       <div className="mt-5 h-52 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+          <BarChart
+            data={data}
+            margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
+          >
             <BarGradient id={gradId} color="var(--chart-2)" />
             <CartesianGrid
               vertical={false}
@@ -108,10 +112,7 @@ export function LoansReleased({ months }: { months: MonthlyProfit[] }) {
               tick={axisTick}
               tickFormatter={pesoAxisTick}
             />
-            <Tooltip
-              cursor={chartCursor}
-              content={<ChartTooltip />}
-            />
+            <Tooltip cursor={chartCursor} content={<ChartTooltip />} />
             <Bar
               dataKey="released"
               fill={`url(#${gradId})`}
@@ -122,6 +123,6 @@ export function LoansReleased({ months }: { months: MonthlyProfit[] }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </section>
+    </DashCard>
   );
 }

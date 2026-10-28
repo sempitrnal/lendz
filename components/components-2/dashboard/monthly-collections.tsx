@@ -2,6 +2,7 @@ import { PiggyBank } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPeso, type CurrentMonthData } from "@/lib/dashboard-data";
 import { SectionHeading } from "./section-heading";
+import { DashCard } from "./dash-card";
 import { CelebrateWhen } from "./celebrate-when";
 
 export function MonthlyCollections({
@@ -25,31 +26,26 @@ export function MonthlyCollections({
       label: "to collect so far",
       value: currentMonth.toCollectSoFar,
       tone: "accent",
-  
     },
     {
       label: "collected",
       value: currentMonth.collected,
       tone: "primary",
- 
     },
     {
       label: "meme",
       value: currentMonth.meme,
       tone: "default",
- 
     },
     {
       label: "expected profit",
       value: currentMonth.expectedProfit,
       tone: "default",
-
     },
     {
       label: "remaining profit",
       value: currentMonth.remainingProfit,
       tone: "accent",
-
     },
   ];
 
@@ -57,9 +53,9 @@ export function MonthlyCollections({
   const soFarWidth = Math.min(Math.max(soFarPct, collectedPct), 100);
 
   return (
-    <section
+    <DashCard
       className="relative overflow-hidden rounded-xl border border-amber-200/70
-        bg-linear-to-br from-amber-50 via-card to-emerald-50 p-6 shadow-sm
+        bg-linear-to-br from-amber-50 via-card to-emerald-50 p-6
         dark:border-border dark:from-amber-500/10 dark:via-card
         dark:to-emerald-500/10"
     >
@@ -97,7 +93,7 @@ export function MonthlyCollections({
               "shrink-0 rounded-full px-2.5 py-1 text-sm font-semibold",
               collectedPct >= 100
                 ? "bg-emerald-600 text-white"
-                : `bg-emerald-500/15 text-emerald-700 dark:text-emerald-400`,
+                : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
             )}
           >
             {collectedPct >= 100 ? "🎉 " : ""}
@@ -118,13 +114,14 @@ export function MonthlyCollections({
         >
           <div
             className="dash-grow absolute inset-y-0 left-0 rounded-full
-              bg-amber-300/70 bg-[repeating-linear-gradient(-45deg,transparent_0_6px,rgb(255_255_255/0.35)_6px_12px)]
+              bg-amber-300/70
+              bg-[repeating-linear-gradient(-45deg,transparent_0_6px,rgb(255_255_255/0.35)_6px_12px)]
               dark:bg-amber-400/40"
             style={{ width: `${soFarWidth}%` }}
           />
           <div
             className="dash-grow absolute inset-y-0 left-0 rounded-full
-              bg-linear-to-r from-emerald-400 to-emerald-600 shadow-sm"
+              bg-linear-to-r from-emerald-400 to-emerald-600"
             style={{ width: `${collectedWidth}%` }}
           />
         </div>
@@ -141,7 +138,8 @@ export function MonthlyCollections({
           </span>
           <span className="flex items-center gap-1.5">
             <span
-              className="size-2.5 rounded-full bg-amber-300 dark:bg-amber-400/60"
+              className="size-2.5 rounded-full bg-amber-300
+                dark:bg-amber-400/60"
               aria-hidden="true"
             />
             due so far · {soFarPct}%
@@ -162,13 +160,14 @@ export function MonthlyCollections({
           <div
             key={stat.label}
             className={cn(
-              "rounded-lg border p-3 shadow-xs",
+              "rounded-lg border p-3",
               stat.tone === "primary"
                 ? `border-emerald-500/25 bg-emerald-50/80
                   dark:bg-emerald-500/10`
                 : stat.tone === "accent"
                   ? "border-amber-500/25 bg-amber-50/80 dark:bg-amber-500/10"
-                  : "border-black/5 bg-white/70 dark:border-white/5 dark:bg-white/5",
+                  : `border-black/5 bg-white/70 dark:border-white/5
+                    dark:bg-white/5`,
             )}
           >
             <dt className="text-xs font-medium lowercase text-muted-foreground">
@@ -193,6 +192,6 @@ export function MonthlyCollections({
         when={collectedPct >= 100}
         onceKey={`collected-${currentMonth.label}`}
       />
-    </section>
+    </DashCard>
   );
 }

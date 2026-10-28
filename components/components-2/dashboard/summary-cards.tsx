@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import {
   Users,
   CalendarClock,
@@ -8,9 +7,9 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { type DashboardSummary } from "@/lib/dashboard-data";
+import { formatPeso, type DashboardSummary } from "@/lib/dashboard-data";
 
-import { CountUp } from "./count-up";
+import { DashCard } from "./dash-card";
 
 type Tint = "hero" | "rose" | "amber" | "sky" | "violet";
 
@@ -19,6 +18,8 @@ type Card = {
   value: number;
   format?: "peso" | "number";
   hint: string;
+  /** Splits the value into principal and profit, shown as a bar. */
+  split?: { principal: number; profit: number };
   tone?: "positive" | "danger";
   tint: Tint;
   icon: typeof Users;
@@ -45,6 +46,10 @@ const TINTS: Record<Exclude<Tint, "hero">, { badge: string; glow: string }> = {
   },
 };
 
+/** A share of the total, as a whole percent for a bar width. */
+const splitPercent = (part: number, total: number) =>
+  total > 0 ? Math.min(100, Math.max(0, (part / total) * 100)) : 0;
+
 export function SummaryCards({ summary }: { summary: DashboardSummary }) {
   const overduePct =
     summary.outstanding > 0
@@ -56,6 +61,10 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
       label: "outstanding",
       value: summary.outstanding,
       hint: `${summary.activeLoans} active loan${summary.activeLoans === 1 ? "" : "s"}`,
+      split: {
+        principal: summary.outstandingPrincipal,
+        profit: summary.outstandingProfit,
+      },
       tint: "hero",
       icon: Wallet,
       className: "max-sm:col-span-2",
@@ -105,16 +114,13 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
         const hero = card.tint === "hero";
         const tint = card.tint === "hero" ? null : TINTS[card.tint];
         return (
-          <div
+          <DashCard
             key={card.label}
-            style={{ "--rise-i": i } as CSSProperties}
+            index={i}
             className={cn(
-              `dash-rise relative min-w-0 overflow-hidden rounded-xl border p-4
-              shadow-sm transition-[translate,box-shadow] duration-200
-              hover:-translate-y-0.5 hover:shadow-md sm:p-5`,
-              hero
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card",
+              `overflow-hidden p-4 transition-[translate] duration-200
+              hover:-translate-y-0.5 sm:p-5`,
+              hero && "border-primary bg-primary text-primary-foreground",
               card.className,
             )}
           >
@@ -122,7 +128,8 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
             <div
               aria-hidden="true"
               className={cn(
-                "pointer-events-none absolute -top-10 -right-10 size-32 rounded-full",
+                `pointer-events-none absolute -top-10 -right-10 size-32
+                rounded-full`,
                 hero
                   ? "bg-primary-foreground/10"
                   : `bg-linear-to-bl ${tint!.glow} to-transparent`,
@@ -132,9 +139,7 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
               <span
                 className={cn(
                   "text-sm font-medium lowercase",
-                  hero
-                  ? "text-primary-foreground/80"
-                  : "text-muted-foreground",
+                  hero ? "text-primary-foreground/80" : "text-muted-foreground",
                 )}
               >
                 {card.label}
@@ -159,15 +164,21 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
                     : "text-card-foreground",
               )}
             >
-              <CountUp value={card.value} format={card.format} />
+              {card.format === "number"
+                ? card.value.toLocaleString()
+                : formatPeso(card.value)}
             </p>
-            <div className="relative mt-2 flex items-center gap-1 text-xs sm:text-sm">
-              {card.tone === "positive" && card.label === "active borrowers" && (
-                <ArrowUpRight
-                  className="size-4 shrink-0 text-primary"
-                  aria-hidden="true"
-                />
-              )}
+            <div
+              className="relative mt-2 flex items-center gap-1 text-xs
+                sm:text-sm"
+            >
+              {card.tone === "positive" &&
+                card.label === "active borrowers" && (
+                  <ArrowUpRight
+                    className="size-4 shrink-0 text-primary"
+                    aria-hidden="true"
+                  />
+                )}
               <span
                 className={cn(
                   "leading-snug",
@@ -181,7 +192,60 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
                 {card.hint}
               </span>
             </div>
-          </div>
+            {card.split && (
+              <div className="relative mt-4">
+                <div
+                  role="img"
+                  aria-label={`${formatPeso(card.split.principal)} principal and ${formatPeso(card.split.profit)} profit`}
+                  className="flex h-2 overflow-hidden rounded-full
+                    bg-primary-foreground/20"
+                >
+                  <div
+                    className="h-full bg-primary-foreground/70"
+                    style={{
+                      width: `${splitPercent(card.split.principal, card.value)}%`,
+                    }}
+                  />
+                  <div
+                    className="h-full bg-amber-300"
+                    style={{
+                      width: `${splitPercent(card.split.profit, card.value)}%`,
+                    }}
+                  />
+                </div>
+                <dl
+                  className="mt-2 flex justify-between gap-3 text-xs sm:text-sm"
+                >
+                  <div>
+                    <dt
+                      className="flex items-center gap-1.5
+                        text-primary-foreground/80"
+                    >
+                      <span
+                        className="size-2 rounded-full bg-primary-foreground/70"
+                      />
+                      principal
+                    </dt>
+                    <dd className="font-semibold tabular-nums">
+                      {formatPeso(card.split.principal)}
+                    </dd>
+                  </div>
+                  <div className="text-right">
+                    <dt
+                      className="flex items-center justify-end gap-1.5
+                        text-primary-foreground/80"
+                    >
+                      <span className="size-2 rounded-full bg-amber-300" />
+                      profit
+                    </dt>
+                    <dd className="font-semibold tabular-nums">
+                      {formatPeso(card.split.profit)}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            )}
+          </DashCard>
         );
       })}
     </div>

@@ -1,5 +1,9 @@
 export interface DashboardSummary {
   outstanding: number;
+  /** Interest still to be collected, part of `outstanding`. */
+  outstandingProfit: number;
+  /** Principal still to be collected: `outstanding` minus the profit. */
+  outstandingPrincipal: number;
   activeLoans: number;
   overdue: number;
   overdueSchedules: number;

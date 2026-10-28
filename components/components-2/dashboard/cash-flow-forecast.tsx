@@ -21,6 +21,7 @@ import {
   pesoAxisTick,
 } from "./chart-bits";
 import { SectionHeading } from "./section-heading";
+import { DashCard } from "./dash-card";
 
 function ChartTooltip({
   active,
@@ -54,7 +55,7 @@ export function CashFlowForecast({ weeks }: { weeks: CashFlowWeek[] }) {
   const gradId = useId();
 
   return (
-    <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+    <DashCard className="rounded-xl border border-border bg-card p-6">
       <SectionHeading
         icon={Banknote}
         tint="emerald"
@@ -101,10 +102,7 @@ export function CashFlowForecast({ weeks }: { weeks: CashFlowWeek[] }) {
               tick={axisTick}
               tickFormatter={pesoAxisTick}
             />
-            <Tooltip
-              cursor={chartCursor}
-              content={<ChartTooltip />}
-            />
+            <Tooltip cursor={chartCursor} content={<ChartTooltip />} />
             <Bar
               dataKey="expected"
               fill={`url(#${gradId})`}
@@ -115,6 +113,6 @@ export function CashFlowForecast({ weeks }: { weeks: CashFlowWeek[] }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </section>
+    </DashCard>
   );
 }

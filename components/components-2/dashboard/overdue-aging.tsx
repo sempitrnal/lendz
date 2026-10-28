@@ -6,6 +6,7 @@ import {
   type OverdueBucket,
 } from "@/lib/dashboard-data";
 import { SectionHeading } from "./section-heading";
+import { DashCard } from "./dash-card";
 
 // Older debt is riskier, so the bars darken from amber to deep rose.
 const BUCKET_BAR = [
@@ -28,13 +29,13 @@ export function OverdueAging({
   const max = Math.max(1, ...buckets.map((b) => b.amount));
 
   return (
-    <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+    <DashCard className="rounded-xl border border-border bg-card p-6">
       <SectionHeading icon={AlertTriangle} tint="rose" title="overdue aging" />
 
       {total <= 0 ? (
         <div
-          className="mt-4 flex items-center gap-3 rounded-lg bg-secondary/60
-            p-4 text-sm text-muted-foreground"
+          className="mt-4 flex items-center gap-3 rounded-lg bg-secondary/60 p-4
+            text-sm text-muted-foreground"
         >
           <PartyPopper className="size-5 text-primary" aria-hidden="true" />
           Nothing past due. Nice.
@@ -54,11 +55,18 @@ export function OverdueAging({
           <ul className="mt-5 space-y-3">
             {buckets.map((b, i) => (
               <li key={b.label}>
-                <div className="flex items-baseline justify-between gap-2 text-sm">
+                <div
+                  className="flex items-baseline justify-between gap-2 text-sm"
+                >
                   <span className="text-muted-foreground">{b.label}</span>
-                  <span className="font-medium text-card-foreground tabular-nums">
+                  <span
+                    className="font-medium text-card-foreground tabular-nums"
+                  >
                     {formatPeso(b.amount)}
-                    <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                    <span
+                      className="ml-1.5 text-xs font-normal
+                        text-muted-foreground"
+                    >
                       · {b.count}
                     </span>
                   </span>
@@ -123,6 +131,6 @@ export function OverdueAging({
           )}
         </>
       )}
-    </section>
+    </DashCard>
   );
 }

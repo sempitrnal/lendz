@@ -4,6 +4,7 @@ import { useMemo, type ReactNode } from "react";
 import { CalendarClock, Check, Frown, PieChart, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPeso } from "@/lib/dashboard-data";
+import { DashCard } from "./dash-card";
 
 export type ScheduleStatus = "pending" | "paid" | "overdue" | "partial";
 
@@ -147,7 +148,7 @@ export function PaymentSchedules({
   }
 
   return (
-    <section
+    <DashCard
       className={cn(
         "rounded-2xl border border-border bg-card p-5 sm:p-6",
         className,
@@ -248,7 +249,7 @@ export function PaymentSchedules({
               key={schedule.number}
               id={isNext ? "next-schedule" : undefined}
               className={cn(
-                `flex flex-col rounded-xl border p-4 shadow-sm transition-colors
+                `flex flex-col rounded-xl border p-4 transition-colors
                 duration-500`,
                 style.row,
               )}
@@ -364,6 +365,6 @@ export function PaymentSchedules({
           );
         })}
       </ol>
-    </section>
+    </DashCard>
   );
 }

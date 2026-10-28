@@ -1,6 +1,7 @@
 import { Tags } from "lucide-react";
 import { formatPeso, type ProfitCategoryItem } from "@/lib/dashboard-data";
 import { SectionHeading } from "./section-heading";
+import { DashCard } from "./dash-card";
 
 export function ProfitPerCategory({
   profitPerCategory,
@@ -8,9 +9,7 @@ export function ProfitPerCategory({
   profitPerCategory: ProfitCategoryItem[];
 }) {
   return (
-    <section
-      className="rounded-xl border border-border bg-card p-6 shadow-sm"
-    >
+    <DashCard className="rounded-xl border border-border bg-card p-6">
       <SectionHeading
         icon={Tags}
         tint="emerald"
@@ -77,6 +76,6 @@ export function ProfitPerCategory({
           );
         })}
       </ul>
-    </section>
+    </DashCard>
   );
 }

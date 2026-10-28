@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { CardDescription, CardTitle } from "@/components/motion/card";
 import { cn } from "@/lib/utils";
 
 const TINTS = {
@@ -33,9 +34,13 @@ export function SectionHeading({
         <Icon className="size-[18px]" aria-hidden="true" />
       </span>
       <div className="min-w-0">
-        <h2 className="text-lg font-semibold text-card-foreground">{title}</h2>
+        <CardTitle as="h2" className="text-lg">
+          {title}
+        </CardTitle>
         {subtitle && (
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
+          <CardDescription className="leading-normal">
+            {subtitle}
+          </CardDescription>
         )}
       </div>
     </div>

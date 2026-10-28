@@ -265,6 +265,8 @@ export default async function Dashboard({
 
   // ── Portfolio health (always as of today) ───────────────────────────
   let outstanding = 0;
+  // The part of `outstanding` that is interest still to be collected.
+  let outstandingProfit = 0;
   let dueTotalToday = 0;
   let dueTodayCount = 0;
   const activeLoanIds = new Set<string>();
@@ -304,6 +306,15 @@ export default async function Dashboard({
     const remaining = remainingOnInstallment(row);
     if (remaining <= 0) continue;
     outstanding += remaining;
+    {
+      const share = principalPerInstallmentByAccount.get(row.account_id) ?? 0;
+      const profitDue = Math.max(0, Number(row.amount_due ?? 0) - share);
+      const profitPaid = Math.max(0, Number(row.amount_paid ?? 0) - share);
+      outstandingProfit += Math.min(
+        remaining,
+        Math.max(0, profitDue - profitPaid),
+      );
+    }
     activeLoanIds.add(row.account_id);
 
     if (row.due_date === todayIso) {
@@ -370,6 +381,8 @@ export default async function Dashboard({
 
   const summary: DashboardSummary = {
     outstanding: Math.round(outstanding),
+    outstandingProfit: Math.round(outstandingProfit),
+    outstandingPrincipal: Math.round(outstanding - outstandingProfit),
     activeLoans: activeLoanIds.size,
     overdue: Math.round(overdueTotal),
     overdueSchedules: overdueCount,
@@ -450,7 +463,11 @@ export default async function Dashboard({
   });
 
   const hour = Number(
-    now.toLocaleString("en-US", { hour: "numeric", hour12: false, timeZone: TZ }),
+    now.toLocaleString("en-US", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: TZ,
+    }),
   );
   const greeting =
     hour < 12 ? "good morning" : hour < 18 ? "good afternoon" : "good evening";
