@@ -132,10 +132,10 @@ html[data-nav-splash="release"]
 [data-settle-group] > :nth-child(6) { --d: 470ms; }
 [data-settle-group] > :nth-child(7) { --d: 540ms; }
 [data-settle-group] > :nth-child(n + 8) { --d: 610ms; }
-/* The band's text waits for the slab to lift off it, then fades in with it. */
-[data-settle-group="band"] > :nth-child(n) { --d: 440ms; }
-[data-settle-group="band"] > :nth-child(n + 3) { --d: 500ms; }
-[data-settle-group="band"] > :nth-child(n + 4) { --d: 560ms; }
+/* The band's text comes in as the cards do, over the lifting slab. */
+[data-settle-group="band"] > :nth-child(n) { --d: 160ms; }
+[data-settle-group="band"] > :nth-child(n + 3) { --d: 220ms; }
+[data-settle-group="band"] > :nth-child(n + 4) { --d: 280ms; }
 [data-settle-group="list"] > :nth-child(1) { --d: 240ms; }
 [data-settle-group="list"] > :nth-child(2) { --d: 320ms; }
 [data-settle-group="list"] > :nth-child(n + 3) { --d: 400ms; }

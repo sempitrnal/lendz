@@ -11,8 +11,6 @@ const MIN_HOLD_MS = 350;
 const GIVE_UP_MS = 10_000;
 const EXPAND_MS = 520;
 const COLLAPSE_MS = 560;
-/** The slab fades out over the page's own band, which it matches. */
-const FADE_MS = 280;
 /** From the slab lifting until the last card has landed (see globals.css). */
 const SETTLE_MS = 1200;
 /** The bands are `rounded-b-3xl`; the slab's edge matches. */
@@ -22,11 +20,17 @@ const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 type Shape = "band" | "full" | "gone";
 /**
  * idle: hidden. set: placed where the splash starts, no motion yet. cover:
- * slides over the screen. release: slides back to the new page's band. fade:
- * lets go of that band.
+ * slides over the screen. release: slides back to the new page's band.
  */
-type Phase = "idle" | "set" | "cover" | "release" | "fade";
-type View = { phase: Phase; shape: Shape; bandPx: number; label: string };
+type Phase = "idle" | "set" | "cover" | "release";
+type View = {
+  phase: Phase;
+  shape: Shape;
+  bandPx: number;
+  label: string;
+  /** While releasing, the slab sits under the page so its cards rise over it. */
+  behind: boolean;
+};
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -107,6 +111,7 @@ export function NavSplash() {
     shape: "gone",
     bandPx: 0,
     label: "page",
+    behind: false,
   });
   const panel = useRef<HTMLDivElement>(null);
 
@@ -142,6 +147,7 @@ export function NavSplash() {
         shape: fromBand > 0 ? "band" : "gone",
         bandPx: fromBand,
         label,
+        behind: false,
       });
       await frame();
       await frame();
@@ -161,21 +167,22 @@ export function NavSplash() {
       if (!alive) return;
       const into = readBand();
       const lifted = performance.now();
+      // A page whose cards settle in lets them rise over the slab. One that
+      // doesn't keeps the slab on top, or its whole page would show at once.
+      const behind = !!document.querySelector(
+        "[data-settle], [data-settle-group]",
+      );
       setSettle("release");
       setView((v) => ({
         ...v,
         phase: "release",
         shape: into > 0 ? "band" : "gone",
         bandPx: into,
+        behind,
       }));
       await settle(panel.current, COLLAPSE_MS);
       if (!alive) return;
-      if (into > 0) {
-        setView((v) => ({ ...v, phase: "fade" }));
-        await sleep(FADE_MS);
-        if (!alive) return;
-      }
-      setView((v) => ({ ...v, phase: "idle", shape: "gone" }));
+      setView((v) => ({ ...v, phase: "idle", shape: "gone", behind: false }));
       running = false;
       // The cards are still settling in: keep them marked until the last lands.
       await sleep(Math.max(0, SETTLE_MS - (performance.now() - lifted)));
@@ -230,15 +237,12 @@ export function NavSplash() {
     <div
       aria-hidden="true"
       className={cn(
-        "fixed inset-0 z-[70] sm:hidden",
+        "fixed inset-0 sm:hidden",
+        // Over the page but under the top bar (z-40) and the tabs (z-50), so
+        // those never blink; under the page itself while its cards rise.
+        view.behind ? "pointer-events-none z-0" : "z-[39]",
         view.phase === "idle" ? "pointer-events-none invisible" : "visible",
-        view.phase === "fade" && "pointer-events-none",
       )}
-      style={{
-        opacity: view.phase === "fade" ? 0 : 1,
-        transition:
-          view.phase === "fade" ? `opacity ${FADE_MS}ms ease-out` : "none",
-      }}
     >
       <div
         ref={panel}
@@ -247,9 +251,11 @@ export function NavSplash() {
         style={{
           height: `calc(100% + ${RADIUS}px)`,
           borderRadius: `0 0 ${RADIUS}px ${RADIUS}px`,
-          // The band's own gradient sits in the slab's last bandPx, so the
-          // hand-off to the page's real band shows no change of colour.
-          background: `linear-gradient(to bottom, var(--sp-a) calc(100% - ${view.bandPx}px), var(--sp-b) 100%)`,
+          // The band's own gradient is painted twice: in the slab's first
+          // bandPx (where the page's own band shows through as the slab
+          // lifts) and its last (where it hangs over the band at rest). A
+          // soft ramp joins them, so no seam shows on the way.
+          background: `linear-gradient(to bottom, var(--sp-a) 0, var(--sp-b) ${view.bandPx}px, var(--sp-a) calc(100% - ${view.bandPx}px), var(--sp-b) 100%)`,
           transform: transformFor(view.shape, view.bandPx),
           transition: moving
             ? `transform ${view.phase === "cover" ? EXPAND_MS : COLLAPSE_MS}ms ${EASE}`
