@@ -190,7 +190,7 @@ export function CollectList({
                   : undefined,
             }}
           />
-          <span className="truncate">{g.name}</span>
+          <span className="truncate font-bold">{g.name}</span>
           <span className="shrink-0 text-muted-foreground tabular-nums">
             {totals.done}/{totals.count}
           </span>
