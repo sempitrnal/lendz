@@ -5,7 +5,12 @@ import { useRef } from "react";
 import { Eye, EyeOff, Link2, MoreVertical, Share2, User } from "lucide-react";
 import { toast } from "sonner";
 import { HIDDEN_AMOUNT, useHideAmounts } from "@/lib/hide-amounts";
-import { formatAmount } from "@/lib/account-card/summary";
+import {
+  formatAmount,
+  releasedLabel,
+  releaseDateLabel,
+} from "@/lib/account-card/summary";
+import { daysBetween, todayDateValue } from "@/lib/checklist/dates";
 import {
   BAR_PX,
   STATS_PX,
@@ -36,6 +41,8 @@ export type AccountBandProps = {
   principal: number;
   /** "10% · bimonthly · 4mo" */
   terms: string;
+  /** `YYYY-MM-DD`, or null when it has none. */
+  releaseDate: string | null;
   left: number;
   collected: number;
   profit: number;
@@ -77,6 +84,7 @@ export function AccountBand({
   kind,
   principal,
   terms,
+  releaseDate,
   left,
   collected,
   profit,
@@ -300,6 +308,20 @@ export function AccountBand({
               <p className="truncate text-xs font-semibold opacity-80">
                 {terms}
               </p>
+              {releaseDate && (
+                <p className="mt-0.5 truncate text-xs font-bold">
+                  {releasedLabel(
+                    daysBetween(releaseDate.slice(0, 10), todayDateValue()),
+                  )}
+                  <span className="font-semibold opacity-80">
+                    {" · "}
+                    {releaseDateLabel(
+                      releaseDate.slice(0, 10),
+                      new Date().getFullYear(),
+                    )}
+                  </span>
+                </p>
+              )}
             </div>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center">

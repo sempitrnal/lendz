@@ -12,8 +12,11 @@ import { GROUP_STYLES } from "./group-styles";
 import {
   formatAmount,
   payoffPercent,
+  releasedLabel,
+  releaseDateLabel,
   shortDate,
 } from "@/lib/account-card/summary";
+import { daysBetween, todayDateValue } from "@/lib/checklist/dates";
 import { HIDDEN_AMOUNT } from "@/lib/hide-amounts";
 
 /** A pointer that moved further than this between down and up was a swipe. */
@@ -96,6 +99,7 @@ export const AccountRow = memo(function AccountRow({
   const termMonths = Number(metrics?.term_months) || 1;
   const principal = Number(account.principal_amount ?? 0);
   const left = metrics?.amountLeftToPay ?? 0;
+  const nextDue = metrics?.nextCollectionAmount ?? 0;
   const paidPct = payoffPercent(
     metrics?.totalPaid ?? 0,
     metrics?.totalDue ?? 0,
@@ -118,8 +122,18 @@ export const AccountRow = memo(function AccountRow({
         .filter(Boolean)
         .join(" · ");
 
+  const releasedAgo = account.release_date
+    ? releasedLabel(
+        daysBetween(account.release_date.slice(0, 10), todayDateValue()),
+      )
+    : null;
+
   const style = GROUP_STYLES[group];
   const Icon = style?.icon;
+  // The right-hand amount is the next installment still to collect, not the
+  // whole balance; accounts without one (manual flat, pending, paid off) fall
+  // back to what's left.
+  const shown = showCollections && nextDue > 0 ? nextDue : left;
   const mask = (text: string) => (hide ? HIDDEN_AMOUNT : text);
 
   /** True when the press that ended in this click was a drag, not a tap. */
@@ -281,6 +295,18 @@ export const AccountRow = memo(function AccountRow({
         <p className="truncate text-xs font-semibold text-muted-foreground">
           {terms}
         </p>
+        {releasedAgo && (
+          <p className="truncate text-xs font-bold text-card-foreground/70">
+            {releasedAgo}
+            <span className="font-semibold text-muted-foreground">
+              {" · "}
+              {releaseDateLabel(
+                account.release_date!.slice(0, 10),
+                new Date().getFullYear(),
+              )}
+            </span>
+          </p>
+        )}
         {!isPending && !account.pendingSync && (
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
             <div
@@ -296,7 +322,7 @@ export const AccountRow = memo(function AccountRow({
           className="text-[15px] font-extrabold text-card-foreground/70
             tabular-nums [-webkit-text-stroke:0.3px_currentColor]"
         >
-          {mask(`₱${formatAmount(left)}`)}
+          {mask(`₱${formatAmount(shown)}`)}
         </span>
         {status}
       </div>

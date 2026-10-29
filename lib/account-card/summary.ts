@@ -26,7 +26,8 @@ export function barRightLabel(opts: {
 
 /** "released 3w ago", for the card's band. */
 export function releasedLabel(days: number): string {
-  if (days <= 0) return "released today";
+  if (days < 0) return `releases in ${-days}d`;
+  if (days === 0) return "released today";
   if (days < 7) return `released ${days}d ago`;
   if (days < 30) return `released ${Math.round(days / 7)}w ago`;
   if (days < 365) return `released ${Math.round(days / 30)}mo ago`;
@@ -52,4 +53,10 @@ const MONTHS = [
 export function shortDate(iso: string): string {
   const [, month, day] = iso.slice(0, 10).split("-").map(Number);
   return `${MONTHS[month - 1]} ${day}`;
+}
+
+/** "Sep 15", or "Sep 15, 2025" once it isn't `thisYear`: the date a row shows beside "released 1mo ago". */
+export function releaseDateLabel(iso: string, thisYear: number): string {
+  const year = Number(iso.slice(0, 4));
+  return year === thisYear ? shortDate(iso) : `${shortDate(iso)}, ${year}`;
 }

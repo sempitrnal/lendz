@@ -210,6 +210,7 @@ export default async function AccountDetailPage({
           kind={accountRow.type === "cash_advance" ? "cash advance" : "loan"}
           principal={principal}
           terms={terms}
+          releaseDate={accountRow.release_date ?? null}
           left={amountLeft}
           collected={amountPaid}
           profit={profit}

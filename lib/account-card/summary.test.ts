@@ -5,6 +5,7 @@ import {
   formatAmount,
   payoffPercent,
   releasedLabel,
+  releaseDateLabel,
   shortDate,
 } from "./summary";
 
@@ -68,11 +69,22 @@ describe("releasedLabel", () => {
     expect(releasedLabel(90)).toBe("released 3mo ago");
     expect(releasedLabel(800)).toBe("released 2y ago");
   });
+
+  it("counts down to a release date that hasn't come", () => {
+    expect(releasedLabel(-5)).toBe("releases in 5d");
+  });
 });
 
 describe("shortDate", () => {
   it("names the month and drops the leading zero", () => {
     expect(shortDate("2026-11-03")).toBe("Nov 3");
     expect(shortDate("2026-01-31T00:00:00Z")).toBe("Jan 31");
+  });
+});
+
+describe("releaseDateLabel", () => {
+  it("leaves the year off for this year only", () => {
+    expect(releaseDateLabel("2026-09-15", 2026)).toBe("Sep 15");
+    expect(releaseDateLabel("2025-12-03", 2026)).toBe("Dec 3, 2025");
   });
 });
