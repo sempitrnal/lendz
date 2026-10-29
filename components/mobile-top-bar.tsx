@@ -8,7 +8,10 @@ import { ArrowLeft, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ThemeToggle from "@/components/theme-toggle";
 import HeaderSearch from "@/components/header-search";
-import { usePageOwnsMobileHeader } from "@/components/use-wallet-dashboard";
+import {
+  isBorrowerDetailPath,
+  usePageOwnsMobileHeader,
+} from "@/components/use-wallet-dashboard";
 
 /** The band's top colour (emerald-600 / emerald-950), for the status bar. */
 const THEME_LIGHT = "#059669";
@@ -71,6 +74,8 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
     };
   }, [ownsHeader, pathname]);
 
+  // A borrower's header caps itself with its own shadow under this bar.
+  const capsItself = isBorrowerDetailPath(pathname);
   const hideAll =
     HIDE_ALL_PATHS.includes(pathname) ||
     (pathname.startsWith("/accounts/") && pathname.endsWith("/view"));
@@ -102,7 +107,7 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
           dark:bg-emerald-950`,
       )}
     >
-      {ownsHeader && (
+      {ownsHeader && !capsItself && (
         <div
           ref={shadowRef}
           aria-hidden="true"
@@ -128,9 +133,15 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
             type="button"
             onClick={handleBack}
             aria-label="Go back"
-            className="dark:border-border dark:bg-card dark:text-foreground flex
-              items-center justify-center rounded-lg border border-slate-300
-              bg-white p-2 text-slate-600 transition active:shadow-none"
+            className={cn(
+              `dark:border-border dark:bg-card dark:text-foreground flex
+                items-center justify-center rounded-lg border border-slate-300
+                bg-white p-2 text-slate-600 transition active:shadow-none`,
+              // On the green bar the button is a translucent white disc.
+              ownsHeader &&
+                `border-transparent bg-white/20 text-white
+                  dark:border-transparent dark:bg-white/20 dark:text-white`,
+            )}
           >
             <ArrowLeft className="size-4" strokeWidth={2.5} />
           </button>

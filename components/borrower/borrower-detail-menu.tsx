@@ -44,6 +44,8 @@ type BorrowerDetailMenuProps = {
   onDeleted?: () => void | Promise<void>;
   /** Borrower data for inline edit dialog */
   editBorrower?: BorrowerEditData;
+  /** A round translucent-white trigger, for sitting on the green band. */
+  onColor?: boolean;
 };
 
 export default function BorrowerDetailMenu({
@@ -51,6 +53,7 @@ export default function BorrowerDetailMenu({
   hideEditLink = false,
   onDeleted,
   editBorrower,
+  onColor = false,
 }: BorrowerDetailMenuProps) {
   const router = useRouter();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -118,11 +121,20 @@ export default function BorrowerDetailMenu({
           <button
             type="button"
             aria-label="Borrower actions"
-            className="rounded-md p-1 text-gray-700 transition-colors
-              outline-none hover:bg-gray-100 hover:text-gray-500
-              focus-visible:ring-2 focus-visible:ring-gray-400"
+            className={
+              onColor
+                ? `flex size-8 items-center justify-center rounded-full
+                  bg-white/20 text-white transition-colors outline-none
+                  hover:bg-white/30 focus-visible:ring-2
+                  focus-visible:ring-white/70`
+                : `rounded-md p-1 text-gray-700 transition-colors outline-none
+                  hover:bg-gray-100 hover:text-gray-500 focus-visible:ring-2
+                  focus-visible:ring-gray-400`
+            }
           >
-            <MoreVertical className="size-4 cursor-pointer" />
+            <MoreVertical
+              className={onColor ? "size-5" : "size-4 cursor-pointer"}
+            />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

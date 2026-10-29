@@ -1,19 +1,7 @@
 "use client";
 
 import { BorrowerFab } from "@/components/borrower/borrower-fab";
-import {
-  ArrowLeft,
-  Plus,
-  Wallet,
-  Pencil,
-  Copy,
-  RotateCcw,
-  Trash2,
-  Landmark,
-  HandCoins,
-  Clock,
-  type LucideIcon,
-} from "lucide-react";
+import { Wallet, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -22,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -53,12 +41,31 @@ import dynamic from "next/dynamic";
 
 const NotesCanvas = dynamic(() => import("./notes-canvas"), { ssr: false });
 // Only needed once a dialog or the notes grid is actually shown.
-const AccountForm = dynamic(() => import("@/components/forms/account-form"));
-const ActivateAccountDialog = dynamic(
-  () => import("./activate-account-dialog"),
-);
+const loadAccountForm = () => import("@/components/forms/account-form");
+const loadActivateDialog = () => import("./activate-account-dialog");
+const AccountForm = dynamic(loadAccountForm, {
+  // While the form's code arrives, the dialog isn't an empty box.
+  loading: () => (
+    <div className="space-y-3" aria-hidden="true">
+      <div className="h-10 animate-pulse rounded-lg bg-muted" />
+      <div className="h-10 animate-pulse rounded-lg bg-muted" />
+      <div className="h-10 animate-pulse rounded-lg bg-muted" />
+      <div className="h-10 animate-pulse rounded-lg bg-muted" />
+    </div>
+  ),
+});
+const ActivateAccountDialog = dynamic(loadActivateDialog);
 const SortableNotesGrid = dynamic(() => import("./sortable-notes-grid"));
-import { AccountCard } from "./account-card";
+import { AccountRow as AccountRowItem, type RowActions } from "./account-row";
+import {
+  SwipeableList,
+  type SwipeAction,
+  type SwipeableListValue,
+} from "@/components/motion/swipeable-list";
+import { BorrowerBand } from "./borrower-band";
+import { GROUP_STYLES } from "./group-styles";
+import { bandFigures } from "@/lib/borrower/band-figures";
+import { HIDDEN_AMOUNT, useHideAmounts } from "@/lib/hide-amounts";
 import type { InstallmentDot } from "@/lib/payment-schedule/installment-dots";
 import {
   prunePendingAccounts,
@@ -69,7 +76,6 @@ import {
   type PendingAccount,
 } from "@/lib/offline/pending-accounts";
 import { m } from "motion/react";
-import { StickyBorrowerStrip } from "./sticky-borrower-strip";
 
 const groupVariants = {
   hidden: { opacity: 0, y: 24 },
@@ -84,55 +90,6 @@ const cardContainerVariants = {
   hidden: {},
   visible: {
     transition: { staggerChildren: 0.05 },
-  },
-};
-
-/** Badge colours and icon for each group heading on the borrower page. */
-const GROUP_STYLES: Record<string, { icon: LucideIcon; badge: string }> = {
-  loans: {
-    icon: Landmark,
-    badge:
-      "bg-violet-100 text-violet-800 ring-violet-200 dark:bg-violet-900/40 dark:text-violet-100 dark:ring-violet-800",
-  },
-  "manual flat loans": {
-    icon: Landmark,
-    badge:
-      "bg-lime-100 text-lime-800 ring-lime-200 dark:bg-lime-900/40 dark:text-lime-100 dark:ring-lime-800",
-  },
-  "manual rolling loans": {
-    icon: Landmark,
-    badge:
-      "bg-cyan-100 text-cyan-800 ring-cyan-200 dark:bg-cyan-900/40 dark:text-cyan-100 dark:ring-cyan-800",
-  },
-  "cash advances": {
-    icon: HandCoins,
-    badge:
-      "bg-amber-100 text-amber-800 ring-amber-200 dark:bg-amber-900/40 dark:text-amber-100 dark:ring-amber-800",
-  },
-  "manual flat cash advances": {
-    icon: HandCoins,
-    badge:
-      "bg-yellow-100 text-yellow-800 ring-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-100 dark:ring-yellow-800",
-  },
-  "manual rolling cash advances": {
-    icon: HandCoins,
-    badge:
-      "bg-teal-100 text-teal-800 ring-teal-200 dark:bg-teal-900/40 dark:text-teal-100 dark:ring-teal-800",
-  },
-  pending: {
-    icon: Clock,
-    badge:
-      "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-800",
-  },
-  "manual flat pending": {
-    icon: Clock,
-    badge:
-      "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:ring-emerald-800",
-  },
-  "manual rolling pending": {
-    icon: Clock,
-    badge:
-      "bg-cyan-50 text-cyan-700 ring-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-200 dark:ring-cyan-800",
   },
 };
 
@@ -253,6 +210,31 @@ export default function BorrowerAccountsSection({
   deletedAccounts = [],
   initialNotes,
 }: BorrowerAccountsSectionProps) {
+  const [hide, toggleHide] = useHideAmounts();
+  // The account whose swipe actions are showing; opening one closes the rest.
+  const [openSwipe, setOpenSwipe] = useState<SwipeableListValue | null>(null);
+  const closeSwipe = useCallback(() => setOpenSwipe(null), []);
+  // Edit and Activate open dialogs whose code is split off: fetch it once the
+  // page is idle, and again as soon as a row is swiped open (a no-op after the
+  // first), so the dialog has its form the moment it opens.
+  useEffect(() => {
+    const load = () => {
+      void loadAccountForm();
+      void loadActivateDialog();
+    };
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(load);
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = setTimeout(load, 1500);
+    return () => clearTimeout(id);
+  }, []);
+  useEffect(() => {
+    if (openSwipe) void loadAccountForm();
+  }, [openSwipe]);
+  // What each row's Revert and Delete open, listed by the rows themselves.
+  const rowActions = useRef(new Map<string, RowActions>());
+  const mask = (text: string) => (hide ? HIDDEN_AMOUNT : text);
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountRow | null>(null);
   const [openingAccountId, setOpeningAccountId] = useState<string | null>(null);
@@ -622,6 +604,40 @@ export default function BorrowerAccountsSection({
     setEditingAccount(acc);
     setIsAccountDialogOpen(true);
   }, []);
+  // Behind each row: what the three-dot menu used to offer.
+  const accountById = useMemo(
+    () => new Map((accounts ?? []).map((a) => [a.id, a])),
+    [accounts],
+  );
+  const swipeActions = useMemo<SwipeAction[]>(
+    () => [
+      {
+        id: "edit",
+        label: "Edit",
+        icon: <Pencil className="size-4" />,
+        tone: "primary",
+        onClick: (item) => {
+          const account = accountById.get(item.id);
+          if (account) stableEditAccount(account);
+        },
+      },
+      {
+        id: "revert",
+        label: "Revert last update",
+        icon: <RotateCcw className="size-4" />,
+        tone: "warning",
+        onClick: (item) => rowActions.current.get(item.id)?.revert(),
+      },
+      {
+        id: "delete",
+        label: "Delete",
+        icon: <Trash2 className="size-4" />,
+        tone: "danger",
+        onClick: (item) => rowActions.current.get(item.id)?.remove(),
+      },
+    ],
+    [accountById, stableEditAccount],
+  );
 
   const summaryStats = useMemo(() => {
     if (!accounts || accounts.length === 0) return null;
@@ -716,658 +732,529 @@ export default function BorrowerAccountsSection({
     };
   }, [accounts, accountMetricsById]);
 
-  const nextAmountsText = useMemo(() => {
-    if (!accounts) return "";
-    const amounts = accounts
-      .filter((a) => {
-        const m = accountMetricsById[a.id];
-        return (
-          a.schedule_mode !== "manual" &&
-          (a.type === "loan" || a.type === "cash_advance") &&
-          (m?.nextCollectionAmount ?? 0) > 0
-        );
-      })
-      .map((a) => accountMetricsById[a.id]?.nextCollectionAmount ?? 0);
-    const lines = amounts.map((amount) => `₱${amount.toLocaleString()}`);
-    if (lines.length > 1) {
-      const total = amounts.reduce((sum, amount) => sum + amount, 0);
-      lines.push(`Total: ₱${total.toLocaleString()}`);
-    }
-    return lines.join("\n");
-  }, [accounts, accountMetricsById]);
+  const figures = useMemo(
+    () => bandFigures(accounts ?? [], accountMetricsById),
+    [accounts, accountMetricsById],
+  );
 
-  const handleCopyNextCollections = async () => {
-    if (!nextAmountsText) {
-      toast.info("No next collection amounts to copy");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(nextAmountsText);
-      toast.success("Copied next collection amounts");
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = nextAmountsText;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      toast.success("Copied next collection amounts");
-    }
-  };
+  const peso = (n: number) => `₱${Math.round(n).toLocaleString("en-US")}`;
+  const renderGroup = (group: AccountRow[], label: string) =>
+    group.length === 0 ? null : (
+      <div key={label}>
+        <div
+          className={cn(
+            "flex items-center gap-2 px-4 py-1.5 text-xs font-bold lowercase",
+            GROUP_STYLES[label]?.badge,
+          )}
+        >
+          {label}
+          <span className="opacity-70 tabular-nums">{group.length}</span>
+        </div>
+        <SwipeableList
+          items={group.map((account) => ({
+            id: account.id,
+            // Selecting turns the swipe off.
+            rightActions: selectionMode ? [] : swipeActions,
+          }))}
+          value={openSwipe}
+          onValueChange={setOpenSwipe}
+          actionWidth={52}
+          className="gap-0 divide-y divide-border"
+          classNames={{
+            item: "rounded-none",
+            rail: "rounded-none",
+            surface: "min-h-0 rounded-none border-0 bg-card p-0 shadow-none",
+          }}
+          renderItem={(item) => {
+            const account = accountById.get(item.id);
+            if (!account) return null;
+            return (
+              <AccountRowItem
+                account={account}
+                group={label}
+                hide={hide}
+                isOpening={openingAccountId === account.id}
+                onOpen={stableOpenAccount}
+                onPrefetch={stablePrefetchAccount}
+                onActivate={setActivatingAccount}
+                metrics={accountMetricsById[account.id]}
+                selectionMode={selectionMode}
+                selected={selectedAccountIds.has(account.id)}
+                onToggleSelect={stableToggleSelect}
+                swiped={openSwipe?.id === account.id}
+                onClose={closeSwipe}
+                actions={rowActions}
+              />
+            );
+          }}
+        />
+      </div>
+    );
 
   return (
     <>
-      {borrower && (
-        <StickyBorrowerStrip
-          borrower={borrower}
-          totalLoaned={summaryStats?.totalLoaned ?? 0}
-          totalExpected={summaryStats?.totalExpected ?? 0}
-          totalCollected={summaryStats?.totalCollected ?? 0}
-          totalAmountCollected={summaryStats?.totalAmountCollected ?? 0}
-          totalRemaining={summaryStats?.totalRemaining ?? 0}
-          profitPerSchedule={summaryStats?.profitPerSchedule ?? 0}
-          collectedPct={summaryStats?.collectedPct ?? 0}
-        />
-      )}
+      <div className="mx-auto max-w-2xl px-4 pb-16">
+        {borrower && (
+          <BorrowerBand
+            borrower={borrower}
+            figures={figures}
+            loaned={summaryStats?.totalLoaned ?? 0}
+            hide={hide}
+            onToggleHide={toggleHide}
+            stats={{
+              profitExpected: Math.max(0, summaryStats?.totalExpected ?? 0),
+              profitCollected: Math.max(0, summaryStats?.totalCollected ?? 0),
+              toPayThisMonth: summaryStats?.amountToPayThisMonth ?? 0,
+              paidThisMonth: summaryStats?.amountPaidThisMonth ?? 0,
+            }}
+          />
+        )}
 
-      <div className="mx-auto max-w-7xl md:max-w-full px-4 pb-16 md:px-6">
-        {isQueryLoading && !queryData && (
-          <div className="flex flex-col items-center gap-2 py-8">
+        {/* Floats over the band's lower edge; the band's header caps it on
+            scroll (see BorrowerBand). */}
+        <div
+          className={cn(
+            "relative z-10 space-y-5 px-1",
+            borrower ? "-mt-8 sm:-mt-12" : "mt-6",
+          )}
+          data-settle-group
+        >
+          {isQueryLoading && !queryData && (
+            <div className="flex flex-col items-center gap-2 py-8">
+              <div
+                className="size-6 animate-spin rounded-full border-2
+                  border-slate-900 border-t-transparent"
+              />
+              <p className="text-xs font-bold text-slate-500">
+                Loading borrower details…
+              </p>
+            </div>
+          )}
+
+          {isQueryError && (
             <div
-              className="size-6 animate-spin rounded-full border-2
-                border-slate-900 border-t-transparent"
-            />
-            <p className="text-xs font-bold text-slate-500">
-              Loading borrower details…
-            </p>
-          </div>
-        )}
+              className="rounded-lg border-2 border-red-500 bg-red-50 p-4
+                text-sm font-bold text-red-700"
+            >
+              {queryError instanceof Error
+                ? queryError.message
+                : "Failed to load borrower details."}
+            </div>
+          )}
 
-        {isQueryError && (
-          <div
-            className="rounded-lg border-2 border-red-500 bg-red-50 p-4 text-sm
-              font-bold text-red-700"
-          >
-            {queryError instanceof Error
-              ? queryError.message
-              : "Failed to load borrower details."}
-          </div>
-        )}
+          {isFetching && queryData && (
+            <div className="flex items-center justify-end gap-1.5 px-1">
+              <span
+                className="inline-block size-2 animate-pulse rounded-full
+                  bg-emerald-500"
+              />
+              <span className="text-[10px] font-bold text-slate-400">
+                Refreshing data…
+              </span>
+            </div>
+          )}
 
-        {isFetching && queryData && (
-          <div className="flex items-center justify-end gap-1.5 px-1 py-1">
-            <span
-              className="inline-block size-2 animate-pulse rounded-full
-                bg-emerald-500"
-            />
-            <span className="text-[10px] font-bold text-slate-400">
-              Refreshing data…
-            </span>
-          </div>
-        )}
-
-        <div className="mt-8 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={handleCopyNextCollections}
-            disabled={!nextAmountsText}
-            className="inline-flex items-center gap-1.5 rounded-lg border
-              border-slate-300 bg-white px-3 py-1.5 text-xs font-bold
-              text-slate-600 shadow-sm transition hover:bg-slate-50
-              active:translate-y-px active:shadow-none disabled:opacity-50
-              dark:border-slate-700 dark:bg-card dark:text-slate-300
-              dark:hover:bg-slate-800/50"
-          >
-            <Copy className="size-3.5" />
-            copy amounts
-          </button>
-        </div>
-
-        {summaryStats &&
-          (summaryStats.amountToPayThisMonth > 0 ||
-            summaryStats.amountPaidThisMonth > 0) && (
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {summaryStats.amountToPayThisMonth > 0 && (
-                <div
-                  className="flex flex-col rounded-xl border border-amber-200
-                    bg-amber-50 p-4 dark:border-amber-900/30
-                    dark:bg-amber-950/30"
+          {selectionMode && (
+            <div
+              className="dark:border-border dark:bg-card sticky top-16 z-20
+                -mx-5 border-y border-slate-300 bg-white px-5 py-2 shadow-sm
+                sm:top-[68px]"
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className="dark:text-foreground text-sm font-black
+                    text-slate-700"
                 >
-                  <span
-                    className="text-[10px] font-bold tracking-wider
-                      text-[#dac17d] uppercase dark:text-amber-200/80"
+                  {selectedAccountIds.size} selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={clearSelection}
+                    className="dark:border-border dark:bg-card
+                      dark:text-foreground rounded-lg border border-slate-300
+                      bg-white px-3 py-1 text-xs font-bold transition
+                      active:translate-y-px"
                   >
-                    Amount to pay this month
-                  </span>
-                  <span
-                    className="text-2xl font-bold text-[#be7d1b] tabular-nums
-                      dark:text-[#d3a560]"
+                    cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isBulkDeleting}
+                    onClick={handleBulkDelete}
+                    className="rounded-lg border border-slate-300 bg-red-400
+                      px-3 py-1 text-xs font-bold text-white transition
+                      active:translate-y-px disabled:opacity-50
+                      dark:border-red-500/50 dark:bg-red-500/80"
                   >
-                    ₱{summaryStats.amountToPayThisMonth.toLocaleString()}
-                  </span>
+                    {isBulkDeleting
+                      ? "deleting..."
+                      : `delete ${selectedAccountIds.size}`}
+                  </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {!accounts || accounts.length === 0 ? (
+            <m.div
+              className="rounded-2xl border border-dashed bg-card p-10
+                text-center"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            >
+              <p className="text-gray-500">No accounts yet</p>
+            </m.div>
+          ) : (
+            <div
+              className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1
+                ring-black/5 dark:ring-white/10"
+            >
+              {renderGroup(groupedAccounts.activeAutoLoans, "loans")}
+              {renderGroup(
+                groupedAccounts.activeManualFlatLoans,
+                "manual flat loans",
               )}
-              {summaryStats.amountPaidThisMonth > 0 && (
-                <div
-                  className="flex flex-col rounded-xl border border-emerald-200
-                    bg-emerald-50 p-4 dark:border-emerald-900/30
-                    dark:bg-emerald-950/30"
-                >
-                  <span
-                    className="text-[10px] font-bold tracking-wider uppercase
-                      text-[#599c82]"
-                  >
-                    Amount paid this month
-                  </span>
-                  <span
-                    className="text-2xl font-bold text-[#599c82] tabular-nums"
-                  >
-                    ₱{summaryStats.amountPaidThisMonth.toLocaleString()}
-                  </span>
-                </div>
+              {renderGroup(
+                groupedAccounts.activeManualRollingLoans,
+                "manual rolling loans",
+              )}
+              {renderGroup(
+                groupedAccounts.activeAutoCashAdvances,
+                "cash advances",
+              )}
+              {renderGroup(
+                groupedAccounts.activeManualFlatCashAdvances,
+                "manual flat cash advances",
+              )}
+              {renderGroup(
+                groupedAccounts.activeManualRollingCashAdvances,
+                "manual rolling cash advances",
+              )}
+              {renderGroup(groupedAccounts.pendingAutoAll, "pending")}
+              {renderGroup(
+                groupedAccounts.pendingManualFlatAll,
+                "manual flat pending",
+              )}
+              {renderGroup(
+                groupedAccounts.pendingManualRollingAll,
+                "manual rolling pending",
               )}
             </div>
           )}
 
-        {selectionMode && (
-          <div
-            className="dark:border-border dark:bg-card sticky top-[52px] z-40
-              -mx-4 mb-4 border-y border-slate-300 bg-white px-4 py-2 shadow-sm
-              md:top-[68px]"
-          >
-            <div className="flex items-center justify-between">
-              <span
-                className="dark:text-foreground text-sm font-black
-                  text-slate-700"
-              >
-                {selectedAccountIds.size} selected
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={clearSelection}
-                  className="dark:border-border dark:bg-card
-                    dark:text-foreground rounded-lg border border-slate-300
-                    bg-white px-3 py-1 text-xs font-bold transition
-                    hover:-translate-y-0.5 active:translate-y-px
-                    active:shadow-none"
-                >
-                  cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={isBulkDeleting}
-                  onClick={handleBulkDelete}
-                  className="rounded-lg border border-slate-300 bg-red-400 px-3
-                    py-1 text-xs font-bold text-white transition
-                    hover:-translate-y-0.5 active:translate-y-px
-                    active:shadow-none disabled:opacity-50
-                    dark:border-red-500/50 dark:bg-red-500/80"
-                >
-                  {isBulkDeleting
-                    ? "deleting..."
-                    : `delete ${selectedAccountIds.size}`}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!accounts || accounts.length === 0 ? (
-          <m.div
-            className="rounded-xl border border-dashed p-10 text-center"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-          >
-            <p className="text-gray-500">No accounts yet</p>
-          </m.div>
-        ) : (
-          (() => {
-            const {
-              activeAutoLoans,
-              activeManualFlatLoans,
-              activeManualRollingLoans,
-              activeAutoCashAdvances,
-              activeManualFlatCashAdvances,
-              activeManualRollingCashAdvances,
-              pendingAutoAll,
-              pendingManualFlatAll,
-              pendingManualRollingAll,
-            } = groupedAccounts;
-
-            const renderGroup = (
-              group: typeof accounts,
-              label: string,
-              accent: string,
-            ) =>
-              group.length === 0 ? null : (
-                <m.div
-                  variants={groupVariants}
-                  // Visible in the server HTML; "hidden" would leave the whole
-                  // list blank until the page hydrates.
-                  initial={false}
-                  whileInView="visible"
-                  viewport={{ once: true, margin: "-60px" }}
-                >
-                  <div className="mt-10 mb-3 flex items-center gap-2.5">
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${
-                        GROUP_STYLES[label]?.badge ?? accent
-                      }`}
-                    >
-                      {(() => {
-                        const Icon = GROUP_STYLES[label]?.icon ?? Landmark;
-                        return <Icon className="size-3.5" aria-hidden />;
-                      })()}
-                      {label}
-                    </span>
-                    <span
-                      className="rounded-full bg-slate-100 px-2 py-0.5
-                        text-[11px] font-bold text-slate-500 tabular-nums
-                        dark:bg-white/10 dark:text-slate-400"
-                      aria-label={`${group.length} account${
-                        group.length === 1 ? "" : "s"
-                      }`}
-                    >
-                      {group.length}
-                    </span>
-                    <span className="h-px flex-1 bg-slate-200/80 dark:bg-border" />
-                  </div>
-                  <m.div
-                    className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
-                    variants={cardContainerVariants}
+          {deletedAccounts.length > 0 && (
+            <m.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={groupVariants}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="rounded-full border border-rose-200 bg-rose-100
+                      px-2.5 py-1 text-[10px] font-black tracking-widest
+                      text-rose-800 uppercase dark:border-rose-800/40
+                      dark:bg-rose-900/20 dark:text-rose-200"
                   >
-                    {group.map((account) => {
-                      const accountMetrics = accountMetricsById[account.id];
-                      return (
-                        <m.div
-                          key={account.id}
-                          variants={cardVariants}
-                          initial={false}
-                          animate="visible"
-                        >
-                          <AccountCard
-                            account={account}
-                            isOpening={openingAccountId === account.id}
-                            onOpen={stableOpenAccount}
-                            onPrefetch={stablePrefetchAccount}
-                            onEdit={stableEditAccount}
-                            onActivate={setActivatingAccount}
-                            metrics={accountMetrics}
-                            selectionMode={selectionMode}
-                            selected={selectedAccountIds.has(account.id)}
-                            onToggleSelect={stableToggleSelect}
-                          />
-                        </m.div>
-                      );
-                    })}
-                  </m.div>
-                </m.div>
-              );
-
-            return (
-              <div className="space-y-10">
-                {renderGroup(
-                  activeAutoLoans,
-                  "loans",
-                  "bg-violet-200 text-violet-900",
-                )}
-                {renderGroup(
-                  activeManualFlatLoans,
-                  "manual flat loans",
-                  "bg-lime-200 text-lime-900",
-                )}
-                {renderGroup(
-                  activeManualRollingLoans,
-                  "manual rolling loans",
-                  "bg-cyan-200 text-cyan-900",
-                )}
-                {renderGroup(
-                  activeAutoCashAdvances,
-                  "cash advances",
-                  "bg-amber-200 text-amber-900",
-                )}
-                {renderGroup(
-                  activeManualFlatCashAdvances,
-                  "manual flat cash advances",
-                  "bg-yellow-200 text-yellow-900",
-                )}
-                {renderGroup(
-                  activeManualRollingCashAdvances,
-                  "manual rolling cash advances",
-                  "bg-teal-200 text-teal-900",
-                )}
-                {renderGroup(
-                  pendingAutoAll,
-                  "pending",
-                  "bg-amber-50 text-amber-800",
-                )}
-                {renderGroup(
-                  pendingManualFlatAll,
-                  "manual flat pending",
-                  "bg-emerald-50 text-emerald-800",
-                )}
-                {renderGroup(
-                  pendingManualRollingAll,
-                  "manual rolling pending",
-                  "bg-cyan-50 text-cyan-800",
+                    recently deleted
+                  </span>
+                  <span className="text-xs font-semibold text-slate-400">
+                    {deletedAccounts.length} account
+                    {deletedAccounts.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                {deletedAccounts.length > 0 && (
+                  <button
+                    type="button"
+                    disabled={isClearingDeleted}
+                    onClick={handleClearAllDeletedAccounts}
+                    className="rounded-md border border-rose-200 bg-rose-100
+                      px-2 py-1 text-[10px] font-bold text-rose-700 transition
+                      hover:bg-rose-200 disabled:opacity-50
+                      dark:border-rose-800/40 dark:bg-rose-900/20
+                      dark:text-rose-200 dark:hover:bg-rose-900/30"
+                  >
+                    {isClearingDeleted ? "clearing..." : "clear all"}
+                  </button>
                 )}
               </div>
-            );
-          })()
-        )}
 
-        {deletedAccounts.length > 0 && (
+              <m.div
+                className="flex flex-col gap-2"
+                variants={cardContainerVariants}
+              >
+                {deletedAccounts.map((account) => {
+                  const isRestoring = restoringIds.has(account.id);
+                  const principal = Number(account.principal_amount ?? 0);
+                  const deletedDate = account.deleted_at
+                    ? formatDate(account.deleted_at.slice(0, 10))
+                    : null;
+                  const isCashAdvance = account.type === "cash_advance";
+                  const isManual = account.schedule_mode === "manual";
+                  const isRolling =
+                    isManual && account.interest_type === "rolling";
+                  const typeLabel = isManual
+                    ? isRolling
+                      ? "rolling"
+                      : "flat"
+                    : isCashAdvance
+                      ? "ca"
+                      : "loan";
+                  const typeBadgeBg = isManual
+                    ? isRolling
+                      ? "bg-cyan-200 text-cyan-900 dark:bg-cyan-800 dark:text-cyan-100"
+                      : "bg-lime-200 text-lime-900 dark:bg-lime-800 dark:text-lime-100"
+                    : isCashAdvance
+                      ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
+                      : "bg-violet-200 text-violet-900 dark:bg-violet-800 dark:text-violet-100";
+
+                  const isPermaDeleting = permaDeletingIds.has(account.id);
+
+                  return (
+                    <m.div
+                      key={account.id}
+                      variants={cardVariants}
+                      // Each row animates itself: one added after the section
+                      // has scrolled into view would otherwise stay hidden.
+                      initial="hidden"
+                      animate="visible"
+                      className="flex items-center gap-3 rounded-lg border
+                        border-slate-200 bg-slate-50 px-3 py-2 opacity-60
+                        grayscale transition-all duration-200
+                        dark:border-border/50 dark:bg-card/50 hover:opacity-80
+                        hover:grayscale-0"
+                    >
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`shrink-0 rounded px-1.5 py-0.5
+                            text-[9px] font-black tracking-wide uppercase
+                            ${typeBadgeBg}`}
+                          >
+                            {typeLabel}
+                          </span>
+                          {account.interest_rate ? (
+                            <span
+                              className="text-[10px] font-bold text-slate-500
+                                dark:text-slate-400"
+                            >
+                              {account.interest_rate}%
+                            </span>
+                          ) : null}
+                          <span
+                            className="shrink-0 rounded-full bg-rose-100 px-1.5
+                              py-0 text-[8px] font-black uppercase text-rose-700
+                              dark:bg-rose-800 dark:text-rose-100"
+                          >
+                            deleted
+                          </span>
+                        </div>
+
+                        <p
+                          className="truncate text-sm font-bold text-slate-700
+                            tabular-nums dark:text-slate-200"
+                        >
+                          ₱{principal.toLocaleString()}
+                        </p>
+
+                        <p className="text-[10px] text-slate-400">
+                          {account.type.replace("_", " ")}
+                          {isManual
+                            ? " · manual"
+                            : account.payment_frequency
+                              ? ` · ${account.payment_frequency}`
+                              : ""}
+                          {deletedDate ? ` · deleted ${deletedDate}` : ""}
+                        </p>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={isRestoring}
+                          onClick={() => handleRestoreAccount(account.id)}
+                          className="rounded-md border border-slate-900/30
+                            bg-white px-2 py-1 text-[10px] font-bold
+                            text-slate-600 transition hover:bg-slate-100
+                            active:translate-y-px disabled:opacity-50
+                            dark:border-border/50 dark:bg-muted
+                            dark:text-slate-300 dark:hover:bg-muted/70"
+                          aria-label="Restore account"
+                        >
+                          {isRestoring ? (
+                            <span
+                              className="inline-block size-3 animate-spin
+                                rounded-full border border-current
+                                border-t-transparent"
+                            />
+                          ) : (
+                            <RotateCcw className="size-3" />
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isPermaDeleting}
+                          onClick={() => handlePermaDeleteAccount(account.id)}
+                          className="rounded-md border border-rose-200
+                            bg-rose-50 px-2 py-1 text-[10px] font-bold
+                            text-rose-600 transition hover:bg-rose-100
+                            active:translate-y-px disabled:opacity-50
+                            dark:border-rose-800/40 dark:bg-rose-900/20
+                            dark:text-rose-200 dark:hover:bg-rose-900/30"
+                          aria-label="Permanently delete account"
+                        >
+                          {isPermaDeleting ? (
+                            <span
+                              className="inline-block size-3 animate-spin
+                                rounded-full border border-current
+                                border-t-transparent"
+                            />
+                          ) : (
+                            <Trash2 className="size-3" />
+                          )}
+                        </button>
+                      </div>
+                    </m.div>
+                  );
+                })}
+              </m.div>
+            </m.div>
+          )}
+
+          {/* Portalled to body to escape PageTransition's transform stacking context */}
+          {isMounted &&
+            createPortal(
+              <BorrowerFab
+                open={fabOpen}
+                onOpenChange={setFabOpen}
+                onAddLoan={() => {
+                  setEditingAccount(null);
+                  setIsAccountDialogOpen(true);
+                }}
+                onAddNote={() => {
+                  setSelectedNote(null);
+                  setIsNotesOpen(true);
+                }}
+              />,
+              document.body,
+            )}
+
+          <Dialog
+            open={isAccountDialogOpen}
+            onOpenChange={(open) => {
+              setIsAccountDialogOpen(open);
+              if (!open) setEditingAccount(null);
+            }}
+          >
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader className="gap-3 pb-2">
+                <div
+                  className="flex h-10 w-10 items-center justify-center
+                    rounded-full bg-indigo-100 text-indigo-700
+                    dark:bg-indigo-900/40 dark:text-indigo-300"
+                >
+                  {editingAccount ? (
+                    <Pencil className="h-5 w-5" />
+                  ) : (
+                    <Wallet className="h-5 w-5" />
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <DialogTitle className="text-xl font-semibold tracking-tight">
+                    {editingAccount ? "Edit Account" : "Add Account"}
+                  </DialogTitle>
+                  <DialogDescription className="text-sm text-muted-foreground">
+                    {editingAccount
+                      ? "Update the account details and payment schedule."
+                      : "Create a new loan or cash advance for this borrower."}
+                  </DialogDescription>
+                </div>
+              </DialogHeader>
+
+              <AccountForm
+                key={`${borrowerId}-${editingAccount?.id ?? "new"}`}
+                borrowerId={borrowerId}
+                accountId={editingAccount?.id}
+                initialValues={
+                  editingAccount
+                    ? accountRowToFormInitial(editingAccount)
+                    : undefined
+                }
+                onSuccess={async () => {
+                  setIsAccountDialogOpen(false);
+                  setEditingAccount(null);
+                  await invalidateBorrowerDetails(borrowerId);
+                  router.refresh();
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+
+          <ActivateAccountDialog
+            open={Boolean(activatingAccount)}
+            onClose={() => setActivatingAccount(null)}
+            accountId={activatingAccount?.id ?? ""}
+            initialValues={
+              activatingAccount
+                ? {
+                    principal_amount: Number(
+                      activatingAccount.principal_amount ?? 0,
+                    ),
+                    interest_rate: Number(activatingAccount.interest_rate ?? 0),
+                    release_date: activatingAccount.release_date ?? "",
+                    first_payment_date:
+                      activatingAccount.first_payment_date ?? "",
+                    payment_frequency:
+                      (activatingAccount.payment_frequency as any) ??
+                      "bimonthly",
+                    term_months: Number(activatingAccount.term_months ?? 1),
+                    schedule_mode:
+                      (activatingAccount.schedule_mode as any) ?? "auto",
+                    interest_type:
+                      (activatingAccount.interest_type as any) ?? "flat",
+                  }
+                : {}
+            }
+          />
+
+          {/* <NotesCanvas borrowerId={borrowerId} initialData={borrower?.notes_canvas} /> */}
           <m.div
-            className="mt-10"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: "-60px" }}
-            variants={groupVariants}
+            variants={notesVariants}
           >
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span
-                  className="rounded-full border border-rose-200 bg-rose-100
-                    px-2.5 py-1 text-[10px] font-black tracking-widest
-                    text-rose-800 uppercase dark:border-rose-800/40
-                    dark:bg-rose-900/20 dark:text-rose-200"
-                >
-                  recently deleted
-                </span>
-                <span className="text-xs font-semibold text-slate-400">
-                  {deletedAccounts.length} account
-                  {deletedAccounts.length === 1 ? "" : "s"}
-                </span>
-              </div>
-              {deletedAccounts.length > 0 && (
-                <button
-                  type="button"
-                  disabled={isClearingDeleted}
-                  onClick={handleClearAllDeletedAccounts}
-                  className="rounded-md border border-rose-200 bg-rose-100 px-2
-                    py-1 text-[10px] font-bold text-rose-700 transition
-                    hover:bg-rose-200 disabled:opacity-50
-                    dark:border-rose-800/40 dark:bg-rose-900/20
-                    dark:text-rose-200 dark:hover:bg-rose-900/30"
-                >
-                  {isClearingDeleted ? "clearing..." : "clear all"}
-                </button>
-              )}
-            </div>
+            {notes.length === 0 ? null : (
+              <m.div
+                className="mb-4"
+                initial={{ opacity: 0, x: -10 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{
+                  type: "spring" as const,
+                  stiffness: 300,
+                  damping: 25,
+                }}
+              >
+                <h2 className="text-xl font-black uppercase">Notes</h2>
+              </m.div>
+            )}
 
-            <m.div
-              className="flex flex-col gap-2"
-              variants={cardContainerVariants}
-            >
-              {deletedAccounts.map((account) => {
-                const isRestoring = restoringIds.has(account.id);
-                const principal = Number(account.principal_amount ?? 0);
-                const deletedDate = account.deleted_at
-                  ? formatDate(account.deleted_at.slice(0, 10))
-                  : null;
-                const isCashAdvance = account.type === "cash_advance";
-                const isManual = account.schedule_mode === "manual";
-                const isRolling =
-                  isManual && account.interest_type === "rolling";
-                const typeLabel = isManual
-                  ? isRolling
-                    ? "rolling"
-                    : "flat"
-                  : isCashAdvance
-                    ? "ca"
-                    : "loan";
-                const typeBadgeBg = isManual
-                  ? isRolling
-                    ? "bg-cyan-200 text-cyan-900 dark:bg-cyan-800 dark:text-cyan-100"
-                    : "bg-lime-200 text-lime-900 dark:bg-lime-800 dark:text-lime-100"
-                  : isCashAdvance
-                    ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
-                    : "bg-violet-200 text-violet-900 dark:bg-violet-800 dark:text-violet-100";
-
-                const isPermaDeleting = permaDeletingIds.has(account.id);
-
-                return (
-                  <m.div
-                    key={account.id}
-                    variants={cardVariants}
-                    // Each row animates itself: one added after the section
-                    // has scrolled into view would otherwise stay hidden.
-                    initial="hidden"
-                    animate="visible"
-                    className="flex items-center gap-3 rounded-lg border
-                      border-slate-200 bg-slate-50 px-3 py-2 opacity-60
-                      grayscale transition-all duration-200
-                      dark:border-border/50 dark:bg-card/50 hover:opacity-80
-                      hover:grayscale-0"
-                  >
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`shrink-0 rounded px-1.5 py-0.5 text-[9px]
-                          font-black tracking-wide uppercase ${typeBadgeBg}`}
-                        >
-                          {typeLabel}
-                        </span>
-                        {account.interest_rate ? (
-                          <span
-                            className="text-[10px] font-bold text-slate-500
-                              dark:text-slate-400"
-                          >
-                            {account.interest_rate}%
-                          </span>
-                        ) : null}
-                        <span
-                          className="shrink-0 rounded-full bg-rose-100 px-1.5
-                            py-0 text-[8px] font-black uppercase text-rose-700
-                            dark:bg-rose-800 dark:text-rose-100"
-                        >
-                          deleted
-                        </span>
-                      </div>
-
-                      <p
-                        className="truncate text-sm font-bold text-slate-700
-                          tabular-nums dark:text-slate-200"
-                      >
-                        ₱{principal.toLocaleString()}
-                      </p>
-
-                      <p className="text-[10px] text-slate-400">
-                        {account.type.replace("_", " ")}
-                        {isManual
-                          ? " · manual"
-                          : account.payment_frequency
-                            ? ` · ${account.payment_frequency}`
-                            : ""}
-                        {deletedDate ? ` · deleted ${deletedDate}` : ""}
-                      </p>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-1">
-                      <button
-                        type="button"
-                        disabled={isRestoring}
-                        onClick={() => handleRestoreAccount(account.id)}
-                        className="rounded-md border border-slate-900/30
-                          bg-white px-2 py-1 text-[10px] font-bold
-                          text-slate-600 transition hover:bg-slate-100
-                          active:translate-y-px disabled:opacity-50
-                          dark:border-border/50 dark:bg-muted
-                          dark:text-slate-300 dark:hover:bg-muted/70"
-                        aria-label="Restore account"
-                      >
-                        {isRestoring ? (
-                          <span
-                            className="inline-block size-3 animate-spin
-                              rounded-full border border-current
-                              border-t-transparent"
-                          />
-                        ) : (
-                          <RotateCcw className="size-3" />
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={isPermaDeleting}
-                        onClick={() => handlePermaDeleteAccount(account.id)}
-                        className="rounded-md border border-rose-200 bg-rose-50
-                          px-2 py-1 text-[10px] font-bold text-rose-600
-                          transition hover:bg-rose-100 active:translate-y-px
-                          disabled:opacity-50 dark:border-rose-800/40
-                          dark:bg-rose-900/20 dark:text-rose-200
-                          dark:hover:bg-rose-900/30"
-                        aria-label="Permanently delete account"
-                      >
-                        {isPermaDeleting ? (
-                          <span
-                            className="inline-block size-3 animate-spin
-                              rounded-full border border-current
-                              border-t-transparent"
-                          />
-                        ) : (
-                          <Trash2 className="size-3" />
-                        )}
-                      </button>
-                    </div>
-                  </m.div>
-                );
-              })}
-            </m.div>
-          </m.div>
-        )}
-
-        {/* Portalled to body to escape PageTransition's transform stacking context */}
-        {isMounted &&
-          createPortal(
-            <BorrowerFab
-              open={fabOpen}
-              onOpenChange={setFabOpen}
-              onAddLoan={() => {
-                setEditingAccount(null);
-                setIsAccountDialogOpen(true);
-              }}
-              onAddNote={() => {
-                setSelectedNote(null);
+            <SortableNotesGrid
+              notes={notes}
+              borrowerId={borrowerId}
+              resolvedTheme={resolvedTheme ?? "light"}
+              onNoteClick={(note) => {
+                setSelectedNote(note);
                 setIsNotesOpen(true);
               }}
-            />,
-            document.body,
-          )}
-
-        <Dialog
-          open={isAccountDialogOpen}
-          onOpenChange={(open) => {
-            setIsAccountDialogOpen(open);
-            if (!open) setEditingAccount(null);
-          }}
-        >
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader className="gap-3 pb-2">
-              <div
-                className="flex h-10 w-10 items-center justify-center
-                  rounded-full bg-indigo-100 text-indigo-700
-                  dark:bg-indigo-900/40 dark:text-indigo-300"
-              >
-                {editingAccount ? (
-                  <Pencil className="h-5 w-5" />
-                ) : (
-                  <Wallet className="h-5 w-5" />
-                )}
-              </div>
-              <div className="space-y-1">
-                <DialogTitle className="text-xl font-semibold tracking-tight">
-                  {editingAccount ? "Edit Account" : "Add Account"}
-                </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  {editingAccount
-                    ? "Update the account details and payment schedule."
-                    : "Create a new loan or cash advance for this borrower."}
-                </DialogDescription>
-              </div>
-            </DialogHeader>
-
-            <AccountForm
-              key={`${borrowerId}-${editingAccount?.id ?? "new"}`}
-              borrowerId={borrowerId}
-              accountId={editingAccount?.id}
-              initialValues={
-                editingAccount
-                  ? accountRowToFormInitial(editingAccount)
-                  : undefined
-              }
-              onSuccess={async () => {
-                setIsAccountDialogOpen(false);
-                setEditingAccount(null);
-                await invalidateBorrowerDetails(borrowerId);
-                router.refresh();
-              }}
             />
-          </DialogContent>
-        </Dialog>
-
-        <ActivateAccountDialog
-          open={Boolean(activatingAccount)}
-          onClose={() => setActivatingAccount(null)}
-          accountId={activatingAccount?.id ?? ""}
-          initialValues={
-            activatingAccount
-              ? {
-                  principal_amount: Number(
-                    activatingAccount.principal_amount ?? 0,
-                  ),
-                  interest_rate: Number(activatingAccount.interest_rate ?? 0),
-                  release_date: activatingAccount.release_date ?? "",
-                  first_payment_date:
-                    activatingAccount.first_payment_date ?? "",
-                  payment_frequency:
-                    (activatingAccount.payment_frequency as any) ?? "bimonthly",
-                  term_months: Number(activatingAccount.term_months ?? 1),
-                  schedule_mode:
-                    (activatingAccount.schedule_mode as any) ?? "auto",
-                  interest_type:
-                    (activatingAccount.interest_type as any) ?? "flat",
-                }
-              : {}
-          }
-        />
-
-        {/* <NotesCanvas borrowerId={borrowerId} initialData={borrower?.notes_canvas} /> */}
-        <m.div
-          className="mt-10"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-60px" }}
-          variants={notesVariants}
-        >
-          {notes.length === 0 ? null : (
-            <m.div
-              className="mb-4"
-              initial={{ opacity: 0, x: -10 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{
-                type: "spring" as const,
-                stiffness: 300,
-                damping: 25,
-              }}
-            >
-              <h2 className="text-xl font-black uppercase">Notes</h2>
-            </m.div>
-          )}
-
-          <SortableNotesGrid
-            notes={notes}
-            borrowerId={borrowerId}
-            resolvedTheme={resolvedTheme ?? "light"}
-            onNoteClick={(note) => {
-              setSelectedNote(note);
-              setIsNotesOpen(true);
-            }}
-          />
-        </m.div>
+          </m.div>
+        </div>
 
         <Dialog open={isNotesOpen} onOpenChange={setIsNotesOpen}>
           <DialogContent

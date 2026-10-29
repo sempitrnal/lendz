@@ -5,6 +5,7 @@ import {
   formatAmount,
   payoffPercent,
   releasedLabel,
+  shortDate,
 } from "./summary";
 
 const dot = (state: InstallmentDot["state"]): InstallmentDot => ({
@@ -66,5 +67,12 @@ describe("releasedLabel", () => {
     expect(releasedLabel(14)).toBe("released 2w ago");
     expect(releasedLabel(90)).toBe("released 3mo ago");
     expect(releasedLabel(800)).toBe("released 2y ago");
+  });
+});
+
+describe("shortDate", () => {
+  it("names the month and drops the leading zero", () => {
+    expect(shortDate("2026-11-03")).toBe("Nov 3");
+    expect(shortDate("2026-01-31T00:00:00Z")).toBe("Jan 31");
   });
 });

@@ -32,4 +32,13 @@ describe("TOURS", () => {
       nextTour(TOURS, "/daily-checklist", [GUIDE_TOUR_ID, search, folded]),
     ).toBeNull();
   });
+  it("a borrower's page plays the redesign tour once the older one is seen", () => {
+    const seen = ["2026-10-22-borrower-accounts"];
+    expect(nextTour(TOURS, "/borrowers/abc", seen)?.id).toBe(
+      "2026-10-29-borrower-page",
+    );
+    expect(
+      nextTour(TOURS, "/borrowers/abc", [...seen, "2026-10-29-borrower-page"]),
+    ).toBeNull();
+  });
 });

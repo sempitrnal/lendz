@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -24,6 +24,7 @@ import {
   type OverdueBorrower,
   type OverdueBucket,
 } from "@/lib/dashboard-data";
+import { HIDDEN_AMOUNT, useHideAmounts } from "@/lib/hide-amounts";
 import MonthPicker from "@/components/month-picker";
 import HeaderSearch from "@/components/header-search";
 import ThemeToggle from "@/components/theme-toggle";
@@ -76,25 +77,6 @@ const TYPE_DOTS: Record<string, string> = {
   cash_advance: "bg-yellow-400",
 };
 
-const HIDE_KEY = "dashboard-hide-amounts";
-const HIDE_EVENT = "dashboard-hide-amounts-changed";
-
-function subscribeHide(onChange: () => void) {
-  window.addEventListener(HIDE_EVENT, onChange);
-  window.addEventListener("storage", onChange);
-  return () => {
-    window.removeEventListener(HIDE_EVENT, onChange);
-    window.removeEventListener("storage", onChange);
-  };
-}
-
-function readHide() {
-  try {
-    return localStorage.getItem(HIDE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
 const BUCKET_COLORS = [
   "bg-amber-300",
   "bg-orange-300",
@@ -123,16 +105,10 @@ export function WalletHome({
   topOverdue: OverdueBorrower[];
   payments: RecentPayment[];
 }) {
-  const hide = useSyncExternalStore(subscribeHide, readHide, () => false);
+  const [hide, toggleHide] = useHideAmounts();
   const [tab, setTab] = useState<"outstanding" | "profit">("outstanding");
 
-  const toggleHide = () => {
-    try {
-      localStorage.setItem(HIDE_KEY, hide ? "0" : "1");
-    } catch {}
-    window.dispatchEvent(new Event(HIDE_EVENT));
-  };
-  const mask = (text: string) => (hide ? "••••••" : text);
+  const mask = (text: string) => (hide ? HIDDEN_AMOUNT : text);
 
   const collectedPct = currentMonth.toCollectThisMonth
     ? Math.min(

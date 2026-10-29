@@ -268,4 +268,22 @@ export const TOURS: Tour[] = [
       },
     ],
   },
+  {
+    id: "2026-10-29-borrower-page",
+    title: "The borrower page, redone",
+    date: "2026-10-29",
+    page: "/borrowers/*",
+    steps: [
+      {
+        target: '[data-tour="borrower-balance"]',
+        title: "What's left, up top",
+        body: "The green band leads with what the borrower still owes, how much is collected and what's due next. The eye hides the amounts. Scroll and the band folds into a header with their name, menu and profit and this-month figures.",
+      },
+      {
+        target: '[data-tour="account-card"]',
+        title: "Swipe an account",
+        body: "Swipe a row to the left for Edit, Revert and Delete. The three-dot menu is gone.",
+      },
+    ],
+  },
 ];

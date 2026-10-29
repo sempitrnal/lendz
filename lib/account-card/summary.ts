@@ -32,3 +32,24 @@ export function releasedLabel(days: number): string {
   if (days < 365) return `released ${Math.round(days / 30)}mo ago`;
   return `released ${Math.round(days / 365)}y ago`;
 }
+
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** "Nov 3" from a `YYYY-MM-DD` date, without going through `Date` (no timezone shifts). */
+export function shortDate(iso: string): string {
+  const [, month, day] = iso.slice(0, 10).split("-").map(Number);
+  return `${MONTHS[month - 1]} ${day}`;
+}

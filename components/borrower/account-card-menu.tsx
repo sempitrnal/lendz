@@ -40,11 +40,18 @@ type AccountCardMenuProps = {
   onEdit?: () => void;
 };
 
-export default function AccountCardMenu({
+/**
+ * An account's Revert and Delete flows: the dialogs and what opens them. The
+ * three-dot menu and the borrower page's swipe buttons both use it; render
+ * `dialogs` once next to whatever triggers them.
+ */
+export function useAccountActions({
   accountId,
   borrowerId,
-  onEdit,
-}: AccountCardMenuProps) {
+}: {
+  accountId: string;
+  borrowerId: string;
+}) {
   const router = useRouter();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -144,55 +151,8 @@ export default function AccountCardMenu({
     }
   }
 
-  return (
-    <div className="shrink-0">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label="Account actions"
-            className="flex size-10 items-center justify-center rounded-full
-              text-slate-400 outline-none hover:bg-black/5
-              focus-visible:ring-2 focus-visible:ring-slate-900"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <MoreVertical className="size-5 cursor-pointer" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
-          {onEdit ? (
-            <DropdownMenuItem
-              className="cursor-pointer focus:bg-slate-100 focus:text-slate-900"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onEdit();
-              }}
-            >
-              Edit
-            </DropdownMenuItem>
-          ) : null}
-          <DropdownMenuItem
-            className="cursor-pointer focus:bg-slate-100 focus:text-slate-900"
-            onClick={(e) => {
-              e.stopPropagation();
-              void openRevert();
-            }}
-          >
-            Revert last update
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            variant="destructive"
-            className="cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              openDeleteModal();
-            }}
-          >
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+  const dialogs = (
+    <>
       <Dialog
         open={revert !== null}
         onOpenChange={(o) => !o && !isReverting && setRevert(null)}
@@ -213,8 +173,8 @@ export default function AccountCardMenu({
                       {new Date(revert.revision.created_at).toLocaleString()}
                     </span>
                     : its terms, {revert.revision.schedules.length} schedules
-                    with their statuses, and{" "}
-                    {revert.revision.payments.length} recorded payments.
+                    with their statuses, and {revert.revision.payments.length}{" "}
+                    recorded payments.
                   </p>
                   {revert.laterPayments > 0 && (
                     <p className="font-medium text-rose-600 dark:text-rose-400">
@@ -256,8 +216,8 @@ export default function AccountCardMenu({
             <DialogTitle>Delete account</DialogTitle>
           </DialogHeader>
           <DialogDescription>
-            This account will be moved to &quot;recently deleted&quot; and hidden from the
-            main list. You can restore it anytime.
+            This account will be moved to &quot;recently deleted&quot; and
+            hidden from the main list. You can restore it anytime.
           </DialogDescription>
           <DialogFooter>
             <Button
@@ -277,6 +237,72 @@ export default function AccountCardMenu({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  );
+
+  return { openRevert, openDelete: openDeleteModal, dialogs };
+}
+
+export default function AccountCardMenu({
+  accountId,
+  borrowerId,
+  onEdit,
+}: AccountCardMenuProps) {
+  const { openRevert, openDelete, dialogs } = useAccountActions({
+    accountId,
+    borrowerId,
+  });
+
+  return (
+    <div className="shrink-0">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label="Account actions"
+            className="flex size-10 items-center justify-center rounded-full
+              text-slate-400 outline-none hover:bg-black/5 focus-visible:ring-2
+              focus-visible:ring-slate-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreVertical className="size-5 cursor-pointer" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          {onEdit ? (
+            <DropdownMenuItem
+              className="cursor-pointer focus:bg-slate-100 focus:text-slate-900"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit();
+              }}
+            >
+              Edit
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem
+            className="cursor-pointer focus:bg-slate-100 focus:text-slate-900"
+            onClick={(e) => {
+              e.stopPropagation();
+              void openRevert();
+            }}
+          >
+            Revert last update
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            variant="destructive"
+            className="cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              openDelete();
+            }}
+          >
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {dialogs}
     </div>
   );
 }
