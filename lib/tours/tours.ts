@@ -228,4 +228,25 @@ export const TOURS: Tour[] = [
       },
     ],
   },
+  {
+    id: "2026-10-29-checklist-search",
+    title: "Search the checklist",
+    date: "2026-10-29",
+    page: "/daily-checklist",
+    steps: [
+      {
+        target: '[data-tour="checklist-search"]',
+        title: "Search the list",
+        body: "With a long list, tap the magnifier to find someone fast.",
+        advanceOn: "click",
+      },
+      {
+        target: '[data-tour="checklist-search-field"]',
+        title: "Type a name or note",
+        body: "The list narrows as you type, carried-over rows included. It works with the filters. Try it, then tap Done.",
+        interactive: true,
+        lazy: true,
+      },
+    ],
+  },
 ];

@@ -19,6 +19,13 @@ describe("TOURS", () => {
   });
   it("a first visit to the checklist plays only the guide", () => {
     expect(nextTour(TOURS, "/daily-checklist", [])?.id).toBe(GUIDE_TOUR_ID);
-    expect(nextTour(TOURS, "/daily-checklist", [GUIDE_TOUR_ID])).toBeNull();
+    // Then only a tour for something shipped since plays by itself.
+    const search = "2026-10-29-checklist-search";
+    expect(nextTour(TOURS, "/daily-checklist", [GUIDE_TOUR_ID])?.id).toBe(
+      search,
+    );
+    expect(
+      nextTour(TOURS, "/daily-checklist", [GUIDE_TOUR_ID, search]),
+    ).toBeNull();
   });
 });
