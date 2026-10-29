@@ -1,6 +1,12 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import {
+  useRef,
+  useState,
+  useCallback,
+  useImperativeHandle,
+  type Ref,
+} from "react";
 import { flushSync } from "react-dom";
 import { Share2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
@@ -29,7 +35,12 @@ type Props = {
   noDetails?: boolean;
   /** Manual accounts: rows are payments received, not fixed installments. */
   isManual?: boolean;
+  /** Leave out the button: something else (a menu item) calls `capture`. */
+  hideTrigger?: boolean;
+  controlRef?: Ref<ShareScheduleControl>;
 };
+
+export type ShareScheduleControl = { capture: () => void };
 
 function formatMoney(value: number) {
   return `₱${value.toLocaleString()}`;
@@ -154,6 +165,8 @@ export default function ShareScheduleButton({
   schedules,
   noDetails,
   isManual,
+  hideTrigger,
+  controlRef,
 }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [rendering, setRendering] = useState(false);
@@ -231,6 +244,10 @@ export default function ShareScheduleButton({
     }
   }, [borrowerName]);
 
+  useImperativeHandle(controlRef, () => ({ capture: () => void capture() }), [
+    capture,
+  ]);
+
   function downloadImage(dataUrl: string) {
     const link = document.createElement("a");
     link.download = `${borrowerName.replace(/\s+/g, "-")}-schedule.png`;
@@ -240,23 +257,25 @@ export default function ShareScheduleButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={capture}
-        disabled={rendering}
-        className="dark:border-border dark:bg-card dark:text-foreground
-          dark:hover:bg-muted flex items-center gap-1.5 rounded border
-          border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-bold
-          text-slate-600 transition hover:bg-slate-50 active:translate-y-px
-          active:shadow-none"
-      >
-        {rendering ? (
-          <span className="animate-spin">⏳</span>
-        ) : (
-          <Share2 className="size-3.5" />
-        )}
-        {rendering ? "Generating…" : noDetails ? "share" : "Share"}
-      </button>
+      {!hideTrigger && (
+        <button
+          type="button"
+          onClick={capture}
+          disabled={rendering}
+          className="dark:border-border dark:bg-card dark:text-foreground
+            dark:hover:bg-muted flex items-center gap-1.5 rounded border
+            border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-bold
+            text-slate-600 transition hover:bg-slate-50 active:translate-y-px
+            active:shadow-none"
+        >
+          {rendering ? (
+            <span className="animate-spin">⏳</span>
+          ) : (
+            <Share2 className="size-3.5" />
+          )}
+          {rendering ? "Generating…" : noDetails ? "share" : "Share"}
+        </button>
+      )}
 
       {/* Off-screen card used for image capture */}
       {showCard ? (

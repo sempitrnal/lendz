@@ -9,11 +9,11 @@ import BorrowerDetailMenu from "./borrower-detail-menu";
 import type { BorrowerSummary } from "./borrower-detail-view";
 
 /** Height of the app's own top bar, which stays put; the header sits under it. */
-const BAR_PX = 64;
+export const BAR_PX = 64;
 /** The body trails the page: it moves up at (1 - this) of the scroll speed. */
 const PARALLAX = 0.4;
 /** The folded header grows this much to fit its row of figures. */
-const STATS_PX = 44;
+export const STATS_PX = 44;
 /** The name starts this much bigger than its header size. */
 const NAME_BOOST = 0.3;
 
@@ -39,7 +39,7 @@ type Refs = {
  * size, all in step with the scroll position. Written straight to the
  * elements per frame: no re-render. On wider screens the band is a plain card.
  */
-function useCollapsingBand({ head, slab, body, headBg, headStats }: Refs) {
+export function useCollapsingBand({ head, slab, body, headBg, headStats }: Refs) {
   useEffect(() => {
     const headEl = head.current;
     const slabEl = slab.current;
@@ -224,9 +224,9 @@ export function BorrowerBand({
           <div
             ref={headBg}
             aria-hidden="true"
-            className="absolute inset-x-0 top-0 rounded-b-3xl bg-emerald-600
+            className="absolute inset-x-0 top-0 rounded-b-3xl bg-brand-600
               opacity-0 shadow-[0_8px_14px_-6px_rgba(2,44,34,0.35)]
-              dark:bg-emerald-950"
+              dark:bg-brand-950"
             style={{ bottom: -STATS_PX }}
           />
           {/* Hangs below the name row; the background above reaches down to
@@ -286,8 +286,8 @@ export function BorrowerBand({
           aria-hidden="true"
           data-nav-band
           className="absolute inset-0 rounded-b-3xl bg-linear-to-b
-            from-emerald-600 to-emerald-500 sm:rounded-3xl dark:from-emerald-950
-            dark:to-emerald-900"
+            from-brand-600 to-brand-500 sm:rounded-3xl dark:from-brand-950
+            dark:to-brand-900"
         />
         <div
           ref={body}

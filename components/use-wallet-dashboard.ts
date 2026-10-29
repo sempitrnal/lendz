@@ -17,10 +17,15 @@ export function isBorrowerDetailPath(pathname: string) {
   return /^\/borrowers\/[^/]+$/.test(pathname);
 }
 
+/** One account's own page, `/accounts/<id>` (not its public view). */
+export function isAccountDetailPath(pathname: string) {
+  return /^\/accounts\/[^/]+$/.test(pathname);
+}
+
 /**
  * True where the page draws its own green top band on a phone: the wallet
- * dashboard, the checklist and a borrower's page. The global mobile top bar
- * turns green there.
+ * dashboard, the checklist, a borrower's page and an account's page. The
+ * global mobile top bar turns green there.
  */
 export function usePageOwnsMobileHeader() {
   const pathname = usePathname();
@@ -28,6 +33,7 @@ export function usePageOwnsMobileHeader() {
   return (
     walletDashboard ||
     pathname === "/daily-checklist" ||
-    isBorrowerDetailPath(pathname)
+    isBorrowerDetailPath(pathname) ||
+    isAccountDetailPath(pathname)
   );
 }

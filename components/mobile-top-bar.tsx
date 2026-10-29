@@ -9,11 +9,12 @@ import { cn } from "@/lib/utils";
 import ThemeToggle from "@/components/theme-toggle";
 import HeaderSearch from "@/components/header-search";
 import {
+  isAccountDetailPath,
   isBorrowerDetailPath,
   usePageOwnsMobileHeader,
 } from "@/components/use-wallet-dashboard";
 
-/** The band's top colour (emerald-600 / emerald-950), for the status bar. */
+/** The band's top colour (brand-600 / brand-950, see globals.css), for the status bar. */
 const THEME_LIGHT = "#059669";
 const THEME_DARK = "#022c22";
 
@@ -74,8 +75,10 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
     };
   }, [ownsHeader, pathname]);
 
-  // A borrower's header caps itself with its own shadow under this bar.
-  const capsItself = isBorrowerDetailPath(pathname);
+  // A borrower's or an account's header caps itself with its own shadow under
+  // this bar.
+  const capsItself =
+    isBorrowerDetailPath(pathname) || isAccountDetailPath(pathname);
   const hideAll =
     HIDE_ALL_PATHS.includes(pathname) ||
     (pathname.startsWith("/accounts/") && pathname.endsWith("/view"));
@@ -103,8 +106,8 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
         // from the bar's colour, so a see-through bar showed up as white), and
         // stays mounted, so moving between them only swaps what's below it.
         ownsHeader &&
-          `border-transparent bg-emerald-600 px-4 dark:border-transparent
-          dark:bg-emerald-950`,
+          `border-transparent bg-brand-600 px-4 dark:border-transparent
+          dark:bg-brand-950`,
       )}
     >
       {ownsHeader && !capsItself && (

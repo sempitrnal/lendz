@@ -9,16 +9,8 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { triggerHaptic } from "@/lib/haptics";
-import { AnimatePresence, m, useReducedMotion } from "motion/react";
-import {
-  CalendarClock,
-  ChartPie,
-  CircleCheck,
-  ChevronDown,
-  Clock,
-  TriangleAlert,
-  type LucideIcon,
-} from "lucide-react";
+import { CircleCheck, ChevronDown } from "lucide-react";
+import { HIDDEN_AMOUNT, useHideAmounts } from "@/lib/hide-amounts";
 import {
   amountPaidOnInstallment,
   remainingOnInstallment,
@@ -127,45 +119,12 @@ function scheduleOptimisticReducer(
 /** Upcoming installments shown before "show more". */
 const UPCOMING_PREVIEW = 3;
 
-function SectionHead({
-  icon: Icon,
-  label,
-  count,
-  badge,
-}: {
-  icon: LucideIcon;
-  label: string;
-  count?: number;
-  badge: string;
-}) {
-  return (
-    <div className="mt-6 mb-2.5 flex items-center gap-2.5 first:mt-0">
-      <span
-        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1
-          text-xs font-bold ring-1 ring-inset ${badge}`}
-      >
-        <Icon className="size-3.5" aria-hidden />
-        {label}
-      </span>
-      {count != null && (
-        <span
-          className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold
-            text-slate-500 tabular-nums dark:bg-white/10 dark:text-slate-400"
-        >
-          {count}
-        </span>
-      )}
-      <span className="h-px flex-1 bg-slate-200/80 dark:bg-border" />
-    </div>
-  );
-}
-
 /** A thin year marker between rows where the list crosses into another year. */
 function YearDivider({ year }: { year: string }) {
   return (
     <li
       aria-label={year}
-      className="flex items-center gap-2.5 py-1 text-[11px] font-bold
+      className="flex items-center gap-2.5 py-1 pl-9 text-[11px] font-bold
         text-slate-400 dark:text-slate-500"
     >
       <span className="h-px flex-1 bg-slate-200 dark:bg-border" />
@@ -205,7 +164,6 @@ export function ScheduleTimeline({
     scheduleOptimisticReducer,
   );
   const { isEditing } = useScheduleSelection();
-  const reduceMotion = useReducedMotion();
   const [, startDelete] = useTransition();
   const all = optimistic.schedules;
 
@@ -223,50 +181,51 @@ export function ScheduleTimeline({
       }
     });
   }
+  const [hide] = useHideAmounts();
+  const mask = (text: string) => (hide ? HIDDEN_AMOUNT : text);
   const total = all.length;
   // "Next up" is the first pending schedule; overdue ones have their own section.
   const nextIndex = all.findIndex((s) => s.status === "pending");
   const today = todayDateValue();
 
-  const { paidRows, partialRows, overdueRows, nextRow, upcomingRows } =
-    useMemo(() => {
-      const indexed = all.map((s, i) => ({ s, i }));
-      return {
-        paidRows: indexed.filter((x) => x.s.status === "paid"),
-        partialRows: indexed.filter((x) => x.s.status === "partial"),
-        overdueRows: indexed.filter(
-          (x) => x.s.status === "overdue" && x.i !== nextIndex,
-        ),
-        nextRow: nextIndex >= 0 ? indexed[nextIndex] : null,
-        upcomingRows: indexed.filter(
-          (x) =>
-            x.s.status !== "paid" &&
-            x.s.status !== "partial" &&
-            x.s.status !== "overdue" &&
-            x.i !== nextIndex,
-        ),
-      };
-    }, [all, nextIndex]);
+  // The rail runs in schedule order. Paid ones fold into one line at its top;
+  // of the rest, the ones that need you (in progress, overdue, next) always
+  // show, and only a long tail of plain upcoming ones waits behind "show more".
+  const { paidRows, openRows, upcomingRows } = useMemo(() => {
+    const indexed = all.map((s, i) => ({ s, i }));
+    const open = indexed.filter((x) => x.s.status !== "paid");
+    return {
+      paidRows: indexed.filter((x) => x.s.status === "paid"),
+      openRows: open,
+      upcomingRows: open.filter(
+        (x) =>
+          x.s.status !== "partial" &&
+          x.s.status !== "overdue" &&
+          x.i !== nextIndex,
+      ),
+    };
+  }, [all, nextIndex]);
   const hasFocus = (rows: typeof paidRows) =>
     rows.some((x) => x.s.id === focusScheduleId);
 
   // Paid rows tuck away unless that's all there is (or one is being focused).
   const [paidOpen, setPaidOpen] = useState(
-    () =>
-      hasFocus(paidRows) ||
-      (paidRows.length > 0 &&
-        partialRows.length + overdueRows.length + upcomingRows.length === 0 &&
-        !nextRow),
+    () => hasFocus(paidRows) || (paidRows.length > 0 && openRows.length === 0),
   );
   const [upcomingAll, setUpcomingAll] = useState(() =>
     hasFocus(upcomingRows.slice(UPCOMING_PREVIEW)),
   );
   const showAllUpcoming = upcomingAll || isEditing;
-  const visibleUpcoming = showAllUpcoming
-    ? upcomingRows
-    : upcomingRows.slice(0, UPCOMING_PREVIEW);
+  const hiddenIds = new Set(
+    showAllUpcoming
+      ? []
+      : upcomingRows.slice(UPCOMING_PREVIEW).map((x) => x.s.id),
+  );
+  const visibleOpen = openRows.filter((x) => !hiddenIds.has(x.s.id));
+  // The first one that needs you opens by itself, with its buttons showing.
+  const firstOpenId = openRows[0]?.s.id;
 
-  function renderItem(schedule: PaymentScheduleRow, i: number) {
+  function renderItem(schedule: PaymentScheduleRow, i: number, isLast = false) {
     const state = schedule.status as ScheduleState;
     const isNext = i === nextIndex;
     const paid = amountPaidOnInstallment(schedule);
@@ -280,7 +239,9 @@ export function ScheduleTimeline({
             const base =
               Math.round((due / (1 + interestRate / 100)) * 100) / 100;
             const interest = Math.round((due - base) * 100) / 100;
-            return `${formatMoney(base)} + ${interestRate}% (+${formatMoney(interest)})`;
+            return mask(
+              `${formatMoney(base)} + ${interestRate}% (+${formatMoney(interest)})`,
+            );
           })()
         : undefined;
 
@@ -362,18 +323,21 @@ export function ScheduleTimeline({
         number={i + 1}
         total={total}
         isNext={isNext}
-        defaultOpen={isNext || focusScheduleId === schedule.id}
+        defaultOpen={
+          schedule.id === firstOpenId || focusScheduleId === schedule.id
+        }
+        isLast={isLast}
         state={state}
         dueDate={schedule.due_date}
-        amountLabel={formatMoney(due)}
+        amountLabel={mask(formatMoney(due))}
         subLabel={subLabel}
         subTone={subTone}
         rollingInterestLabel={rollingInterestLabel}
         partial={
           schedule.status === "partial"
             ? {
-                paidLabel: formatMoney(paid),
-                leftLabel: formatMoney(remaining),
+                paidLabel: mask(formatMoney(paid)),
+                leftLabel: mask(formatMoney(remaining)),
                 pct,
               }
             : undefined
@@ -387,7 +351,10 @@ export function ScheduleTimeline({
   }
 
   /** Rows in order, with a year divider wherever the year changes (or the list starts outside this year). */
-  function renderRows(rows: { s: PaymentScheduleRow; i: number }[]) {
+  function renderRows(
+    rows: { s: PaymentScheduleRow; i: number }[],
+    lastRow: PaymentScheduleRow | null,
+  ) {
     return rows.map((x, k) => {
       const year = x.s.due_date.slice(0, 4);
       const before =
@@ -395,7 +362,7 @@ export function ScheduleTimeline({
       return (
         <Fragment key={x.s.id}>
           {year !== before && <YearDivider year={year} />}
-          {renderItem(x.s, x.i)}
+          {renderItem(x.s, x.i, x.s === lastRow)}
         </Fragment>
       );
     });
@@ -405,132 +372,93 @@ export function ScheduleTimeline({
     (sum, x) => sum + amountPaidOnInstallment(x.s),
     0,
   );
+  const hiddenCount = openRows.length - visibleOpen.length;
+  // The rail ends at the last dot; a "show more" under it keeps it going.
+  const lastOpen =
+    hiddenCount === 0 && visibleOpen.length > 0
+      ? visibleOpen[visibleOpen.length - 1].s
+      : null;
+  const lastPaid =
+    paidOpen && visibleOpen.length === 0 && paidRows.length > 0
+      ? paidRows[paidRows.length - 1].s
+      : null;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-4">
-      {paidRows.length > 0 && (
-        <>
-          <button
-            type="button"
-            onClick={() => setPaidOpen((v) => !v)}
-            aria-expanded={paidOpen}
-            className="flex w-full items-center gap-3 rounded-2xl border
-              border-emerald-200/80 bg-emerald-50/70 px-3.5 py-3 text-left
-              transition-colors hover:bg-emerald-50 dark:border-emerald-900/40
-              dark:bg-emerald-950/20"
-          >
-            <span
-              className="flex size-9 shrink-0 items-center justify-center
-                rounded-full bg-emerald-500 text-white"
+    <div
+      className="rounded-2xl bg-card p-3 shadow-sm ring-1 ring-black/5
+        dark:ring-white/10"
+    >
+      <p className="px-1 pb-2 text-xs font-bold text-muted-foreground lowercase">
+        payment schedule · {total} installment{total === 1 ? "" : "s"}
+      </p>
+      <ul>
+        {paidRows.length > 0 && (
+          <li className="pb-2">
+            <button
+              type="button"
+              onClick={() => setPaidOpen((v) => !v)}
+              aria-expanded={paidOpen}
+              className="flex w-full items-center gap-3 rounded-2xl
+                bg-emerald-50/70 px-3 py-2.5 text-left transition-colors
+                hover:bg-emerald-50 dark:bg-emerald-950/20"
             >
-              <CircleCheck className="size-5" />
-            </span>
-            <span className="min-w-0 flex-1">
               <span
-                className="block text-sm font-black text-emerald-800
-                  dark:text-emerald-200"
+                className="flex size-6 shrink-0 items-center justify-center
+                  rounded-full bg-emerald-500 text-white"
               >
-                {paidRows.length} paid
+                <CircleCheck className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span
+                  className="block text-sm font-black text-emerald-800
+                    dark:text-emerald-200"
+                >
+                  {paidRows.length} paid
+                </span>
+                <span
+                  className="block truncate text-[11px] text-emerald-700/80
+                    dark:text-emerald-300/70"
+                >
+                  {paidRows[0].s.due_date ===
+                  paidRows[paidRows.length - 1].s.due_date
+                    ? formatDate(paidRows[0].s.due_date)
+                    : `${formatDate(paidRows[0].s.due_date)} to ${formatDate(
+                        paidRows[paidRows.length - 1].s.due_date,
+                      )}`}
+                </span>
               </span>
               <span
-                className="block truncate text-[11px] text-emerald-700/80
-                  dark:text-emerald-300/70"
+                className="text-sm font-black text-emerald-700 tabular-nums
+                  dark:text-emerald-300"
               >
-                {paidRows[0].s.due_date ===
-                paidRows[paidRows.length - 1].s.due_date
-                  ? formatDate(paidRows[0].s.due_date)
-                  : `${formatDate(paidRows[0].s.due_date)} to ${formatDate(
-                      paidRows[paidRows.length - 1].s.due_date,
-                    )}`}
+                {mask(formatMoney(paidTotal))}
               </span>
-            </span>
-            <span
-              className="text-sm font-black text-emerald-700 tabular-nums
-                dark:text-emerald-300"
-            >
-              {formatMoney(paidTotal)}
-            </span>
-            <ChevronDown
-              className={`size-4 shrink-0 text-emerald-600/70
-              transition-transform duration-300 ${
-                paidOpen ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-          <AnimatePresence initial={false}>
-            {paidOpen && (
-              <m.ul
-                initial={reduceMotion ? false : { height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
-                transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
-                className="overflow-hidden"
-              >
-                <div className="space-y-2 pt-2">{renderRows(paidRows)}</div>
-              </m.ul>
-            )}
-          </AnimatePresence>
-        </>
-      )}
-
-      {partialRows.length > 0 && (
-        <>
-          <SectionHead
-            icon={ChartPie}
-            label="in progress"
-            count={partialRows.length}
-            badge="bg-[#f6f2fb] text-[#7a68a0] ring-[#e6def2] dark:bg-[#251f2e] dark:text-[#bcaed6] dark:ring-[#3b3449]"
-          />
-          <ul className="space-y-2">{renderRows(partialRows)}</ul>
-        </>
-      )}
-
-      {overdueRows.length > 0 && (
-        <>
-          <SectionHead
-            icon={TriangleAlert}
-            label="overdue"
-            count={overdueRows.length}
-            badge="bg-rose-100 text-rose-800 ring-rose-200 dark:bg-rose-900/40 dark:text-rose-100 dark:ring-rose-800"
-          />
-          <ul className="space-y-2">{renderRows(overdueRows)}</ul>
-        </>
-      )}
-
-      {nextRow && (
-        <>
-          <SectionHead
-            icon={CalendarClock}
-            label="next up"
-            badge="bg-sky-100 text-sky-800 ring-sky-200 dark:bg-sky-900/40 dark:text-sky-100 dark:ring-sky-800"
-          />
-          <ul>{renderItem(nextRow.s, nextRow.i)}</ul>
-        </>
-      )}
-
-      {upcomingRows.length > 0 && (
-        <>
-          <SectionHead
-            icon={Clock}
-            label="upcoming"
-            count={upcomingRows.length}
-            badge="bg-yellow-100 text-yellow-800 ring-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-100 dark:ring-yellow-800"
-          />
-          <ul className="space-y-2">{renderRows(visibleUpcoming)}</ul>
-          {!showAllUpcoming && upcomingRows.length > UPCOMING_PREVIEW && (
+              <ChevronDown
+                className={`size-4 shrink-0 text-emerald-600/70
+                transition-transform duration-300 ${
+                  paidOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+          </li>
+        )}
+        {paidOpen && renderRows(paidRows, lastPaid)}
+        {renderRows(visibleOpen, lastOpen)}
+        {hiddenCount > 0 && (
+          <li className="pl-9">
             <button
               type="button"
               onClick={() => setUpcomingAll(true)}
-              className="mt-2 flex w-full items-center justify-center gap-1.5
+              className="flex w-full items-center justify-center gap-1.5
                 rounded-xl py-2 text-xs font-bold text-slate-500 transition
                 hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/5"
             >
-              show {upcomingRows.length - UPCOMING_PREVIEW} more
+              show {hiddenCount} more
               <ChevronDown className="size-3.5" />
             </button>
-          )}
-        </>
-      )}
+          </li>
+        )}
+      </ul>
     </div>
   );
 }

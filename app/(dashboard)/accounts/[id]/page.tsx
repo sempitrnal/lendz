@@ -1,16 +1,12 @@
 import { connection } from "next/server";
 import { getAccountDetailPageData } from "@/lib/cache/accounts";
-import { formatDate } from "@/lib/utils";
 import { notFound } from "next/navigation";
-import StickyAccountStrip from "@/components/sticky-account-strip";
 import AddSchedulesPanel from "@/components/add-schedules-panel";
 import { ScheduleSelectionProvider } from "@/components/schedule-selection-provider";
-import { AccountSummaryCard } from "@/components/account/account-summary-card";
+import { AccountBand } from "@/components/account/account-band";
 import { ScheduleTimeline } from "@/components/account/schedule-timeline";
 import BatchScheduleToolbar from "@/components/batch-schedule-toolbar";
-import ShareScheduleButton from "@/components/share-schedule-button";
 import type { ShareSchedule } from "@/components/share-schedule-button";
-import { CopyPublicLinkButton } from "@/components/copy-public-link-button";
 import NextScheduleScroller from "@/components/next-schedule-scroller";
 import PendingActivationBanner from "@/components/accounts/pending-activation-banner";
 import { ImpasNaBannerClient as ImpasNaBanner } from "@/components/impas-na-banner-client";
@@ -20,7 +16,7 @@ import {
   remainingOnInstallment,
 } from "@/lib/payment-schedule/schedule-balances";
 import { countSkippedSchedules } from "@/lib/payment-schedule/build-payload";
-import { CalendarClock, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import {
   updateScheduleStatusAction,
   batchUpdateScheduleStatusAction,
@@ -129,11 +125,6 @@ export default async function AccountDetailPage({
       ? rollingTotalContract - principal
       : totalPayment - principal;
 
-  const totalInstallments = schedules.length;
-  const profitPerPayroll =
-    totalInstallments > 0
-      ? Math.round(Math.max(0, profit) / totalInstallments)
-      : 0;
   const progressPct = isFlatManual
     ? manualFlatTotal > 0
       ? Math.min(100, Math.round((amountPaid / manualFlatTotal) * 100))
@@ -166,101 +157,84 @@ export default async function AccountDetailPage({
   const borrowerCategories =
     borrower?.borrower_categories?.map((row) => row.category).filter(Boolean) ??
     [];
-  const categoryLabel =
-    borrowerCategories.length > 0
-      ? borrowerCategories.map((c) => c.name).join(" / ")
-      : "uncategorized";
-  const categoryColor = borrowerCategories.find((c) => c.color)?.color ?? null;
+
+  const isPending = accountRow.status === "pending";
+  const terms = isPending
+    ? "pending"
+    : [
+        accountRow.interest_rate != null
+          ? `${accountRow.interest_rate}%`
+          : null,
+        isManual
+          ? isRolling
+            ? "manual rolling"
+            : "manual flat"
+          : accountRow.payment_frequency,
+        isManual ? null : `${accountRow.term_months ?? 1}mo`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
 
   const totalRemaining = schedules.reduce(
     (sum, s) => sum + remainingOnInstallment(s),
     0,
   );
 
+  const shareSchedules = schedules.map(
+    (s, i) =>
+      ({
+        index: i + 1,
+        due_date: s.due_date,
+        amount_due: Number(s.amount_due ?? 0),
+        amount_paid: amountPaidOnInstallment(s),
+        remaining: remainingOnInstallment(s),
+        status: s.status,
+        paid_date: s.paid_date,
+      }) as ShareSchedule,
+  );
+
   return (
     <>
-      {/* <BackButton
-        fallbackHref={`/borrowers/${accountRow.borrower_id}`}
-        floating
-      /> */}
-
       <NextScheduleScroller />
 
-      <StickyAccountStrip
-        borrowerId={borrower?.id || ""}
-        borrowerName={borrowerName}
-        categoryLabel={categoryLabel}
-        categoryColor={categoryColor}
-        releaseDate={
-          accountRow.release_date ? formatDate(accountRow.release_date) : "—"
-        }
-        interest={accountRow.interest_rate ?? 0}
-        termMonths={accountRow.term_months ?? 0}
-        paymentFrequency={accountRow.payment_frequency ?? "—"}
-        isManual={isManual}
-        principal={principal}
-        remaining={amountLeft}
-        collected={amountPaid}
-        profit={profit}
-        profitPerPayroll={profitPerPayroll}
-        progressPct={progressPct}
-      />
-
-      <section className="mx-auto max-w-3xl px-4 pt-4 xl:max-w-6xl">
-        <AccountSummaryCard
+      <div className="mx-auto max-w-2xl px-4 pb-16">
+        <AccountBand
+          accountId={id}
+          borrowerId={borrower?.id ?? ""}
+          borrowerName={borrowerName}
+          categories={borrowerCategories.map((c) => ({
+            id: c.id,
+            name: c.name,
+            color: c.color ?? null,
+          }))}
+          kind={accountRow.type === "cash_advance" ? "cash advance" : "loan"}
           principal={principal}
-          releaseDate={accountRow.release_date ?? null}
-          amountLeft={amountLeft}
-          amountPaid={amountPaid}
-          progressPct={progressPct}
+          terms={terms}
+          left={amountLeft}
+          collected={amountPaid}
+          profit={profit}
+          pct={progressPct}
+          share={{
+            isManual,
+            borrowerName,
+            accountType: accountRow.type,
+            releaseDate: accountRow.release_date,
+            principal,
+            collected: amountPaid,
+            remaining: amountLeft,
+            profit,
+            totalPayment,
+            progressPct,
+            schedules: shareSchedules,
+          }}
         />
-      </section>
 
-      <div className="max-w-8xl px-2 relative mx-auto overflow-visible pb-16">
-        <div className="mt-5 space-y-6 sm:mt-10">
-          <div
-            className="flex flex-col md:flex-row justify-start
-              md:justify-between items-start gap-5 md:items-center"
-          >
-            {/* <Link
-              href={`/borrowers/${accountRow.borrower_id}`}
-              className="dark:text-muted-foreground dark:hover:text-foreground
-                inline-flex items-center gap-1 text-xs font-black tracking-wider
-                text-slate-500 uppercase transition hover:text-slate-600"
-            >
-              <span>{`<-`} back to</span>
-              <span>{borrowerName} details</span>
-            </Link> */}
-            <div className="flex px-2 gap-2 print:hidden">
-              <ShareScheduleButton
-                noDetails
-                isManual={isManual}
-                borrowerName={borrowerName}
-                accountType={accountRow.type}
-                releaseDate={accountRow.release_date}
-                principal={principal}
-                collected={amountPaid}
-                remaining={amountLeft}
-                profit={profit}
-                totalPayment={totalPayment}
-                progressPct={progressPct}
-                schedules={schedules.map(
-                  (s, i) =>
-                    ({
-                      index: i + 1,
-                      due_date: s.due_date,
-                      amount_due: Number(s.amount_due ?? 0),
-                      amount_paid: amountPaidOnInstallment(s),
-                      remaining: remainingOnInstallment(s),
-                      status: s.status,
-                      paid_date: s.paid_date,
-                    }) as ShareSchedule,
-                )}
-              />
-              <CopyPublicLinkButton accountId={id} />
-            </div>
-          </div>
-
+        {/* Floats over the band's lower edge; the band's header caps it on
+            scroll (see AccountBand). */}
+        <div
+          className="relative z-10 -mt-8 space-y-5 px-1 sm:-mt-12"
+          data-settle-group
+        >
           {accountRow.status === "pending" ? (
             <PendingActivationBanner
               releaseDate={accountRow.release_date}
@@ -283,6 +257,171 @@ export default async function AccountDetailPage({
                   "flat",
               }}
             />
+          ) : null}
+
+          {/* 
+        <section aria-labelledby="balances-heading" className="hidden sm:block">
+          <h2 id="balances-heading" className={`mb-3 ${nb.label}`}>
+            Balances
+          </h2>
+          <div className="grid gap-3 text-4xl sm:grid-cols-2 lg:grid-cols-4">
+            <div
+              className={`${nb.card} dark:to-card border-sky-900/20
+                bg-linear-to-br from-sky-50/90 to-white p-4
+                dark:border-sky-400/20 dark:from-sky-400/10`}
+            >
+              <p className={nb.label}>Principal</p>
+              <p
+                className="dark:text-foreground mt-1.5 text-4xl font-black
+                  tracking-tight text-slate-600"
+              >
+                <AnimatedNumber
+                  value={Number(accountRow.principal_amount ?? 0)}
+                  prefix="₱"
+                />
+              </p>
+              <p
+                className="dark:text-muted-foreground mt-1.5 text-xs
+                  text-slate-600"
+              >
+                Loan amount
+              </p>
+            </div>
+            <div
+              className={`${nb.card} dark:to-card border-rose-900/20
+                bg-linear-to-br from-rose-50/90 to-white p-4
+                dark:border-rose-400/20 dark:from-rose-400/10`}
+            >
+              <p className={nb.label}>Remaining</p>
+              <p
+                className="dark:text-foreground mt-1.5 text-4xl font-black
+                  tracking-tight text-slate-600"
+              >
+                <AnimatedNumber value={amountLeft} prefix="₱" />
+              </p>
+              <p
+                className="dark:text-muted-foreground mt-1.5 text-xs
+                  text-slate-600"
+              >
+                Still to collect
+              </p>
+            </div>
+            <div
+              className={`${nb.card} dark:to-card border-emerald-900/20
+                bg-linear-to-br from-emerald-50/90 to-white p-4
+                dark:border-emerald-400/20 dark:from-emerald-400/10`}
+            >
+              <p className={nb.label}>Collected</p>
+              <p
+                className="dark:text-foreground mt-1.5 text-4xl font-black
+                  tracking-tight text-slate-600"
+              >
+                <AnimatedNumber value={amountPaid} prefix="₱" />
+              </p>
+              <p
+                className="dark:text-muted-foreground mt-1.5 text-xs
+                  text-slate-600"
+              >
+                Nabayran
+              </p>
+            </div>
+
+            <div
+              className={`${nb.card} dark:to-card border-amber-900/20
+                bg-linear-to-br from-amber-50/90 to-white p-4
+                dark:border-amber-400/20 dark:from-amber-400/10`}
+            >
+              <p className={nb.label}>Projected profit</p>
+              <p
+                className="dark:text-foreground mt-1.5 text-4xl font-black
+                  tracking-tight text-slate-600"
+              >
+                <AnimatedNumber value={Math.max(0, profit)} prefix="₱" />
+              </p>
+              <p
+                className="dark:text-muted-foreground mt-1.5 text-xs
+                  text-slate-600"
+              >
+                {isRolling ? "Interest charged (all cycles)" : "Over principal"}
+              </p>
+            </div>
+          </div>
+          <div
+            className={`mt-3 ${nb.inset} dark:text-muted-foreground px-4 py-3
+              text-sm text-slate-700`}
+          >
+            <span className="dark:text-foreground font-semibold text-slate-600">
+              Total contract
+            </span>{" "}
+            <span className="tabular-nums">
+              {formatMoney(isRolling ? rollingTotalContract : totalPayment)}
+            </span>
+            <span className="dark:text-border mx-2 text-slate-300">|</span>
+            <span className="dark:text-muted-foreground text-slate-600">
+              {isRolling
+                ? `${schedules.filter((s) => isInstallmentFullyPaid(s)).length} cycle${schedules.filter((s) => isInstallmentFullyPaid(s)).length === 1 ? "" : "s"} paid · ${formatMoney(amountLeft)} outstanding`
+                : isManual
+                  ? `${formatMoney(amountPaid)} of ${formatMoney(principal)} recovered`
+                  : `${schedules.filter((s) => isInstallmentFullyPaid(s)).length} of ${totalInstallments} installments paid`}
+            </span>
+          </div>
+        </section> */}
+
+          {accountRow.status !== "pending" ? (
+            <ScheduleSelectionProvider>
+              <section aria-labelledby="schedule-heading">
+                {/* <ScheduleEditBar allIds={schedules.map((s) => s.id)} /> */}
+
+                {schedules.length === 0 ? (
+                  <div
+                    className="dark:border-border/50 dark:bg-muted/50 border-t
+                      border-dashed border-slate-300 bg-slate-50/80 px-5 py-12
+                      text-center"
+                  >
+                    <p
+                      className="dark:text-muted-foreground text-sm font-black
+                        tracking-wide text-slate-600 uppercase"
+                    >
+                      No payment schedules yet
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {totalRemaining === 0 &&
+                      schedules.length > 0 &&
+                      !isManual && (
+                        <ImpasNaBanner profit={amountPaid - principal} />
+                      )}
+                    <ScheduleTimeline
+                      schedules={schedules}
+                      paymentsMap={paymentsMap}
+                      isRolling={isRolling}
+                      interestRate={interestRate}
+                      focusScheduleId={focusScheduleId}
+                      borrowerId={borrower?.id}
+                      updateScheduleStatus={updateScheduleStatus}
+                      applyPartialPayment={applyPartialPayment}
+                      deleteSchedule={deleteSchedule}
+                      updatePaymentEntry={updatePaymentEntry}
+                      deletePaymentEntry={deletePaymentEntry}
+                    />
+                  </>
+                )}
+                {isManual ? (
+                  <div className="print:hidden">
+                    <AddSchedulesPanel
+                      accountId={accountRow.id}
+                      addSchedules={addSchedules}
+                    />
+                  </div>
+                ) : null}
+              </section>
+              <BatchScheduleToolbar
+                allIds={schedules.map((s) => s.id)}
+                onBatchPaid={batchUpdateScheduleStatus}
+                borrowerId={borrower?.id}
+              />
+            </ScheduleSelectionProvider>
           ) : null}
 
           {accountRow.status !== "pending" &&
@@ -415,194 +554,6 @@ export default async function AccountDetailPage({
                 </div>
               ) : null;
             })()}
-          {/* 
-        <section aria-labelledby="balances-heading" className="hidden sm:block">
-          <h2 id="balances-heading" className={`mb-3 ${nb.label}`}>
-            Balances
-          </h2>
-          <div className="grid gap-3 text-4xl sm:grid-cols-2 lg:grid-cols-4">
-            <div
-              className={`${nb.card} dark:to-card border-sky-900/20
-                bg-linear-to-br from-sky-50/90 to-white p-4
-                dark:border-sky-400/20 dark:from-sky-400/10`}
-            >
-              <p className={nb.label}>Principal</p>
-              <p
-                className="dark:text-foreground mt-1.5 text-4xl font-black
-                  tracking-tight text-slate-600"
-              >
-                <AnimatedNumber
-                  value={Number(accountRow.principal_amount ?? 0)}
-                  prefix="₱"
-                />
-              </p>
-              <p
-                className="dark:text-muted-foreground mt-1.5 text-xs
-                  text-slate-600"
-              >
-                Loan amount
-              </p>
-            </div>
-            <div
-              className={`${nb.card} dark:to-card border-rose-900/20
-                bg-linear-to-br from-rose-50/90 to-white p-4
-                dark:border-rose-400/20 dark:from-rose-400/10`}
-            >
-              <p className={nb.label}>Remaining</p>
-              <p
-                className="dark:text-foreground mt-1.5 text-4xl font-black
-                  tracking-tight text-slate-600"
-              >
-                <AnimatedNumber value={amountLeft} prefix="₱" />
-              </p>
-              <p
-                className="dark:text-muted-foreground mt-1.5 text-xs
-                  text-slate-600"
-              >
-                Still to collect
-              </p>
-            </div>
-            <div
-              className={`${nb.card} dark:to-card border-emerald-900/20
-                bg-linear-to-br from-emerald-50/90 to-white p-4
-                dark:border-emerald-400/20 dark:from-emerald-400/10`}
-            >
-              <p className={nb.label}>Collected</p>
-              <p
-                className="dark:text-foreground mt-1.5 text-4xl font-black
-                  tracking-tight text-slate-600"
-              >
-                <AnimatedNumber value={amountPaid} prefix="₱" />
-              </p>
-              <p
-                className="dark:text-muted-foreground mt-1.5 text-xs
-                  text-slate-600"
-              >
-                Nabayran
-              </p>
-            </div>
-
-            <div
-              className={`${nb.card} dark:to-card border-amber-900/20
-                bg-linear-to-br from-amber-50/90 to-white p-4
-                dark:border-amber-400/20 dark:from-amber-400/10`}
-            >
-              <p className={nb.label}>Projected profit</p>
-              <p
-                className="dark:text-foreground mt-1.5 text-4xl font-black
-                  tracking-tight text-slate-600"
-              >
-                <AnimatedNumber value={Math.max(0, profit)} prefix="₱" />
-              </p>
-              <p
-                className="dark:text-muted-foreground mt-1.5 text-xs
-                  text-slate-600"
-              >
-                {isRolling ? "Interest charged (all cycles)" : "Over principal"}
-              </p>
-            </div>
-          </div>
-          <div
-            className={`mt-3 ${nb.inset} dark:text-muted-foreground px-4 py-3
-              text-sm text-slate-700`}
-          >
-            <span className="dark:text-foreground font-semibold text-slate-600">
-              Total contract
-            </span>{" "}
-            <span className="tabular-nums">
-              {formatMoney(isRolling ? rollingTotalContract : totalPayment)}
-            </span>
-            <span className="dark:text-border mx-2 text-slate-300">|</span>
-            <span className="dark:text-muted-foreground text-slate-600">
-              {isRolling
-                ? `${schedules.filter((s) => isInstallmentFullyPaid(s)).length} cycle${schedules.filter((s) => isInstallmentFullyPaid(s)).length === 1 ? "" : "s"} paid · ${formatMoney(amountLeft)} outstanding`
-                : isManual
-                  ? `${formatMoney(amountPaid)} of ${formatMoney(principal)} recovered`
-                  : `${schedules.filter((s) => isInstallmentFullyPaid(s)).length} of ${totalInstallments} installments paid`}
-            </span>
-          </div>
-        </section> */}
-
-          {accountRow.status !== "pending" ? (
-            <ScheduleSelectionProvider>
-              <section aria-labelledby="schedule-heading">
-                <div className="mx-auto max-w-3xl px-4 xl:max-w-6xl">
-                  <div className="flex gap-3 items-center">
-                    <span
-                      className="flex size-11 items-center justify-center
-                        rounded-xl bg-primary/10 text-primary"
-                    >
-                      <CalendarClock className="size-5" aria-hidden="true" />
-                    </span>
-                    <div></div>
-                    <div className="items-center justify-between py-3">
-                      <h2
-                        id="schedule-heading"
-                        className="text-sm font-extrabold lowercase
-                          tracking-wide text-slate-700 dark:text-slate-100"
-                      >
-                        Payment schedules
-                      </h2>
-                      <span className="text-xs font-semibold text-slate-400">
-                        {totalInstallments} installments
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                {/* <ScheduleEditBar allIds={schedules.map((s) => s.id)} /> */}
-
-                {isManual ? (
-                  <div className="print:hidden">
-                    <AddSchedulesPanel
-                      accountId={accountRow.id}
-                      addSchedules={addSchedules}
-                    />
-                  </div>
-                ) : null}
-
-                {schedules.length === 0 ? (
-                  <div
-                    className="dark:border-border/50 dark:bg-muted/50 border-t
-                      border-dashed border-slate-300 bg-slate-50/80 px-5 py-12
-                      text-center"
-                  >
-                    <p
-                      className="dark:text-muted-foreground text-sm font-black
-                        tracking-wide text-slate-600 uppercase"
-                    >
-                      No payment schedules yet
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {totalRemaining === 0 &&
-                      schedules.length > 0 &&
-                      !isManual && (
-                        <ImpasNaBanner profit={amountPaid - principal} />
-                      )}
-                    <ScheduleTimeline
-                      schedules={schedules}
-                      paymentsMap={paymentsMap}
-                      isRolling={isRolling}
-                      interestRate={interestRate}
-                      focusScheduleId={focusScheduleId}
-                      borrowerId={borrower?.id}
-                      updateScheduleStatus={updateScheduleStatus}
-                      applyPartialPayment={applyPartialPayment}
-                      deleteSchedule={deleteSchedule}
-                      updatePaymentEntry={updatePaymentEntry}
-                      deletePaymentEntry={deletePaymentEntry}
-                    />
-                  </>
-                )}
-              </section>
-              <BatchScheduleToolbar
-                allIds={schedules.map((s) => s.id)}
-                onBatchPaid={batchUpdateScheduleStatus}
-                borrowerId={borrower?.id}
-              />
-            </ScheduleSelectionProvider>
-          ) : null}
         </div>
       </div>
     </>
