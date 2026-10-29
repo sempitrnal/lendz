@@ -9,6 +9,7 @@ import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import { groupByBorrowerCategory } from "@/lib/checklist/labels";
 import {
   matchesFilter,
+  matchesSearch,
   sortSettledLast,
   summarizeRows,
   type ChecklistFilter,
@@ -71,6 +72,7 @@ function buildGroups(
 export function CollectList({
   rows,
   filter,
+  search,
   borrowers,
   isToday,
   api,
@@ -80,6 +82,8 @@ export function CollectList({
   /** Every Collect row of the day (unfiltered). */
   rows: RowView[];
   filter: ChecklistFilter;
+  /** Typed in the header; rows must match it as well as the filter. */
+  search: string;
   borrowers: BorrowerSearchItem[];
   isToday: boolean;
   api: CollectRowsApi;
@@ -98,7 +102,9 @@ export function CollectList({
     });
 
   const { todayGroups, carriedGroups, carriedRows } = useMemo(() => {
-    const visible = rows.filter((r) => matchesFilter(r, filter));
+    const visible = rows.filter(
+      (r) => matchesFilter(r, filter) && matchesSearch(r, search),
+    );
     const carried = visible.filter((r) => r.carried);
     return {
       todayGroups: buildGroups(
@@ -108,7 +114,8 @@ export function CollectList({
       carriedGroups: buildGroups(carried, borrowers),
       carriedRows: carried,
     };
-  }, [rows, filter, borrowers]);
+  }, [rows, filter, search, borrowers]);
+  const searching = search.trim() !== "";
 
   if (rows.length === 0) {
     return (
@@ -139,7 +146,8 @@ export function CollectList({
 
   const renderGroup = (g: Group, section: string) => {
     const key = `${section}:${g.key}`;
-    const isCollapsed = collapsed.has(key);
+    // A search opens every group: a match inside a folded one would hide.
+    const isCollapsed = !searching && collapsed.has(key);
     const totals = summarizeRows(g.rows);
     return (
       <div
@@ -217,7 +225,7 @@ export function CollectList({
   };
 
   const carriedTotals = summarizeRows(carriedRows);
-  const carryCollapsed = collapsed.has(CARRY_KEY);
+  const carryCollapsed = !searching && collapsed.has(CARRY_KEY);
 
   return (
     <div className="mt-3 space-y-3">
@@ -255,7 +263,9 @@ export function CollectList({
       )}
       {todayGroups.length === 0 && carriedGroups.length === 0 && (
         <p className="py-12 text-center text-sm text-muted-foreground">
-          Nothing here. Try another filter.
+          {searching
+            ? `No match for “${search.trim()}”.`
+            : "Nothing here. Try another filter."}
         </p>
       )}
     </div>

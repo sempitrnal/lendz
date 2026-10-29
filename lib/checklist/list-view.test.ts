@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   filterCounts,
   matchesFilter,
+  matchesSearch,
   sortSettledLast,
   summarizeRows,
 } from "@/lib/checklist/list-view";
@@ -48,11 +49,21 @@ describe("list-view", () => {
   });
 
   it("filterCounts counts each filter", () => {
-    expect(filterCounts(rows)).toEqual({ all: 4, overdue: 1, today: 1, paid: 1 });
+    expect(filterCounts(rows)).toEqual({
+      all: 4,
+      overdue: 1,
+      today: 1,
+      paid: 1,
+    });
   });
 
   it("sortSettledLast moves paid rows last and keeps the rest in order", () => {
-    expect(sortSettledLast(rows).map((r) => r.item.id)).toEqual(["b", "c", "d", "a"]);
+    expect(sortSettledLast(rows).map((r) => r.item.id)).toEqual([
+      "b",
+      "c",
+      "d",
+      "a",
+    ]);
   });
 
   it("summarizeRows totals the list", () => {
@@ -89,5 +100,32 @@ describe("list-view", () => {
     expect(s.leftToday).toBe(200.1);
     expect(s.leftCarried).toBe(50.2);
     expect(s.leftToday + s.leftCarried).toBeCloseTo(s.left, 2);
+  });
+
+  it("matchesSearch needs every word, ignores case, and blank matches all", () => {
+    const named = row("n", {
+      status: "unpaid",
+      model: {
+        borrower: { id: "1", name: "Maria Santos" },
+        lines: [],
+        total: 0,
+        note: "ca for rent",
+      },
+    });
+    expect(matchesSearch(named, "")).toBe(true);
+    expect(matchesSearch(named, "  ")).toBe(true);
+    expect(matchesSearch(named, "MAR")).toBe(true);
+    expect(matchesSearch(named, "santos maria")).toBe(true);
+    expect(matchesSearch(named, "maria rent")).toBe(true);
+    expect(matchesSearch(named, "maria juan")).toBe(false);
+  });
+
+  it("matchesSearch falls back to the label when a row has no parsed lines", () => {
+    const plain = row("p", {
+      status: "unpaid",
+      item: { id: "p", label: "Call the landlord" } as RowView["item"],
+    });
+    expect(matchesSearch(plain, "landlord")).toBe(true);
+    expect(matchesSearch(plain, "maria")).toBe(false);
   });
 });

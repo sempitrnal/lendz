@@ -17,6 +17,22 @@ export function matchesFilter(row: RowView, filter: ChecklistFilter): boolean {
   }
 }
 
+/** What a search looks at: the borrower's name and the row's note. */
+function searchText(row: RowView): string {
+  const name = row.model?.borrower?.name ?? "";
+  const note = row.model?.note ?? "";
+  // A label with no parsed lines still has its own text to search.
+  return `${name} ${note || (row.model ? "" : row.item.label)}`.toLowerCase();
+}
+
+/** Every word typed must appear somewhere in the row; blank matches all. */
+export function matchesSearch(row: RowView, query: string): boolean {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const text = searchText(row);
+  return words.every((w) => text.includes(w));
+}
+
 export function filterCounts(rows: RowView[]): Record<ChecklistFilter, number> {
   return {
     all: rows.length,

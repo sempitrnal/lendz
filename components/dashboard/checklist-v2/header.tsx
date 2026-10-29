@@ -1,7 +1,14 @@
 "use client";
 
-import { useRef } from "react";
-import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontal,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { relativeDayLabel, shiftDateValue } from "@/lib/checklist/dates";
 import type { ChecklistFilter } from "@/lib/checklist/list-view";
@@ -69,6 +76,8 @@ export function Header({
   releaseTotal,
   filter,
   onFilterChange,
+  search,
+  onSearchChange,
   counts,
   loading,
   onAdd,
@@ -90,6 +99,9 @@ export function Header({
   releaseTotal: number;
   filter: ChecklistFilter;
   onFilterChange(filter: ChecklistFilter): void;
+  /** Name or note typed to narrow the Collect list. */
+  search: string;
+  onSearchChange(search: string): void;
   counts: Record<ChecklistFilter, number>;
   /** The day is still loading: show placeholders, not zeros. */
   loading: boolean;
@@ -152,11 +164,89 @@ export function Header({
     </button>
   );
 
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  // A typed search keeps its field up, even after the tab was left and back.
+  const searchShown = searchOpen || search !== "";
+
+  const searchToggle = (
+    <button
+      type="button"
+      data-tour="checklist-search"
+      aria-label="Search the list"
+      aria-pressed={searchShown}
+      onClick={() => {
+        if (searchShown) {
+          onSearchChange("");
+          setSearchOpen(false);
+        } else {
+          setSearchOpen(true);
+          // The field mounts on this render; focus it on the next frame.
+          requestAnimationFrame(() => searchInputRef.current?.focus());
+        }
+      }}
+      className={cn(
+        `flex size-7 shrink-0 items-center justify-center rounded-full border
+        transition-colors active:scale-95`,
+        searchShown
+          ? "border-primary/40 bg-primary/10 text-primary"
+          : "border-border bg-card text-muted-foreground",
+      )}
+    >
+      <Search className="size-3.5" />
+    </button>
+  );
+
+  const searchField = searchShown && (
+    <div className="relative">
+      <Search
+        className="pointer-events-none absolute top-1/2 left-3 size-4
+          -translate-y-1/2 text-muted-foreground"
+        aria-hidden="true"
+      />
+      <input
+        ref={searchInputRef}
+        type="search"
+        value={search}
+        onChange={(e) => onSearchChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            onSearchChange("");
+            setSearchOpen(false);
+          }
+        }}
+        placeholder="Search name or note"
+        aria-label="Search the list"
+        autoComplete="off"
+        // 16px keeps iOS from zooming the page when the field is focused.
+        className="h-9 w-full rounded-xl bg-secondary pr-9 pl-9 text-base
+          outline-none placeholder:text-muted-foreground focus-visible:ring-2
+          focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
+      />
+      {search !== "" && (
+        <button
+          type="button"
+          aria-label="Clear search"
+          onClick={() => {
+            onSearchChange("");
+            searchInputRef.current?.focus();
+          }}
+          className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2
+            items-center justify-center rounded-full text-muted-foreground
+            active:scale-95"
+        >
+          <X className="size-4" />
+        </button>
+      )}
+    </div>
+  );
+
   const filterChips = (
     <div
       data-tour="checklist-filters"
       className={cn("flex gap-2 overflow-x-auto", !wide && "-mx-4 px-4")}
     >
+      {searchToggle}
       {FILTERS.map(([key, label]) => (
         <button
           key={key}
@@ -502,11 +592,13 @@ export function Header({
                 </button>
               ))}
             </div>
+            {tab === "collect" && searchField}
             {tab === "collect" && (
               <div
                 data-tour="checklist-filters"
                 className="-mx-3 flex gap-2 overflow-x-auto px-3"
               >
+                {searchToggle}
                 {FILTERS.map(([key, label]) => (
                   <button
                     key={key}
@@ -836,6 +928,7 @@ export function Header({
                 {addButton("collect")}
               </div>
             </div>
+            {searchField}
             {filterChips}
           </div>
           <div className="flex min-w-0 items-start justify-between gap-3">

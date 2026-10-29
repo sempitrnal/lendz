@@ -105,6 +105,7 @@ import { extractScheduleRefs, NO_BORROWERS } from "@/lib/checklist/labels";
 import { buildRowView, type RowView } from "@/lib/checklist/row-state";
 import {
   filterCounts,
+  matchesSearch,
   summarizeRows,
   type ChecklistFilter,
 } from "@/lib/checklist/list-view";
@@ -251,6 +252,7 @@ function ChecklistDay({ today }: { today: string }) {
     setUrlParam("tab", next);
   };
   const [filter, setFilter] = useState<ChecklistFilter>("all");
+  const [search, setSearch] = useState("");
   /** The one row whose swipe actions are showing. */
   const [swipedId, setSwipedId] = useState<string | null>(null);
   /**
@@ -332,6 +334,7 @@ function ChecklistDay({ today }: { today: string }) {
     // the owner to act stay.
     dismissUndoToasts();
     setFilter("all");
+    setSearch("");
     setSwipedId(null);
     setRowSheet(null);
     setAddSheet(null);
@@ -412,7 +415,11 @@ function ChecklistDay({ today }: { today: string }) {
   };
   /** What "Mark all paid" is for: the Collect rows not fully paid. */
   const bulkRows = useMemo(() => bulkPaidRows(rows), [rows]);
-  const counts = useMemo(() => filterCounts(rows), [rows]);
+  // The chips count what the search leaves, so they match the list.
+  const counts = useMemo(
+    () => filterCounts(rows.filter((r) => matchesSearch(r, search))),
+    [rows, search],
+  );
 
   const requestSheet = (kind: RowRequest, itemId: string, lineId?: string) => {
     sheetSeq.current += 1;
@@ -859,6 +866,8 @@ function ChecklistDay({ today }: { today: string }) {
         releaseTotal={releasedTotal}
         filter={filter}
         onFilterChange={setFilter}
+        search={search}
+        onSearchChange={setSearch}
         counts={counts}
         loading={loading}
         onAdd={openAdd}
@@ -880,6 +889,7 @@ function ChecklistDay({ today }: { today: string }) {
             <CollectList
               rows={rows}
               filter={filter}
+              search={search}
               borrowers={borrowers}
               isToday={date === today}
               api={rowsApi}
@@ -921,6 +931,7 @@ function ChecklistDay({ today }: { today: string }) {
             <CollectList
               rows={rows}
               filter={filter}
+              search={search}
               borrowers={borrowers}
               isToday={date === today}
               api={rowsApi}
