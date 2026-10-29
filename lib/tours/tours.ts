@@ -315,10 +315,9 @@ export const TOURS: Tour[] = [
         interactive: true,
       },
       {
-        target: '[data-tour="borrower-fab"]',
-        title: "Add a loan or a note",
-        body: "The + button adds a new loan or a note for this borrower.",
-        placement: "top",
+        target: '[data-tour="borrower-add"]',
+        title: "Add a loan",
+        body: "The + add button on the accounts card adds a new loan or cash advance for this borrower. Notes have the same button on their card.",
       },
     ],
   },

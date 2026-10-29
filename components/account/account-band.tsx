@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import { Eye, EyeOff, Link2, MoreVertical, Share2, User } from "lucide-react";
 import { toast } from "sonner";
+import { cn, isDarkColor } from "@/lib/utils";
 import { HIDDEN_AMOUNT, useHideAmounts } from "@/lib/hide-amounts";
 import {
   formatAmount,
@@ -95,9 +96,10 @@ export function AccountBand({
   const slab = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
   const headBg = useRef<HTMLDivElement>(null);
+  const headShadow = useRef<HTMLDivElement>(null);
   const headStats = useRef<HTMLDivElement>(null);
   const shareControl = useRef<ShareScheduleControl>(null);
-  useCollapsingBand({ head, slab, body, headBg, headStats });
+  useCollapsingBand({ head, slab, body, headBg, headShadow, headStats });
   const [hide, toggleHide] = useHideAmounts();
 
   const mask = (text: string) => (hide ? HIDDEN_AMOUNT : text);
@@ -147,13 +149,16 @@ export function AccountBand({
       {categories.map((c) => (
         <span
           key={c.id ?? c.name}
-          className="flex items-center gap-1.5 rounded-full bg-white/20 px-2.5
-            py-0.5 text-[11px] font-semibold text-white"
+          className={cn(
+            "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+            c.color
+              ? isDarkColor(c.color)
+                ? "text-white"
+                : "text-slate-800"
+              : "bg-white/20 text-white",
+          )}
+          style={c.color ? { backgroundColor: c.color } : undefined}
         >
-          <span
-            className="size-2 rounded-full ring-1 ring-white/40"
-            style={{ backgroundColor: c.color || "#cbd5e1" }}
-          />
           {c.name}
         </span>
       ))}
@@ -180,9 +185,15 @@ export function AccountBand({
           <div
             ref={headBg}
             aria-hidden="true"
-            className="absolute inset-x-0 top-0 rounded-b-3xl bg-brand-600
-              opacity-0 shadow-[0_8px_14px_-6px_rgba(2,44,34,0.35)]
-              dark:bg-brand-950"
+            className="absolute inset-x-0 top-0 rounded-b-3xl bg-(--page-1)
+              opacity-0"
+            style={{ bottom: -STATS_PX }}
+          />
+          <div
+            ref={headShadow}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0
+              rounded-b-3xl opacity-0 shadow-[0_8px_14px_-6px_rgba(0,0,0,0.35)]"
             style={{ bottom: -STATS_PX }}
           />
           <div
@@ -234,9 +245,15 @@ export function AccountBand({
         <div
           aria-hidden="true"
           data-nav-band
-          className="absolute inset-0 rounded-b-3xl bg-linear-to-b
-            from-brand-600 to-brand-500 sm:rounded-3xl dark:from-brand-950
-            dark:to-brand-900"
+          className="absolute inset-0 rounded-b-3xl
+            bg-[linear-gradient(to_bottom,var(--page-1),var(--page-2))]
+            sm:rounded-3xl"
+        />
+        <div
+          aria-hidden="true"
+          data-band-flat
+          className="absolute inset-0 rounded-b-3xl bg-(--page-1) opacity-0
+            sm:hidden"
         />
         <div
           ref={body}

@@ -124,9 +124,9 @@ export default function BorrowerDetailMenu({
             className={
               onColor
                 ? `flex size-8 items-center justify-center rounded-full
-                  bg-white/20 text-white transition-colors outline-none
-                  hover:bg-white/30 focus-visible:ring-2
-                  focus-visible:ring-white/70`
+                  bg-onpage/20 text-onpage transition-colors outline-none
+                  hover:bg-onpage/30 focus-visible:ring-2
+                  focus-visible:ring-onpage/70`
                 : `rounded-md p-1 text-gray-700 transition-colors outline-none
                   hover:bg-gray-100 hover:text-gray-500 focus-visible:ring-2
                   focus-visible:ring-gray-400`

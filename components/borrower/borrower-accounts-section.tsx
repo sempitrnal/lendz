@@ -1,7 +1,6 @@
 "use client";
 
-import { BorrowerFab } from "@/components/borrower/borrower-fab";
-import { Wallet, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { Wallet, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -11,7 +10,6 @@ import {
   useState,
 } from "react";
 import { cn, formatDate } from "@/lib/utils";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -241,11 +239,6 @@ export default function BorrowerAccountsSection({
   const [activatingAccount, setActivatingAccount] = useState<AccountRow | null>(
     null,
   );
-  const [fabOpen, setFabOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
   const router = useRouter();
   const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
 
@@ -791,6 +784,24 @@ export default function BorrowerAccountsSection({
       </div>
     );
 
+  // The add button on the accounts card (and its empty state): the page's one
+  // way in to a new loan, now the floating button is gone.
+  const addLoanButton = (
+    <button
+      type="button"
+      data-tour="borrower-add"
+      onClick={() => {
+        setEditingAccount(null);
+        setIsAccountDialogOpen(true);
+      }}
+      className="ml-auto flex items-center gap-1 rounded-full bg-emerald-100
+        px-3 py-1.5 text-xs font-bold text-emerald-700 active:bg-emerald-200
+        dark:bg-emerald-500/20 dark:text-emerald-300"
+    >
+      <Plus className="size-3.5" aria-hidden="true" /> add
+    </button>
+  );
+
   return (
     <>
       <div className="mx-auto max-w-2xl px-4 pb-16">
@@ -904,13 +915,36 @@ export default function BorrowerAccountsSection({
               animate={{ opacity: 1, scale: 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
             >
-              <p className="text-gray-500">No accounts yet</p>
+              <p className="mb-3 text-gray-500">No accounts yet</p>
+              {addLoanButton}
             </m.div>
           ) : (
             <div
               className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1
                 ring-black/5 dark:ring-white/10"
             >
+              <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+                <span
+                  className="flex size-8 shrink-0 items-center justify-center
+                    rounded-full bg-violet-100 text-violet-700
+                    dark:bg-violet-500/20 dark:text-violet-300"
+                >
+                  <Wallet className="size-4" aria-hidden="true" />
+                </span>
+                <h2
+                  className="text-sm font-black text-card-foreground/80
+                    lowercase"
+                >
+                  accounts
+                </h2>
+                <span
+                  className="rounded-full bg-muted px-2 py-0.5 text-[11px]
+                    font-bold text-muted-foreground tabular-nums"
+                >
+                  {accounts.length}
+                </span>
+                {addLoanButton}
+              </div>
               {renderGroup(groupedAccounts.activeAutoLoans, "loans")}
               {renderGroup(
                 groupedAccounts.activeManualFlatLoans,
@@ -1125,24 +1159,6 @@ export default function BorrowerAccountsSection({
             </m.div>
           )}
 
-          {/* Portalled to body to escape PageTransition's transform stacking context */}
-          {isMounted &&
-            createPortal(
-              <BorrowerFab
-                open={fabOpen}
-                onOpenChange={setFabOpen}
-                onAddLoan={() => {
-                  setEditingAccount(null);
-                  setIsAccountDialogOpen(true);
-                }}
-                onAddNote={() => {
-                  setSelectedNote(null);
-                  setIsNotesOpen(true);
-                }}
-              />,
-              document.body,
-            )}
-
           <Dialog
             open={isAccountDialogOpen}
             onOpenChange={(open) => {
@@ -1228,28 +1244,16 @@ export default function BorrowerAccountsSection({
             viewport={{ once: true, margin: "-60px" }}
             variants={notesVariants}
           >
-            {notes.length === 0 ? null : (
-              <m.div
-                className="mb-4"
-                initial={{ opacity: 0, x: -10 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{
-                  type: "spring" as const,
-                  stiffness: 300,
-                  damping: 25,
-                }}
-              >
-                <h2 className="text-xl font-black uppercase">Notes</h2>
-              </m.div>
-            )}
-
             <SortableNotesGrid
               notes={notes}
               borrowerId={borrowerId}
               resolvedTheme={resolvedTheme ?? "light"}
               onNoteClick={(note) => {
                 setSelectedNote(note);
+                setIsNotesOpen(true);
+              }}
+              onAddNote={() => {
+                setSelectedNote(null);
                 setIsNotesOpen(true);
               }}
             />

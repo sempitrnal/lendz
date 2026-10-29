@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { cn, isDarkColor } from "@/lib/utils";
 import { HIDDEN_AMOUNT } from "@/lib/hide-amounts";
 import { formatAmount, shortDate } from "@/lib/account-card/summary";
 import type { BandFigures } from "@/lib/borrower/band-figures";
@@ -12,6 +13,21 @@ import type { BorrowerSummary } from "./borrower-detail-view";
 export const BAR_PX = 64;
 /** The body trails the page: it moves up at (1 - this) of the scroll speed. */
 const PARALLAX = 0.4;
+/**
+ * A flat layer over the band's gradient that fades in as the band folds, so
+ * the band's lower colour ends up the header's flat colour before the
+ * header's green switches on over it. It's an opacity, which the browser
+ * composites without repainting the gradient (animating the gradient itself
+ * repaints the band every frame).
+ */
+const FLAT_ATTR = "data-band-flat";
+/**
+ * How far into the fold the header's green switches on, all at once: no
+ * fade. By then the band's lower colour has flattened to the header's (see
+ * FLAT_ATTR), so the switch can't be seen, and it comes as the page's cards
+ * reach the header's area, so they go under it.
+ */
+const HEADER_AT = 0.75;
 /** The folded header grows this much to fit its row of figures. */
 export const STATS_PX = 44;
 /** The name starts this much bigger than its header size. */
@@ -24,6 +40,8 @@ type Refs = {
   slab: React.RefObject<HTMLDivElement | null>;
   body: React.RefObject<HTMLDivElement | null>;
   headBg: React.RefObject<HTMLDivElement | null>;
+  /** The header's shadow, kept apart from its fill so it can arrive later. */
+  headShadow: React.RefObject<HTMLDivElement | null>;
   headStats: React.RefObject<HTMLDivElement | null>;
 };
 
@@ -39,7 +57,14 @@ type Refs = {
  * size, all in step with the scroll position. Written straight to the
  * elements per frame: no re-render. On wider screens the band is a plain card.
  */
-export function useCollapsingBand({ head, slab, body, headBg, headStats }: Refs) {
+export function useCollapsingBand({
+  head,
+  slab,
+  body,
+  headBg,
+  headShadow,
+  headStats,
+}: Refs) {
   useEffect(() => {
     const headEl = head.current;
     const slabEl = slab.current;
@@ -48,6 +73,8 @@ export function useCollapsingBand({ head, slab, body, headBg, headStats }: Refs)
     const phone = window.matchMedia("(max-width: 639px)");
     const root = document.documentElement;
     let raf = 0;
+    // The flat layer that takes the band's gradient to the header's colour.
+    const flatEl = slabEl.querySelector<HTMLElement>(`[${FLAT_ATTR}]`);
     // How far the page scrolls before the slab has folded down to the header.
     let fold = 1;
     // The page the band sits on: padded when it's too short to scroll `fold`.
@@ -90,26 +117,34 @@ export function useCollapsingBand({ head, slab, body, headBg, headStats }: Refs)
         bodyEl.style.opacity = "";
         bodyEl.style.transform = "";
         slabEl.style.opacity = "";
+        if (flatEl) flatEl.style.opacity = "";
         return;
       }
       const y = window.scrollY;
       const f = clamp01(y / fold);
+      // The band's lower colour flattens to the header's before the header's
+      // green switches on, so what it switches on over is the same colour.
+      if (flatEl) flatEl.style.opacity = String(clamp01(f / 0.72));
       // The lag: pushes the body down against the slab's upward motion.
       bodyEl.style.transform = `translate3d(0, ${Math.min(y, fold) * PARALLAX}px, 0) scale(${1 - 0.06 * f})`;
       bodyEl.style.opacity = String(1 - clamp01(f / 0.4));
       // Solid before the cards reach the header, so they slide under a cap.
       if (headBg.current) {
-        headBg.current.style.opacity = String(clamp01((f - 0.2) / 0.5));
+        headBg.current.style.opacity = f >= HEADER_AT ? "1" : "0";
+      }
+      // The shadow comes last, once the header's green is solid.
+      if (headShadow.current) {
+        headShadow.current.style.opacity = String(clamp01((f - 0.88) / 0.12));
       }
       // The row of figures arrives as the header forms.
       if (headStats.current) {
-        const t = clamp01((f - 0.55) / 0.35);
+        const t = clamp01((f - 0.82) / 0.16);
         headStats.current.style.opacity = String(t);
         headStats.current.style.transform = `translate3d(0, ${(1 - t) * 6}px, 0)`;
       }
       // The band is gone the moment the header is done forming: it fades out
       // over the last of the fold, leaving the header bar on its own.
-      slabEl.style.opacity = String(1 - clamp01((f - 0.85) / 0.15));
+      slabEl.style.opacity = String(1 - clamp01((f - 0.98) / 0.02));
       headEl.style.setProperty(
         "--name-scale",
         String(1 + NAME_BOOST * (1 - f)),
@@ -138,9 +173,14 @@ export function useCollapsingBand({ head, slab, body, headBg, headStats }: Refs)
       window.removeEventListener("resize", refresh);
       if (page) page.style.minHeight = "";
     };
-  }, [head, slab, body, headBg, headStats]);
+  }, [head, slab, body, headBg, headShadow, headStats]);
 }
 
+/**
+ * The categories as pills filled with their own colour, text in whichever of
+ * white and dark reads on it. A category with no colour keeps the band's
+ * translucent pill.
+ */
 function CategoryChips({ borrower }: { borrower: BorrowerSummary }) {
   if (!borrower.category || borrower.category.length === 0) return null;
   return (
@@ -148,13 +188,16 @@ function CategoryChips({ borrower }: { borrower: BorrowerSummary }) {
       {borrower.category.map((c) => (
         <span
           key={c.id}
-          className="flex items-center gap-1.5 rounded-full bg-white/20 px-2.5
-            py-0.5 text-[11px] font-semibold text-white"
+          className={cn(
+            "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+            c.color
+              ? isDarkColor(c.color)
+                ? "text-white"
+                : "text-slate-800"
+              : "bg-onpage/20 text-onpage",
+          )}
+          style={c.color ? { backgroundColor: c.color } : undefined}
         >
-          <span
-            className="size-2 rounded-full ring-1 ring-white/40"
-            style={{ backgroundColor: c.color || "#cbd5e1" }}
-          />
           {c.name}
         </span>
       ))}
@@ -188,8 +231,9 @@ export function BorrowerBand({
   const slab = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
   const headBg = useRef<HTMLDivElement>(null);
+  const headShadow = useRef<HTMLDivElement>(null);
   const headStats = useRef<HTMLDivElement>(null);
-  useCollapsingBand({ head, slab, body, headBg, headStats });
+  useCollapsingBand({ head, slab, body, headBg, headShadow, headStats });
 
   const mask = (text: string) => (hide ? HIDDEN_AMOUNT : text);
   const peso = (n: number) => `₱${formatAmount(Math.round(n))}`;
@@ -219,14 +263,20 @@ export function BorrowerBand({
           ref={head}
           data-tour="borrower-header"
           data-settle
-          className="absolute inset-x-0 top-0 px-4 pt-1 pb-2.5 text-white"
+          className="absolute inset-x-0 top-0 px-4 pt-1 pb-2.5 text-onpage"
         >
           <div
             ref={headBg}
             aria-hidden="true"
-            className="absolute inset-x-0 top-0 rounded-b-3xl bg-brand-600
-              opacity-0 shadow-[0_8px_14px_-6px_rgba(2,44,34,0.35)]
-              dark:bg-brand-950"
+            className="absolute inset-x-0 top-0 rounded-b-3xl bg-(--page-1)
+              opacity-0"
+            style={{ bottom: -STATS_PX }}
+          />
+          <div
+            ref={headShadow}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0
+              rounded-b-3xl opacity-0 shadow-[0_8px_14px_-6px_rgba(0,0,0,0.35)]"
             style={{ bottom: -STATS_PX }}
           />
           {/* Hangs below the name row; the background above reaches down to
@@ -278,16 +328,22 @@ export function BorrowerBand({
       <div
         ref={slab}
         data-settle-group="band"
-        className="sticky z-0 -mx-4 overflow-hidden px-4 text-white sm:relative
+        className="sticky z-0 -mx-4 overflow-hidden px-4 text-onpage sm:relative
           sm:mx-0 sm:overflow-visible sm:px-5 sm:pt-5"
         style={{ top: BAR_PX - 300 }}
       >
         <div
           aria-hidden="true"
           data-nav-band
-          className="absolute inset-0 rounded-b-3xl bg-linear-to-b
-            from-brand-600 to-brand-500 sm:rounded-3xl dark:from-brand-950
-            dark:to-brand-900"
+          className="absolute inset-0 rounded-b-3xl
+            bg-[linear-gradient(to_bottom,var(--page-1),var(--page-2))]
+            sm:rounded-3xl"
+        />
+        <div
+          aria-hidden="true"
+          data-band-flat
+          className="absolute inset-0 rounded-b-3xl bg-(--page-1) opacity-0
+            sm:hidden"
         />
         <div
           ref={body}
@@ -328,10 +384,10 @@ export function BorrowerBand({
               aria-valuenow={Math.round(figures.pct)}
               aria-valuemin={0}
               aria-valuemax={100}
-              className="mt-3 h-2 overflow-hidden rounded-full bg-white/25"
+              className="mt-3 h-2 overflow-hidden rounded-full bg-onpage/25"
             >
               <div
-                className="h-full rounded-full bg-white transition-[width]
+                className="h-full rounded-full bg-onpage transition-[width]
                   duration-500"
                 style={{ width: `${figures.pct}%` }}
               />
@@ -344,14 +400,14 @@ export function BorrowerBand({
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5">
               <span
-                className="rounded-full bg-white/20 px-2.5 py-1 text-[11px]
+                className="rounded-full bg-onpage/20 px-2.5 py-1 text-[11px]
                   font-bold"
               >
                 loaned {mask(peso(loaned))}
               </span>
               {figures.next && (
                 <span
-                  className="rounded-full bg-white/20 px-2.5 py-1 text-[11px]
+                  className="rounded-full bg-onpage/20 px-2.5 py-1 text-[11px]
                     font-bold"
                 >
                   next {shortDate(figures.next.date)} ·{" "}
@@ -361,7 +417,7 @@ export function BorrowerBand({
               {figures.overdueCount > 0 && (
                 <span
                   className="rounded-full bg-rose-500/90 px-2.5 py-1 text-[11px]
-                    font-bold"
+                    text-white font-bold"
                 >
                   {figures.overdueCount} overdue
                 </span>

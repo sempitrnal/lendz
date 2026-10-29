@@ -16,7 +16,13 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, ChevronUp, ChevronDown } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  GripVertical,
+  Plus,
+  StickyNote,
+} from "lucide-react";
 import { m } from "motion/react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
@@ -78,14 +84,14 @@ function SortableNote({
         variants={cardVariants}
         initial="hidden"
         animate="visible"
-        whileHover={{ scale: 1.02, transition: { duration: 0.15 } }}
         whileTap={{ scale: 0.98 }}
         onClick={onClick}
         className="relative aspect-9/16 w-full cursor-pointer overflow-hidden
-          rounded-sm shadow-md"
+          rounded-xl bg-muted ring-1 ring-black/10 dark:ring-white/10"
       >
         {note.preview_img_url ? (
           <img
+            alt="Note preview"
             src={
               resolvedTheme === "dark"
                 ? (note.preview_img_url as string).replace(
@@ -101,11 +107,9 @@ function SortableNote({
             className="pointer-events-none h-full w-full object-cover"
           />
         ) : (
-          <div
-            className="flex h-full w-full items-center justify-center
-              bg-slate-100"
-          >
-            <span className="text-xs text-slate-400">No preview</span>
+          <div className="flex h-full w-full items-center justify-center
+            bg-muted">
+            <span className="text-xs text-muted-foreground">No preview</span>
           </div>
         )}
       </m.div>
@@ -116,18 +120,22 @@ function SortableNote({
         {...attributes}
         {...listeners}
         onClick={(e) => e.stopPropagation()}
-        className="absolute right-2 top-2 hidden touch-manipulation rounded
-          bg-black/40 p-1 text-white shadow-sm transition hover:bg-black/70
-          active:cursor-grabbing active:bg-black/70 md:flex md:opacity-0
-          md:group-hover:opacity-100"
+        className="absolute top-2 right-2 hidden touch-manipulation rounded-full
+          bg-black/45 p-1.5 text-white shadow-sm backdrop-blur-sm transition
+          hover:bg-black/70 active:cursor-grabbing active:bg-black/70 md:flex
+          md:opacity-0 md:group-hover:opacity-100"
         aria-label="Drag to reorder"
       >
         <GripVertical className="size-4" />
       </button>
 
-      {/* Mobile arrow buttons */}
+      {/* Mobile: earlier / later, a small pill at the tile's foot (a lone
+          note has nowhere to go) */}
       <div
-        className="absolute right-2 top-2 flex flex-col gap-1 md:hidden"
+        className={`absolute right-2 bottom-2 gap-0.5 rounded-full bg-black/45
+          p-0.5 backdrop-blur-sm md:hidden ${
+            canMoveUp || canMoveDown ? "flex" : "hidden"
+          }`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -137,11 +145,11 @@ function SortableNote({
             e.stopPropagation();
             onMoveUp();
           }}
-          className="rounded bg-black/40 p-1 text-white shadow-sm transition
-            active:bg-black/70 disabled:opacity-30"
-          aria-label="Move note up"
+          className="flex size-7 items-center justify-center rounded-full
+            text-white transition active:bg-white/25 disabled:opacity-30"
+          aria-label="Move note earlier"
         >
-          <ChevronUp className="size-4" />
+          <ChevronLeft className="size-4" />
         </button>
         <button
           type="button"
@@ -150,11 +158,11 @@ function SortableNote({
             e.stopPropagation();
             onMoveDown();
           }}
-          className="rounded bg-black/40 p-1 text-white shadow-sm transition
-            active:bg-black/70 disabled:opacity-30"
-          aria-label="Move note down"
+          className="flex size-7 items-center justify-center rounded-full
+            text-white transition active:bg-white/25 disabled:opacity-30"
+          aria-label="Move note later"
         >
-          <ChevronDown className="size-4" />
+          <ChevronRight className="size-4" />
         </button>
       </div>
     </div>
@@ -166,11 +174,14 @@ export default function SortableNotesGrid({
   borrowerId,
   resolvedTheme,
   onNoteClick,
+  onAddNote,
 }: {
   notes: Note[];
   borrowerId: string;
   resolvedTheme: string;
   onNoteClick: (note: Note) => void;
+  /** Starts a new note; the header's add button calls it. */
+  onAddNote?: () => void;
 }) {
   const [ordered, setOrdered] = useState<Note[]>(notes);
   const [saving, setSaving] = useState(false);
@@ -242,35 +253,74 @@ export default function SortableNotesGrid({
     void saveOrder(next);
   };
 
+  if (ordered.length === 0) return null;
+
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
+    <section
+      aria-label="Notes"
+      className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1
+        ring-black/5 dark:ring-white/10"
     >
-      <SortableContext
-        items={ordered.map((n) => n.id)}
-        strategy={rectSortingStrategy}
-      >
-        <div
-          className={`grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 ${
-            saving ? "pointer-events-none opacity-80" : ""
-          }`}
+      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+        <span
+          className="flex size-8 shrink-0 items-center justify-center
+            rounded-full bg-sky-100 text-sky-700 dark:bg-sky-500/20
+            dark:text-sky-300"
         >
-          {ordered.map((note, index) => (
-            <SortableNote
-              key={note.id}
-              note={note}
-              resolvedTheme={resolvedTheme}
-              onClick={() => onNoteClick(note)}
-              canMoveUp={index > 0}
-              canMoveDown={index < ordered.length - 1}
-              onMoveUp={() => handleMoveUp(note.id)}
-              onMoveDown={() => handleMoveDown(note.id)}
-            />
-          ))}
-        </div>
-      </SortableContext>
-    </DndContext>
+          <StickyNote className="size-4" aria-hidden="true" />
+        </span>
+        <h2 className="text-sm font-black text-card-foreground/80 lowercase">
+          notes
+        </h2>
+        <span
+          className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold
+            text-muted-foreground tabular-nums"
+        >
+          {ordered.length}
+        </span>
+        {onAddNote && (
+          <button
+            type="button"
+            onClick={onAddNote}
+            className="ml-auto flex items-center gap-1 rounded-full
+              bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700
+              active:bg-emerald-200 dark:bg-emerald-500/20
+              dark:text-emerald-300"
+          >
+            <Plus className="size-3.5" aria-hidden="true" /> add
+          </button>
+        )}
+      </div>
+      <div className="px-3 pb-3">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={ordered.map((n) => n.id)}
+            strategy={rectSortingStrategy}
+          >
+            <div
+              className={`grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4
+                ${saving ? "pointer-events-none opacity-80" : ""}`}
+            >
+              {ordered.map((note, index) => (
+                <SortableNote
+                  key={note.id}
+                  note={note}
+                  resolvedTheme={resolvedTheme}
+                  onClick={() => onNoteClick(note)}
+                  canMoveUp={index > 0}
+                  canMoveDown={index < ordered.length - 1}
+                  onMoveUp={() => handleMoveUp(note.id)}
+                  onMoveDown={() => handleMoveDown(note.id)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </div>
+    </section>
   );
 }
