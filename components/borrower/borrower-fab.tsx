@@ -125,6 +125,7 @@ export function BorrowerFab({
 
         <m.button
           type="button"
+          data-tour="borrower-fab"
           aria-label={open ? "Close actions" : "Open actions"}
           aria-haspopup="menu"
           aria-expanded={open}

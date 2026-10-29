@@ -217,6 +217,7 @@ export function BorrowerBand({
       <div className="sticky z-30 -mx-4 h-0 sm:hidden" style={{ top: BAR_PX }}>
         <div
           ref={head}
+          data-tour="borrower-header"
           data-settle
           className="absolute inset-x-0 top-0 px-4 pt-1 pb-2.5 text-white"
         >

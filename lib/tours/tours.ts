@@ -197,6 +197,9 @@ export const TOURS: Tour[] = [
     title: "Open an account",
     date: "2026-10-22",
     page: "/borrowers/*",
+    // The borrower page guide covers this; it stays here to replay, but no
+    // longer starts by itself.
+    auto: false,
     steps: [
       {
         target: '[data-tour="account-card"]',
@@ -273,6 +276,9 @@ export const TOURS: Tour[] = [
     title: "The borrower page, redone",
     date: "2026-10-29",
     page: "/borrowers/*",
+    // The borrower page guide covers this; it stays here to replay, but no
+    // longer starts by itself.
+    auto: false,
     steps: [
       {
         target: '[data-tour="borrower-balance"]',
@@ -283,6 +289,36 @@ export const TOURS: Tour[] = [
         target: '[data-tour="account-card"]',
         title: "Swipe an account",
         body: "Swipe a row to the left for Edit, Revert and Delete. The three-dot menu is gone.",
+      },
+    ],
+  },
+  {
+    id: "2026-10-29-borrower-guide",
+    title: "The borrower page",
+    date: "2026-10-29",
+    page: "/borrowers/*",
+    steps: [
+      {
+        target: '[data-tour="borrower-balance"]',
+        title: "What they still owe",
+        body: "The green band leads with the remaining balance, how much of it is collected, and pills for what you loaned, what's due next and how many are overdue. The eye hides every amount on the page.",
+      },
+      {
+        target: '[data-tour="borrower-header"]',
+        title: "The header stays with you",
+        body: "Their name, categories and the ⋯ menu (edit or delete the borrower) stay put. Scroll down and the band folds up into this header, which then shows profit due and made, and what they owe and have paid this month.",
+      },
+      {
+        target: '[data-tour="account-card"]',
+        title: "Swipe an account",
+        body: "Try it: swipe a row to the left for Edit, Revert last update and Delete. Tap a row to open the account; press and hold to select several. Then tap Next.",
+        interactive: true,
+      },
+      {
+        target: '[data-tour="borrower-fab"]',
+        title: "Add a loan or a note",
+        body: "The + button adds a new loan or a note for this borrower.",
+        placement: "top",
       },
     ],
   },

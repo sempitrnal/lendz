@@ -86,61 +86,76 @@ export default function BottomNav() {
           md:hidden print:hidden"
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
       >
+        {/* Inverted: the bar is the theme green (the band's and top bar's) and
+            its contents white. The inner wrapper re-points the theme tokens the
+            tabs and buttons use (selected pill, labels, press tint) at that
+            pair; the bar's own colours come from `--nav-*`, which it never
+            redefines, so nothing refers to itself. */}
         <div
           className="flex w-full max-w-md items-center gap-1 rounded-2xl border
-            border-border/70 bg-card/95 p-1.5 shadow-lg shadow-black/20"
+            border-white/15 bg-(--nav-bg) p-1.5 shadow-lg shadow-black/25
+            [--nav-bg:#059669] [--nav-fg:#ffffff] [--nav-on:#047857]
+            dark:[--nav-bg:#022c22] dark:[--nav-on:#022c22]"
         >
-          <Tabs
-            value={activeHref}
-            onValueChange={(href) => {
-              setTapped({ href, from: pathname ?? "" });
-              // The tabs navigate in code, not through a link, so the
-              // splash has to be told; it measures the band before the push.
-              announceNavigation(href);
-              router.push(href);
-            }}
-            variant="pill"
-            icons="selected"
-            className="flex-1"
+          <div
+            className="contents [--foreground:var(--nav-fg)]
+              [--muted-foreground:color-mix(in_oklab,var(--nav-fg)_72%,transparent)]
+              [--muted:color-mix(in_oklab,var(--nav-fg)_16%,transparent)]
+              [--primary-foreground:var(--nav-on)] [--primary:var(--nav-fg)]"
           >
-            <TabsList
-              aria-label="Pages"
-              className="flex w-full justify-between gap-0 bg-transparent p-0"
+            <Tabs
+              value={activeHref}
+              onValueChange={(href) => {
+                setTapped({ href, from: pathname ?? "" });
+                // The tabs navigate in code, not through a link, so the
+                // splash has to be told; it measures the band before the push.
+                announceNavigation(href);
+                router.push(href);
+              }}
+              variant="pill"
+              icons="selected"
+              className="flex-1"
             >
-              {PRIMARY_ITEMS.map(({ href, label, Icon }) => (
-                <TabsTrigger
-                  key={href}
-                  value={href}
-                  icon={<Icon className="size-4" aria-hidden="true" />}
-                  onMouseEnter={() => router.prefetch(href)}
-                  onTouchStart={() => router.prefetch(href)}
-                  className="px-2.5 py-2.5 text-xs font-bold tracking-tight"
-                >
-                  {label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+              <TabsList
+                aria-label="Pages"
+                className="flex w-full justify-between gap-0 bg-transparent p-0"
+              >
+                {PRIMARY_ITEMS.map(({ href, label, Icon }) => (
+                  <TabsTrigger
+                    key={href}
+                    value={href}
+                    icon={<Icon className="size-4" aria-hidden="true" />}
+                    onMouseEnter={() => router.prefetch(href)}
+                    onTouchStart={() => router.prefetch(href)}
+                    className="px-2.5 py-2.5 text-xs font-bold tracking-tight"
+                  >
+                    {label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
 
-          <QuickActionsButton />
+            <QuickActionsButton />
 
-          {/* More / menu */}
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            aria-label="Open full menu"
-            aria-expanded={open}
-            className="flex flex-1 flex-col items-center justify-center gap-1
-              rounded-xl py-2 text-muted-foreground transition-all duration-200
-              hover:text-foreground active:bg-muted"
-          >
-            <Menu className="size-5" strokeWidth={2} aria-hidden="true" />
-            <span
-              className="text-[10px] font-semibold leading-none tracking-tight"
+            {/* More / menu */}
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              aria-label="Open full menu"
+              aria-expanded={open}
+              className="flex flex-1 flex-col items-center justify-center gap-1
+                rounded-xl py-2 text-muted-foreground transition-all
+                duration-200 hover:text-foreground active:bg-muted"
             >
-              More
-            </span>
-          </button>
+              <Menu className="size-5" strokeWidth={2} aria-hidden="true" />
+              <span
+                className="text-[10px] font-semibold leading-none
+                  tracking-tight"
+              >
+                More
+              </span>
+            </button>
+          </div>
         </div>
       </nav>
 
