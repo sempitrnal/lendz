@@ -362,8 +362,10 @@ export const AccountCard = memo(function AccountCard({
         principal
       </p>
       <p
+        // Manrope stops at 800, so the extra weight is a hairline stroke.
         className="truncate text-[28px] leading-none font-black tracking-tight
-          text-[#556477] tabular-nums dark:text-foreground"
+          text-[#3b4a5f] tabular-nums [-webkit-text-stroke:0.6px_currentColor]
+          dark:text-foreground"
       >
         ₱{fmt(principal)}
       </p>
