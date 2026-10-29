@@ -2,6 +2,7 @@
 
 import { groupColorStyle } from "@/lib/checklist/group-color";
 import { useMemo, useState } from "react";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { ChevronDown, ChevronUp, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -119,6 +120,9 @@ export function CollectList({
     };
   }, [rows, filter, search, borrowers]);
   const searching = search.trim() !== "";
+  // A search opens and closes groups on every keystroke: skip the motion.
+  const still = useReducedMotion() || searching;
+  const fold = { height: 0, opacity: 0 };
 
   if (rows.length === 0) {
     return (
@@ -164,8 +168,12 @@ export function CollectList({
           onClick={() => toggle(key)}
           aria-expanded={!isCollapsed}
           className={cn(
-            `flex w-full items-center gap-2 px-4 py-2 text-left text-xs
-            font-semibold lowercase`,
+            // Folded bars are roomy; an open one slims down. The padding
+            // eases with the same curve and time as the rows' fold below.
+            `flex w-full items-center gap-2 px-4 text-left text-xs font-semibold
+            lowercase transition-[padding] duration-[260ms]
+            ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none`,
+            isCollapsed ? "py-3.5" : "py-1.5",
             g.color
               ? "bg-[color:color-mix(in_oklab,var(--grp)_8%,var(--card))]"
               : "bg-card",
@@ -192,37 +200,52 @@ export function CollectList({
             )}
             <ChevronDown
               className={cn(
-                "size-3.5 transition-transform",
+                `size-3.5 transition-transform duration-[260ms]
+                ease-[cubic-bezier(0.32,0.72,0,1)]
+                motion-reduce:transition-none`,
                 isCollapsed && "-rotate-90",
               )}
             />
           </span>
         </button>
-        {!isCollapsed && (
-          <ul>
-            {g.rows.map((row) => {
-              const id = row.item.id;
-              return (
-                <CollectRow
-                  key={id}
-                  row={row}
-                  waiting={api.waitingIds.has(id)}
-                  highlight={api.flashIds.has(id)}
-                  swiped={api.swipedId === id}
-                  onSwiped={(open) => api.onSwiped(id, open)}
-                  onOpenPay={() => api.onRequest(row, "openPay")}
-                  onPayRow={() => api.onRequest(row, "payRow")}
-                  onOpenLine={(lineId) => api.onRequest(row, "openPay", lineId)}
-                  onMore={() => api.onRequest(row, "more")}
-                  onPayAll={() => api.onPayAll(row)}
-                  onPayLine={(lineId) => api.onPayLine(row, lineId)}
-                  onTick={() => api.onTick(row)}
-                  paidIds={api.paidIds}
-                />
-              );
-            })}
-          </ul>
-        )}
+        <AnimatePresence initial={false}>
+          {!isCollapsed && (
+            <m.div
+              key="rows"
+              initial={still ? false : fold}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={still ? undefined : fold}
+              transition={{ duration: 0.26, ease: [0.32, 0.72, 0, 1] }}
+              className="overflow-hidden"
+            >
+              <ul>
+                {g.rows.map((row) => {
+                  const id = row.item.id;
+                  return (
+                    <CollectRow
+                      key={id}
+                      row={row}
+                      waiting={api.waitingIds.has(id)}
+                      highlight={api.flashIds.has(id)}
+                      swiped={api.swipedId === id}
+                      onSwiped={(open) => api.onSwiped(id, open)}
+                      onOpenPay={() => api.onRequest(row, "openPay")}
+                      onPayRow={() => api.onRequest(row, "payRow")}
+                      onOpenLine={(lineId) =>
+                        api.onRequest(row, "openPay", lineId)
+                      }
+                      onMore={() => api.onRequest(row, "more")}
+                      onPayAll={() => api.onPayAll(row)}
+                      onPayLine={(lineId) => api.onPayLine(row, lineId)}
+                      onTick={() => api.onTick(row)}
+                      paidIds={api.paidIds}
+                    />
+                  );
+                })}
+              </ul>
+            </m.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   };
