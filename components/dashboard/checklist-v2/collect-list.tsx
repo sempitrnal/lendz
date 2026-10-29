@@ -92,9 +92,12 @@ export function CollectList({
   /** Populate due, the empty list's big button. */
   onPopulate(): void;
 }) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  // Keys the owner has flipped from their default: carried-over categories
+  // start folded, everything else open.
+  const [flipped, setFlipped] = useState<Set<string>>(() => new Set());
+  const foldedByDefault = (key: string) => key.startsWith("c:");
   const toggle = (key: string) =>
-    setCollapsed((prev) => {
+    setFlipped((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -147,7 +150,7 @@ export function CollectList({
   const renderGroup = (g: Group, section: string) => {
     const key = `${section}:${g.key}`;
     // A search opens every group: a match inside a folded one would hide.
-    const isCollapsed = !searching && collapsed.has(key);
+    const isCollapsed = !searching && foldedByDefault(key) !== flipped.has(key);
     const totals = summarizeRows(g.rows);
     return (
       <div
@@ -225,7 +228,7 @@ export function CollectList({
   };
 
   const carriedTotals = summarizeRows(carriedRows);
-  const carryCollapsed = !searching && collapsed.has(CARRY_KEY);
+  const carryCollapsed = !searching && flipped.has(CARRY_KEY);
 
   return (
     <div className="mt-3 space-y-3">
@@ -238,6 +241,7 @@ export function CollectList({
         <section className="overflow-hidden border-y border-border bg-card">
           <button
             type="button"
+            data-tour="checklist-carried"
             onClick={() => toggle(CARRY_KEY)}
             aria-expanded={!carryCollapsed}
             className="flex w-full items-center gap-2 bg-amber-500/10 px-4
@@ -258,7 +262,11 @@ export function CollectList({
               )}
             </span>
           </button>
-          {!carryCollapsed && carriedGroups.map((g) => renderGroup(g, "c"))}
+          {!carryCollapsed && (
+            <div data-tour="checklist-carried-groups">
+              {carriedGroups.map((g) => renderGroup(g, "c"))}
+            </div>
+          )}
         </section>
       )}
       {todayGroups.length === 0 && carriedGroups.length === 0 && (

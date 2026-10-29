@@ -249,4 +249,23 @@ export const TOURS: Tour[] = [
       },
     ],
   },
+  {
+    id: "2026-10-29-carried-folded",
+    title: "Carried over starts folded",
+    date: "2026-10-29",
+    page: "/daily-checklist",
+    steps: [
+      {
+        target: '[data-tour="checklist-carried"]',
+        title: "Carried over",
+        body: "With this many carry-overs, each category now starts folded. The header still shows how many are paid and how much is left. Tap it to hide the whole section.",
+      },
+      {
+        target: '[data-tour="checklist-carried-groups"]',
+        title: "Open a category",
+        body: "Tap a category to open it. Opening one doesn't open the others. A search opens them all.",
+        advanceOn: "click",
+      },
+    ],
+  },
 ];
