@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { QuickActionsButton } from "@/components/quick-actions";
+import { announceNavigation } from "@/lib/nav-splash";
 import { usePathname, useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/motion/tabs";
 import {
@@ -93,6 +94,9 @@ export default function BottomNav() {
             value={activeHref}
             onValueChange={(href) => {
               setTapped({ href, from: pathname ?? "" });
+              // The tabs navigate in code, not through a link, so the
+              // splash has to be told; it measures the band before the push.
+              announceNavigation(href);
               router.push(href);
             }}
             variant="pill"

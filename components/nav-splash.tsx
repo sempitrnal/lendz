@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { navTarget, splashLabel } from "@/lib/nav-splash";
+import { NAV_SPLASH_EVENT, navTarget, splashLabel } from "@/lib/nav-splash";
 
 /** Once up, the splash stays at least this long, so it never flashes. */
 const MIN_HOLD_MS = 350;
@@ -78,7 +78,8 @@ function transformFor(shape: Shape, bandPx: number) {
 }
 
 /**
- * Every tap on an in-app link plays the splash: the green band swells to fill
+ * Every in-app navigation plays the splash (a tap on a link, or a tab that
+ * announces itself): the green band swells to fill
  * the screen, waits for the new page, then shrinks into that page's band (or
  * sweeps off the top when it has none). Phones only, and not with reduced
  * motion.
@@ -154,8 +155,15 @@ export function NavSplash() {
       running = false;
     };
 
-    const onClick = (e: MouseEvent) => {
+    const begin = (to: string) => {
       if (running || reduce.matches || !phone.matches) return;
+      if (to === pathRef.current) return;
+      // Measured now: once the page changes, its band is gone.
+      void run(to, readBand());
+    };
+
+    // A tap on a link: found from the click itself.
+    const onClick = (e: MouseEvent) => {
       const a = (e.target as Element | null)?.closest<HTMLAnchorElement>(
         "a[href]",
       );
@@ -170,16 +178,22 @@ export function NavSplash() {
         window.location.origin,
         pathRef.current,
       );
-      if (!to) return;
-      // Measured now: once the page changes, its band is gone.
-      void run(to, readBand());
+      if (to) begin(to);
+    };
+
+    // A tap that navigates in code (the bottom tabs) announces itself.
+    const onAnnounce = (e: Event) => {
+      const to = (e as CustomEvent<unknown>).detail;
+      if (typeof to === "string") begin(to);
     };
 
     // Capture: it sees the tap before the link's own handler navigates.
     document.addEventListener("click", onClick, true);
+    window.addEventListener(NAV_SPLASH_EVENT, onAnnounce);
     return () => {
       alive = false;
       document.removeEventListener("click", onClick, true);
+      window.removeEventListener(NAV_SPLASH_EVENT, onAnnounce);
     };
   }, []);
 

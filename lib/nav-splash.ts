@@ -54,3 +54,18 @@ export function splashLabel(pathname: string): string {
   if (pathname === "/upcoming") return "upcoming";
   return "page";
 }
+
+/** The event a programmatic navigation (a tab calling `router.push`) sends. */
+export const NAV_SPLASH_EVENT = "nav-splash";
+
+/**
+ * Tells the splash the app is about to go to `to`. Call it just before
+ * `router.push`, while the current page's band is still on screen. Links
+ * need no call: the splash sees their taps itself.
+ */
+export function announceNavigation(to: string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent<string>(NAV_SPLASH_EVENT, { detail: to }),
+  );
+}
