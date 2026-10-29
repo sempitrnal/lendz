@@ -11,6 +11,10 @@ const MIN_HOLD_MS = 350;
 const GIVE_UP_MS = 10_000;
 const EXPAND_MS = 520;
 const COLLAPSE_MS = 560;
+/** The slab fades out over the page's own band, which it matches. */
+const FADE_MS = 280;
+/** From the slab lifting until the last card has landed (see globals.css). */
+const SETTLE_MS = 1200;
 /** The bands are `rounded-b-3xl`; the slab's edge matches. */
 const RADIUS = 24;
 const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
@@ -18,9 +22,10 @@ const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 type Shape = "band" | "full" | "gone";
 /**
  * idle: hidden. set: placed where the splash starts, no motion yet. cover:
- * slides over the screen. release: slides back to the new page's band.
+ * slides over the screen. release: slides back to the new page's band. fade:
+ * lets go of that band.
  */
-type Phase = "idle" | "set" | "cover" | "release";
+type Phase = "idle" | "set" | "cover" | "release" | "fade";
 type View = { phase: Phase; shape: Shape; bandPx: number; label: string };
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -67,6 +72,12 @@ function readBand(): number {
 /** A route's `loading.tsx` fallback is on screen: its page has not arrived. */
 const routeLoading = () => !!document.querySelector("[data-route-loading]");
 
+/** Tells the page's marked elements where the splash is (see globals.css). */
+function setSettle(state: "cover" | "release" | null) {
+  if (state) document.documentElement.dataset.navSplash = state;
+  else delete document.documentElement.dataset.navSplash;
+}
+
 /**
  * A full-height slab hung from the top; sliding it with `transform` (no
  * repaint per frame) shows as much of it as the band needs.
@@ -104,6 +115,8 @@ export function NavSplash() {
     const phone = window.matchMedia("(max-width: 639px)");
     let alive = true;
     let running = false;
+    // Which run owns `data-nav-splash`; a newer tap takes it over.
+    let gen = 0;
 
     const waitFor = (test: () => boolean, ms: number) =>
       new Promise<void>((resolve) => {
@@ -121,6 +134,8 @@ export function NavSplash() {
 
     const run = async (to: string, fromBand: number) => {
       running = true;
+      const mine = ++gen;
+      setSettle(null);
       const label = splashLabel(to);
       setView({
         phase: "set",
@@ -133,6 +148,8 @@ export function NavSplash() {
       if (!alive) return;
       setView((v) => ({ ...v, phase: "cover", shape: "full" }));
       await settle(panel.current, EXPAND_MS);
+      // Fully covered: the new page's cards wait out of sight from here.
+      setSettle("cover");
 
       await Promise.all([
         sleep(MIN_HOLD_MS),
@@ -143,6 +160,8 @@ export function NavSplash() {
       await frame();
       if (!alive) return;
       const into = readBand();
+      const lifted = performance.now();
+      setSettle("release");
       setView((v) => ({
         ...v,
         phase: "release",
@@ -151,8 +170,16 @@ export function NavSplash() {
       }));
       await settle(panel.current, COLLAPSE_MS);
       if (!alive) return;
+      if (into > 0) {
+        setView((v) => ({ ...v, phase: "fade" }));
+        await sleep(FADE_MS);
+        if (!alive) return;
+      }
       setView((v) => ({ ...v, phase: "idle", shape: "gone" }));
       running = false;
+      // The cards are still settling in: keep them marked until the last lands.
+      await sleep(Math.max(0, SETTLE_MS - (performance.now() - lifted)));
+      if (gen === mine) setSettle(null);
     };
 
     const begin = (to: string) => {
@@ -192,6 +219,7 @@ export function NavSplash() {
     window.addEventListener(NAV_SPLASH_EVENT, onAnnounce);
     return () => {
       alive = false;
+      setSettle(null);
       document.removeEventListener("click", onClick, true);
       window.removeEventListener(NAV_SPLASH_EVENT, onAnnounce);
     };
@@ -204,7 +232,13 @@ export function NavSplash() {
       className={cn(
         "fixed inset-0 z-[70] sm:hidden",
         view.phase === "idle" ? "pointer-events-none invisible" : "visible",
+        view.phase === "fade" && "pointer-events-none",
       )}
+      style={{
+        opacity: view.phase === "fade" ? 0 : 1,
+        transition:
+          view.phase === "fade" ? `opacity ${FADE_MS}ms ease-out` : "none",
+      }}
     >
       <div
         ref={panel}

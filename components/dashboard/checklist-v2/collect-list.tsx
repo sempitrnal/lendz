@@ -254,7 +254,7 @@ export function CollectList({
   const carryCollapsed = !searching && flipped.has(CARRY_KEY);
 
   return (
-    <div className="mt-3 space-y-3">
+    <div data-settle-group="list" className="mt-3 space-y-3">
       {todayGroups.length > 0 && (
         <section className="overflow-hidden border-y border-border bg-card">
           {todayGroups.map((g) => renderGroup(g, "t"))}

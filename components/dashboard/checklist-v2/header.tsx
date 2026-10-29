@@ -289,6 +289,7 @@ export function Header({
             paints behind the cards with no z-index of its own; the rows that
             need to sit above (search dropdown, buttons) carry z-20. */}
         <div
+          data-settle-group="band"
           className="relative -mt-16 px-4 pt-[4.75rem] pb-14 text-white sm:mt-0
             sm:pt-4"
         >
@@ -549,7 +550,7 @@ export function Header({
 
         {/* The tab switch and filters float on a card over the band's edge and
             stay put under the screen's top as the list scrolls. */}
-        <div className="sticky top-2 z-20 -mt-8 px-4 sm:top-[66px]">
+        <div data-settle className="sticky top-2 z-20 -mt-8 px-4 sm:top-[66px]">
           <div
             className="space-y-3 rounded-2xl bg-card p-3 shadow-sm ring-1
               ring-black/5 dark:ring-white/10"

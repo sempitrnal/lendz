@@ -234,6 +234,7 @@ export function WalletHome({
           search lives in the persistent top bar above; the row here is for
           wider screens. */}
       <div
+        data-settle-group="band"
         className="relative -mx-4 px-4 pt-20 pb-20 text-white sm:mx-0 sm:pt-4"
       >
         <div
@@ -266,7 +267,7 @@ export function WalletHome({
         </p>
       </div>
 
-      <div className="relative z-10 -mt-14 space-y-4 px-1">
+      <div data-settle-group className="relative z-10 -mt-14 space-y-4 px-1">
         <div className={card}>
           <div className="flex items-center justify-between">
             <p className="text-sm font-bold text-card-foreground/80">
