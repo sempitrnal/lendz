@@ -409,7 +409,7 @@ export default async function AccountDetailPage({
                   </>
                 )}
                 {isManual ? (
-                  <div className="print:hidden">
+                  <div className="mt-5 print:hidden">
                     <AddSchedulesPanel
                       accountId={accountRow.id}
                       addSchedules={addSchedules}

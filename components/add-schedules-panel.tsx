@@ -1,12 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
+import { CalendarPlus, ChevronDown, X } from "lucide-react";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { triggerHaptic } from "@/lib/haptics";
+import { cn } from "@/lib/utils";
+import { todayDateValue } from "@/lib/checklist/dates";
 
 type Row = { due_date: string; amount_due: string; note: string };
 
 const EMPTY_ROW = (): Row => ({ due_date: "", amount_due: "", note: "" });
+/** The row the card starts with (and goes back to): due today. */
+const FIRST_ROW = (): Row => ({ ...EMPTY_ROW(), due_date: todayDateValue() });
 
 function formatCommas(value: string): string {
   const digits = value.replace(/[^0-9.]/g, "");
@@ -90,17 +96,67 @@ type Props = {
   ) => Promise<{ error?: string }>;
 };
 
+type Pattern = "15_30" | "monthly" | "weekly";
+
+const PATTERNS: { id: Pattern; label: string }[] = [
+  { id: "15_30", label: "15th & 30th" },
+  { id: "monthly", label: "Monthly" },
+  { id: "weekly", label: "Weekly" },
+];
+
+// 16px on a phone, or iOS zooms the page when a field takes focus.
+const FIELD = `h-10 w-full min-w-0 rounded-xl border-0 bg-muted px-3 text-base
+  font-semibold text-foreground outline-none placeholder:font-normal
+  placeholder:text-muted-foreground/60 focus:ring-2 focus:ring-emerald-500/60
+  sm:text-sm`;
+
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="mb-1 block text-[11px] font-bold text-muted-foreground
+        lowercase"
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Adds schedules to a manual account: a card that opens in place. A quick
+ * fill lays out a run of dates (15th & 30th, monthly, weekly) with one
+ * amount; the rows under it are what gets saved, each one editable. Rows
+ * stack as small blocks (date and amount side by side, the note under them)
+ * so it fits a phone, and Save says how many are ready and for how much.
+ */
 export default function AddSchedulesPanel({ addSchedules }: Props) {
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState<Row[]>([EMPTY_ROW()]);
+  const reduceMotion = useReducedMotion();
+  const card = useRef<HTMLDivElement>(null);
+  const [rows, setRows] = useState<Row[]>(() => [FIRST_ROW()]);
   const [isPending, startTransition] = useTransition();
 
   const [batchStart, setBatchStart] = useState("");
   const [batchAmount, setBatchAmount] = useState("");
-  const [batchPattern, setBatchPattern] = useState<
-    "15_30" | "monthly" | "weekly"
-  >("15_30");
+  const [batchPattern, setBatchPattern] = useState<Pattern>("15_30");
   const [batchCount, setBatchCount] = useState("6");
+  // Quick fill and notes stay out of the way until asked for.
+  const [showFill, setShowFill] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+
+  /** Opening brings the whole card up above the bottom nav, once it has grown. */
+  function toggle() {
+    if (!open) {
+      setTimeout(
+        () =>
+          card.current?.scrollIntoView({
+            behavior: reduceMotion ? "auto" : "smooth",
+            block: "end",
+          }),
+        reduceMotion ? 0 : 320,
+      );
+    }
+    setOpen((o) => !o);
+  }
 
   function updateRow(i: number, field: keyof Row, value: string) {
     const formatted = field === "amount_due" ? formatCommas(value) : value;
@@ -118,7 +174,9 @@ export default function AddSchedulesPanel({ addSchedules }: Props) {
   }
 
   function removeRow(i: number) {
-    setRows((prev) => prev.filter((_, idx) => idx !== i));
+    setRows((prev) =>
+      prev.length === 1 ? [FIRST_ROW()] : prev.filter((_, idx) => idx !== i),
+    );
   }
 
   function handleGenerate() {
@@ -134,13 +192,16 @@ export default function AddSchedulesPanel({ addSchedules }: Props) {
         note: "",
       })),
     );
+    setShowFill(false);
   }
 
+  const ready = rows.filter(
+    (r) => r.due_date && r.amount_due && parseAmount(r.amount_due) > 0,
+  );
+  const readyTotal = ready.reduce((n, r) => n + parseAmount(r.amount_due), 0);
+
   function handleSubmit() {
-    const valid = rows.filter(
-      (r) => r.due_date && r.amount_due && parseAmount(r.amount_due) > 0,
-    );
-    if (!valid.length) {
+    if (!ready.length) {
       triggerHaptic("warning");
       toast.error("Add at least one row with a date and amount");
       return;
@@ -148,7 +209,7 @@ export default function AddSchedulesPanel({ addSchedules }: Props) {
 
     startTransition(async () => {
       const result = await addSchedules(
-        valid.map((r) => ({
+        ready.map((r) => ({
           due_date: r.due_date,
           amount_due: parseAmount(r.amount_due),
           note: r.note || undefined,
@@ -160,314 +221,239 @@ export default function AddSchedulesPanel({ addSchedules }: Props) {
       } else {
         triggerHaptic("success");
         toast.success(
-          `${valid.length} schedule${valid.length === 1 ? "" : "s"} added.`,
+          `${ready.length} schedule${ready.length === 1 ? "" : "s"} added.`,
         );
-        setRows([EMPTY_ROW()]);
+        setRows([FIRST_ROW()]);
+        setShowFill(false);
+        setShowNotes(false);
         setOpen(false);
       }
     });
   }
 
+  const link =
+    "text-xs font-bold text-emerald-700 active:opacity-60 dark:text-emerald-300";
+
   return (
     <div
-      className="border-t-2 border-slate-900 bg-white dark:border-zinc-700
-        dark:bg-zinc-900"
+      ref={card}
+      className="scroll-mb-28 overflow-hidden rounded-2xl bg-card shadow-sm
+        ring-1 ring-black/5 dark:ring-white/10"
     >
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-2 px-4 py-3
-          text-left text-sm font-black tracking-wide text-slate-800 uppercase
-          transition-colors hover:bg-slate-50 sm:px-5 dark:text-zinc-200
-          dark:hover:bg-zinc-800"
+        onClick={toggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
       >
-        <span className="flex items-center gap-2">
-          <span
-            className="flex size-5 items-center justify-center rounded border
-              border-slate-300 bg-slate-100 text-xs font-bold
-              dark:border-slate-700 dark:bg-slate-800"
-          >
-            {open ? "−" : "+"}
-          </span>
-          Add schedules
+        <span
+          className="flex size-10 shrink-0 items-center justify-center
+            rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20
+            dark:text-emerald-300"
+        >
+          <CalendarPlus className="size-5" aria-hidden="true" />
         </span>
         <span
-          className="text-[10px] font-bold tracking-widest text-slate-400
-            uppercase dark:text-zinc-500"
+          className="min-w-0 flex-1 text-sm font-black text-card-foreground/80"
         >
-          {open ? "close" : "expand"}
+          Add schedules
         </span>
+        <ChevronDown
+          className={cn(
+            "size-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
       </button>
 
-      {open && (
-        <div
-          className="border-t border-dashed border-slate-200 px-4 pt-4 pb-5
-            sm:px-5 dark:border-slate-700"
-        >
-          {/* — Quick batch generator — */}
-          <div
-            className="mb-4 rounded-xl border border-slate-300 bg-amber-50/60
-              p-4 dark:border-slate-700 dark:bg-slate-800/50"
+      <AnimatePresence initial={false}>
+        {open && (
+          <m.div
+            key="body"
+            initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+            className="overflow-hidden"
           >
-            <p
-              className="mb-3 text-[10px] font-black tracking-widest
-                text-slate-600 uppercase dark:text-zinc-400"
-            >
-              Quick batch generator
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <label
-                  className="mb-1 block text-[10px] font-black tracking-wide
-                    text-slate-500 uppercase dark:text-zinc-400"
-                >
-                  Start date
-                </label>
-                <input
-                  type="date"
-                  value={batchStart}
-                  onChange={(e) => setBatchStart(e.target.value)}
-                  className="w-full min-w-0 rounded-lg border border-slate-300
-                    bg-white px-3 py-2 text-sm font-semibold
-                    focus:border-slate-400 focus:outline-none
-                    dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                />
-              </div>
-              <div>
-                <label
-                  className="mb-1 block text-[10px] font-black tracking-wide
-                    text-slate-500 uppercase dark:text-zinc-400"
-                >
-                  Amount per schedule
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="e.g. 5,000"
-                  value={batchAmount}
-                  onChange={(e) => setBatchAmount(formatCommas(e.target.value))}
-                  className="w-full rounded-lg border border-slate-300 bg-white
-                    px-3 py-2 text-sm font-semibold tabular-nums
-                    focus:border-slate-400 focus:outline-none
-                    dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                />
-              </div>
-              <div>
-                <label
-                  className="mb-1 block text-[10px] font-black tracking-wide
-                    text-slate-500 uppercase dark:text-zinc-400"
-                >
-                  Pattern
-                </label>
-                <select
-                  value={batchPattern}
-                  onChange={(e) =>
-                    setBatchPattern(e.target.value as typeof batchPattern)
-                  }
-                  className="w-full rounded-lg border border-slate-300 bg-white
-                    px-3 py-2 text-sm font-semibold focus:border-slate-400
-                    focus:outline-none dark:border-slate-700 dark:bg-slate-900
-                    dark:text-slate-200"
-                >
-                  <option value="15_30">15th &amp; 30th</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="weekly">Weekly</option>
-                </select>
-              </div>
-              <div>
-                <label
-                  className="mb-1 block text-[10px] font-black tracking-wide
-                    text-slate-500 uppercase dark:text-zinc-400"
-                >
-                  Count
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min={1}
-                    max={120}
-                    value={batchCount}
-                    onChange={(e) => setBatchCount(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300
-                      bg-white px-3 py-2 text-sm font-semibold
-                      focus:border-slate-400 focus:outline-none
-                      dark:border-slate-700 dark:bg-slate-900
-                      dark:text-slate-200"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleGenerate}
-                    className="shrink-0 rounded-lg border border-slate-300
-                      bg-slate-100 px-3 py-2 text-xs font-bold tracking-wide
-                      text-slate-600 uppercase transition-all hover:bg-slate-200
-                      dark:border-slate-700 dark:bg-slate-800
-                      dark:text-slate-200"
-                  >
-                    Fill
-                  </button>
+            <div className="space-y-3 border-t px-4 pt-4 pb-4">
+              {/* Quick fill folds away instead of unmounting, so what was typed in
+              it is still there when it opens again. */}
+              <div
+                className={cn(
+                  "grid transition-[grid-template-rows] duration-300 ease-out",
+                  showFill ? "grid-rows-[1fr]" : "-mb-3 grid-rows-[0fr]",
+                )}
+              >
+                <div className="overflow-hidden" inert={!showFill}>
+                  <div className="space-y-3 rounded-2xl bg-muted/50 p-3">
+                    <div
+                      role="radiogroup"
+                      aria-label="Pattern"
+                      className="flex gap-1 rounded-2xl bg-muted p-1"
+                    >
+                      {PATTERNS.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={batchPattern === p.id}
+                          onClick={() => setBatchPattern(p.id)}
+                          className={cn(
+                            "flex-1 rounded-xl py-1.5 text-xs font-semibold",
+                            batchPattern === p.id
+                              ? `bg-card text-emerald-600 shadow-sm
+                                dark:text-emerald-300`
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label>
+                        <Label>first date</Label>
+                        <input
+                          type="date"
+                          value={batchStart}
+                          onChange={(e) => setBatchStart(e.target.value)}
+                          className={cn(FIELD, "bg-card")}
+                        />
+                      </label>
+                      <label>
+                        <Label>amount each</Label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="5,000"
+                          value={batchAmount}
+                          onChange={(e) =>
+                            setBatchAmount(formatCommas(e.target.value))
+                          }
+                          className={cn(FIELD, "bg-card tabular-nums")}
+                        />
+                      </label>
+                    </div>
+                    <div className="flex items-end gap-3">
+                      <label className="w-24">
+                        <Label>how many</Label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={120}
+                          value={batchCount}
+                          onChange={(e) => setBatchCount(e.target.value)}
+                          className={cn(FIELD, "bg-card")}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleGenerate}
+                        className="h-10 flex-1 rounded-xl bg-emerald-100 text-sm
+                          font-bold text-emerald-700 active:bg-emerald-200
+                          dark:bg-emerald-500/20 dark:text-emerald-300"
+                      >
+                        Fill rows
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* — Row editor — */}
-          <div
-            className="overflow-x-auto rounded-xl border border-slate-300
-              dark:border-slate-700"
-          >
-            <table className="w-full min-w-[560px] border-collapse text-sm">
-              <thead>
-                <tr
-                  className="border-b border-slate-300 bg-slate-50
-                    dark:border-slate-700 dark:bg-slate-800"
-                >
-                  <th
-                    className="border-r border-slate-300 px-3 py-2.5 text-left
-                      text-[10px] font-bold tracking-wide text-slate-500
-                      uppercase dark:border-slate-700 dark:text-slate-300"
-                  >
-                    #
-                  </th>
-                  <th
-                    className="border-r border-slate-300 px-3 py-2.5 text-left
-                      text-[10px] font-bold tracking-wide text-slate-500
-                      uppercase dark:border-slate-700 dark:text-slate-300"
-                  >
-                    Due date
-                  </th>
-                  <th
-                    className="border-r border-slate-300 px-3 py-2.5 text-left
-                      text-[10px] font-bold tracking-wide text-slate-500
-                      uppercase dark:border-slate-700 dark:text-slate-300"
-                  >
-                    Amount due (₱)
-                  </th>
-                  <th
-                    className="border-r border-slate-300 px-3 py-2.5 text-left
-                      text-[10px] font-bold tracking-wide text-slate-500
-                      uppercase dark:border-slate-700 dark:text-slate-300"
-                  >
-                    Note
-                  </th>
-                  <th className="px-3 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
+              <ol className="space-y-2">
                 {rows.map((row, i) => (
-                  <tr
-                    key={i}
-                    className="border-b border-slate-300 last:border-b-0
-                      odd:bg-white even:bg-slate-50/60 dark:border-slate-700
-                      dark:odd:bg-slate-900 dark:even:bg-slate-800/30"
-                  >
-                    <td
-                      className="border-r border-slate-300 px-3 py-2 text-center
-                        text-xs font-bold text-slate-400 dark:border-slate-700
-                        dark:text-slate-500"
-                    >
-                      {i + 1}
-                    </td>
-                    <td className="border-r border-slate-300 px-2 py-1.5">
+                  <li key={i}>
+                    <div className="flex items-center gap-2">
                       <input
                         type="date"
+                        aria-label={`Schedule ${i + 1} due date`}
                         value={row.due_date}
                         onChange={(e) =>
                           updateRow(i, "due_date", e.target.value)
                         }
-                        className="w-full min-w-0 rounded-md border
-                          border-slate-300 bg-white px-2 py-1.5 text-sm
-                          font-semibold focus:border-slate-400
-                          focus:outline-none dark:border-slate-700
-                          dark:bg-slate-900 dark:text-slate-200
-                          dark:focus:border-slate-500"
+                        className={cn(FIELD, "w-auto flex-[2.2] px-2")}
                       />
-                    </td>
-                    <td className="border-r border-slate-300 px-2 py-1.5">
                       <input
                         type="text"
-                        inputMode="numeric"
-                        placeholder="0"
+                        inputMode="decimal"
+                        placeholder="₱0"
+                        aria-label={`Schedule ${i + 1} amount`}
                         value={row.amount_due}
                         onChange={(e) =>
                           updateRow(i, "amount_due", e.target.value)
                         }
-                        className="w-full rounded-md border border-slate-300
-                          bg-white px-2 py-1.5 text-sm font-semibold
-                          tabular-nums focus:border-slate-400 focus:outline-none
-                          dark:border-slate-700 dark:bg-slate-900
-                          dark:text-slate-200 dark:focus:border-slate-500"
+                        className={cn(FIELD, "w-auto flex-1 tabular-nums")}
                       />
-                    </td>
-                    <td className="border-r border-slate-300 px-2 py-1.5">
+                      {rows.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeRow(i)}
+                          aria-label={`Remove schedule ${i + 1}`}
+                          className="flex size-8 shrink-0 items-center
+                            justify-center rounded-full text-muted-foreground
+                            active:bg-rose-100 active:text-rose-600"
+                        >
+                          <X className="size-4" />
+                        </button>
+                      )}
+                    </div>
+                    {(showNotes || row.note) && (
                       <input
                         type="text"
-                        placeholder="optional"
+                        placeholder="note"
+                        aria-label={`Schedule ${i + 1} note`}
                         value={row.note}
                         onChange={(e) => updateRow(i, "note", e.target.value)}
-                        className="w-full rounded-md border border-slate-300
-                          bg-white px-2 py-1.5 text-sm focus:border-slate-400
-                          focus:outline-none dark:border-slate-700
-                          dark:bg-slate-900 dark:text-slate-200
-                          dark:focus:border-slate-500"
+                        className={cn(FIELD, "mt-2 h-9 font-normal")}
                       />
-                    </td>
-                    <td className="px-2 py-1.5 text-center">
-                      <button
-                        type="button"
-                        onClick={() => removeRow(i)}
-                        className="rounded-md border border-slate-300 bg-rose-50
-                          px-2 py-1 text-xs font-bold text-rose-600
-                          transition-all hover:bg-rose-100 dark:border-slate-700
-                          dark:bg-rose-900/30 dark:text-rose-300
-                          dark:hover:bg-rose-900/50"
-                      >
-                        ×
-                      </button>
-                    </td>
-                  </tr>
+                    )}
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </ol>
 
-          {/* — Actions — */}
-          <div
-            className="mt-3 flex flex-wrap items-center justify-between gap-3"
-          >
-            <button
-              type="button"
-              onClick={addRow}
-              className="flex items-center gap-1.5 rounded-lg border
-                border-slate-300 bg-white px-3 py-2 text-xs font-bold
-                tracking-wide uppercase transition-all hover:bg-slate-100
-                dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-            >
-              <span className="text-base leading-none">+</span> Add row
-            </button>
+              <div className="flex items-center gap-4 px-1">
+                <button type="button" onClick={addRow} className={link}>
+                  + another
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFill((v) => !v)}
+                  aria-expanded={showFill}
+                  className={link}
+                >
+                  {showFill ? "hide quick fill" : "fill a run of dates"}
+                </button>
+                {!showNotes && (
+                  <button
+                    type="button"
+                    onClick={() => setShowNotes(true)}
+                    className={link}
+                  >
+                    notes
+                  </button>
+                )}
+              </div>
 
-            <div className="flex items-center gap-2">
-              <span
-                className="text-xs font-semibold text-slate-500
-                  dark:text-zinc-400"
-              >
-                {rows.filter((r) => r.due_date && r.amount_due).length} of{" "}
-                {rows.length} ready
-              </span>
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={isPending}
-                className="rounded-lg bg-slate-900 px-5 py-2 text-sm font-bold
-                  tracking-wide text-white uppercase transition-all
-                  hover:bg-slate-700 disabled:opacity-60 dark:bg-foreground
-                  dark:text-background dark:hover:bg-foreground/80"
+                disabled={isPending || ready.length === 0}
+                className="flex h-12 w-full items-center justify-center
+                  rounded-2xl bg-emerald-600 text-sm font-bold text-white
+                  transition-opacity disabled:opacity-50 dark:bg-emerald-700"
               >
-                {isPending ? "Saving…" : "Save schedules"}
+                {isPending
+                  ? "Saving…"
+                  : ready.length === 0
+                    ? "Save"
+                    : `Save ${ready.length} · ₱${readyTotal.toLocaleString("en-US", { maximumFractionDigits: 2 })}`}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </m.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
