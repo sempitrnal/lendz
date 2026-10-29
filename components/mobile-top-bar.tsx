@@ -1,5 +1,6 @@
 "use client";
 
+import { ACCENT_EVENT, getPageAccent } from "@/lib/accent-palette";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
@@ -14,7 +15,7 @@ import {
   usePageOwnsMobileHeader,
 } from "@/components/use-wallet-dashboard";
 
-/** The band's top colour (brand-600 / brand-950, see globals.css), for the status bar. */
+/** The band's default top colour (see --page-1 in globals.css), for the status bar. */
 const THEME_LIGHT = "#059669";
 const THEME_DARK = "#022c22";
 
@@ -46,9 +47,25 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
     if (!ownsHeader) return;
     const meta = document.createElement("meta");
     meta.name = "theme-color";
-    meta.content = resolvedTheme === "dark" ? THEME_DARK : THEME_LIGHT;
+    const dark = resolvedTheme === "dark";
+    // A page with its own colour (a borrower's category) moves the strip too.
+    const sync = () => {
+      const accent = getPageAccent();
+      meta.content = accent
+        ? dark
+          ? accent.dark.top
+          : accent.light.top
+        : dark
+          ? THEME_DARK
+          : THEME_LIGHT;
+    };
+    sync();
     document.head.appendChild(meta);
-    return () => meta.remove();
+    window.addEventListener(ACCENT_EVENT, sync);
+    return () => {
+      window.removeEventListener(ACCENT_EVENT, sync);
+      meta.remove();
+    };
   }, [ownsHeader, resolvedTheme]);
 
   // On a page with its own green band the bar is solid green; only its shadow
@@ -106,8 +123,8 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
         // from the bar's colour, so a see-through bar showed up as white), and
         // stays mounted, so moving between them only swaps what's below it.
         ownsHeader &&
-          `border-transparent bg-brand-600 px-4 dark:border-transparent
-          dark:bg-brand-950`,
+          `border-transparent bg-(--page-1) px-4 dark:border-transparent
+          dark:bg-(--page-1)`,
       )}
     >
       {ownsHeader && !capsItself && (
@@ -142,8 +159,8 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
                 bg-white p-2 text-slate-600 transition active:shadow-none`,
               // On the green bar the button is a translucent white disc.
               ownsHeader &&
-                `border-transparent bg-white/20 text-white
-                  dark:border-transparent dark:bg-white/20 dark:text-white`,
+                `border-transparent bg-onpage/20 text-onpage
+                  dark:border-transparent dark:bg-onpage/20 dark:text-onpage`,
             )}
           >
             <ArrowLeft className="size-4" strokeWidth={2.5} />
@@ -163,13 +180,13 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
             searchFocused ? "max-w-0 opacity-0" : "max-w-10 opacity-100"
           }`}
       >
-        <ThemeToggle size="icon-sm" />
+        <ThemeToggle size="icon-sm" onColor={ownsHeader} />
       </div>
       {ownsHeader && (
         <Link
           href="/upcoming"
           aria-label="Overdue"
-          className={`shrink-0 text-white transition-all duration-200 ${
+          className={`shrink-0 text-onpage transition-all duration-200 ${
             searchFocused ? "max-w-0 opacity-0" : "max-w-10 opacity-100"
           }`}
         >

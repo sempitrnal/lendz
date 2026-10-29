@@ -229,6 +229,10 @@ html[data-nav-splash="release"]
  * that touches the status strip, the top bar, a green band, the bottom nav or
  * the nav splash uses these.
  */
+@theme inline {
+  /* What's drawn on a page's bar or band: white, or near-black on a light one. */
+  --color-onpage: var(--page-fg);
+}
 @theme {
   --color-brand-600: #059669;
   --color-brand-500: #10b981;
@@ -237,34 +241,74 @@ html[data-nav-splash="release"]
 }
 
 /*
- * The green band's fill on the pages whose band starts at the very top of the
- * screen, behind the 64px top bar. The bar is one flat green, so the band
- * holds that green for the bar's height and only then starts to lighten;
- * otherwise it has already lightened by the time it meets the bar's lower edge
- * and a seam shows. Wider screens have no bar over it: a plain gradient.
+ * The colours of a page's bar and band, as registered colour properties so a
+ * change between pages (a borrower's category colour, back to green) glides
+ * instead of jumping, gradients included. They default to the brand green; a
+ * page can point them elsewhere (see lib/accent-palette.ts). Everything that
+ * has to match the top bar reads these: the bar, the bands, the folded
+ * headers, the bottom nav and the nav splash.
+ */
+@property --page-1 {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #059669;
+}
+@property --page-2 {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #10b981;
+}
+@property --page-on {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #047857;
+}
+@property --page-fg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+:root {
+  --page-1: #059669;
+  --page-2: #10b981;
+  --page-on: #047857;
+  --page-fg: #ffffff;
+  transition:
+    --page-1 0.5s ease,
+    --page-2 0.5s ease,
+    --page-on 0.5s ease,
+    --page-fg 0.5s ease;
+}
+.dark {
+  --page-1: #022c22;
+  --page-2: #064e3b;
+  --page-on: #022c22;
+  --page-fg: #ffffff;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    transition: none;
+  }
+}
+
+/*
+ * The band's fill on the pages whose band starts at the very top of the
+ * screen, behind the top bar: the bar's own colour for the bar's 64px, then
+ * the gradient. A plain gradient from the top would already be lighter where
+ * the bar ends, and a seam shows. Wider screens have no bar over it: a plain
+ * gradient.
  */
 .band-bg {
   background-image: linear-gradient(
     to bottom,
-    #059669 0,
-    #059669 64px,
-    #10b981 100%
-  );
-}
-.dark .band-bg {
-  background-image: linear-gradient(
-    to bottom,
-    #022c22 0,
-    #022c22 64px,
-    #064e3b 100%
+    var(--page-1) 0,
+    var(--page-1) 64px,
+    var(--page-2) 100%
   );
 }
 @media (min-width: 640px) {
   .band-bg {
-    background-image: linear-gradient(to bottom, #059669, #10b981);
-  }
-  .dark .band-bg {
-    background-image: linear-gradient(to bottom, #022c22, #064e3b);
+    background-image: linear-gradient(to bottom, var(--page-1), var(--page-2));
   }
 }
 

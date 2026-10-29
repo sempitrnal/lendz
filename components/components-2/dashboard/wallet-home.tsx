@@ -220,7 +220,7 @@ export function WalletHome({
         />
         <div className="relative z-20 hidden items-center gap-3 sm:flex">
           <HeaderSearch onColor className="flex-1 sm:max-w-none" />
-          <ThemeToggle size="icon-sm" />
+          <ThemeToggle size="icon-sm" onColor />
           <Link
             href="/upcoming"
             aria-label="Overdue"
@@ -230,7 +230,7 @@ export function WalletHome({
             {summary.overdueBorrowers > 0 && (
               <span
                 className="absolute -top-1 -right-1 size-2.5 rounded-full
-                  bg-rose-400 ring-2 ring-brand-600"
+                  bg-rose-400 ring-2 ring-(--page-1)"
               />
             )}
           </Link>

@@ -133,7 +133,7 @@ export default function HeaderSearch({
         <Search
           className={cn(
             "text-muted-foreground pointer-events-none absolute left-3 size-4",
-            onColor && "text-white/80",
+            onColor && "text-onpage/80",
           )}
           aria-hidden
         />
@@ -184,11 +184,11 @@ export default function HeaderSearch({
             outline-none placeholder:text-slate-400 transition
             focus:border-slate-400 dark:focus:border-slate-500`,
             onColor &&
-              `rounded-full border-transparent bg-white/20 font-semibold
-              text-white placeholder:text-white/70 focus:border-white/40
-              focus:bg-white/25 dark:border-transparent dark:bg-white/10
-              dark:focus:bg-white/15 dark:text-white
-              dark:placeholder:text-white/70 dark:focus:border-white/40`,
+              `rounded-full border-transparent bg-onpage/20 font-semibold
+              text-onpage placeholder:text-onpage/70 focus:border-onpage/40
+              focus:bg-onpage/25 dark:border-transparent dark:bg-onpage/10
+              dark:focus:bg-onpage/15 dark:text-onpage
+              dark:placeholder:text-onpage/70 dark:focus:border-onpage/40`,
           )}
         />
 
@@ -208,8 +208,8 @@ export default function HeaderSearch({
               dark:hover:text-foreground`,
               showSuggestions ? "right-8" : "right-2.5",
               onColor &&
-                `text-white/80 hover:bg-white/15 hover:text-white
-                dark:text-white/80 dark:hover:text-white`,
+                `text-onpage/80 hover:bg-onpage/15 hover:text-onpage
+                dark:text-onpage/80 dark:hover:text-onpage`,
             )}
             aria-label="Clear search"
           >
@@ -231,8 +231,8 @@ export default function HeaderSearch({
               hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/10
               dark:hover:text-foreground`,
               onColor &&
-                `text-white/80 hover:bg-white/15 hover:text-white
-                dark:text-white/80 dark:hover:text-white`,
+                `text-onpage/80 hover:bg-onpage/15 hover:text-onpage
+                dark:text-onpage/80 dark:hover:text-onpage`,
             )}
             aria-label="Close search"
           >

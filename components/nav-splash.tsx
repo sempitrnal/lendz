@@ -246,8 +246,8 @@ export function NavSplash() {
     >
       <div
         ref={panel}
-        className="absolute inset-x-0 top-0 [--sp-a:#059669] [--sp-b:#10b981]
-          dark:[--sp-a:#022c22] dark:[--sp-b:#064e3b]"
+        className="absolute inset-x-0 top-0 [--sp-a:var(--page-1)]
+          [--sp-b:var(--page-2)]"
         style={{
           height: `calc(100% + ${RADIUS}px)`,
           borderRadius: `0 0 ${RADIUS}px ${RADIUS}px`,

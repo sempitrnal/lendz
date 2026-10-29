@@ -93,9 +93,9 @@ export default function BottomNav() {
             redefines, so nothing refers to itself. */}
         <div
           className="flex w-full max-w-md items-center gap-1 rounded-2xl border
-            border-white/15 bg-(--nav-bg) p-1.5 shadow-lg shadow-black/25
-            [--nav-bg:#059669] [--nav-fg:#ffffff] [--nav-on:#047857]
-            dark:[--nav-bg:#022c22] dark:[--nav-on:#022c22]"
+            border-onpage/15 bg-(--nav-bg) p-1.5 shadow-lg shadow-black/25
+            [--nav-bg:var(--page-1)] [--nav-fg:var(--page-fg)]
+            [--nav-on:var(--page-on)]"
         >
           <div
             className="contents [--foreground:var(--nav-fg)]
