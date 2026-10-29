@@ -222,7 +222,7 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 -top-16 h-48
-            bg-emerald-600 sm:hidden dark:bg-emerald-950"
+            bg-brand-600 sm:hidden dark:bg-brand-950"
         />
       )}
 

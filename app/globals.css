@@ -221,6 +221,53 @@ html[data-nav-splash="release"]
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * The app's brand green, as plain sRGB hex. Tailwind's emerald is wide-gamut
+ * (oklch): on an iPhone's P3 screen it paints a more vivid green than the
+ * sRGB hex the browser's status strip (theme-color) can be given, so the strip
+ * and the bars/bands that meet it showed two different greens. Everything
+ * that touches the status strip, the top bar, a green band, the bottom nav or
+ * the nav splash uses these.
+ */
+@theme {
+  --color-brand-600: #059669;
+  --color-brand-500: #10b981;
+  --color-brand-900: #064e3b;
+  --color-brand-950: #022c22;
+}
+
+/*
+ * The green band's fill on the pages whose band starts at the very top of the
+ * screen, behind the 64px top bar. The bar is one flat green, so the band
+ * holds that green for the bar's height and only then starts to lighten;
+ * otherwise it has already lightened by the time it meets the bar's lower edge
+ * and a seam shows. Wider screens have no bar over it: a plain gradient.
+ */
+.band-bg {
+  background-image: linear-gradient(
+    to bottom,
+    #059669 0,
+    #059669 64px,
+    #10b981 100%
+  );
+}
+.dark .band-bg {
+  background-image: linear-gradient(
+    to bottom,
+    #022c22 0,
+    #022c22 64px,
+    #064e3b 100%
+  );
+}
+@media (min-width: 640px) {
+  .band-bg {
+    background-image: linear-gradient(to bottom, #059669, #10b981);
+  }
+  .dark .band-bg {
+    background-image: linear-gradient(to bottom, #022c22, #064e3b);
+  }
+}
+
 @theme inline {
   --font-heading: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;

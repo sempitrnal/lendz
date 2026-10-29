@@ -216,9 +216,7 @@ export function WalletHome({
         <div
           aria-hidden="true"
           data-nav-band
-          className="absolute inset-0 rounded-b-3xl bg-linear-to-b
-            sm:rounded-3xl from-emerald-600 to-emerald-500 dark:from-emerald-950
-            dark:to-emerald-900"
+          className="band-bg absolute inset-0 rounded-b-3xl sm:rounded-3xl"
         />
         <div className="relative z-20 hidden items-center gap-3 sm:flex">
           <HeaderSearch onColor className="flex-1 sm:max-w-none" />
@@ -232,7 +230,7 @@ export function WalletHome({
             {summary.overdueBorrowers > 0 && (
               <span
                 className="absolute -top-1 -right-1 size-2.5 rounded-full
-                  bg-rose-400 ring-2 ring-emerald-600"
+                  bg-rose-400 ring-2 ring-brand-600"
               />
             )}
           </Link>
