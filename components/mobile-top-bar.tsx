@@ -14,8 +14,8 @@ import { usePageOwnsMobileHeader } from "@/components/use-wallet-dashboard";
 const THEME_LIGHT = "#059669";
 const THEME_DARK = "#022c22";
 
-/** Scroll distance (px) over which the green bar fills in. */
-const FILL_DISTANCE = 56;
+/** Scroll distance (px) over which the bar's shadow fades in. */
+const SHADOW_DISTANCE = 56;
 
 const HIDE_ALL_PATHS = ["/login"];
 const HIDE_BACK_PATHS = [
@@ -32,7 +32,7 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const router = useRouter();
   const [searchFocused, setSearchFocused] = useState(false);
   const ownsHeader = usePageOwnsMobileHeader();
-  const fillRef = useRef<HTMLDivElement>(null);
+  const shadowRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
 
   // The phone's status bar takes its colour from the theme-color tag. On a page
@@ -47,8 +47,8 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
     return () => meta.remove();
   }, [ownsHeader, resolvedTheme]);
 
-  // On a page with its own green band the bar starts see-through, so it reads
-  // as part of the band, and fills in as you scroll. It writes the opacity
+  // On a page with its own green band the bar is solid green; only its shadow
+  // fades in as you scroll, so it lifts off the band. It writes the opacity
   // straight to the element: no re-render per scroll frame.
   useEffect(() => {
     if (!ownsHeader) return;
@@ -56,10 +56,10 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
     const update = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        const fill = fillRef.current;
-        if (fill) {
-          const p = Math.min(1, Math.max(0, window.scrollY / FILL_DISTANCE));
-          fill.style.opacity = String(p);
+        const shadow = shadowRef.current;
+        if (shadow) {
+          const p = Math.min(1, Math.max(0, window.scrollY / SHADOW_DISTANCE));
+          shadow.style.opacity = String(p);
         }
       });
     };
@@ -93,19 +93,21 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
         z-40 flex h-16 items-center gap-2 border-b border-slate-200
         bg-background px-2 transition-colors duration-200 sm:hidden
         print:hidden`,
-        // On the pages that draw their own green band, the bar turns green and
+        // On the pages that draw their own green band, the bar is the band's
+        // own green, solid from the first pixel (iOS tints its status strip
+        // from the bar's colour, so a see-through bar showed up as white), and
         // stays mounted, so moving between them only swaps what's below it.
         ownsHeader &&
-          `border-transparent bg-transparent px-4 dark:border-transparent
-          dark:bg-transparent`,
+          `border-transparent bg-emerald-600 px-4 dark:border-transparent
+          dark:bg-emerald-950`,
       )}
     >
       {ownsHeader && (
         <div
-          ref={fillRef}
+          ref={shadowRef}
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10 bg-emerald-600
-            dark:bg-emerald-950 opacity-0 shadow-md shadow-emerald-900/20"
+          className="pointer-events-none absolute inset-x-0 top-full h-4
+            bg-linear-to-b from-emerald-950/25 to-transparent opacity-0"
         />
       )}
       {showToggleOnly ? (
