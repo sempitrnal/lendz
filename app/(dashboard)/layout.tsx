@@ -9,6 +9,7 @@ import { PullToRefresh } from "@/components/pull-to-refresh";
 import RealtimeProvider from "@/components/realtime-provider";
 import { Suspense } from "react";
 import { TourProvider } from "@/components/tours/tour-provider";
+import { NavSplash } from "@/components/nav-splash";
 
 export default async function DashboardLayout({
   children,
@@ -36,6 +37,7 @@ export default async function DashboardLayout({
       <SidebarNav />
       <SiteHeader isLoggedIn logoutAction={logout} />
       <BottomNav />
+      <NavSplash />
       <Suspense fallback={null}>
         <TourProvider />
       </Suspense>

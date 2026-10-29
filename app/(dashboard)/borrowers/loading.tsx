@@ -1,6 +1,9 @@
 export default function Loading() {
   return (
-    <div className="flex min-h-[60vh] w-full items-center justify-center p-4">
+    <div
+      data-route-loading
+      className="flex min-h-[60vh] w-full items-center justify-center p-4"
+    >
       <div className="flex flex-col items-center gap-4">
         <div className="flex items-center gap-1.5">
           <span

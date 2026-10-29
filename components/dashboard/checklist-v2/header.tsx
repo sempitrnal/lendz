@@ -294,6 +294,7 @@ export function Header({
         >
           <div
             aria-hidden="true"
+            data-nav-band
             className="absolute inset-0 rounded-b-3xl bg-linear-to-b
               from-emerald-600 to-emerald-500 dark:from-emerald-950
               dark:to-emerald-900"
