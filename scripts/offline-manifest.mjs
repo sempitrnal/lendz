@@ -21,9 +21,10 @@ const OUT = join("public", "offline-manifest.json");
 
 const buildId = readFileSync(join(NEXT, "BUILD_ID"), "utf8").trim();
 
-// Set this to "all" (or build with OFFLINE_REFRESH=all) for any deploy that
-// changes pages other than the checklist, so they are saved again too.
-const REFRESH = process.env.OFFLINE_REFRESH ?? "checklist";
+// "all" saves every page again. Set this to "checklist" (or build with
+// OFFLINE_REFRESH=checklist) only for a deploy that changes nothing but the
+// checklist, and put it back to "all" after.
+const REFRESH = process.env.OFFLINE_REFRESH ?? "all";
 
 function listFiles(dir) {
   const out = [];
