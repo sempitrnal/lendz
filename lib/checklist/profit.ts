@@ -45,6 +45,21 @@ export function installmentProfit(amountDue: number, share: number): number {
 }
 
 /**
+ * The profit in what has been paid on an installment so far, split in
+ * proportion: every peso paid carries the same share of profit as the whole
+ * installment does. Paid in full, it is `installmentProfit`.
+ */
+export function paidProfit(
+  amountPaid: number,
+  amountDue: number,
+  share: number,
+): number {
+  if (amountDue <= 0 || amountPaid <= 0) return 0;
+  const whole = installmentProfit(amountDue, share);
+  return cents(Math.min(whole, (amountPaid / amountDue) * whole));
+}
+
+/**
  * The profit a set of payments adds: for each schedule, the profit collected
  * after the payment minus before it (nothing until its principal share is
  * covered). Schedules with no saved share, or not found, add nothing.

@@ -1,4 +1,8 @@
-import { installmentProfit, profitOnInstallment } from "@/lib/checklist/profit";
+import {
+  installmentProfit,
+  paidProfit,
+  profitOnInstallment,
+} from "@/lib/checklist/profit";
 import {
   collectionRowModel,
   type CollectionRowLine,
@@ -24,6 +28,8 @@ export type RowLine = CollectionRowLine & {
   profit: number;
   /** What it earns once paid: its amount beyond its principal share; null when unknown. */
   installmentProfit: number | null;
+  /** The profit in what is paid so far, split in proportion; null when unknown. */
+  earned: number | null;
   /** The installment's own amount: the saved schedule's, else the label's. */
   original: number;
 };
@@ -84,6 +90,14 @@ function buildLine(
       row?.principal_share === undefined
         ? null
         : installmentProfit(Number(row.amount_due), row.principal_share),
+    earned:
+      row?.principal_share === undefined
+        ? null
+        : paidProfit(
+            amountPaidOnInstallment(row),
+            Number(row.amount_due),
+            row.principal_share,
+          ),
     profit:
       row?.principal_share === undefined
         ? 0

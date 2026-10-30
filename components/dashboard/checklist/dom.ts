@@ -60,7 +60,7 @@ export type ChipTone =
 const CHIP_TONES: Record<ChipTone, string> = {
   neutral: "border-transparent bg-muted text-muted-foreground",
   overdue:
-    "border-transparent bg-rose-500/10 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300",
+    "border-transparent bg-[#d14d5a]/10 text-[#d14d5a] dark:bg-[#d14d5a]/20 dark:text-[#f0a0a8]",
   loan: "lowercase border-transparent bg-violet-500/10 text-violet-700 dark:text-violet-300",
   cash_advance:
     "lowercase border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-300",

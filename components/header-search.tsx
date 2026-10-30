@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, Search, X, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { borrowerCategoryColor } from "@/lib/checklist/labels";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import {
@@ -297,12 +298,20 @@ export default function HeaderSearch({
               )}
             >
               {onColor && (
+                // In the borrower's category colour, as everywhere else.
                 <span
                   aria-hidden="true"
+                  style={
+                    {
+                      "--cat": borrowerCategoryColor(s) ?? "#94a3b8",
+                    } as React.CSSProperties
+                  }
                   className="flex size-9 shrink-0 items-center justify-center
-                    rounded-full bg-emerald-100 text-sm font-bold uppercase
-                    text-emerald-700 dark:bg-emerald-500/20
-                    dark:text-emerald-300"
+                    rounded-full
+                    bg-[color-mix(in_oklab,var(--cat)_22%,var(--card))] text-sm
+                    font-black uppercase
+                    text-[color-mix(in_oklab,var(--cat)_45%,var(--foreground))]
+                    ring-1 ring-black/5 ring-inset dark:ring-white/10"
                 >
                   {initials(`${s.first_name} ${s.last_name}`)}
                 </span>

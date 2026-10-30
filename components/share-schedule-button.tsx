@@ -8,7 +8,8 @@ import {
   type Ref,
 } from "react";
 import { flushSync } from "react-dom";
-import { Share2 } from "lucide-react";
+import { Download, Share2 } from "lucide-react";
+import { Sheet } from "@/components/dashboard/checklist-v2/sheet";
 import { formatDate } from "@/lib/utils";
 
 export type ShareSchedule = {
@@ -94,11 +95,24 @@ const dark = {
   tile: "#202024",
 };
 
-function downloadImage(dataUrl: string, fileName: string) {
+function canShareFiles(files: File[]) {
+  return (
+    typeof navigator !== "undefined" &&
+    !!navigator.share &&
+    !!navigator.canShare?.({ files })
+  );
+}
+
+function downloadFile(file: File) {
+  const url = URL.createObjectURL(file);
   const link = document.createElement("a");
-  link.download = fileName;
-  link.href = dataUrl;
+  link.download = file.name;
+  link.href = url;
+  document.body.appendChild(link);
   link.click();
+  link.remove();
+  // Long enough for the download to have started.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 /** Payments per image once a schedule is split. */
@@ -159,6 +173,8 @@ export default function ShareScheduleButton({
   const pages = pagesOf(schedules);
   const pageCount = pages.length;
   const [page, setPage] = useState(0);
+  // The images to save one by one, when the device cannot share several.
+  const [saving, setSaving] = useState<File[] | null>(null);
   const rows = pages[page] ?? [];
   const first = page === 0;
   // The next payment's card is the first image's; later ones are just rows.
@@ -197,7 +213,7 @@ export default function ShareScheduleButton({
         urls.push(
           await toPng(cardRef.current, {
             pixelRatio: 2,
-            backgroundColor: darkActive ? dark.pageBg : light.pageBg,
+            backgroundColor: darkActive ? dark.cardBg : light.cardBg,
           }),
         );
       }
@@ -220,17 +236,25 @@ export default function ShareScheduleButton({
           return new File([blob], nameOf(i), { type: "image/png" });
         }),
       );
-      if (
-        typeof navigator !== "undefined" &&
-        navigator.share &&
-        navigator.canShare?.({ files })
-      ) {
-        await navigator.share({
-          files,
-          title: `${borrowerName} — Payment Schedule`,
-        });
+      if (canShareFiles(files)) {
+        try {
+          await navigator.share({
+            files,
+            title: `${borrowerName} — Payment Schedule`,
+          });
+        } catch (err) {
+          // Building the images can outlast the tap that asked for them,
+          // and some phones then refuse to share: the sheet asks for a
+          // fresh tap.
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          setSaving(files);
+        }
+      } else if (files.length === 1) {
+        downloadFile(files[0]);
       } else {
-        urls.forEach((url, i) => downloadImage(url, nameOf(i)));
+        // A browser saves one file per tap: several get a sheet with a
+        // Save link for each.
+        setSaving(files);
       }
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -271,6 +295,14 @@ export default function ShareScheduleButton({
         </button>
       )}
 
+      <Sheet
+        open={saving !== null}
+        onClose={() => setSaving(null)}
+        label="Send schedule"
+      >
+        {saving && <SaveImages files={saving} borrowerName={borrowerName} />}
+      </Sheet>
+
       {/* Off-screen card used for image capture */}
       {showCard ? (
         <div
@@ -286,29 +318,23 @@ export default function ShareScheduleButton({
           <div
             ref={cardRef}
             style={{
+              // Edge to edge: the band and list fill the whole image.
               width: 720,
-              padding: 28,
               fontFamily:
                 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-              backgroundColor: p.pageBg,
+              backgroundColor: p.cardBg,
               color: p.textPrimary,
             }}
           >
-            <div
-              style={{
-                borderRadius: 32,
-                overflow: "hidden",
-                backgroundColor: p.cardBg,
-                boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
-              }}
-            >
+            <div>
               {/* The band: who, what, and how far along. Later images get a
                   slim strip saying which payments they hold. */}
               {first ? (
                 <div
                   style={{
                     // Room at the bottom for the next payment to overlap.
-                    padding: showNext ? "28px 32px 64px" : "28px 32px 32px",
+                    padding: showNext ? "36px 36px 72px" : "36px 36px 40px",
+                    borderRadius: "0 0 36px 36px",
                     color: "#ffffff",
                     backgroundImage: `linear-gradient(160deg, ${brand.a}, ${brand.b})`,
                   }}
@@ -342,7 +368,6 @@ export default function ShareScheduleButton({
                       }}
                     >
                       {accountType.replace("_", " ")}
-                      {releaseDate ? ` · ${formatDate(releaseDate)}` : ""}
                     </span>
                   </div>
                   <div
@@ -356,6 +381,18 @@ export default function ShareScheduleButton({
                   >
                     {borrowerName.toLowerCase()}
                   </div>
+                  {releaseDate && (
+                    <div
+                      style={{
+                        marginTop: 6,
+                        fontSize: 14,
+                        fontWeight: 600,
+                        opacity: 0.85,
+                      }}
+                    >
+                      Released {formatDate(releaseDate)}
+                    </div>
+                  )}
                   <div
                     style={{
                       marginTop: 18,
@@ -418,7 +455,8 @@ export default function ShareScheduleButton({
               ) : (
                 <div
                   style={{
-                    padding: "22px 32px",
+                    padding: "28px 36px",
+                    borderRadius: "0 0 36px 36px",
                     color: "#ffffff",
                     backgroundImage: `linear-gradient(160deg, ${brand.a}, ${brand.b})`,
                     display: "flex",
@@ -458,7 +496,7 @@ export default function ShareScheduleButton({
                 </div>
               )}
 
-              <div style={{ padding: "0 24px 20px" }}>
+              <div style={{ padding: "0 28px 8px" }}>
                 {/* What to pay next, lifted onto the band's edge. */}
                 {showNext
                   ? (() => {
@@ -471,89 +509,121 @@ export default function ShareScheduleButton({
                         showNext.remaining > 0
                           ? showNext.remaining
                           : showNext.amount_due;
+                      const dueDay = new Date(
+                        `${showNext.due_date.slice(0, 10)}T00:00:00`,
+                      );
                       return (
                         <div
                           style={{
-                            marginTop: -40,
-                            marginBottom: 12,
-                            borderRadius: 24,
-                            backgroundColor: st.rowBg,
-                            border: `2px solid ${st.mark}`,
-                            boxShadow: "0 10px 24px rgba(0,0,0,0.10)",
-                            padding: "16px 20px",
+                            marginTop: -44,
+                            marginBottom: 8,
+                            borderRadius: 26,
+                            backgroundColor: p.cardBg,
+                            boxShadow:
+                              "0 1px 2px rgba(15,23,42,0.05), 0 6px 16px rgba(15,23,42,0.06)",
+                            padding: 14,
                             display: "flex",
-                            justifyContent: "space-between",
                             alignItems: "center",
-                            gap: 12,
+                            gap: 16,
                           }}
                         >
+                          {/* The due date as a little calendar leaf. */}
                           <div
                             style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 14,
+                              width: 72,
+                              flexShrink: 0,
+                              borderRadius: 18,
+                              overflow: "hidden",
+                              textAlign: "center",
+                              backgroundColor: st.rowBg,
                             }}
                           >
-                            <span
-                              style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 14,
-                                backgroundColor: st.mark,
-                                color: "#ffffff",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 18,
-                                fontWeight: 800,
-                              }}
-                            >
-                              #{showNext.index}
-                            </span>
-                            <div>
-                              <div
-                                style={{
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  color: st.text,
-                                }}
-                              >
-                                Next payment · {formatDate(showNext.due_date)}
-                              </div>
-                              <div
-                                style={{
-                                  marginTop: 2,
-                                  fontSize: 28,
-                                  fontWeight: 800,
-                                  letterSpacing: "-0.02em",
-                                  fontVariantNumeric: "tabular-nums",
-                                }}
-                              >
-                                {formatMoney(amount)}
-                              </div>
-                            </div>
-                          </div>
-                          <div style={{ textAlign: "right" }}>
                             <div
                               style={{
-                                display: "inline-block",
-                                padding: "6px 14px",
-                                borderRadius: 999,
+                                padding: "5px 0 4px",
                                 backgroundColor: st.mark,
                                 color: "#ffffff",
-                                fontSize: 13,
+                                fontSize: 11,
                                 fontWeight: 800,
+                                letterSpacing: "0.12em",
+                                textTransform: "uppercase",
                               }}
                             >
+                              {dueDay.toLocaleDateString("en-US", {
+                                month: "short",
+                              })}
+                            </div>
+                            <div
+                              style={{
+                                padding: "4px 0 8px",
+                                fontSize: 30,
+                                fontWeight: 800,
+                                lineHeight: 1.1,
+                                color: st.text,
+                                fontVariantNumeric: "tabular-nums",
+                              }}
+                            >
+                              {dueDay.getDate()}
+                            </div>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: p.textMuted,
+                              }}
+                            >
+                              Next payment · #{showNext.index}
+                            </div>
+                            <div
+                              style={{
+                                marginTop: 2,
+                                fontSize: 32,
+                                fontWeight: 800,
+                                letterSpacing: "-0.02em",
+                                lineHeight: 1.1,
+                                fontVariantNumeric: "tabular-nums",
+                              }}
+                            >
+                              {formatMoney(amount)}
+                            </div>
+                          </div>
+                          <div
+                            style={{
+                              flexShrink: 0,
+                              paddingRight: 10,
+                              textAlign: "right",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "flex-end",
+                                gap: 7,
+                                fontSize: 15,
+                                fontWeight: 700,
+                                color: st.text,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: 9,
+                                  height: 9,
+                                  borderRadius: 999,
+                                  backgroundColor: st.mark,
+                                }}
+                              />
                               {due.text}
                             </div>
                             {overdueCount > 1 ? (
                               <div
                                 style={{
-                                  marginTop: 6,
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  color: st.text,
+                                  marginTop: 4,
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color: p.textMuted,
                                 }}
                               >
                                 +{overdueCount - 1} more overdue
@@ -565,7 +635,8 @@ export default function ShareScheduleButton({
                     })()
                   : null}
 
-                {/* Every payment, as one list. */}
+                {/* Every payment, as a timeline: the line runs green through
+                    what is paid, and the next one is lit in its colour. */}
                 <div
                   style={{
                     marginTop: showNext ? 0 : 20,
@@ -576,7 +647,8 @@ export default function ShareScheduleButton({
                       ? `repeat(${Math.ceil(rows.length / 2)}, auto)`
                       : undefined,
                     gridAutoFlow: twoColumns ? "column" : undefined,
-                    columnGap: 20,
+                    columnGap: 16,
+                    rowGap: 2,
                   }}
                 >
                   {rows.map((s, i) => {
@@ -599,8 +671,15 @@ export default function ShareScheduleButton({
                     const perColumn = twoColumns
                       ? Math.ceil(rows.length / 2)
                       : rows.length;
+                    const firstInColumn = i % perColumn === 0;
                     const lastInColumn =
                       (i + 1) % perColumn === 0 || i === rows.length - 1;
+                    const green = statusPalette("paid", isDark).mark;
+                    const lineAbove =
+                      rows[i - 1]?.status === "paid" ? green : p.line;
+                    const lineBelow = s.status === "paid" ? green : p.line;
+                    const lit = isNext || s.status === "overdue";
+                    const paid = s.status === "paid";
                     return (
                       <div
                         key={s.index}
@@ -608,40 +687,80 @@ export default function ShareScheduleButton({
                           display: "flex",
                           alignItems: "center",
                           gap: 14,
-                          padding: "12px 4px",
-                          borderBottom: lastInColumn
-                            ? "none"
-                            : `1px solid ${p.line}`,
+                          padding: "12px 14px 12px 10px",
+                          borderRadius: 20,
+                          backgroundColor: lit ? st.rowBg : "transparent",
                         }}
                       >
                         <span
                           style={{
-                            width: 28,
-                            height: 28,
+                            position: "relative",
+                            alignSelf: "stretch",
+                            margin: "-12px 0",
+                            width: 34,
                             flexShrink: 0,
-                            borderRadius: 999,
                             display: "flex",
                             alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 12,
-                            fontWeight: 800,
-                            backgroundColor: filled ? st.mark : "transparent",
-                            border: filled ? "none" : `2px solid ${st.mark}`,
-                            color: filled ? "#ffffff" : st.text,
-                            fontVariantNumeric: "tabular-nums",
                           }}
                         >
-                          {s.status === "paid"
-                            ? "✓"
-                            : s.status === "overdue"
-                              ? "!"
-                              : s.index}
+                          {!firstInColumn && (
+                            <span
+                              style={{
+                                position: "absolute",
+                                left: 16,
+                                top: -2,
+                                width: 2,
+                                height: "calc(50% - 15px)",
+                                backgroundColor: lineAbove,
+                              }}
+                            />
+                          )}
+                          {!lastInColumn && (
+                            <span
+                              style={{
+                                position: "absolute",
+                                left: 16,
+                                bottom: 0,
+                                width: 2,
+                                height: "calc(50% - 17px)",
+                                backgroundColor: lineBelow,
+                              }}
+                            />
+                          )}
+                          <span
+                            style={{
+                              width: 34,
+                              height: 34,
+                              flexShrink: 0,
+                              borderRadius: 999,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 14,
+                              fontWeight: 800,
+                              backgroundColor: filled
+                                ? st.mark
+                                : lit
+                                  ? st.rowBg
+                                  : p.cardBg,
+                              border: filled ? "none" : `2px solid ${st.mark}`,
+                              color: filled ? "#ffffff" : st.text,
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {s.status === "paid"
+                              ? "✓"
+                              : s.status === "overdue"
+                                ? "!"
+                                : s.index}
+                          </span>
                         </span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div
                             style={{
-                              fontSize: 16,
-                              fontWeight: 700,
+                              fontSize: 20,
+                              fontWeight: paid ? 600 : 700,
+                              color: paid ? p.textMuted : undefined,
                               fontVariantNumeric: "tabular-nums",
                             }}
                           >
@@ -649,10 +768,10 @@ export default function ShareScheduleButton({
                           </div>
                           <div
                             style={{
-                              fontSize: 12,
+                              fontSize: 15,
                               fontWeight: 600,
                               color: p.textMuted,
-                              marginTop: 1,
+                              marginTop: 2,
                               whiteSpace: "nowrap",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
@@ -670,12 +789,12 @@ export default function ShareScheduleButton({
                         <span
                           style={{
                             flexShrink: 0,
-                            padding: "4px 10px",
+                            padding: "5px 12px",
                             borderRadius: 999,
-                            backgroundColor: st.rowBg,
-                            fontSize: 11,
+                            backgroundColor: lit ? st.mark : st.rowBg,
+                            fontSize: 14,
                             fontWeight: 800,
-                            color: st.text,
+                            color: lit ? "#ffffff" : st.text,
                           }}
                         >
                           {isNext ? "next" : s.status}
@@ -689,7 +808,7 @@ export default function ShareScheduleButton({
 
             <div
               style={{
-                marginTop: 16,
+                padding: "16px 0 28px",
                 textAlign: "center",
                 fontSize: 12,
                 fontWeight: 700,
@@ -706,5 +825,86 @@ export default function ShareScheduleButton({
         </div>
       ) : null}
     </>
+  );
+}
+
+/**
+ * The images, ready to send: "Share" hands them all to the phone's share
+ * sheet, and each has a Save link. Both run on a fresh tap, which browsers
+ * and phones require.
+ */
+function SaveImages({
+  files,
+  borrowerName,
+}: {
+  files: File[];
+  borrowerName: string;
+}) {
+  // Kept for the page's life (a few MB): freeing them on unmount would blank
+  // them under React's double mount in development.
+  const [urls] = useState(() => files.map((f) => URL.createObjectURL(f)));
+  const [saved, setSaved] = useState<number[]>([]);
+  const shareable = canShareFiles(files);
+
+  return (
+    <div className="px-5 pt-2 pb-6">
+      <h2 className="text-xl font-black tracking-tight">Send schedule</h2>
+      <p className="mt-0.5 text-sm font-semibold text-muted-foreground">
+        {borrowerName.toLowerCase()} · {files.length} image
+        {files.length === 1 ? "" : "s"}
+      </p>
+      {shareable && (
+        <button
+          type="button"
+          onClick={() =>
+            void navigator
+              .share({ files, title: `${borrowerName} — Payment Schedule` })
+              .catch(() => {})
+          }
+          className="mt-4 flex h-12 w-full items-center justify-center gap-2
+            rounded-2xl bg-primary text-base font-bold text-primary-foreground
+            transition active:scale-[0.98]"
+        >
+          <Share2 className="size-5" />
+          {files.length === 1 ? "Share image" : `Share ${files.length} images`}
+        </button>
+      )}
+      <div
+        className={`mt-4 grid gap-3 ${files.length > 1 ? "grid-cols-2" : ""}`}
+      >
+        {files.map((file, i) => (
+          <div key={file.name} className="flex flex-col justify-between gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element -- a local blob */}
+            <img
+              src={urls[i]}
+              alt={`Schedule image ${i + 1} of ${files.length}`}
+              className="w-full rounded-2xl border border-border bg-muted"
+            />
+            {/* A real link: the most reliable way to save a file. */}
+            <a
+              href={urls[i]}
+              download={file.name}
+              onClick={() => setSaved((prev) => [...prev, i])}
+              className={`flex h-11 items-center justify-center gap-1.5
+              rounded-2xl text-sm font-bold transition active:scale-95 ${
+                shareable
+                  ? "border border-border bg-card"
+                  : "bg-primary text-primary-foreground"
+              }`}
+            >
+              <Download className="size-4" />
+              {saved.includes(i)
+                ? "Saved"
+                : files.length === 1
+                  ? "Save"
+                  : `Save ${i + 1} of ${files.length}`}
+            </a>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-center text-xs text-muted-foreground">
+        On a phone you can also press and hold an image to save it.
+      </p>
+    </div>
   );
 }

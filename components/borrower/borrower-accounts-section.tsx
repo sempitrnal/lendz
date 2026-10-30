@@ -74,6 +74,7 @@ import {
   type PendingAccount,
 } from "@/lib/offline/pending-accounts";
 import { m } from "motion/react";
+import { cleanUpChecklistAfterDelete } from "@/lib/checklist/account-cleanup";
 
 const groupVariants = {
   hidden: { opacity: 0, y: 24 },
@@ -466,6 +467,7 @@ export default function BorrowerAccountsSection({
       toast.success(
         `Deleted ${ids.length} account${ids.length === 1 ? "" : "s"}`,
       );
+      await cleanUpChecklistAfterDelete(ids);
       clearSelection();
       await revalidateBorrowerDetailPage(borrowerId);
       router.refresh();

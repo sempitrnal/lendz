@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ProfitText } from "@/components/dashboard/checklist/profit-text";
 import { installmentProfit } from "@/lib/checklist/profit";
 import { Sheet, SheetFooter } from "@/components/dashboard/checklist-v2/sheet";
@@ -44,8 +45,6 @@ import {
   formatShortDate,
 } from "@/lib/checklist/labels";
 import { overdueCutoffDateValue, todayDateValue } from "@/lib/checklist/dates";
-import { MentionPill } from "@/components/dashboard/checklist/checklist-label";
-import { chipClass, type ChipTone } from "@/components/dashboard/checklist/dom";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import {
   ACCOUNT_SUMMARIES_KEY,
@@ -71,13 +70,6 @@ export const SCHEDULE_CARD = {
 } as const;
 
 type ScheduleState = "paid" | "partial" | "overdue" | "unpaid";
-
-const STATE_CHIP: Record<ScheduleState, ChipTone> = {
-  paid: "paid",
-  partial: "partial",
-  overdue: "overdue",
-  unpaid: "neutral",
-};
 
 const STATE_LABEL: Record<ScheduleState, string> = {
   paid: "paid",
@@ -190,30 +182,27 @@ export function AccountSummaryHeader({
       : "font-semibold text-orange-600 dark:text-orange-400";
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <span
-          className={`rounded border px-1.5 py-0.5 text-[11px] leading-none
-            font-semibold lowercase ${
+          className={`rounded-full px-2 py-0.5 text-[11px] font-bold lowercase
+            ${
               summary.isCashAdvance
-                ? `border-amber-300/60 bg-amber-100 text-amber-800
-                  dark:border-amber-700 dark:bg-amber-900/40
-                  dark:text-amber-200`
-                : `border-violet-300/60 bg-violet-100 text-violet-800
-                  dark:border-violet-700 dark:bg-violet-900/40
-                  dark:text-violet-200`
+                ? `bg-yellow-400/30 text-yellow-800 dark:bg-yellow-400/15
+                  dark:text-yellow-300`
+                : "bg-violet-500/15 text-[#7354a0] dark:text-[#d9cfe6]"
             }`}
         >
           {summary.typeLabel}
         </span>
         {summary.installmentCount > 0 && (
           <span
-            className={`text-xs font-semibold tabular-nums transition-colors ${
+            className={`text-xs font-bold tabular-nums transition-colors ${
               pending.undoInstallments > 0
                 ? "text-orange-600 dark:text-orange-400"
                 : pending.installments > 0
                   ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-slate-700 dark:text-slate-300"
+                  : "text-muted-foreground"
             }`}
           >
             {paidInstallments} of {summary.installmentCount} paid
@@ -221,8 +210,7 @@ export function AccountSummaryHeader({
         )}
       </div>
       <div
-        className="flex h-1.5 overflow-hidden rounded-full bg-slate-100
-          dark:bg-slate-800"
+        className="flex h-2 overflow-hidden rounded-full bg-muted"
         role="progressbar"
         aria-valuenow={pct}
         aria-valuemin={0}
@@ -234,17 +222,17 @@ export function AccountSummaryHeader({
           style={{ width: width(basePaid) }}
         />
         <div
-          className="h-full bg-emerald-500/30 transition-[width] duration-300"
+          className="h-full bg-emerald-500/35 transition-[width] duration-300"
           style={{ width: width(paidAdded) }}
         />
         <div
-          className="h-full bg-violet-500/35 transition-[width] duration-300"
+          className="h-full bg-[#7f5ead]/45 transition-[width] duration-300"
           style={{ width: width(partialAdded) }}
         />
       </div>
       <div
-        className="flex justify-between text-[11px] text-muted-foreground
-          tabular-nums"
+        className="flex justify-between text-[11px] font-semibold
+          text-muted-foreground tabular-nums"
       >
         <span>
           <span className={highlight}>₱{paid.toLocaleString()}</span> paid ·{" "}
@@ -455,19 +443,58 @@ export function ScheduleCheckDialog({
     }
   };
 
+  const openRows = rows.filter((row) => row.status !== "paid");
+  const dueTotal = openRows.reduce(
+    (sum, row) => sum + remainingOnInstallment(row),
+    0,
+  );
+  const initials = (borrowerName ?? "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w, i, all) => (i === 0 || i === all.length - 1 ? w[0] : ""))
+    .join("")
+    .toUpperCase();
+
   const title = (
-    <>
-      <span>Update payment status</span>
-      {borrower ? (
-        <MentionPill
-          name={borrower.name}
-          href={`/borrowers/${borrower.id}`}
-          checked={false}
-          color={borrowerColor}
-          asLink={false}
-        />
-      ) : null}
-    </>
+    <span className="flex min-w-0 items-center gap-3">
+      <span
+        aria-hidden="true"
+        style={{ "--cat": borrowerColor ?? "#94a3b8" } as React.CSSProperties}
+        className="flex size-12 shrink-0 items-center justify-center rounded-2xl
+          bg-[color-mix(in_oklab,var(--cat)_22%,var(--card))] text-base
+          font-black text-[color-mix(in_oklab,var(--cat)_45%,var(--foreground))]
+          ring-1 ring-black/5 ring-inset dark:ring-white/10"
+      >
+        {initials || "₱"}
+      </span>
+      <span className="min-w-0">
+        {borrower ? (
+          <Link
+            href={`/borrowers/${borrower.id}`}
+            className="block truncate text-xl font-black tracking-tight
+              lowercase"
+          >
+            {borrower.name}
+          </Link>
+        ) : (
+          <span className="block text-xl font-black tracking-tight">
+            Payment status
+          </span>
+        )}
+        <span
+          className="block text-sm font-semibold text-muted-foreground
+            tabular-nums"
+        >
+          {mode === "edit"
+            ? "Undo or change what's recorded"
+            : loading
+              ? "Loading…"
+              : openRows.length === 0
+                ? "All paid"
+                : `${openRows.length} to pay · ₱${dueTotal.toLocaleString()} due`}
+        </span>
+      </span>
+    </span>
   );
   const description =
     mode === "edit" ? (
@@ -479,56 +506,71 @@ export function ScheduleCheckDialog({
         off.
       </>
     );
+
+  /** The left mark for an installment: its state at a glance. */
+  const stateMark = (state: ScheduleState, chosen: string | null) => {
+    const shown =
+      chosen === "undo"
+        ? "undo"
+        : chosen === "paid" || state === "paid"
+          ? "paid"
+          : chosen === "partial"
+            ? "partial"
+            : state;
+    return (
+      <span
+        aria-hidden="true"
+        className={cn(
+          `flex size-9 shrink-0 items-center justify-center rounded-full text-sm
+          font-black transition-colors duration-200`,
+          shown === "paid" && "bg-emerald-500 text-white",
+          shown === "partial" &&
+            "border-[2.5px] border-[#7f5ead] bg-[#7f5ead]/10 text-[#7f5ead]",
+          shown === "overdue" && "bg-[#d14d5a] text-white",
+          shown === "unpaid" && "border-2 border-border text-muted-foreground",
+          shown === "undo" &&
+            "border-2 border-dashed border-orange-500 text-orange-600",
+        )}
+      >
+        {shown === "paid" ? (
+          <Check className="size-4.5" strokeWidth={3.5} />
+        ) : shown === "overdue" ? (
+          "!"
+        ) : shown === "undo" ? (
+          <Undo2 className="size-4" />
+        ) : shown === "partial" ? (
+          "½"
+        ) : null}
+      </span>
+    );
+  };
+
   const body = loading ? (
-    <div
-      className="py-6 text-center text-sm text-slate-500
-        dark:text-muted-foreground"
-    >
-      Loading…
+    <div className="space-y-2 pt-1" aria-busy="true">
+      {[1, 2].map((i) => (
+        <div
+          key={i}
+          className="h-32 animate-pulse rounded-3xl border border-border
+            bg-muted/40"
+        />
+      ))}
     </div>
   ) : rows.length === 0 ? (
     <div
-      className="py-6 text-center text-sm text-slate-500
-        dark:text-muted-foreground"
+      className="py-8 text-center text-sm font-semibold text-muted-foreground"
     >
       Couldn&apos;t find the linked schedule — it may have been removed.
     </div>
   ) : (
-    <div className="space-y-3 pt-2">
-      {rows.filter((row) => row.status !== "paid").length > 1 && (
-        <button
-          type="button"
-          onClick={() =>
-            setChoices((prev) => {
-              const next = { ...prev };
-              for (const row of rows) {
-                if (row.status === "paid") continue;
-                next[row.id] = {
-                  status: "paid",
-                  amount: prev[row.id]?.amount ?? "",
-                };
-              }
-              return next;
-            })
-          }
-          className="w-full cursor-pointer rounded-md border border-emerald-500
-            bg-emerald-50 px-2 py-1.5 text-sm font-semibold text-emerald-900
-            lowercase transition hover:bg-emerald-100 dark:border-emerald-400/50
-            dark:bg-emerald-400/10 dark:text-emerald-200"
-        >
-          Mark all paid
-        </button>
-      )}
+    <div className="space-y-3">
       {accountGroups.map((group, groupIndex) => {
         const summary = summaries?.[group.accountId] ?? null;
         return (
           <section
             data-tour="pay-account-card"
             key={group.accountId}
-            // One container per account: its type and progress together
-            // with its schedules, set apart from the other accounts.
-            // Tapping the account's card (its type and progress) opens the
-            // account page; the schedules and their buttons keep working.
+            // Tapping the account's own part (its type and progress) opens
+            // the account page; the installments keep their buttons.
             onClick={(e) => {
               if (
                 (e.target as Element).closest(
@@ -538,131 +580,116 @@ export function ScheduleCheckDialog({
                 return;
               router.push(`/accounts/${group.accountId}`);
             }}
-            className={`cursor-pointer space-y-2.5 rounded-2xl bg-slate-100/70
-              p-3 dark:bg-muted/30 ${ENTER_ANIMATION}`}
+            className={`cursor-pointer overflow-hidden rounded-3xl border
+              border-border bg-card shadow-sm ${ENTER_ANIMATION}`}
             style={{ animationDelay: `${groupIndex * 80}ms` }}
           >
-            {summary ? (
-              <Link
-                href={`/accounts/${group.accountId}`}
-                className="block px-0.5"
-              >
-                <AccountSummaryHeader
-                  summary={summary}
-                  pending={pendingPayment(group.rows, choices)}
-                />
-              </Link>
-            ) : summariesPending ? (
-              <div className="space-y-1.5 px-0.5">
-                <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                <div className="h-1.5 animate-pulse rounded-full bg-muted" />
-              </div>
-            ) : null}
-            {group.rows.map((row, rowIndex) => {
-              const choice = choices[row.id];
-              const chosen = choice?.status ?? null;
-              const paidSoFar = amountPaidOnInstallment(row);
-              const due = Math.max(0, Number(row.amount_due ?? 0));
-              const remaining = remainingOnInstallment(row);
-              const state: ScheduleState =
-                row.status === "paid"
-                  ? "paid"
-                  : paidSoFar > 0
-                    ? "partial"
-                    : row.due_date < overdueCutoffDateValue()
-                      ? "overdue"
-                      : "unpaid";
-              const undoing = chosen === "undo";
-              const isPaid = state === "paid";
-              const undoButton = (wide: boolean) => (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setChoice(row.id, {
-                      status: undoing ? null : "undo",
-                    })
-                  }
-                  aria-pressed={undoing}
-                  aria-label={`Undo ₱${paidSoFar.toLocaleString()} payment`}
-                  className={`${ACTION_BUTTON} flex items-center justify-center
-                    gap-1.5 ${wide ? "w-full" : "px-3"} ${
+            <div className="px-4 pt-3.5 pb-3">
+              {summary ? (
+                <Link href={`/accounts/${group.accountId}`} className="block">
+                  <AccountSummaryHeader
+                    summary={summary}
+                    pending={pendingPayment(group.rows, choices)}
+                  />
+                </Link>
+              ) : summariesPending ? (
+                <div className="space-y-2">
+                  <div className="h-4 w-24 animate-pulse rounded-full bg-muted" />
+                  <div className="h-2 animate-pulse rounded-full bg-muted" />
+                </div>
+              ) : null}
+            </div>
+            <ul className="divide-y divide-border border-t border-border">
+              {group.rows.map((row, rowIndex) => {
+                const choice = choices[row.id];
+                const chosen = choice?.status ?? null;
+                const paidSoFar = amountPaidOnInstallment(row);
+                const due = Math.max(0, Number(row.amount_due ?? 0));
+                const remaining = remainingOnInstallment(row);
+                const state: ScheduleState =
+                  row.status === "paid"
+                    ? "paid"
+                    : paidSoFar > 0
+                      ? "partial"
+                      : row.due_date < overdueCutoffDateValue()
+                        ? "overdue"
+                        : "unpaid";
+                const undoing = chosen === "undo";
+                const isPaid = state === "paid";
+                const toggleUndo = () =>
+                  setChoice(row.id, { status: undoing ? null : "undo" });
+                return (
+                  <li
+                    key={row.id}
+                    data-schedule-card
+                    className={cn(
+                      "px-4 py-3 transition-colors duration-200",
                       undoing
-                        ? `border-orange-500 bg-orange-100 text-orange-900
-                          dark:border-orange-400/50 dark:bg-orange-400/20
-                          dark:text-orange-200`
-                        : `border-dashed border-slate-300 bg-white/70
-                          text-slate-600 hover:border-orange-500
-                          hover:bg-orange-50 dark:border-border dark:bg-card
-                          dark:text-muted-foreground`
-                    }`}
-                >
-                  <Undo2 className="size-3.5" />
-                  {wide ? "Undo payment" : "Undo"}
-                </button>
-              );
-              return (
-                <div
-                  key={row.id}
-                  data-schedule-card
-                  className={`rounded-xl border p-3 shadow-sm
-                    transition-[background-color,border-color,box-shadow]
-                    duration-300 ${
-                      undoing
-                        ? SCHEDULE_CARD.undo
-                        : isPaid
-                          ? SCHEDULE_CARD.paid
-                          : state === "partial"
-                            ? SCHEDULE_CARD.partial
-                            : SCHEDULE_CARD.plain
-                    } ${ENTER_ANIMATION}`}
-                  style={{
-                    animationDelay: `${groupIndex * 80 + (rowIndex + 1) * 60}ms`,
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span
-                          className="text-sm font-semibold text-slate-800
-                            dark:text-foreground"
+                        ? "bg-orange-500/5"
+                        : chosen === "paid"
+                          ? "bg-emerald-500/[0.07]"
+                          : chosen === "partial"
+                            ? "bg-[#7f5ead]/[0.07]"
+                            : "",
+                      ENTER_ANIMATION,
+                    )}
+                    style={{
+                      animationDelay: `${groupIndex * 80 + (rowIndex + 1) * 60}ms`,
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      {stateMark(state, chosen)}
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="flex items-center gap-1.5 text-[15px]
+                            font-bold"
                         >
                           {formatShortDate(row.due_date)}
-                        </span>
-                        {undoing ? (
-                          <span className={chipClass("unpaid")}>
-                            will reset to unpaid
+                          <span
+                            className={cn(
+                              "text-[11px] font-bold lowercase",
+                              undoing
+                                ? "text-orange-600"
+                                : state === "overdue"
+                                  ? "text-[#d14d5a] dark:text-[#f0a0a8]"
+                                  : state === "partial"
+                                    ? "text-[#7f5ead]"
+                                    : state === "paid"
+                                      ? "text-emerald-600 dark:text-emerald-300"
+                                      : "text-muted-foreground",
+                            )}
+                          >
+                            {undoing ? "resets to unpaid" : STATE_LABEL[state]}
                           </span>
-                        ) : (
-                          <span className={chipClass(STATE_CHIP[state])}>
-                            {STATE_LABEL[state]}
-                          </span>
-                        )}
+                        </p>
+                        <p
+                          className="text-xs font-semibold text-muted-foreground
+                            tabular-nums"
+                        >
+                          {state === "partial" && !undoing ? (
+                            <>
+                              <span className="font-bold text-[#7f5ead]">
+                                ₱{paidSoFar.toLocaleString()}
+                              </span>{" "}
+                              of ₱{due.toLocaleString()} paid
+                            </>
+                          ) : row.principal_share !== undefined ? (
+                            <ProfitText
+                              amount={installmentProfit(
+                                due,
+                                row.principal_share,
+                              )}
+                            />
+                          ) : null}
+                        </p>
                       </div>
-                      {row.principal_share !== undefined && (
-                        <p className="text-xs">
-                          <ProfitText
-                            amount={installmentProfit(due, row.principal_share)}
-                          />
-                        </p>
-                      )}
-                      {state === "partial" && !undoing && (
-                        <p className="text-xs text-muted-foreground
-                          tabular-nums">
-                          <span className={PAID_TEXT.partial}>
-                            ₱{paidSoFar.toLocaleString()}
-                          </span>{" "}
-                          of ₱{due.toLocaleString()} paid
-                        </p>
-                      )}
-                    </div>
-                    <div className="shrink-0 text-right">
                       <p
-                        className={`text-base leading-tight font-semibold
-                          tabular-nums ${
-                            isPaid && !undoing
-                              ? PAID_TEXT.paid
-                              : "text-slate-800 dark:text-foreground"
-                          }`}
+                        className={cn(
+                          "shrink-0 text-lg font-black tabular-nums",
+                          isPaid && !undoing
+                            ? "text-emerald-600 dark:text-emerald-300"
+                            : "text-foreground/75",
+                        )}
                       >
                         ₱
                         {(isPaid && !undoing
@@ -672,138 +699,187 @@ export function ScheduleCheckDialog({
                             : remaining
                         ).toLocaleString()}
                       </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {isPaid && !undoing ? "paid" : "due"}
-                      </p>
                     </div>
-                  </div>
 
-                  <div className="mt-3">
-                    {isPaid ? (
-                      // Nothing left to pay — the only action is undo.
-                      undoButton(true)
-                    ) : (
-                      <div
-                        data-tour="pay-schedule-actions"
-                        className={`grid gap-1.5 ${
-                          hasPayment(row)
-                            ? "grid-cols-[1fr_1fr_auto]"
-                            : "grid-cols-2"
-                          }`}
+                    <div className="mt-2.5 flex items-center gap-2 pl-12">
+                      {isPaid ? (
+                        <button
+                          type="button"
+                          onClick={toggleUndo}
+                          aria-pressed={undoing}
+                          aria-label={`Undo ₱${paidSoFar.toLocaleString()} payment`}
+                          className={cn(
+                            `flex h-9 flex-1 items-center justify-center gap-1.5
+                              rounded-full text-sm font-bold transition
+                              active:scale-[0.97]`,
+                            undoing
+                              ? "bg-orange-500 text-white"
+                              : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          <Undo2 className="size-3.5" />
+                          {undoing ? "Will undo" : "Undo payment"}
+                        </button>
+                      ) : (
+                        <>
+                          {/* Paid or partial, as one rounded switch. */}
+                          <div
+                            data-tour="pay-schedule-actions"
+                            className="grid h-9 flex-1 grid-cols-2 rounded-full
+                              bg-muted p-1"
+                          >
+                            {(
+                              [
+                                ["paid", "Paid", "bg-emerald-500 text-white"],
+                                [
+                                  "partial",
+                                  "Partial",
+                                  "bg-[#7f5ead] text-white",
+                                ],
+                              ] as const
+                            ).map(([value, label, on]) => (
+                              <button
+                                key={value}
+                                type="button"
+                                aria-pressed={chosen === value}
+                                onClick={() =>
+                                  setChoice(row.id, {
+                                    status: chosen === value ? null : value,
+                                  })
+                                }
+                                className={cn(
+                                  `rounded-full text-sm font-bold transition-all
+                                    duration-200 active:scale-[0.97]`,
+                                  chosen === value
+                                    ? `${on} shadow-sm`
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                          {hasPayment(row) && (
+                            <button
+                              type="button"
+                              onClick={toggleUndo}
+                              aria-pressed={undoing}
+                              aria-label={`Undo ₱${paidSoFar.toLocaleString()} payment`}
+                              className={cn(
+                                `flex size-9 shrink-0 items-center
+                                  justify-center rounded-full transition
+                                  active:scale-90`,
+                                undoing
+                                  ? "bg-orange-500 text-white"
+                                  : "bg-muted text-muted-foreground",
+                              )}
+                            >
+                              <Undo2 className="size-4" />
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    {chosen === "partial" && (
+                      <label
+                        className="mt-2 ml-12 flex h-11 cursor-text items-center
+                          gap-1.5 rounded-2xl border border-border bg-card
+                          px-3.5 transition focus-within:border-[#7f5ead]
+                          focus-within:ring-4 focus-within:ring-[#7f5ead]/15"
                       >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setChoice(row.id, {
-                              status: chosen === "paid" ? null : "paid",
-                            })
+                        <span
+                          className="text-sm font-bold text-muted-foreground"
+                        >
+                          ₱
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          max={remaining}
+                          step="0.01"
+                          placeholder="0"
+                          aria-label="Amount paid"
+                          autoFocus
+                          onFocus={(e) => e.currentTarget.select()}
+                          value={choice?.amount ?? ""}
+                          onChange={(e) =>
+                            setChoice(row.id, { amount: e.target.value })
                           }
-                          className={`${ACTION_BUTTON} ${
-                            chosen === "paid"
-                              ? `border-emerald-500 bg-emerald-200
-                                text-emerald-950 dark:border-emerald-400/50
-                                dark:bg-emerald-400/25 dark:text-emerald-200`
-                              : `border-slate-300 bg-white text-slate-600
-                                hover:border-emerald-500 hover:bg-emerald-50
-                                dark:border-border dark:bg-card
-                                dark:text-muted-foreground`
+                          className="min-w-0 flex-1 bg-transparent text-base
+                            font-bold tabular-nums outline-none
+                            [appearance:textfield]
+                            [&::-webkit-inner-spin-button]:appearance-none
+                            [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                        <span
+                          className={`shrink-0 text-xs font-semibold
+                            tabular-nums ${
+                              Number.parseFloat(choice?.amount || "0") >
+                              remaining
+                                ? "text-amber-600 dark:text-amber-400"
+                                : "text-muted-foreground"
                             }`}
                         >
-                          Paid
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setChoice(row.id, {
-                              status: chosen === "partial" ? null : "partial",
-                            })
-                          }
-                          className={`${ACTION_BUTTON} ${
-                            chosen === "partial"
-                              ? `border-violet-500 bg-violet-200 text-violet-950
-                                dark:border-violet-400/50 dark:bg-violet-400/25
-                                dark:text-violet-200`
-                              : `border-slate-300 bg-white text-slate-600
-                                hover:border-violet-500 hover:bg-violet-50
-                                dark:border-border dark:bg-card
-                                dark:text-muted-foreground`
-                            }`}
-                        >
-                          Partial
-                        </button>
-                        {hasPayment(row) && undoButton(false)}
-                      </div>
+                          of ₱{remaining.toLocaleString()}
+                        </span>
+                      </label>
                     )}
-                  </div>
-
-                  {chosen === "partial" && (
-                    <label
-                      className="mt-2 flex cursor-text items-center gap-1.5
-                        rounded-md border border-slate-300 bg-white px-2.5
-                        py-1.5 transition-colors focus-within:border-violet-400
-                        focus-within:ring-3 focus-within:ring-violet-500/15
-                        dark:border-border dark:bg-background
-                        dark:focus-within:border-violet-400/60"
-                    >
-                      <span className="text-sm font-semibold
-                        text-muted-foreground">
-                        ₱
-                      </span>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        min={0}
-                        max={remaining}
-                        step="0.01"
-                        placeholder="0"
-                        aria-label="Amount paid"
-                        autoFocus
-                        onFocus={(e) => e.currentTarget.select()}
-                        value={choice?.amount ?? ""}
-                        onChange={(e) =>
-                          setChoice(row.id, { amount: e.target.value })
-                        }
-                        className="min-w-0 flex-1 bg-transparent text-sm
-                          font-semibold text-slate-700 outline-none
-                          [appearance:textfield] dark:text-foreground
-                          [&::-webkit-inner-spin-button]:appearance-none
-                          [&::-webkit-outer-spin-button]:appearance-none"
-                      />
-                      <span
-                        className={`shrink-0 text-xs tabular-nums ${
-                          Number.parseFloat(choice?.amount || "0") > remaining
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-muted-foreground"
-                          }`}
-                      >
-                        of ₱{remaining.toLocaleString()}
-                      </span>
-                    </label>
-                  )}
-                </div>
-              );
-            })}
+                  </li>
+                );
+              })}
+            </ul>
           </section>
         );
       })}
     </div>
   );
+
+  const markAll =
+    openRows.length > 1 ? (
+      <button
+        type="button"
+        onClick={() =>
+          setChoices((prev) => {
+            const next = { ...prev };
+            for (const row of rows) {
+              if (row.status === "paid") continue;
+              next[row.id] = {
+                status: "paid",
+                amount: prev[row.id]?.amount ?? "",
+              };
+            }
+            return next;
+          })
+        }
+        className="flex h-8 shrink-0 items-center gap-1 rounded-full
+          bg-emerald-500/15 px-3 text-xs font-bold text-emerald-700 transition
+          active:scale-95 dark:text-emerald-300"
+      >
+        <Check className="size-3.5" strokeWidth={3} />
+        Mark all paid
+      </button>
+    ) : null;
+
   const buttons = (
     <>
       <Button
         variant="outline"
+        size="lg"
         data-tour="pay-cancel"
         onClick={onClose}
         disabled={submitting}
-        className="lowercase"
+        className="h-12 rounded-2xl font-bold"
       >
         Cancel
       </Button>
       <Button
+        size="lg"
         onClick={handleConfirm}
         disabled={loading || submitting}
         variant={undoOnly ? "destructive" : "default"}
-        className="lowercase"
+        className="h-12 flex-1 rounded-2xl text-base font-bold"
       >
         {submitting
           ? "Saving…"
@@ -819,17 +895,14 @@ export function ScheduleCheckDialog({
   if (variant === "drawer") {
     return (
       <Sheet open={open} onClose={onClose} label="Update payment status">
-        <div className="px-5 pt-2 pb-3">
-          <div
-            className="flex flex-col items-start gap-1.5 text-xl font-semibold
-              tracking-tight"
-          >
+        <div className="px-4 pt-2 pb-4">
+          <div className="flex items-center justify-between gap-2 px-1 pb-4">
             {title}
+            {markAll}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-          <div className="mt-2">{body}</div>
+          {body}
         </div>
-        <SheetFooter className="flex justify-end gap-2">{buttons}</SheetFooter>
+        <SheetFooter className="flex gap-2">{buttons}</SheetFooter>
       </Sheet>
     );
   }
@@ -842,18 +915,14 @@ export function ScheduleCheckDialog({
       }}
     >
       <DialogContent className="sm:max-w-md">
-        <DialogHeader className="gap-3 pb-2">
-          <div className="space-y-1">
-            <DialogTitle
-              className="flex flex-col items-start gap-1.5 text-xl font-semibold
-                tracking-tight"
-            >
-              {title}
-            </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              {description}
-            </DialogDescription>
-          </div>
+        <DialogHeader className="gap-2 pb-1">
+          <DialogTitle className="flex items-center justify-between gap-2">
+            {title}
+            {markAll}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {description}
+          </DialogDescription>
         </DialogHeader>
         {body}
         <DialogFooter className="gap-2">{buttons}</DialogFooter>

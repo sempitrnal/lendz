@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase/client";
 import { revalidateBorrowersPage } from "@/lib/actions/borrowers";
 import { triggerHaptic } from "@/lib/haptics";
 import { toast } from "sonner";
+import { cleanUpChecklistAfterDelete } from "@/lib/checklist/account-cleanup";
 import { UserRound } from "lucide-react";
 import BorrowerEditForm from "@/components/borrower/borrower-edit-form";
 import { Sheet } from "@/components/dashboard/checklist-v2/sheet";
@@ -80,11 +81,12 @@ export default function BorrowerDetailMenu({
       const now = new Date().toISOString();
 
       // Cascade soft-delete all active accounts first
-      const { error: accountsError } = await supabase
+      const { data: deletedAccounts, error: accountsError } = await supabase
         .from("accounts")
         .update({ deleted_at: now })
         .eq("borrower_id", borrowerId)
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .select("id");
 
       if (accountsError) {
         triggerHaptic("error");
@@ -104,6 +106,9 @@ export default function BorrowerDetailMenu({
         return;
       }
 
+      await cleanUpChecklistAfterDelete(
+        ((deletedAccounts ?? []) as { id: string }[]).map((a) => a.id),
+      );
       triggerHaptic("success");
       toast.success("Borrower moved to deleted");
       await revalidateBorrowersPage();

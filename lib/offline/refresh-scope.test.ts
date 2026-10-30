@@ -19,9 +19,10 @@ const urls = [
 ];
 
 describe("parseRefreshScope", () => {
-  it("is 'checklist' or 'borrowers' only for those exact values, else 'all'", () => {
+  it("is 'checklist', 'borrowers' or 'none' only for those exact values, else 'all'", () => {
     expect(parseRefreshScope("checklist")).toBe("checklist");
     expect(parseRefreshScope("borrowers")).toBe("borrowers");
+    expect(parseRefreshScope("none")).toBe("none");
     expect(parseRefreshScope("Borrowers")).toBe("all");
     expect(parseRefreshScope("all")).toBe("all");
     expect(parseRefreshScope(undefined)).toBe("all");
@@ -42,6 +43,9 @@ describe("urlsToRefresh", () => {
       "/borrowers/abc?tab=notes",
       "/accounts/xyz",
     ]);
+  });
+  it("'none' refreshes no saved page", () => {
+    expect(urlsToRefresh(urls, "none")).toEqual([]);
   });
   it("'checklist' refreshes only the checklist pages", () => {
     expect(urlsToRefresh(urls, "checklist")).toEqual([

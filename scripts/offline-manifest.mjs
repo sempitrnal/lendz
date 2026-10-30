@@ -10,8 +10,8 @@
  *   new ones ahead of time (pages offline need their chunks) and drop the
  *   ones no longer used.
  * - `refresh`: which saved pages a new build re-downloads: "all", "borrowers"
- *   (the checklist and the borrower pages) or "checklist" for a deploy that
- *   only changed the checklist (the other pages and the old build's files are
+ *   (the checklist and the borrower pages), "checklist" for a deploy that
+ *   only changed the checklist, or "none" (the other pages and the old build's files are
  *   kept until the next "all" deploy).
  */
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
@@ -26,7 +26,7 @@ const buildId = readFileSync(join(NEXT, "BUILD_ID"), "utf8").trim();
 // account pages). Build with OFFLINE_REFRESH=all for a deploy that changes the
 // account pages or anything they share, or "checklist" for one that changes
 // nothing but the checklist.
-const REFRESH = process.env.OFFLINE_REFRESH ?? "all";
+const REFRESH = process.env.OFFLINE_REFRESH ?? "none";
 
 function listFiles(dir) {
   const out = [];

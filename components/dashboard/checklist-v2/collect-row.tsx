@@ -63,22 +63,33 @@ function subline(row: RowView): {
   /** The installment types shown after the text: the one open schedule's, or
    * every schedule's on a paid row. */
   kinds?: string[];
-  /** The open schedule's (or all open schedules') profit once paid. */
+  /**
+   * Nothing paid yet: what the open schedules earn once paid (`expected`).
+   * Anything paid: the profit in what has been paid so far.
+   */
   profit?: number | null;
+  expected?: boolean;
 } {
+  const open = openLines(row);
+  const profit =
+    row.status === "unpaid"
+      ? {
+          profit: totalProfit(open.map((l) => l.installmentProfit)),
+          expected: true,
+        }
+      : { profit: totalProfit(row.lines.map((l) => l.earned)) };
   if (row.status === "paid") {
     return {
       text: "paid · tap to edit",
       kinds: [...new Set(row.lines.map((l) => l.type))],
+      ...profit,
     };
   }
-  const open = openLines(row);
   if (open.length > 1) {
     return {
       text: `${open.length} due`,
       lateLabel: row.lateDays > 0 ? `oldest ${row.lateDays}d late` : undefined,
-      // What all of them earn once paid.
-      profit: totalProfit(open.map((l) => l.installmentProfit)),
+      ...profit,
     };
   }
   const line = open[0];
@@ -87,7 +98,7 @@ function subline(row: RowView): {
     text: due,
     lateLabel: line.overdue ? `${line.daysOverdue}d late` : undefined,
     kinds: [line.type],
-    profit: line.installmentProfit,
+    ...profit,
   };
 }
 
@@ -527,7 +538,7 @@ function RowText({
         {sub.kinds?.map((type) => (
           <KindBadge key={type} type={type} compact />
         ))}
-        <ProfitText amount={sub.profit} />
+        <ProfitText amount={sub.profit} expected={sub.expected} />
       </p>
     </div>
   );
@@ -627,7 +638,11 @@ function LineItem({
           >
             {due}
             {line.overdue && <LatePill label={`${line.daysOverdue}d late`} />}
-            {!paid && <ProfitText amount={line.installmentProfit} />}
+            {line.state === "unpaid" ? (
+              <ProfitText amount={line.installmentProfit} expected />
+            ) : (
+              <ProfitText amount={line.earned} />
+            )}
             {paid ? " paid · tap to edit" : ""}
           </p>
         </div>

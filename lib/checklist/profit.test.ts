@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  paidProfit,
   installmentProfit,
   principalShare,
   profitGained,
@@ -245,5 +246,22 @@ describe("dayProfit", () => {
     expect(
       dayProfit([{ scheduleId: "x", amount: 900 }], new Map(), share),
     ).toBe(0);
+  });
+});
+
+describe("paidProfit", () => {
+  it("splits a partial payment's profit in proportion", () => {
+    // ₱840 due, ₱700 principal: ₱140 profit, so ₱660 paid carries ₱110.
+    expect(paidProfit(660, 840, 700)).toBe(110);
+  });
+
+  it("is the whole profit once paid in full, and never more", () => {
+    expect(paidProfit(840, 840, 700)).toBe(140);
+    expect(paidProfit(900, 840, 700)).toBe(140);
+  });
+
+  it("is nothing before any payment or without profit", () => {
+    expect(paidProfit(0, 840, 700)).toBe(0);
+    expect(paidProfit(500, 1000, 1000)).toBe(0);
   });
 });

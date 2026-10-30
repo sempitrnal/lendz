@@ -19,6 +19,7 @@ import {
   type AccountRevision,
 } from "@/lib/accounts/revisions";
 import { toast } from "sonner";
+import { cleanUpChecklistAfterDelete } from "@/lib/checklist/account-cleanup";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -143,6 +144,7 @@ export function useAccountActions({
         { accountId },
         accountId,
       );
+      await cleanUpChecklistAfterDelete([accountId]);
       await revalidateBorrowerDetailPage(borrowerId);
       setDeleteModalOpen(false);
       router.refresh();
