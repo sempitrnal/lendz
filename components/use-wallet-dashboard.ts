@@ -34,6 +34,9 @@ export function usePageOwnsMobileHeader() {
     walletDashboard ||
     pathname === "/daily-checklist" ||
     pathname === "/releases" ||
+    pathname === "/borrowers" ||
+    pathname === "/categories" ||
+    pathname.startsWith("/categories/") ||
     isBorrowerDetailPath(pathname) ||
     isAccountDetailPath(pathname)
   );

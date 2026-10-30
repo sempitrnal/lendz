@@ -26,7 +26,7 @@ const buildId = readFileSync(join(NEXT, "BUILD_ID"), "utf8").trim();
 // account pages). Build with OFFLINE_REFRESH=all for a deploy that changes the
 // account pages or anything they share, or "checklist" for one that changes
 // nothing but the checklist.
-const REFRESH = process.env.OFFLINE_REFRESH ?? "borrowers";
+const REFRESH = process.env.OFFLINE_REFRESH ?? "all";
 
 function listFiles(dir) {
   const out = [];

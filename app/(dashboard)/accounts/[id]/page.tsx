@@ -220,11 +220,8 @@ export default async function AccountDetailPage({
             borrowerName,
             accountType: accountRow.type,
             releaseDate: accountRow.release_date,
-            principal,
             collected: amountPaid,
             remaining: amountLeft,
-            profit,
-            totalPayment,
             progressPct,
             schedules: shareSchedules,
           }}

@@ -150,6 +150,7 @@ function ReleasePlan({ today }: { today: string }) {
   const setMonth = (next: MonthKey) => {
     setDirection(next > month ? 1 : -1);
     setMonthState(next);
+    setIntro(true);
     const cached = readCachedPlan(next);
     if (cached) setLoaded({ month: next, items: cached });
     const url = new URL(window.location.href);
@@ -312,6 +313,8 @@ function ReleasePlan({ today }: { today: string }) {
   );
   const all = useMemo(() => [...byDate.values()].flat(), [byDate]);
   const [filter, setFilter] = useState<PlanFilter>("all");
+  // Tiles stagger in when a month opens; after a filter change they just pop.
+  const [intro, setIntro] = useState(true);
   const counts = useMemo(() => filterCounts(dates, byDate), [dates, byDate]);
   // While the month loads every day shows (as skeletons), whatever the filter.
   const shown = useMemo(
@@ -700,7 +703,10 @@ function ReleasePlan({ today }: { today: string }) {
           value={filter}
           counts={counts}
           disabled={loading}
-          onChange={setFilter}
+          onChange={(next) => {
+            setFilter(next);
+            setIntro(false);
+          }}
         />
 
         <AnimatePresence mode="popLayout" initial={false} custom={direction}>
@@ -727,6 +733,7 @@ function ReleasePlan({ today }: { today: string }) {
                         entries={entries}
                         filter={filter}
                         loading={loading}
+                        intro={intro}
                         canAdd={!!releasedId}
                         reduceMotion={!!reduceMotion}
                         onOpen={() =>
@@ -752,6 +759,7 @@ function ReleasePlan({ today }: { today: string }) {
                             <AddDateTile
                               index={shown.length}
                               month={month}
+                              intro={intro}
                               reduceMotion={!!reduceMotion}
                               onPick={(date) => addDate(date, false)}
                             />
@@ -947,6 +955,7 @@ function DayCell({
   entries,
   filter,
   loading,
+  intro,
   canAdd,
   reduceMotion,
   onOpen,
@@ -961,6 +970,8 @@ function DayCell({
   /** A filter change swaps the releases shown; that is no new plan. */
   filter: PlanFilter;
   loading: boolean;
+  /** The month just opened: tiles stagger in. */
+  intro: boolean;
   canAdd: boolean;
   reduceMotion: boolean;
   onOpen(): void;
@@ -997,7 +1008,7 @@ function DayCell({
     observer.observe(el);
     for (const child of el.children) observer.observe(child);
     return () => observer.disconnect();
-  }, [measure, entries.length, loading]);
+  }, [measure, entries.length, loading, filter]);
   const count = useRef(entries.length);
   const shownFilter = useRef(filter);
   useEffect(() => {
@@ -1023,7 +1034,9 @@ function DayCell({
 
   return (
     <m.div
-      initial={reduceMotion ? false : { opacity: 0, y: 14, scale: 0.94 }}
+      initial={
+        reduceMotion || !intro ? false : { opacity: 0, y: 14, scale: 0.94 }
+      }
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
         type: "spring",
@@ -1147,42 +1160,53 @@ function DayCell({
           </div>
         ) : (
           <>
+            {/* Keyed by filter: a filter swaps the releases at once instead of
+                fading the old ones out, which would leave the list thinking
+                more is hidden below. */}
             <ol
+              key={filter}
               ref={list}
               onScroll={measure}
-              className="-mx-1 mt-2.5 max-h-[11.75rem] space-y-1.5
-                overflow-y-auto overscroll-contain px-1 [scrollbar-width:none]
+              className="-mx-1 mt-2.5 max-h-[11.75rem] overflow-y-auto
+                overscroll-contain px-1 [scrollbar-width:none]
                 [&::-webkit-scrollbar]:hidden"
-              style={{
-                maskImage: `linear-gradient(to bottom, ${
-                  edges.top ? "transparent, black 18px" : "black, black"
-                }, ${
-                  edges.bottom
-                    ? "black calc(100% - 30px), transparent"
-                    : "black"
-                })`,
-              }}
+              style={
+                edges.top || edges.bottom
+                  ? {
+                      maskImage: `linear-gradient(to bottom, ${
+                        edges.top ? "transparent, black 18px" : "black"
+                      }, ${
+                        edges.bottom
+                          ? "black calc(100% - 30px), transparent"
+                          : "black"
+                      })`,
+                    }
+                  : undefined
+              }
             >
-              <AnimatePresence initial={false}>
-                {entries.map((entry) => (
+              <AnimatePresence initial={false} onExitComplete={measure}>
+                {entries.map((entry, i) => (
                   <m.li
                     key={entry.id}
-                    layout={!reduceMotion}
-                    initial={{ opacity: 0, x: -10, scale: 0.9 }}
+                    // Rows open and close their own height, so the rest
+                    // slide without measuring every row on the page.
+                    initial={{ opacity: 0, height: 0 }}
                     // On a day gone by, created releases dim; one still not
                     // created stays bright, since it still needs doing.
                     animate={{
                       opacity: past && entry.done ? 0.55 : 1,
-                      x: 0,
-                      scale: 1,
+                      height: "auto",
                     }}
-                    exit={{ opacity: 0, x: 16, scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 420, damping: 30 }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 36 }}
+                    className="overflow-hidden"
                   >
-                    <PlanEntryChip
-                      entry={entry}
-                      onClick={() => onEntry(entry.id)}
-                    />
+                    <div className={i > 0 ? "pt-1.5" : undefined}>
+                      <PlanEntryChip
+                        entry={entry}
+                        onClick={() => onEntry(entry.id)}
+                      />
+                    </div>
                   </m.li>
                 ))}
               </AnimatePresence>
@@ -1329,11 +1353,13 @@ function PlanEntryChip({
 function AddDateTile({
   index,
   month,
+  intro,
   reduceMotion,
   onPick,
 }: {
   index: number;
   month: MonthKey;
+  intro: boolean;
   reduceMotion: boolean;
   onPick(date: string): void;
 }) {
@@ -1341,7 +1367,9 @@ function AddDateTile({
   const { from, to } = monthRange(month);
   return (
     <m.div
-      initial={reduceMotion ? false : { opacity: 0, y: 14, scale: 0.94 }}
+      initial={
+        reduceMotion || !intro ? false : { opacity: 0, y: 14, scale: 0.94 }
+      }
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
         type: "spring",

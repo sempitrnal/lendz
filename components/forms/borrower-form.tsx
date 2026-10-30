@@ -1,63 +1,41 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { borrowerSchema, BorrowerFormValues } from "@/lib/validations/borrower";
-
-import {
-  formFieldErrorClassName,
-  formFieldInputClassName,
-  formFieldLabelClassName,
-} from "@/lib/form-field-classes";
-import { formatContactNumber } from "@/lib/format-contact-number";
-import { supabase } from "@/lib/supabase/client";
-import { fetchCategories } from "@/lib/categories/fetch-categories";
-import { revalidateBorrowersPage } from "@/lib/actions/borrowers";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { triggerHaptic } from "@/lib/haptics";
 import { Plus } from "lucide-react";
 
-type CategoryOption = {
-  id: string;
-  name: string;
-  color: string | null;
-};
+import { borrowerSchema, BorrowerFormValues } from "@/lib/validations/borrower";
+import { supabase } from "@/lib/supabase/client";
+import { revalidateBorrowersPage } from "@/lib/actions/borrowers";
+import { triggerHaptic } from "@/lib/haptics";
+import { Button } from "@/components/ui/button";
+import { SheetFooter } from "@/components/dashboard/checklist-v2/sheet";
+import {
+  BorrowerFields,
+  BorrowerSheetHeader,
+  CategoryPicker,
+} from "@/components/borrower/borrower-fields";
 
-export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
+/** The add borrower sheet's content. */
+export default function BorrowerForm({
+  onSuccess,
+}: {
+  onSuccess?: () => void;
+}) {
   const router = useRouter();
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
-  const [categorySearch, setCategorySearch] = useState("");
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<BorrowerFormValues>({
+  const form = useForm<BorrowerFormValues>({
     resolver: zodResolver(borrowerSchema),
   });
-
   const {
-    ref: contactRef,
-    onChange: contactOnChange,
-    ...contactRest
-  } = register("contact");
-
-  useEffect(() => {
-    fetchCategories()
-      .then((rows) => {
-        setCategories(
-          rows.map((c) => ({ id: c.id, name: c.name, color: c.color })),
-        );
-      })
-      // Offline with nothing saved yet: the picker just stays empty.
-      .catch(() => {});
-  }, []);
+    handleSubmit,
+    reset,
+    formState: { isSubmitting },
+  } = form;
 
   const onSubmit = async (values: BorrowerFormValues) => {
     const { data, error } = await supabase
@@ -90,7 +68,6 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
 
     await revalidateBorrowersPage();
 
-    router.refresh();
     reset();
     setSelectedCategoryIds([]);
 
@@ -100,178 +77,32 @@ export default function BorrowerForm({ onSuccess }: { onSuccess: any }) {
     router.refresh();
   };
 
-  const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(categorySearch.trim().toLowerCase()),
-  );
-
-  const selectedCategoryNames = categories
-    .filter((category) => selectedCategoryIds.includes(category.id))
-    .map((category) => category.name);
-
-  const toggleCategory = (categoryId: string) => {
-    setSelectedCategoryIds((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId],
-    );
-  };
-
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2">
-      <div>
-        <label htmlFor="first_name" className={formFieldLabelClassName}>
-          First Name
-        </label>
-        <input
-          id="first_name"
-          placeholder="Juan"
-          {...register("first_name")}
-          className={formFieldInputClassName}
-        />
-        {errors.first_name?.message && (
-          <p className={formFieldErrorClassName}>
-            {errors.first_name?.message}
-          </p>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="last_name" className={formFieldLabelClassName}>
-          Last Name
-        </label>
-        <input
-          id="last_name"
-          placeholder="Dela Cruz"
-          {...register("last_name")}
-          className={formFieldInputClassName}
-        />
-        {errors.last_name?.message && (
-          <p className={formFieldErrorClassName}>{errors.last_name?.message}</p>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="contact" className={formFieldLabelClassName}>
-          Contact Number
-        </label>
-        <input
-          id="contact"
-          ref={contactRef}
-          type="tel"
-          inputMode="numeric"
-          autoComplete="tel"
-          placeholder="(0977) 123-4567"
-          {...contactRest}
-          onChange={(e) => {
-            const formatted = formatContactNumber(e.target.value);
-            e.target.value = formatted;
-            contactOnChange(e);
-          }}
-          className={formFieldInputClassName}
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <BorrowerSheetHeader
+        form={form}
+        title="New borrower"
+        fallback="Who are you lending to?"
+      />
+      <div className="space-y-5 px-5 pb-5">
+        <BorrowerFields form={form} idPrefix="add" />
+        <CategoryPicker
+          idPrefix="add"
+          selected={selectedCategoryIds}
+          onChange={setSelectedCategoryIds}
         />
       </div>
-
-      <div>
-        <label
-          htmlFor="borrower_categories_search"
-          className={formFieldLabelClassName}
+      <SheetFooter>
+        <Button
+          disabled={isSubmitting}
+          type="submit"
+          size="lg"
+          className="h-12 w-full rounded-2xl text-base font-bold"
         >
-          Categories
-        </label>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
-            className={`${formFieldInputClassName} flex w-full items-center
-              justify-between`}
-          >
-            <span className="truncate text-left">
-              {selectedCategoryNames.length > 0
-                ? selectedCategoryNames.join(", ")
-                : "Select categories"}
-            </span>
-            <span className="ml-2 text-xs text-slate-400">
-              {isCategoryDropdownOpen ? "▲" : "▼"}
-            </span>
-          </button>
-
-          {isCategoryDropdownOpen ? (
-            <div
-              className="absolute z-20 mt-2 w-full rounded-xl border
-                border-slate-200 bg-white p-3 shadow-xl dark:border-slate-700
-                dark:bg-card"
-            >
-              <input
-                id="borrower_categories_search"
-                type="text"
-                value={categorySearch}
-                onChange={(e) => setCategorySearch(e.target.value)}
-                placeholder="Search categories..."
-                className={formFieldInputClassName}
-              />
-
-              <div className="mt-2 max-h-48 space-y-1 overflow-y-auto pr-1">
-                {filteredCategories.length === 0 ? (
-                  <p className="px-2 py-1 text-sm text-gray-500">
-                    No categories found.
-                  </p>
-                ) : (
-                  filteredCategories.map((category) => {
-                    const checked = selectedCategoryIds.includes(category.id);
-                    return (
-                      <label
-                        key={category.id}
-                        className="flex cursor-pointer items-center gap-3
-                          rounded-lg px-2 py-2 hover:bg-slate-50
-                          dark:hover:bg-muted"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleCategory(category.id)}
-                          className="h-4 w-4 rounded border-slate-300
-                            text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <span
-                          className="h-3 w-3 rounded-full border
-                            border-slate-200"
-                          style={{
-                            backgroundColor: category.color ?? "#cbd5e1",
-                          }}
-                        />
-                        <span className="text-sm">{category.name}</span>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
-
-              <div className="mt-2 flex justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => setIsCategoryDropdownOpen(false)}
-                >
-                  done
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-        <p className="mt-1.5 text-xs text-slate-500">
-          Search and tick one or more categories.
-        </p>
-      </div>
-
-      <Button
-        disabled={isSubmitting}
-        type="submit"
-        className="mt-2 w-full py-5 rounded-xl shadow-sm"
-        size="lg"
-      >
-        <Plus className="h-4 w-4" />
-        {isSubmitting ? "Creating..." : "Create Borrower"}
-      </Button>
+          <Plus className="size-5" strokeWidth={2.75} />
+          {isSubmitting ? "Adding…" : "Add borrower"}
+        </Button>
+      </SheetFooter>
     </form>
   );
 }

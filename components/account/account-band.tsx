@@ -51,6 +51,43 @@ export type AccountBandProps = {
   share: ShareProps;
 };
 
+/**
+ * A menu row: soft grey when hovered or focused (the theme's accent is
+ * amber). The item recolours everything inside it on focus, so the tiles and
+ * hints hold their colours with `!`.
+ */
+const MENU_ROW =
+  "gap-3 rounded-2xl px-2 py-2 focus:bg-muted focus:text-foreground not-data-[variant=destructive]:focus:**:text-inherit";
+
+function MenuRow({
+  Icon,
+  title,
+  hint,
+  tint,
+}: {
+  Icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  hint: string;
+  tint: string;
+}) {
+  return (
+    <>
+      <span
+        className={`flex size-9 shrink-0 items-center justify-center rounded-xl
+          ${tint}`}
+      >
+        <Icon className="size-4" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-bold">{title}</span>
+        <span className="block truncate text-[11px] !text-muted-foreground">
+          {hint}
+        </span>
+      </span>
+    </>
+  );
+}
+
 const RING_R = 34;
 const RING_C = 2 * Math.PI * RING_R;
 
@@ -120,20 +157,79 @@ export function AccountBand({
           <MoreVertical className="size-5" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-48">
-        <DropdownMenuItem onClick={() => shareControl.current?.capture()}>
-          <Share2 /> share schedule
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => void copyPublicLink(accountId)}>
-          <Link2 /> copy public link
-        </DropdownMenuItem>
-        {borrowerId && (
-          <DropdownMenuItem asChild>
-            <Link href={`/borrowers/${borrowerId}`}>
-              <User /> view borrower
-            </Link>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        className="w-72 rounded-3xl p-1.5 shadow-xl"
+      >
+        {/* Whose account the actions are for. */}
+        <div className="flex items-center gap-2.5 px-2.5 pt-2 pb-2.5">
+          {/* In the borrower's category colour, as on the borrowers page. */}
+          <span
+            style={
+              {
+                "--cat": categories.find((c) => c.color)?.color ?? "#94a3b8",
+              } as React.CSSProperties
+            }
+            className="flex size-9 shrink-0 items-center justify-center
+              rounded-full bg-[color-mix(in_oklab,var(--cat)_22%,var(--card))]
+              text-xs font-black
+              text-[color-mix(in_oklab,var(--cat)_45%,var(--foreground))]
+              uppercase ring-1 ring-black/5 ring-inset dark:ring-white/10"
+            aria-hidden="true"
+          >
+            {name
+              .split(/\s+/)
+              .filter(Boolean)
+              .map((w, i, all) => (i === 0 || i === all.length - 1 ? w[0] : ""))
+              .join("")}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-black lowercase">{name}</p>
+            <p
+              className="truncate text-[11px] font-semibold
+                text-muted-foreground"
+            >
+              {kind} · {mask(peso(principal))}
+            </p>
+          </div>
+        </div>
+        <div className="space-y-0.5">
+          <DropdownMenuItem
+            onClick={() => shareControl.current?.capture()}
+            className={MENU_ROW}
+          >
+            <MenuRow
+              Icon={Share2}
+              title="Share schedule"
+              hint="Send an image of every payment"
+              tint="bg-emerald-500/15 !text-emerald-600 dark:!text-emerald-300"
+            />
           </DropdownMenuItem>
-        )}
+          <DropdownMenuItem
+            onClick={() => void copyPublicLink(accountId)}
+            className={MENU_ROW}
+          >
+            <MenuRow
+              Icon={Link2}
+              title="Copy public link"
+              hint="Anyone with it can view the schedule"
+              tint="bg-sky-500/15 !text-sky-600 dark:!text-sky-300"
+            />
+          </DropdownMenuItem>
+          {borrowerId && (
+            <DropdownMenuItem asChild className={MENU_ROW}>
+              <Link href={`/borrowers/${borrowerId}`}>
+                <MenuRow
+                  Icon={User}
+                  title="View borrower"
+                  hint="Their accounts, notes and history"
+                  tint="bg-violet-500/15 !text-violet-600 dark:!text-violet-300"
+                />
+              </Link>
+            </DropdownMenuItem>
+          )}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

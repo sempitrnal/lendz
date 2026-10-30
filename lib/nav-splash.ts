@@ -49,6 +49,8 @@ export function splashLabel(pathname: string): string {
   if (pathname === "/daily-checklist") return "checklist";
   if (pathname === "/releases") return "release plan";
   if (pathname === "/borrowers") return "borrowers";
+  if (pathname === "/categories") return "categories";
+  if (pathname.startsWith("/categories/")) return "category";
   if (pathname.startsWith("/borrowers/")) return "borrower";
   if (pathname.startsWith("/accounts/")) return "account";
   if (pathname === "/upcoming") return "upcoming";

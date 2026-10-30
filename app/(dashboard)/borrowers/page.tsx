@@ -22,12 +22,10 @@ export default async function BorrowersPage({
     ]);
 
     return (
-      <div className="mx-auto max-w-7xl md:max-w-full px-4 pb-16 md:px-6">
-        <BorrowersList
-          allBorrowers={allBorrowers}
-          initialCategoryIds={categoryIds}
-        />
-      </div>
+      <BorrowersList
+        allBorrowers={allBorrowers}
+        initialCategoryIds={categoryIds}
+      />
     );
   } catch (error) {
     console.error(error);

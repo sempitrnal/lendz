@@ -1,15 +1,8 @@
 "use client";
 
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { fetchCategories } from "@/lib/categories/fetch-categories";
+import { useCategories } from "@/lib/categories/use-categories";
 import { useSeedBorrowersSearch } from "@/hooks/use-borrowers-search";
 import {
   RECENT_BORROWERS_CHANGED,
@@ -20,10 +13,9 @@ import {
 } from "@/lib/recent-borrowers";
 
 import AddBorrowerFab from "./add-borrower-fab";
-import BorrowerScheduleCard, {
-  buildBorrowerScheduleCardProps,
-} from "./borrower-schedule-card";
-import { ChevronDown, Users } from "lucide-react";
+import { buildBorrowerScheduleCardProps } from "./borrower-schedule-card";
+import BorrowerRowCard from "./borrower-row-card";
+import { Users } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
 
@@ -159,7 +151,6 @@ export default function BorrowersList({
   useEffect(() => {
     setSelectedCategoryIds((initialCategoryIds as string[] | undefined) ?? []);
   }, [initialCategoryIds]);
-  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [sortMode] = useState<SortMode>("default");
 
   useEffect(() => {
@@ -222,20 +213,9 @@ export default function BorrowersList({
     router.refresh();
   }, [router]);
 
-  const [categories, setCategories] = useState<
-    { id: string; name: string; color: string | null }[]
-  >([]);
-
-  useEffect(() => {
-    fetchCategories()
-      .then((rows) => {
-        setCategories(
-          rows.map((c) => ({ id: c.id, name: c.name, color: c.color })),
-        );
-      })
-      // Offline with nothing saved yet: the picker just stays empty.
-      .catch(() => {});
-  }, []);
+  // Also what the add sheet's picker shows, so it opens already filled.
+  const { data: categoryRows } = useCategories();
+  const categories = categoryRows ?? [];
 
   const safeBorrowers = (allBorrowers as Borrower[] | undefined) ?? [];
   const safeCategoryIds = (selectedCategoryIds as string[] | undefined) ?? [];
@@ -337,25 +317,126 @@ export default function BorrowersList({
     });
   }, [borrowersWithMetrics, sortMode]);
 
-  return (
-    <div className="">
-      <AddBorrowerFab onSuccess={refreshPage} />
+  const withAccounts = safeBorrowers.filter(
+    (b) => b.has_accounts ?? (b.accounts_count ?? 0) > 0,
+  ).length;
+  const overdue = safeBorrowers.filter((b) => (b.overdue_count ?? 0) > 0);
+  const overdueTotal = overdue.reduce((s, b) => s + (b.overdue_total ?? 0), 0);
+  const toggleCategory = (id: string) =>
+    setSelectedCategoryIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
 
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          {/* <h1 className="text-2xl font-black lowercase">Borrowers</h1> */}
-          {/* <p className="text-xs text-slate-500 mt-1">
-            {totalCount} total
-          </p> */}
+  return (
+    <div className="pb-16">
+      {/* The green band; the search above it is the mobile top bar. */}
+      <div
+        data-settle-group="band"
+        className="relative -mt-16 px-4 pt-[4.75rem] pb-14 text-white sm:mt-0
+          sm:px-6 sm:pt-6"
+      >
+        <div
+          aria-hidden="true"
+          data-nav-band
+          className="band-bg absolute inset-0 rounded-b-3xl"
+        />
+        <div className="relative z-20 flex items-center justify-between">
+          <p className="text-xs font-bold tracking-wider uppercase">
+            borrowers
+          </p>
+          <AddBorrowerFab onSuccess={refreshPage} variant="band" />
+        </div>
+        <div className="relative z-20 mt-4">
+          <p className="text-xs font-semibold opacity-80">
+            {safeCategoryIds.length > 0 ? "In these categories" : "Everyone"}
+          </p>
+          <p
+            className="text-[40px] leading-tight font-black tracking-tight
+              tabular-nums"
+          >
+            {sortedBorrowers.length}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <span
+              className="rounded-full bg-white/20 px-2.5 py-1 text-[11px]
+                font-semibold"
+            >
+              {withAccounts} with accounts
+            </span>
+            {overdue.length > 0 && (
+              <span
+                className="rounded-full bg-white px-2.5 py-1 text-[11px]
+                  font-bold text-rose-600"
+              >
+                {overdue.length} overdue · ₱
+                {Math.round(overdueTotal).toLocaleString()}
+              </span>
+            )}
+          </div>
         </div>
       </div>
-      <div className="mb-6 flex flex-col gap-3">
-        {recentBorrowers.length > 0 ? (
+
+      <div data-settle className="relative z-10 -mt-8 space-y-4 px-3 sm:px-6">
+        {/* Category filters: tap any to narrow the list, "all" to undo. */}
+        <div
+          className="flex gap-1.5 overflow-x-auto rounded-3xl border
+            border-border bg-card p-1.5 shadow-sm [scrollbar-width:none]
+            [&::-webkit-scrollbar]:hidden"
+          role="group"
+          aria-label="Filter by category"
+        >
+          <button
+            type="button"
+            aria-pressed={safeCategoryIds.length === 0}
+            onClick={() => setSelectedCategoryIds([])}
+            className={`h-9 shrink-0 rounded-full px-3.5 text-[13px] font-bold
+              transition active:scale-95 ${
+                safeCategoryIds.length === 0
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground"
+              }`}
+          >
+            all
+          </button>
+          {categories.map((category) => {
+            const on = safeCategoryIds.includes(category.id);
+            return (
+              <button
+                key={category.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => toggleCategory(category.id)}
+                style={
+                  {
+                    "--cat": category.color ?? "#94a3b8",
+                  } as React.CSSProperties
+                }
+                className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full
+                border px-3 text-[13px] font-semibold whitespace-nowrap
+                lowercase transition active:scale-95 ${
+                  on
+                    ? `border-(--cat)
+                      bg-[color-mix(in_oklab,var(--cat)_20%,var(--card))]
+                      text-foreground`
+                    : "border-transparent text-muted-foreground"
+                }`}
+              >
+                <span
+                  className="size-2 rounded-full bg-(--cat)"
+                  aria-hidden="true"
+                />
+                {category.name}
+              </button>
+            );
+          })}
+        </div>
+
+        {recentBorrowers.length > 0 && (
           <div>
-            <div className="mb-1.5 flex items-center justify-between">
+            <div className="mb-1.5 flex items-center justify-between px-1">
               <p
-                className="dark:text-muted-foreground text-[10px] font-bold
-                  tracking-[0.14em] text-slate-500 uppercase"
+                className="text-[11px] font-bold tracking-wider
+                  text-muted-foreground uppercase"
               >
                 Recently visited
               </p>
@@ -365,13 +446,17 @@ export default function BorrowersList({
                   setRecentBorrowers([]);
                   clearRecentBorrowers();
                 }}
-                className="text-[10px] font-bold tracking-wide text-slate-400
-                  uppercase transition hover:text-rose-500"
+                className="text-[11px] font-bold text-muted-foreground
+                  transition hover:text-rose-500"
               >
-                Clear
+                clear
               </button>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div
+              className="-mx-3 -mt-1.5 flex gap-2 overflow-x-auto px-3.5 pt-2.5
+                pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6
+                [&::-webkit-scrollbar]:hidden"
+            >
               {recentBorrowers.map((b) => {
                 const initials =
                   `${b.first_name[0] ?? ""}${b.last_name[0] ?? ""}`.toUpperCase();
@@ -385,284 +470,74 @@ export default function BorrowersList({
                         String(window.scrollY),
                       );
                     }}
-                    className="dark:border-border dark:bg-muted
-                      dark:text-foreground dark:hover:bg-muted/70 flex
-                      items-center gap-2 rounded-lg border border-border
-                      bg-[#ffffff] px-3 py-1.5 text-xs font-black text-slate-600
-                      shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)] transition
-                      hover:bg-white lowercase"
+                    style={
+                      {
+                        "--cat": b.categoryColor ?? "#94a3b8",
+                      } as React.CSSProperties
+                    }
+                    className="flex w-16 shrink-0 flex-col items-center gap-1
+                      active:scale-95"
                   >
                     <span
-                      className="flex size-5 shrink-0 items-center
-                        justify-center rounded-full text-[9px] font-black
-                        text-white"
-                      style={{
-                        backgroundColor: b.categoryColor ?? "#0f172a",
-                      }}
+                      className="relative flex size-12 items-center
+                        justify-center rounded-full
+                        bg-[color-mix(in_oklab,var(--cat)_22%,var(--card))]
+                        text-sm font-black
+                        text-[color-mix(in_oklab,var(--cat)_45%,var(--foreground))]
+                        ring-2 ring-(--cat)"
                     >
                       {initials}
+                      {b.visitCount > 1 && (
+                        <span
+                          className="absolute -top-1 -right-1 flex h-4 min-w-4
+                            items-center justify-center rounded-full
+                            bg-foreground px-1 text-[9px] font-black
+                            text-background"
+                          aria-label={`${b.visitCount} visits`}
+                        >
+                          {b.visitCount}
+                        </span>
+                      )}
                     </span>
-                    {b.first_name} {b.last_name}
-                    {b.visitCount > 1 ? (
-                      <span
-                        className="ml-1 flex h-4 min-w-4 items-center
-                          justify-center rounded-full bg-slate-900 px-1
-                          text-[9px] font-black text-white dark:bg-slate-700"
-                        aria-label={`${b.visitCount} visits`}
-                      >
-                        {b.visitCount}
-                      </span>
-                    ) : null}
+                    <span
+                      className="w-full truncate text-center text-[11px]
+                        font-semibold lowercase"
+                    >
+                      {b.first_name}
+                    </span>
                   </Link>
                 );
               })}
             </div>
           </div>
-        ) : null}
+        )}
 
-        <div className="relative">
-          <p
-            className="dark:text-muted-foreground mb-1.5 text-[10px] font-bold
-              tracking-[0.14em] text-slate-500 uppercase"
-          >
-            Categories
-          </p>
-          <button
-            type="button"
-            aria-expanded={isCategoryDropdownOpen}
-            aria-haspopup="listbox"
-            onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
-            className="dark:border-border dark:hover:bg-muted flex w-full
-              items-center justify-between gap-3 rounded-xl border bg-white
-              dark:bg-background border-slate-300 px-4 py-3 text-left transition
-              dark:shadow-none"
-          >
-            <span
-              className="dark:text-foreground text-sm font-bold tracking-wide
-                text-slate-600 uppercase"
-            >
-              {safeCategoryIds.length > 0
-                ? `${safeCategoryIds.length} selected`
-                : "All categories"}
-            </span>
-
-            <span
-              className="dark:border-border dark:bg-muted
-                dark:text-muted-foreground flex size-8 shrink-0 items-center
-                justify-center rounded-lg border border-slate-300 bg-slate-50
-                text-slate-700"
-            >
-              <ChevronDown
-                className={`size-3.5 transition-transform
-                  ${isCategoryDropdownOpen ? "rotate-180" : ""}`}
-                aria-hidden
-              />
-            </span>
-          </button>
-
-          {isCategoryDropdownOpen ? (
-            <div
-              role="listbox"
-              aria-multiselectable
-              className="dark:border-border dark:bg-card absolute z-20 mt-2
-                max-h-72 w-full overflow-y-auto rounded-xl border
-                border-slate-300 bg-white p-2
-                shadow-[3px_3px_0px_0px_rgb(15_23_42/0.18)] dark:shadow-none"
-            >
-              <div className="flex flex-col gap-1.5">
-                {categories.map((category) => {
-                  const isSelected = selectedCategoryIds.includes(category.id);
-
-                  return (
-                    <button
-                      key={category.id}
-                      type="button"
-                      role="option"
-                      aria-selected={isSelected}
-                      onClick={() => {
-                        const next = isSelected
-                          ? selectedCategoryIds.filter(
-                              (id) => id !== category.id,
-                            )
-                          : [...selectedCategoryIds, category.id];
-                        setSelectedCategoryIds(next);
-                      }}
-                      className={`flex items-center justify-between gap-2
-                        rounded-lg border px-3 py-2.5 text-left text-sm
-                        font-semibold transition ${
-                          isSelected
-                            ? `dark:border-border dark:bg-foreground
-                              dark:text-background border-2 border-slate-900
-                              bg-slate-900 text-white
-                              shadow-[1px_1px_0px_0px_rgb(15_23_42/0.5)]
-                              dark:shadow-none`
-                            : `dark:border-border dark:bg-muted
-                              dark:text-foreground dark:hover:border-border
-                              dark:hover:bg-muted/70 border border-slate-900/15
-                              bg-slate-50/60 text-slate-800
-                              shadow-[1px_1px_0px_0px_rgb(15_23_42/0.08)]
-                              hover:border-slate-900/35 hover:bg-white
-                              dark:shadow-none`
-                        }`}
-                    >
-                      <div className="flex min-w-0 items-center gap-2.5">
-                        <span
-                          className="dark:border-border size-3 shrink-0
-                            rounded-full border-2 border-slate-900/25"
-                          style={{
-                            backgroundColor: category.color ?? "#cbd5e1",
-                          }}
-                        />
-
-                        <span className="truncate capitalize">
-                          {category.name}
-                        </span>
-                      </div>
-
-                      {isSelected ? (
-                        <span
-                          className="shrink-0 text-xs font-black"
-                          aria-hidden
-                        >
-                          ✓
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {safeCategoryIds.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedCategoryIds([]);
-                  }}
-                  className="mt-2 w-full rounded-lg border-2 border-rose-800/35
-                    bg-rose-50 px-3 py-2 text-center text-xs font-black
-                    tracking-wide text-rose-900 uppercase
-                    shadow-[1px_1px_0px_0px_rgb(190_18_60/0.25)] transition
-                    hover:bg-rose-100/90 dark:border-rose-900/40
-                    dark:bg-rose-950/30 dark:text-rose-300 dark:shadow-none
-                    dark:hover:bg-rose-950/50"
-                >
-                  Clear filters
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Borrowers list header + sort */}
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <h2
-            className="text-base font-bold lowercase tracking-wide
-              text-slate-600 dark:text-white"
-          >
-            borrowers
-          </h2>
-          <span
-            className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black
-              text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-          >
-            {sortedBorrowers.length}
-          </span>
-        </div>
-      </div>
-
-      {sortedBorrowers.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title={
-            safeCategoryIds.length > 0 ? "No matches found" : "No borrowers yet"
-          }
-          description={
-            safeCategoryIds.length > 0
-              ? "Try adjusting your search or clearing category filters."
-              : "Add your first borrower to start tracking loans and collections."
-          }
-          action={
-            safeCategoryIds.length === 0
-              ? { label: "Add borrower", href: "/borrowers" }
-              : undefined
-          }
-        />
-      ) : (
-        <MasonryGrid
-          borrowers={sortedBorrowers}
-          onBorrowerUpdated={refreshPage}
-          onVisit={recordVisit}
-        />
-      )}
-    </div>
-  );
-}
-
-function useMasonryColCount(): number {
-  const [cols, setCols] = useState(0);
-
-  useLayoutEffect(() => {
-    const update = () => {
-      if (window.matchMedia("(min-width: 1280px)").matches) setCols(3);
-      else if (window.matchMedia("(min-width: 768px)").matches) setCols(2);
-      else setCols(1);
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  return cols;
-}
-
-const MasonryGrid = memo(function MasonryGrid({
-  borrowers,
-  onBorrowerUpdated,
-  onVisit,
-}: {
-  borrowers: Borrower[];
-  onBorrowerUpdated: () => void;
-  onVisit: (borrower: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    categoryColor: string | null;
-  }) => void;
-}) {
-  const colCount = useMasonryColCount();
-
-  if (colCount === 0) {
-    return (
-      <div className="flex w-full flex-col gap-4">
-        {borrowers.map((borrower) => (
-          <BorrowerScheduleCard
-            key={borrower.id}
-            onVisit={onVisit}
-            {...buildBorrowerScheduleCardProps(borrower)}
+        {sortedBorrowers.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title={
+              safeCategoryIds.length > 0
+                ? "No matches found"
+                : "No borrowers yet"
+            }
+            description={
+              safeCategoryIds.length > 0
+                ? "Try clearing the category filters."
+                : "Add your first borrower to start tracking loans and collections."
+            }
           />
-        ))}
+        ) : (
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {sortedBorrowers.map((borrower) => (
+              <BorrowerRowCard
+                key={borrower.id}
+                onVisit={recordVisit}
+                {...buildBorrowerScheduleCardProps(borrower)}
+              />
+            ))}
+          </div>
+        )}
       </div>
-    );
-  }
-
-  const columns: Borrower[][] = Array.from({ length: colCount }, () => []);
-  borrowers.forEach((b, i) => columns[i % colCount].push(b));
-
-  return (
-    <div className="flex w-full items-start gap-4">
-      {columns.map((col, ci) => (
-        <div key={ci} className="flex min-w-0 flex-1 flex-col gap-6">
-          {col.map((borrower) => (
-            <BorrowerScheduleCard
-              key={borrower.id}
-              onVisit={onVisit}
-              {...buildBorrowerScheduleCardProps(borrower)}
-            />
-          ))}
-        </div>
-      ))}
     </div>
   );
-});
+}

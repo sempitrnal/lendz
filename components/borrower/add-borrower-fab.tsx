@@ -3,24 +3,25 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import dynamic from "next/dynamic";
+import { Sheet } from "@/components/dashboard/checklist-v2/sheet";
 
-const BorrowerForm = dynamic(() => import("@/components/forms/borrower-form"));
+// Loaded with the page: fetching it on the first tap made that open stutter.
+import BorrowerForm from "@/components/forms/borrower-form";
 
 type AddBorrowerFabProps = {
   onSuccess?: () => void;
+  /** "band": a round white button for the green band, instead of the FAB. */
+  variant?: "fab" | "band";
 };
 
-export default function AddBorrowerFab({ onSuccess }: AddBorrowerFabProps) {
+export default function AddBorrowerFab({
+  onSuccess,
+  variant = "fab",
+}: AddBorrowerFabProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [open, setOpen] = useState(false);
+  // Bumped on every open, so each one starts with an empty form.
+  const [seq, setSeq] = useState(0);
 
   useEffect(() => {
     setIsMounted(true);
@@ -29,13 +30,32 @@ export default function AddBorrowerFab({ onSuccess }: AddBorrowerFabProps) {
   const closeModal = useCallback(() => setOpen(false), []);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      {isMounted &&
+    <>
+      {variant === "band" && (
+        <button
+          type="button"
+          aria-label="Add borrower"
+          onClick={() => {
+            setSeq((n) => n + 1);
+            setOpen(true);
+          }}
+          className="relative flex size-9 shrink-0 items-center justify-center
+            rounded-full bg-white text-emerald-600 shadow-sm
+            transition-transform active:scale-90"
+        >
+          <Plus className="size-5" />
+        </button>
+      )}
+      {variant === "fab" &&
+        isMounted &&
         createPortal(
           <button
             type="button"
             aria-label="Add borrower"
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              setSeq((n) => n + 1);
+              setOpen(true);
+            }}
             className="group fixed right-5 bottom-24 z-50 flex h-14 items-center
               gap-0 overflow-hidden rounded-full bg-primary pr-0 pl-0
               text-primary-foreground shadow-lg shadow-primary/30 ring-1
@@ -62,29 +82,15 @@ export default function AddBorrowerFab({ onSuccess }: AddBorrowerFabProps) {
           document.body,
         )}
 
-      <DialogContent className="sm:max-w-md overflow-visible!">
-        <DialogHeader className="gap-3 pb-2">
-          <div
-            className="flex size-11 items-center justify-center rounded-2xl
-              bg-primary/10 text-primary ring-1 ring-primary/20"
-          >
-            <Plus className="size-5" />
-          </div>
-          <div className="space-y-1">
-            <DialogTitle className="text-lg font-bold">
-              Add borrower
-            </DialogTitle>
-            <DialogDescription>Create a new account profile.</DialogDescription>
-          </div>
-        </DialogHeader>
-
+      <Sheet open={open} onClose={closeModal} label="Add borrower">
         <BorrowerForm
+          key={seq}
           onSuccess={() => {
             onSuccess?.();
             closeModal();
           }}
         />
-      </DialogContent>
-    </Dialog>
+      </Sheet>
+    </>
   );
 }

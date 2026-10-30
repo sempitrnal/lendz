@@ -25,11 +25,8 @@ type Props = {
   borrowerName: string;
   accountType: string;
   releaseDate: string | null;
-  principal: number;
   collected: number;
   remaining: number;
-  profit: number;
-  totalPayment: number;
   progressPct: number;
   schedules: ShareSchedule[];
   noDetails?: boolean;
@@ -46,63 +43,22 @@ function formatMoney(value: number) {
   return `₱${value.toLocaleString()}`;
 }
 
+/** A status's colours: the row tint, its mark, and its text. */
 function statusPalette(status: string, dark: boolean) {
-  if (dark) {
-    if (status === "paid")
-      return {
-        rowBg: "#132a21",
-        badgeBorder: "#059669",
-        badgeBg: "#1a3d30",
-        badgeText: "#6ee7b7",
-      };
-    if (status === "partial")
-      return {
-        rowBg: "#1f1b33",
-        badgeBorder: "#7c3aed",
-        badgeBg: "#2e2652",
-        badgeText: "#c4b5fd",
-      };
-    if (status === "overdue")
-      return {
-        rowBg: "#2a1518",
-        badgeBorder: "#e11d48",
-        badgeBg: "#3d1e24",
-        badgeText: "#fda4af",
-      };
-    return {
-      rowBg: "#27272a",
-      badgeBorder: "#d97706",
-      badgeBg: "#2e2618",
-      badgeText: "#fcd34d",
-    };
-  }
-  if (status === "paid")
-    return {
-      rowBg: "#ecfdf5",
-      badgeBorder: "#059669",
-      badgeBg: "#d1fae5",
-      badgeText: "#064e3b",
-    };
-  if (status === "partial")
-    return {
-      rowBg: "#f5f3ff",
-      badgeBorder: "#7c3aed",
-      badgeBg: "#ede9fe",
-      badgeText: "#2e1065",
-    };
-  if (status === "overdue")
-    return {
-      rowBg: "#fff1f2",
-      badgeBorder: "#e11d48",
-      badgeBg: "#ffe4e6",
-      badgeText: "#881337",
-    };
-  return {
-    rowBg: "#f6f7f9",
-    badgeBorder: "#d97706",
-    badgeBg: "#fef3c7",
-    badgeText: "#78350f",
+  const table: Record<
+    string,
+    [string, string, string, string, string, string]
+  > = {
+    //        light row, mark,      text,      dark row,  mark,      text
+    paid: ["#ecfdf5", "#10b981", "#059669", "#10241c", "#34d399", "#6ee7b7"],
+    partial: ["#f5f3ff", "#8b5cf6", "#7c3aed", "#1d1830", "#a78bfa", "#c4b5fd"],
+    overdue: ["#fff1f2", "#f43f5e", "#e11d48", "#2a1519", "#fb7185", "#fda4af"],
+    due: ["#fffbeb", "#f59e0b", "#b45309", "#2a2210", "#fbbf24", "#fcd34d"],
+    pending: ["#f8fafc", "#cbd5e1", "#8391a5", "#232327", "#52525b", "#a1a1aa"],
   };
+  const row = table[status] ?? table.pending;
+  const [rowBg, mark, text] = dark ? row.slice(3) : row;
+  return { rowBg, mark, text };
 }
 
 function dueLabel(dueDate: string, status: string) {
@@ -114,53 +70,73 @@ function dueLabel(dueDate: string, status: string) {
     const n = Math.abs(days);
     return { text: `${n} day${n === 1 ? "" : "s"} overdue`, tone: "overdue" };
   }
-  if (days === 0) return { text: "Due today", tone: "pending" };
-  return { text: `In ${days} day${days === 1 ? "" : "s"}`, tone: "pending" };
+  if (days === 0) return { text: "due today", tone: "pending" };
+  return { text: `in ${days} day${days === 1 ? "" : "s"}`, tone: "pending" };
 }
 
 const light = {
-  pageBg: "#fffefa",
-  cardBg: "#f6f7f9",
-  cardBorder: "#0f172a",
-  cardShadow: "#0f172a",
-  textPrimary: "#0f172a",
-  textSecondary: "#94a3b8",
-  textMuted: "#64748b",
-  progressBg: "#f1f5f9",
-  progressFill: "#34d399",
-  footerBorder: "#e2e8f0",
-  watermark: "#cbd5e1",
-  collected: "#059669",
-  partialPct: "#d97706",
-  paidDate: "#059669",
+  pageBg: "#eef2ef",
+  cardBg: "#ffffff",
+  textPrimary: "#334155",
+  textMuted: "#8391a5",
+  textFaint: "#a9b4c4",
+  line: "#e2e8f0",
+  tile: "#f8fafc",
 };
 
 const dark = {
-  pageBg: "#18181b",
-  cardBg: "#27272a",
-  cardBorder: "#3f3f46",
-  cardShadow: "#18181b",
+  pageBg: "#0c0c0e",
+  cardBg: "#18181b",
   textPrimary: "#f4f4f5",
-  textSecondary: "#71717a",
   textMuted: "#a1a1aa",
-  progressBg: "#27272a",
-  progressFill: "#34d399",
-  footerBorder: "#3f3f46",
-  watermark: "#52525b",
-  collected: "#34d399",
-  partialPct: "#fcd34d",
-  paidDate: "#6ee7b7",
+  textFaint: "#71717a",
+  line: "#27272a",
+  tile: "#202024",
 };
+
+function downloadImage(dataUrl: string, fileName: string) {
+  const link = document.createElement("a");
+  link.download = fileName;
+  link.href = dataUrl;
+  link.click();
+}
+
+/** Payments per image once a schedule is split. */
+const PAGE_SIZE = 16;
+
+/** The schedule as images: one when it fits, else runs of `PAGE_SIZE`. */
+function pagesOf<T>(rows: T[]): T[][] {
+  if (rows.length <= PAGE_SIZE) return [rows];
+  const pages: T[][] = [];
+  for (let i = 0; i < rows.length; i += PAGE_SIZE) {
+    pages.push(rows.slice(i, i + PAGE_SIZE));
+  }
+  return pages;
+}
+
+/** "2026-10-19" → "Oct 19": the year is already on the due date beside it. */
+function shortDate(date: string) {
+  return new Date(`${date.slice(0, 10)}T00:00:00`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/** The app's band colours right now (the accent can change). */
+function readBrand() {
+  const css = getComputedStyle(document.documentElement);
+  return {
+    a: css.getPropertyValue("--page-1").trim() || "#059669",
+    b: css.getPropertyValue("--page-2").trim() || "#10b981",
+  };
+}
 
 export default function ShareScheduleButton({
   borrowerName,
   accountType,
   releaseDate,
-  principal,
   collected,
   remaining,
-  profit,
-  totalPayment,
   progressPct,
   schedules,
   noDetails,
@@ -172,13 +148,22 @@ export default function ShareScheduleButton({
   const [rendering, setRendering] = useState(false);
   const [showCard, setShowCard] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [brand, setBrand] = useState({ a: "#059669", b: "#10b981" });
 
   const p = isDark ? dark : light;
 
   const paidCount = schedules.filter((s) => s.status === "paid").length;
   const nextRow = schedules.find((s) => s.status !== "paid");
   const overdueCount = schedules.filter((s) => s.status === "overdue").length;
-  const twoColumns = schedules.length > 6;
+  // A long schedule goes out as several images of up to 16 payments each.
+  const pages = pagesOf(schedules);
+  const pageCount = pages.length;
+  const [page, setPage] = useState(0);
+  const rows = pages[page] ?? [];
+  const first = page === 0;
+  // The next payment's card is the first image's; later ones are just rows.
+  const showNext = first ? nextRow : undefined;
+  const twoColumns = rows.length > 8;
 
   const capture = useCallback(async () => {
     const darkActive =
@@ -187,6 +172,7 @@ export default function ShareScheduleButton({
 
     flushSync(() => {
       setIsDark(darkActive);
+      setBrand(readBrand());
       setShowCard(true);
       setRendering(true);
     });
@@ -203,34 +189,48 @@ export default function ShareScheduleButton({
     try {
       // Loaded on first use; it is only needed once someone shares.
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(cardRef.current, {
-        pixelRatio: 2,
-        backgroundColor: darkActive ? "#18181b" : "#fffefa",
-      });
+      const urls: string[] = [];
+      for (let i = 0; i < pageCount; i++) {
+        flushSync(() => setPage(i));
+        await new Promise((r) => setTimeout(r, 50));
+        if (!cardRef.current) break;
+        urls.push(
+          await toPng(cardRef.current, {
+            pixelRatio: 2,
+            backgroundColor: darkActive ? dark.pageBg : light.pageBg,
+          }),
+        );
+      }
+      // e.g. "JAMIELYN-PONTERAS-2026-10-04-schedule.png" (the release date).
+      const base = [
+        borrowerName.trim().replace(/\s+/g, "-"),
+        releaseDate?.slice(0, 10),
+      ]
+        .filter(Boolean)
+        .join("-");
+      const nameOf = (i: number) =>
+        urls.length > 1
+          ? `${base}-schedule-${i + 1}-of-${urls.length}.png`
+          : `${base}-schedule.png`;
 
       // Try Web Share API first (mobile), fall back to download
+      const files = await Promise.all(
+        urls.map(async (url, i) => {
+          const blob = await (await fetch(url)).blob();
+          return new File([blob], nameOf(i), { type: "image/png" });
+        }),
+      );
       if (
         typeof navigator !== "undefined" &&
         navigator.share &&
-        navigator.canShare
+        navigator.canShare?.({ files })
       ) {
-        const res = await fetch(dataUrl);
-        const blob = await res.blob();
-        const file = new File(
-          [blob],
-          `${borrowerName.replace(/\s+/g, "-")}-schedule.png`,
-          { type: "image/png" },
-        );
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `${borrowerName} — Payment Schedule`,
-          });
-        } else {
-          downloadImage(dataUrl);
-        }
+        await navigator.share({
+          files,
+          title: `${borrowerName} — Payment Schedule`,
+        });
       } else {
-        downloadImage(dataUrl);
+        urls.forEach((url, i) => downloadImage(url, nameOf(i)));
       }
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -241,19 +241,13 @@ export default function ShareScheduleButton({
     } finally {
       setRendering(false);
       setShowCard(false);
+      setPage(0);
     }
-  }, [borrowerName]);
+  }, [borrowerName, releaseDate, pageCount]);
 
   useImperativeHandle(controlRef, () => ({ capture: () => void capture() }), [
     capture,
   ]);
-
-  function downloadImage(dataUrl: string) {
-    const link = document.createElement("a");
-    link.download = `${borrowerName.replace(/\s+/g, "-")}-schedule.png`;
-    link.href = dataUrl;
-    link.click();
-  }
 
   return (
     <>
@@ -293,522 +287,420 @@ export default function ShareScheduleButton({
             ref={cardRef}
             style={{
               width: 720,
-              padding: 36,
+              padding: 28,
               fontFamily:
                 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
               backgroundColor: p.pageBg,
+              color: p.textPrimary,
             }}
           >
-            {/* Header */}
             <div
               style={{
-                marginBottom: 20,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-end",
-                gap: 16,
+                borderRadius: 32,
+                overflow: "hidden",
+                backgroundColor: p.cardBg,
+                boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
               }}
             >
-              <div>
+              {/* The band: who, what, and how far along. Later images get a
+                  slim strip saying which payments they hold. */}
+              {first ? (
                 <div
                   style={{
-                    fontSize: 10,
-                    fontWeight: 500,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.16em",
-                    color: p.textSecondary,
-                  }}
-                >
-                  {accountType.replace("_", " ")}
-                  {releaseDate ? ` · Released ${formatDate(releaseDate)}` : ""}
-                </div>
-                <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 500,
-                    textTransform: "none",
-                    color: p.textPrimary,
-                    marginTop: 4,
-                    letterSpacing: "-0.01em",
-                  }}
-                >
-                  {borrowerName.toLowerCase()}
-                </div>
-              </div>
-              {schedules.length > 0 ? (
-                <div
-                  style={{
-                    flexShrink: 0,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: p.textMuted,
-                    fontVariantNumeric: "tabular-nums",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {isManual ? (
-                    <>
-                      <span style={{ fontWeight: 500, color: p.textPrimary }}>
-                        {schedules.length}
-                      </span>{" "}
-                      payment{schedules.length === 1 ? "" : "s"}
-                    </>
-                  ) : (
-                    <>
-                      <span style={{ fontWeight: 500, color: p.textPrimary }}>
-                        {paidCount}
-                      </span>{" "}
-                      / {schedules.length} paid
-                    </>
-                  )}
-                </div>
-              ) : null}
-            </div>
-
-            {/* Next due / fully paid */}
-            {nextRow
-              ? (() => {
-                  const due = dueLabel(nextRow.due_date, nextRow.status);
-                  const st = statusPalette(
-                    due.tone === "overdue" ? "overdue" : nextRow.status,
-                    isDark,
-                  );
-                  const amount =
-                    nextRow.remaining > 0
-                      ? nextRow.remaining
-                      : nextRow.amount_due;
-                  return (
-                    <div
-                      style={{
-                        borderRadius: 12,
-                        backgroundColor: st.rowBg,
-                        padding: "12px 16px",
-                        marginBottom: 20,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: 12,
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 9,
-                            fontWeight: 500,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.12em",
-                            color: p.textSecondary,
-                          }}
-                        >
-                          Next due · #{nextRow.index}
-                        </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "baseline",
-                            gap: 10,
-                            marginTop: 3,
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: 18,
-                              fontWeight: 500,
-                              color: p.textPrimary,
-                              fontVariantNumeric: "tabular-nums",
-                            }}
-                          >
-                            {formatMoney(amount)}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 500,
-                              color: p.textMuted,
-                            }}
-                          >
-                            {formatDate(nextRow.due_date)}
-                          </span>
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "flex-end",
-                            gap: 6,
-                            fontSize: 10,
-                            fontWeight: 500,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.06em",
-                            color: st.badgeText,
-                          }}
-                        >
-                          <span
-                            style={{
-                              width: 6,
-                              height: 6,
-                              borderRadius: 999,
-                              backgroundColor: st.badgeBorder,
-                            }}
-                          />
-                          {due.text}
-                        </div>
-                        {overdueCount > 1 ? (
-                          <div
-                            style={{
-                              marginTop: 4,
-                              fontSize: 9,
-                              fontWeight: 500,
-                              color: p.textMuted,
-                            }}
-                          >
-                            +{overdueCount - 1} more overdue
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  );
-                })()
-              : isManual && remaining > 0
-                ? (() => {
-                    const st = statusPalette("pending", isDark);
-                    return (
-                      <div
-                        style={{
-                          borderRadius: 12,
-                          backgroundColor: st.rowBg,
-                          padding: "12px 16px",
-                          marginBottom: 20,
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: 12,
-                        }}
-                      >
-                        <div>
-                          <div
-                            style={{
-                              fontSize: 9,
-                              fontWeight: 500,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.12em",
-                              color: p.textSecondary,
-                            }}
-                          >
-                            Remaining balance
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 18,
-                              fontWeight: 500,
-                              color: p.textPrimary,
-                              marginTop: 3,
-                              fontVariantNumeric: "tabular-nums",
-                            }}
-                          >
-                            {formatMoney(remaining)}
-                          </div>
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 500,
-                            color: p.textMuted,
-                            fontVariantNumeric: "tabular-nums",
-                          }}
-                        >
-                          {formatMoney(collected)} paid so far
-                        </div>
-                      </div>
-                    );
-                  })()
-                : schedules.length > 0
-                  ? (() => {
-                      const st = statusPalette("paid", isDark);
-                      return (
-                        <div
-                          style={{
-                            borderRadius: 12,
-                            backgroundColor: st.rowBg,
-                            padding: "12px 16px",
-                            marginBottom: 20,
-                            textAlign: "center",
-                            fontSize: 11,
-                            fontWeight: 500,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.12em",
-                            color: st.badgeText,
-                          }}
-                        >
-                          Fully paid
-                        </div>
-                      );
-                    })()
-                  : null}
-
-            {!noDetails && (
-              <div
-                style={{
-                  borderRadius: 12,
-                  backgroundColor: p.cardBg,
-                  padding: 16,
-                  marginBottom: 20,
-                }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(4, 1fr)",
-                    gap: 12,
-                  }}
-                >
-                  {[
-                    { label: "Principal", value: principal },
-                    { label: "Collected", value: collected },
-                    { label: "Remaining", value: remaining },
-                    { label: "Profit", value: Math.max(0, profit) },
-                  ].map((item) => (
-                    <div key={item.label}>
-                      <div
-                        style={{
-                          fontSize: 9,
-                          fontWeight: 500,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.12em",
-                          color: p.textSecondary,
-                        }}
-                      >
-                        {item.label}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 500,
-                          color: p.textPrimary,
-                          marginTop: 2,
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        {formatMoney(item.value)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div
-                  style={{
-                    marginTop: 14,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
+                    // Room at the bottom for the next payment to overlap.
+                    padding: showNext ? "28px 32px 64px" : "28px 32px 32px",
+                    color: "#ffffff",
+                    backgroundImage: `linear-gradient(160deg, ${brand.a}, ${brand.b})`,
                   }}
                 >
                   <div
                     style={{
-                      flex: 1,
-                      height: 6,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 900,
+                        letterSpacing: "-0.02em",
+                        opacity: 0.9,
+                      }}
+                    >
+                      utangz
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        padding: "6px 12px",
+                        borderRadius: 999,
+                        backgroundColor: "rgba(255,255,255,0.2)",
+                      }}
+                    >
+                      {accountType.replace("_", " ")}
+                      {releaseDate ? ` · ${formatDate(releaseDate)}` : ""}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 18,
+                      fontSize: 30,
+                      fontWeight: 900,
+                      letterSpacing: "-0.03em",
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {borrowerName.toLowerCase()}
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 18,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      opacity: 0.85,
+                    }}
+                  >
+                    {remaining > 0 ? "Remaining balance" : "Balance"}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 46,
+                      fontWeight: 900,
+                      letterSpacing: "-0.03em",
+                      lineHeight: 1.1,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {remaining > 0 ? formatMoney(remaining) : "Fully paid"}
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 16,
+                      height: 10,
                       borderRadius: 999,
-                      backgroundColor: p.progressBg,
+                      backgroundColor: "rgba(255,255,255,0.25)",
                       overflow: "hidden",
                     }}
                   >
                     <div
                       style={{
                         height: "100%",
-                        width: `${progressPct}%`,
-                        backgroundColor: p.progressFill,
+                        width: `${Math.min(100, Math.max(0, progressPct))}%`,
                         borderRadius: 999,
+                        backgroundColor: "#ffffff",
                       }}
                     />
                   </div>
                   <div
                     style={{
-                      fontSize: 11,
-                      fontWeight: 500,
-                      color: p.textMuted,
+                      marginTop: 8,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: 13,
+                      fontWeight: 700,
                       fontVariantNumeric: "tabular-nums",
+                      opacity: 0.9,
                     }}
                   >
-                    {progressPct}%
+                    <span>{formatMoney(collected)} collected</span>
+                    <span>
+                      {isManual
+                        ? `${schedules.length} payment${schedules.length === 1 ? "" : "s"}`
+                        : `${paidCount} of ${schedules.length} paid`}{" "}
+                      · {progressPct}%
+                    </span>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* Schedule label */}
-            <div
-              style={{
-                fontSize: 9,
-                fontWeight: 500,
-                textTransform: "uppercase",
-                letterSpacing: "0.16em",
-                color: p.textSecondary,
-                marginBottom: 10,
-              }}
-            >
-              Payment Schedule
-            </div>
-
-            {/* Schedule rows */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: twoColumns ? "1fr 1fr" : "1fr",
-                gap: 6,
-              }}
-            >
-              {schedules.map((s) => {
-                const st = statusPalette(s.status, isDark);
-                const isNext = nextRow?.index === s.index;
-                const partialPct =
-                  s.amount_due > 0
-                    ? Math.min(
-                        100,
-                        Math.round((s.amount_paid / s.amount_due) * 100),
-                      )
-                    : 0;
-                return (
-                  <div
-                    key={s.index}
+              ) : (
+                <div
+                  style={{
+                    padding: "22px 32px",
+                    color: "#ffffff",
+                    backgroundImage: `linear-gradient(160deg, ${brand.a}, ${brand.b})`,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 16,
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{ fontSize: 13, fontWeight: 700, opacity: 0.85 }}
+                    >
+                      utangz
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 24,
+                        fontWeight: 800,
+                        letterSpacing: "-0.02em",
+                      }}
+                    >
+                      {borrowerName.toLowerCase()}
+                    </div>
+                  </div>
+                  <span
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      borderRadius: 8,
-                      padding: "8px 12px",
-                      backgroundColor: st.rowBg,
-                      boxShadow: isNext
-                        ? `inset 3px 0 0 0 ${st.badgeBorder}`
-                        : "none",
+                      flexShrink: 0,
+                      fontSize: 12,
+                      fontWeight: 800,
+                      padding: "6px 12px",
+                      borderRadius: 999,
+                      backgroundColor: "rgba(255,255,255,0.2)",
                     }}
                   >
-                    <span
-                      style={{
-                        width: 22,
-                        flexShrink: 0,
-                        fontSize: 9,
-                        fontWeight: 500,
-                        color: p.textSecondary,
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      {s.index}
-                    </span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 500,
-                          color: p.textPrimary,
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        {formatMoney(s.amount_due)}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 500,
-                          color: p.textMuted,
-                          marginTop: 1,
-                        }}
-                      >
-                        {formatDate(s.due_date)}
-                        {s.status === "paid" && s.paid_date ? (
-                          <span style={{ color: p.paidDate }}>
-                            {" "}
-                            · paid {formatDate(s.paid_date)}
-                          </span>
-                        ) : null}
-                        {s.status === "partial" ? (
-                          <span style={{ color: p.partialPct }}>
-                            {" "}
-                            · {partialPct}% paid
-                          </span>
-                        ) : null}
-                        {isNext ? (
-                          <span
-                            style={{ fontWeight: 500, color: st.badgeText }}
+                    payments {rows[0]?.index}–{rows.at(-1)?.index}
+                  </span>
+                </div>
+              )}
+
+              <div style={{ padding: "0 24px 20px" }}>
+                {/* What to pay next, lifted onto the band's edge. */}
+                {showNext
+                  ? (() => {
+                      const due = dueLabel(showNext.due_date, showNext.status);
+                      const st = statusPalette(
+                        due.tone === "overdue" ? "overdue" : "due",
+                        isDark,
+                      );
+                      const amount =
+                        showNext.remaining > 0
+                          ? showNext.remaining
+                          : showNext.amount_due;
+                      return (
+                        <div
+                          style={{
+                            marginTop: -40,
+                            marginBottom: 12,
+                            borderRadius: 24,
+                            backgroundColor: st.rowBg,
+                            border: `2px solid ${st.mark}`,
+                            boxShadow: "0 10px 24px rgba(0,0,0,0.10)",
+                            padding: "16px 20px",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 12,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 14,
+                            }}
                           >
-                            {" "}
-                            · next
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <span
-                      style={{
-                        flexShrink: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 5,
-                        fontSize: 9,
-                        fontWeight: 500,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
-                        color: st.badgeText,
-                      }}
-                    >
-                      <span
+                            <span
+                              style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 14,
+                                backgroundColor: st.mark,
+                                color: "#ffffff",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 18,
+                                fontWeight: 800,
+                              }}
+                            >
+                              #{showNext.index}
+                            </span>
+                            <div>
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  color: st.text,
+                                }}
+                              >
+                                Next payment · {formatDate(showNext.due_date)}
+                              </div>
+                              <div
+                                style={{
+                                  marginTop: 2,
+                                  fontSize: 28,
+                                  fontWeight: 800,
+                                  letterSpacing: "-0.02em",
+                                  fontVariantNumeric: "tabular-nums",
+                                }}
+                              >
+                                {formatMoney(amount)}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div
+                              style={{
+                                display: "inline-block",
+                                padding: "6px 14px",
+                                borderRadius: 999,
+                                backgroundColor: st.mark,
+                                color: "#ffffff",
+                                fontSize: 13,
+                                fontWeight: 800,
+                              }}
+                            >
+                              {due.text}
+                            </div>
+                            {overdueCount > 1 ? (
+                              <div
+                                style={{
+                                  marginTop: 6,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  color: st.text,
+                                }}
+                              >
+                                +{overdueCount - 1} more overdue
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })()
+                  : null}
+
+                {/* Every payment, as one list. */}
+                <div
+                  style={{
+                    marginTop: showNext ? 0 : 20,
+                    display: "grid",
+                    gridTemplateColumns: twoColumns ? "1fr 1fr" : "1fr",
+                    // Two columns read down, then across.
+                    gridTemplateRows: twoColumns
+                      ? `repeat(${Math.ceil(rows.length / 2)}, auto)`
+                      : undefined,
+                    gridAutoFlow: twoColumns ? "column" : undefined,
+                    columnGap: 20,
+                  }}
+                >
+                  {rows.map((s, i) => {
+                    const isNext = nextRow?.index === s.index;
+                    const tone = isNext
+                      ? s.status === "overdue"
+                        ? "overdue"
+                        : "due"
+                      : s.status;
+                    const st = statusPalette(tone, isDark);
+                    const partialPct =
+                      s.amount_due > 0
+                        ? Math.min(
+                            100,
+                            Math.round((s.amount_paid / s.amount_due) * 100),
+                          )
+                        : 0;
+                    const filled =
+                      s.status === "paid" || s.status === "overdue";
+                    const perColumn = twoColumns
+                      ? Math.ceil(rows.length / 2)
+                      : rows.length;
+                    const lastInColumn =
+                      (i + 1) % perColumn === 0 || i === rows.length - 1;
+                    return (
+                      <div
+                        key={s.index}
                         style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: 999,
-                          backgroundColor: st.badgeBorder,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 14,
+                          padding: "12px 4px",
+                          borderBottom: lastInColumn
+                            ? "none"
+                            : `1px solid ${p.line}`,
                         }}
-                      />
-                      {s.status}
-                    </span>
-                  </div>
-                );
-              })}
+                      >
+                        <span
+                          style={{
+                            width: 28,
+                            height: 28,
+                            flexShrink: 0,
+                            borderRadius: 999,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 12,
+                            fontWeight: 800,
+                            backgroundColor: filled ? st.mark : "transparent",
+                            border: filled ? "none" : `2px solid ${st.mark}`,
+                            color: filled ? "#ffffff" : st.text,
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {s.status === "paid"
+                            ? "✓"
+                            : s.status === "overdue"
+                              ? "!"
+                              : s.index}
+                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 16,
+                              fontWeight: 700,
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {formatMoney(s.amount_due)}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: p.textMuted,
+                              marginTop: 1,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {formatDate(s.due_date)}
+                            {s.status === "paid" && s.paid_date
+                              ? ` · paid ${shortDate(s.paid_date)}`
+                              : ""}
+                            {s.status === "partial"
+                              ? ` · ${partialPct}% paid`
+                              : ""}
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            padding: "4px 10px",
+                            borderRadius: 999,
+                            backgroundColor: st.rowBg,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            color: st.text,
+                          }}
+                        >
+                          {isNext ? "next" : s.status}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
-            {/* Footer */}
             <div
               style={{
-                marginTop: 20,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
+                marginTop: 16,
+                textAlign: "center",
+                fontSize: 12,
+                fontWeight: 700,
+                color: p.textFaint,
               }}
             >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: p.textMuted,
-                }}
-              >
-                {!noDetails ? (
-                  <>
-                    Total{" "}
-                    <span style={{ fontWeight: 500, color: p.textPrimary }}>
-                      {formatMoney(totalPayment)}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span style={{ fontWeight: 500, color: p.textPrimary }}>
-                      {isManual ? schedules.length : paidCount}
-                    </span>{" "}
-                    {isManual
-                      ? `payment${schedules.length === 1 ? "" : "s"} received`
-                      : `of ${schedules.length} paid`}
-                  </>
-                )}
-              </div>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 500,
-                  color: p.watermark,
-                  letterSpacing: "0.08em",
-                }}
-              >
-                *utangz
-              </div>
+              {pages.length > 1 ? `${page + 1} of ${pages.length} · ` : ""}
+              {isManual
+                ? `${schedules.length} payment${schedules.length === 1 ? "" : "s"} received`
+                : `${paidCount} of ${schedules.length} paid`}{" "}
+              · made with utangz
             </div>
           </div>
         </div>

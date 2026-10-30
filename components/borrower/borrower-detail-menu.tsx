@@ -9,8 +9,10 @@ import { supabase } from "@/lib/supabase/client";
 import { revalidateBorrowersPage } from "@/lib/actions/borrowers";
 import { triggerHaptic } from "@/lib/haptics";
 import { toast } from "sonner";
-import { Pencil, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 import BorrowerEditForm from "@/components/borrower/borrower-edit-form";
+import { Sheet } from "@/components/dashboard/checklist-v2/sheet";
+import { usePrefetchCategories } from "@/lib/categories/use-categories";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -58,6 +60,9 @@ export default function BorrowerDetailMenu({
   const router = useRouter();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  // Bumped on every open, so each one starts from the saved borrower.
+  const [editSeq, setEditSeq] = useState(0);
+  const prefetchCategories = usePrefetchCategories();
   const [isDeleting, setIsDeleting] = useState(false);
 
   function openDeleteModal() {
@@ -116,7 +121,11 @@ export default function BorrowerDetailMenu({
 
   return (
     <div className="relative shrink-0">
-      <DropdownMenu>
+      <DropdownMenu
+        onOpenChange={(next) => {
+          if (next && editBorrower) prefetchCategories();
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -140,7 +149,12 @@ export default function BorrowerDetailMenu({
         <DropdownMenuContent align="end">
           {!hideEditLink ? (
             editBorrower ? (
-              <DropdownMenuItem onClick={() => setEditModalOpen(true)}>
+              <DropdownMenuItem
+                onClick={() => {
+                  setEditSeq((n) => n + 1);
+                  setEditModalOpen(true);
+                }}
+              >
                 edit
               </DropdownMenuItem>
             ) : (
@@ -196,35 +210,21 @@ export default function BorrowerDetailMenu({
       </Dialog>
 
       {editBorrower && (
-        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader className="gap-3 pb-2">
-              <div
-                className="flex h-10 w-10 items-center justify-center
-                  rounded-full bg-indigo-100 text-indigo-700
-                  dark:bg-indigo-900/40 dark:text-indigo-300"
-              >
-                <Pencil className="h-5 w-5" />
-              </div>
-              <div className="space-y-1">
-                <DialogTitle className="text-xl font-semibold tracking-tight">
-                  Edit Borrower
-                </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  Update borrower details and category assignments.
-                </DialogDescription>
-              </div>
-            </DialogHeader>
-            <BorrowerEditForm
-              borrowerId={borrowerId}
-              initial={editBorrower.initial}
-              initialCategoryIds={editBorrower.initialCategoryIds}
-              onCancel={() => setEditModalOpen(false)}
-              onSuccess={() => setEditModalOpen(false)}
-              hideMenu
-            />
-          </DialogContent>
-        </Dialog>
+        <Sheet
+          open={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          label="Edit borrower"
+        >
+          <BorrowerEditForm
+            key={editSeq}
+            borrowerId={borrowerId}
+            initial={editBorrower.initial}
+            initialCategoryIds={editBorrower.initialCategoryIds}
+            onCancel={() => setEditModalOpen(false)}
+            onSuccess={() => setEditModalOpen(false)}
+            hideMenu
+          />
+        </Sheet>
       )}
     </div>
   );

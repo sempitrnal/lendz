@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { Plus, FolderPlus, Pencil } from "lucide-react";
 
 import {
@@ -18,6 +17,7 @@ import {
 } from "@/lib/form-field-classes";
 import { supabase } from "@/lib/supabase/client";
 import { fetchCategories } from "@/lib/categories/fetch-categories";
+import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import CategoryCard from "./category-card";
 
 type Count = {
@@ -36,10 +36,6 @@ export type Category = {
 export default function CategoryList() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   /* Add dialog */
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -154,90 +150,155 @@ export default function CategoryList() {
     loadCategories();
   };
 
+  const borrowerTotal = categories.reduce(
+    (sum, c) => sum + (c.borrower_categories[0]?.count ?? 0),
+    0,
+  );
+  // A few borrower names per category, for the faces on each card.
+  const { data: borrowers } = useBorrowersSearch();
+  const membersById = new Map<string, string[]>();
+  for (const b of borrowers ?? []) {
+    const name = `${b.first_name} ${b.last_name}`.trim();
+    for (const link of b.borrower_categories ?? []) {
+      const cats = Array.isArray(link.category)
+        ? link.category
+        : [link.category];
+      for (const cat of cats) {
+        if (!cat) continue;
+        const list = membersById.get(cat.id) ?? [];
+        if (list.length < 3) list.push(name);
+        membersById.set(cat.id, list);
+      }
+    }
+  }
+  const biggest = Math.max(
+    1,
+    ...categories.map((c) => c.borrower_categories[0]?.count ?? 0),
+  );
+
+  // The share each category holds, for the strip under the total.
+  const shares = categories
+    .map((c) => ({
+      id: c.id,
+      color: c.color ?? "#94a3b8",
+      count: c.borrower_categories[0]?.count ?? 0,
+    }))
+    .filter((c) => c.count > 0);
+
   return (
-    <div className="mx-auto max-w-7xl py-10 md:max-w-full px-4 pb-16 md:px-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1
-            className="text-2xl font-black tracking-tight text-slate-600
-              dark:text-foreground"
-          >
-            categories
-          </h1>
-          <p
-            className="mt-1 text-sm text-slate-400 mb-5
-              dark:text-muted-foreground"
-          >
-            {categories.length} categor{categories.length === 1 ? "y" : "ies"}
-          </p>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-32 animate-pulse rounded-2xl border
-                border-slate-200/60 bg-slate-50/50 dark:border-slate-800
-                dark:bg-slate-900/30"
-            />
-          ))}
-        </div>
-      ) : categories.length === 0 ? (
+    <div className="pb-16">
+      {/* The green band; the search above it is the mobile top bar. */}
+      <div
+        data-settle-group="band"
+        className="relative -mt-16 px-4 pt-[4.75rem] pb-14 text-white sm:mt-0
+          sm:px-6 sm:pt-6"
+      >
         <div
-          className="flex flex-col items-center justify-center gap-3 rounded-2xl
-            border border-dashed border-slate-200 bg-slate-50/30 py-20
-            dark:border-slate-800 dark:bg-slate-900/20"
-        >
-          <p
-            className="text-sm font-medium text-slate-400
-              dark:text-muted-foreground"
-          >
-            No categories yet
+          aria-hidden="true"
+          data-nav-band
+          className="band-bg absolute inset-0 rounded-b-3xl"
+        />
+        <div className="relative z-20 flex items-center justify-between">
+          <p className="text-xs font-bold tracking-wider uppercase">
+            categories
           </p>
-          <button
-            type="button"
-            onClick={openAddDialog}
-            className="text-sm font-semibold text-slate-600 underline-offset-4
-              hover:underline dark:text-foreground"
-          >
-            Create your first category
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {categories.map((category) => (
-            <CategoryCard
-              key={category.id}
-              category={category}
-              openEditModal={openEditModal}
-              deleteCategory={deleteCategory}
-              openMenuId={openMenuId}
-              setOpenMenuId={setOpenMenuId}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* FAB — portalled to body to escape PageTransition transform stacking context */}
-      {isMounted &&
-        createPortal(
           <button
             type="button"
             onClick={openAddDialog}
             aria-label="Add category"
-            className="fixed bottom-[76px] right-4 z-40 flex size-14
-              items-center justify-center rounded-full bg-slate-900 text-white
-              shadow-lg shadow-slate-900/20 transition-all duration-200
-              hover:scale-105 hover:shadow-xl hover:shadow-slate-900/25
-              active:scale-95 dark:bg-foreground dark:text-background
-              dark:shadow-black/30"
+            className="relative flex size-9 shrink-0 items-center justify-center
+              rounded-full bg-white text-emerald-600 shadow-sm
+              transition-transform active:scale-90"
           >
             <Plus className="size-5" />
-          </button>,
-          document.body,
+          </button>
+        </div>
+        <div className="relative z-20 mt-4">
+          <p className="text-xs font-semibold opacity-80">
+            Borrowers in categories
+          </p>
+          {loading ? (
+            <span
+              className="mt-1 block h-10 w-24 animate-pulse rounded-xl
+                bg-white/25"
+            />
+          ) : (
+            <p
+              className="text-[40px] leading-tight font-black tracking-tight
+                tabular-nums"
+            >
+              {borrowerTotal}
+            </p>
+          )}
+          <p className="text-xs font-semibold opacity-80">
+            {loading
+              ? "loading…"
+              : `across ${categories.length} categor${
+                  categories.length === 1 ? "y" : "ies"
+                }`}
+          </p>
+          <div
+            className="mt-3 flex h-2 gap-0.5 overflow-hidden rounded-full
+              bg-white/25"
+            aria-hidden="true"
+          >
+            {shares.map((c) => (
+              <span
+                key={c.id}
+                className="h-full ring-1 ring-white/40 first:rounded-l-full
+                  last:rounded-r-full"
+                style={{ flexGrow: c.count, backgroundColor: c.color }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div data-settle className="relative z-10 -mt-8 px-3 sm:px-6">
+        {loading ? (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="h-32 animate-pulse rounded-3xl border border-border
+                  bg-card shadow-sm"
+              />
+            ))}
+          </div>
+        ) : categories.length === 0 ? (
+          <div
+            className="flex flex-col items-center justify-center gap-3
+              rounded-3xl border border-border bg-card py-20 shadow-sm"
+          >
+            <p className="text-sm font-semibold text-muted-foreground">
+              No categories yet
+            </p>
+            <button
+              type="button"
+              onClick={openAddDialog}
+              className="text-sm font-bold text-primary underline-offset-4
+                hover:underline"
+            >
+              Create your first category
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+            {categories.map((category) => (
+              <CategoryCard
+                key={category.id}
+                category={category}
+                openEditModal={openEditModal}
+                deleteCategory={deleteCategory}
+                openMenuId={openMenuId}
+                setOpenMenuId={setOpenMenuId}
+                members={membersById.get(category.id) ?? []}
+                share={(category.borrower_categories[0]?.count ?? 0) / biggest}
+              />
+            ))}
+          </div>
         )}
+      </div>
 
       {/* Add Category Dialog */}
       <Dialog

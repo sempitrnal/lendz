@@ -13,10 +13,7 @@ export default function BorrowerEditView({
 }: BorrowerEditViewProps) {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <div
-        className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm
-          dark:border-slate-700 dark:bg-card"
-      >
+      <div className="rounded-3xl border border-border bg-card pt-3 shadow-sm">
         <BorrowerEditForm
           borrowerId={borrowerId}
           initial={initial}

@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import BorrowerScheduleCard, {
-  buildBorrowerScheduleCardProps,
-} from "@/components/borrower/borrower-schedule-card";
+import { buildBorrowerScheduleCardProps } from "@/components/borrower/borrower-schedule-card";
+import BorrowerRowCard from "@/components/borrower/borrower-row-card";
 import type { Borrower } from "@/components/borrower/borrower-list";
 import type { BorrowerNextCollection } from "@/lib/compute-borrower-next-collection";
 
@@ -39,24 +38,22 @@ export default function CategoryBorrowersGrid({
     : borrowers;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <input
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search borrowers..."
-        className="w-full rounded-xl border border-slate-200/80 bg-white px-4
-          py-2.5 text-sm text-slate-700 placeholder:text-slate-400
-          focus:border-slate-300 focus:outline-none dark:border-slate-800
-          dark:bg-card dark:text-foreground dark:placeholder:text-slate-500
-          dark:focus:border-slate-700"
+        placeholder="Search this category…"
+        className="w-full rounded-2xl border border-border bg-card px-4 py-3
+          text-sm font-medium shadow-sm placeholder:text-muted-foreground
+          focus:border-primary/50 focus:outline-none"
       />
       {filtered.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        <p className="px-2 text-sm text-muted-foreground">
           No borrowers match &ldquo;{query}&rdquo;
         </p>
       ) : null}
-      <div className="columns-1 md:columns-2 xl:columns-3 gap-4 w-full">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map((borrower) => {
           const nextMeta = borrowerNextCollectionById[borrower.id] ?? {
             next_collection_date: null,
@@ -68,12 +65,11 @@ export default function CategoryBorrowersGrid({
             account_schedules: nextMeta.account_schedules,
           } as Borrower;
           return (
-            <div key={borrower.id} className="break-inside-avoid mb-4">
-              <BorrowerScheduleCard
-                displayCategory={false}
-                {...buildBorrowerScheduleCardProps(borrowerWithSchedules)}
-              />
-            </div>
+            <BorrowerRowCard
+              key={borrower.id}
+              displayCategory={false}
+              {...buildBorrowerScheduleCardProps(borrowerWithSchedules)}
+            />
           );
         })}
       </div>

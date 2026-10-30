@@ -119,8 +119,12 @@ export function NavSplash() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
     const phone = window.matchMedia("(max-width: 639px)");
     let alive = true;
-    let running = false;
-    // Which run owns `data-nav-splash`; a newer tap takes it over.
+    // Where the splash is: "cover" from the first tap until the slab lifts,
+    // "release" while it lifts, null once it is gone.
+    let stage: "cover" | "release" | null = null;
+    // The page the splash is waiting for: a tap while it plays moves it on.
+    let target = "";
+    // Which run owns the splash; a newer one takes it over.
     let gen = 0;
 
     const waitFor = (test: () => boolean, ms: number) =>
@@ -134,37 +138,56 @@ export function NavSplash() {
         }, 50);
       });
 
-    // The new page is in, not just its loading fallback.
-    const ready = (to: string) => pathRef.current === to && !routeLoading();
+    // The page tapped last is in, not just its loading fallback.
+    const ready = () => pathRef.current === target && !routeLoading();
 
-    const run = async (to: string, fromBand: number) => {
-      running = true;
+    /**
+     * Plays the splash for `target`. `fromBand` is where it starts; null
+     * means it is already on screen (a tap while it lifted) and swells back
+     * from wherever it is.
+     */
+    const run = async (fromBand: number | null) => {
+      stage = "cover";
       const mine = ++gen;
+      // A newer run took over: this one stops where it is.
+      const stale = () => !alive || gen !== mine;
       setSettle(null);
-      const label = splashLabel(to);
-      setView({
-        phase: "set",
-        shape: fromBand > 0 ? "band" : "gone",
-        bandPx: fromBand,
-        label,
-        behind: false,
-      });
-      await frame();
-      await frame();
-      if (!alive) return;
-      setView((v) => ({ ...v, phase: "cover", shape: "full" }));
+      const label = splashLabel(target);
+      if (fromBand === null) {
+        setView((v) => ({
+          ...v,
+          phase: "cover",
+          shape: "full",
+          label,
+          behind: false,
+        }));
+      } else {
+        setView({
+          phase: "set",
+          shape: fromBand > 0 ? "band" : "gone",
+          bandPx: fromBand,
+          label,
+          behind: false,
+        });
+        await frame();
+        await frame();
+        if (stale()) return;
+        setView((v) => ({ ...v, phase: "cover", shape: "full" }));
+      }
       await settle(panel.current, EXPAND_MS);
+      if (stale()) return;
       // Fully covered: the new page's cards wait out of sight from here.
       setSettle("cover");
 
       await Promise.all([
         sleep(MIN_HOLD_MS),
-        waitFor(() => ready(to), GIVE_UP_MS),
+        waitFor(() => stale() || ready(), GIVE_UP_MS),
       ]);
       // Let the new page lay out before measuring its band.
       await frame();
       await frame();
-      if (!alive) return;
+      if (stale()) return;
+      stage = "release";
       const into = readBand();
       const lifted = performance.now();
       // A page whose cards settle in lets them rise over the slab. One that
@@ -181,19 +204,33 @@ export function NavSplash() {
         behind,
       }));
       await settle(panel.current, COLLAPSE_MS);
-      if (!alive) return;
+      if (stale()) return;
       setView((v) => ({ ...v, phase: "idle", shape: "gone", behind: false }));
-      running = false;
+      stage = null;
       // The cards are still settling in: keep them marked until the last lands.
       await sleep(Math.max(0, SETTLE_MS - (performance.now() - lifted)));
       if (gen === mine) setSettle(null);
     };
 
     const begin = (to: string) => {
-      if (running || reduce.matches || !phone.matches) return;
+      if (reduce.matches || !phone.matches) return;
+      if (stage === "cover") {
+        // Still covered: wait for this page instead, and say so.
+        if (to === target) return;
+        target = to;
+        setView((v) => ({ ...v, label: splashLabel(to) }));
+        return;
+      }
+      if (stage === "release") {
+        // Lifting off the last page: swell back over the screen from here.
+        target = to;
+        void run(null);
+        return;
+      }
       if (to === pathRef.current) return;
+      target = to;
       // Measured now: once the page changes, its band is gone.
-      void run(to, readBand());
+      void run(readBand());
     };
 
     // A tap on a link: found from the click itself.

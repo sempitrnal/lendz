@@ -24,12 +24,24 @@ type CategoryCardProps = {
   deleteCategory: (e: string) => void;
   openMenuId: string | null;
   setOpenMenuId: (e: string | null) => void;
+  /** Names of a few of its borrowers, once the borrower list has loaded. */
+  members: string[];
+  /** Its borrowers as a share of the biggest category's (0 to 1). */
+  share: number;
 };
+
+/** "mila santos" → "MS", "bo" → "B". */
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return (parts[0]?.[0] ?? "") + (parts.length > 1 ? parts.at(-1)![0] : "");
+}
 
 export default function CategoryCard({
   category,
   openEditModal,
   deleteCategory,
+  members,
+  share,
 }: CategoryCardProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -41,55 +53,57 @@ export default function CategoryCard({
   return (
     <>
       <div
+        role="link"
+        tabIndex={0}
         onClick={() => {
           setIsLoading(true);
           router.push(`/categories/${category.id}`);
         }}
-        className="group relative flex cursor-pointer flex-col rounded-2xl
-          border border-slate-200/70 bg-white p-5 transition-all duration-200
-          ease-out hover:border-slate-300 hover:shadow-md
-          hover:shadow-slate-200/40 active:scale-[0.98] dark:border-slate-800/60
-          dark:bg-card dark:hover:border-slate-700 dark:hover:shadow-black/20"
+        onKeyDown={(e) => {
+          if (e.key !== "Enter" || e.target !== e.currentTarget) return;
+          setIsLoading(true);
+          router.push(`/categories/${category.id}`);
+        }}
+        style={{ "--cat": color } as React.CSSProperties}
+        className="relative flex min-h-44 cursor-pointer flex-col rounded-3xl
+          border border-border bg-card p-3 shadow-sm transition-transform
+          active:scale-[0.97]"
       >
         {isLoading && (
           <div
             className="absolute inset-0 z-10 flex items-center justify-center
-              rounded-2xl bg-white/90 dark:bg-card/80"
+              rounded-3xl bg-card/80"
           >
             <div
-              className="h-5 w-5 animate-spin rounded-full border-2
-                border-slate-300 border-t-slate-700 dark:border-slate-700
-                dark:border-t-slate-300"
+              className="size-5 animate-spin rounded-full border-2 border-muted
+                border-t-foreground"
             />
           </div>
         )}
 
-        {/* Header: color dot + name + menu */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2.5 pt-1">
-            <span
-              className="size-2.5 shrink-0 rounded-full ring-1 ring-inset
-                ring-black/10 dark:ring-white/10"
-              style={{ backgroundColor: color }}
-            />
-            <h3
-              className="truncate text-lg font-bold tracking-tight
-                text-slate-600 dark:text-foreground"
-            >
-              {category.name}
-            </h3>
-          </div>
-
+        {/* The category's initial on its colour, and the menu. */}
+        <div className="flex items-start justify-between gap-1">
+          <span
+            aria-hidden="true"
+            className="flex size-10 items-center justify-center rounded-2xl
+              ring-1 ring-black/5 ring-inset dark:ring-white/10
+              bg-[color-mix(in_oklab,var(--cat)_22%,var(--card))] text-lg
+              font-black
+              text-[color-mix(in_oklab,var(--cat)_45%,var(--foreground))]
+              uppercase"
+          >
+            {category.name.trim().charAt(0) || "?"}
+          </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
                 onClick={(e) => e.stopPropagation()}
-                className="flex size-7 shrink-0 items-center justify-center
-                  rounded-lg text-slate-400 transition-colors duration-150
-                  hover:bg-slate-100 hover:text-slate-600
-                  focus-visible:bg-slate-100 focus-visible:outline-none
-                  dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                aria-label={`${category.name} options`}
+                className="-mt-1 -mr-1 flex size-8 shrink-0 items-center
+                  justify-center rounded-full text-muted-foreground
+                  transition-colors hover:bg-muted focus-visible:bg-muted
+                  focus-visible:outline-none"
               >
                 <MoreVertical className="size-4" />
               </button>
@@ -116,36 +130,63 @@ export default function CategoryCard({
           </DropdownMenu>
         </div>
 
-        {/* Borrower count */}
-        <p
-          className="mt-1.5 text-[13px] font-medium text-slate-400
-            dark:text-muted-foreground"
+        <h3
+          className="mt-2.5 line-clamp-2 text-[15px] leading-tight font-black
+            tracking-tight lowercase"
         >
-          {borrower_count === 1
-            ? "1 borrower"
-            : borrower_count > 1
-              ? `${borrower_count} borrowers`
-              : "No borrowers"}
+          {category.name}
+        </h3>
+        <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">
+          {borrower_count} borrower{borrower_count === 1 ? "" : "s"}
         </p>
 
         <div className="flex-1" />
 
-        {/* Footer: View details */}
+        {/* A few of its borrowers, then how it measures up to the biggest. */}
+        <div className="mt-3 flex items-center">
+          {members.length === 0 ? (
+            <span className="text-[11px] font-semibold text-muted-foreground/60">
+              {borrower_count === 0 ? "empty" : "\u00a0"}
+            </span>
+          ) : (
+            <div className="flex -space-x-1.5">
+              {members.slice(0, 3).map((name, i) => (
+                <span
+                  key={i}
+                  title={name}
+                  className="flex size-6 items-center justify-center
+                    rounded-full
+                    bg-[color-mix(in_oklab,var(--cat)_30%,var(--card))]
+                    text-[9px] font-black
+                    text-[color-mix(in_oklab,var(--cat)_40%,var(--foreground))]
+                    uppercase ring-2 ring-card"
+                >
+                  {initials(name)}
+                </span>
+              ))}
+              {borrower_count > 3 && (
+                <span
+                  className="flex h-6 min-w-6 items-center justify-center
+                    rounded-full bg-muted px-1 text-[9px] font-black
+                    text-muted-foreground ring-2 ring-card"
+                >
+                  +{borrower_count - 3}
+                </span>
+              )}
+            </div>
+          )}
+          <ChevronRight className="ml-auto size-4 text-muted-foreground" />
+        </div>
         <div
-          className="mt-5 flex items-center justify-between border-t
-            border-slate-100 pt-3.5 dark:border-slate-800/60"
+          className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-muted"
+          aria-hidden="true"
         >
-          <span
-            className="text-[13px] font-medium text-slate-500 transition-colors
-              group-hover:text-slate-700 dark:text-muted-foreground
-              dark:group-hover:text-foreground"
-          >
-            View details
-          </span>
-          <ChevronRight
-            className="size-4 text-slate-300 transition-all duration-200
-              group-hover:translate-x-0.5 group-hover:text-slate-500
-              dark:text-slate-600 dark:group-hover:text-slate-300"
+          <div
+            className="h-full rounded-full bg-(--cat) ring-1 ring-black/10
+              ring-inset transition-[width] duration-500"
+            style={{
+              width: `${Math.max(share * 100, borrower_count ? 4 : 0)}%`,
+            }}
           />
         </div>
       </div>
