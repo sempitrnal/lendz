@@ -35,7 +35,8 @@ const REFRESH_WINDOW_MS = 1000;
 function needsPageRefresh(table: string, pathname: string | null) {
   if (table === "daily_checklist_items") return false;
   if (table === "daily_checklist_categories") return false;
-  if (table === "calendar_events") return !!pathname?.startsWith("/calendar");
+  // No page shows calendar events any more.
+  if (table === "calendar_events") return false;
   if (table === "borrower_notes") return pathname === "/borrowers";
   return true;
 }

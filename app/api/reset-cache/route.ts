@@ -7,7 +7,6 @@ export async function GET() {
     "/dashboard",
     "/borrowers",
     "/accounts",
-    "/calendar",
     "/next-collection",
   ];
 

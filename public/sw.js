@@ -915,7 +915,7 @@ async function prunePagesCache(urls) {
 }
 
 /** Pages the sync list saves under several query strings. */
-const KEEPS_QUERY_VARIANTS = new Set(["/calendar"]);
+const KEEPS_QUERY_VARIANTS = new Set([]);
 
 // Marks offline-sync downloads so the server can skip page-view audits for
 // them (PREFETCH_HEADER in lib/audit.ts).

@@ -48,7 +48,6 @@ const STATIC_ROUTES = [
   "/borrowers",
   "/accounts",
   "/categories",
-  "/calendar",
   "/audit",
   "/deleted",
   "/due-this-month",
@@ -60,16 +59,6 @@ const STATIC_ROUTES = [
   "/daily-checklist/categories",
   "/test-account",
 ];
-
-/** Calendar months saved for offline: two back, three ahead. */
-function calendarMonthUrls(now = new Date()): string[] {
-  const urls: string[] = [];
-  for (let offset = -2; offset <= 3; offset++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    urls.push(`/calendar?year=${d.getFullYear()}&month=${d.getMonth() + 1}`);
-  }
-  return urls;
-}
 
 function hashUrlList(urls: string[]): string {
   const joined = urls.join("|");
@@ -135,7 +124,6 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
 
         const urls = [
           ...STATIC_ROUTES,
-          ...calendarMonthUrls(),
           "/api/borrowers",
           "/api/categories",
           // Edit pages aren't saved: editing a borrower needs a connection.
