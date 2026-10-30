@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  filterCounts,
+  filterPlan,
   isPatternDate,
   monthRange,
   planDates,
@@ -169,5 +171,49 @@ describe("shortAmount", () => {
     expect(shortAmount(800)).toBe("800");
     expect(shortAmount(1380600)).toBe("1.38M");
     expect(shortAmount(2000000)).toBe("2M");
+  });
+});
+
+describe("filterPlan", () => {
+  const e = (id: string, done: boolean) => ({
+    id,
+    date: "",
+    name: id,
+    borrowerId: null,
+    amount: 1000,
+    kind: null,
+    term: null,
+    category: null,
+    done,
+  });
+  const dates = ["2026-11-04", "2026-11-05", "2026-11-07"];
+  const byDate = new Map([
+    ["2026-11-04", [e("a", true), e("b", false)]],
+    ["2026-11-05", [e("c", true)]],
+  ]);
+
+  it("keeps days with releases still to create, showing only those", () => {
+    expect(filterPlan(dates, byDate, "open")).toEqual([
+      { date: "2026-11-04", entries: [e("b", false)] },
+    ]);
+  });
+
+  it("keeps created releases and free days", () => {
+    expect(filterPlan(dates, byDate, "created").map((d) => d.date)).toEqual([
+      "2026-11-04",
+      "2026-11-05",
+    ]);
+    expect(filterPlan(dates, byDate, "free").map((d) => d.date)).toEqual([
+      "2026-11-07",
+    ]);
+  });
+
+  it("counts releases and days", () => {
+    expect(filterCounts(dates, byDate)).toEqual({
+      all: 3,
+      open: 1,
+      created: 2,
+      free: 1,
+    });
   });
 });

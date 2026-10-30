@@ -44,6 +44,9 @@ import { buildReleaseView } from "@/lib/checklist/release-items";
 import {
   type MonthKey,
   type PlanEntry,
+  type PlanFilter,
+  filterCounts,
+  filterPlan,
   isPatternDate,
   monthKeyOf,
   monthRange,
@@ -308,6 +311,13 @@ function ReleasePlan({ today }: { today: string }) {
     [month, byDate, extraDates],
   );
   const all = useMemo(() => [...byDate.values()].flat(), [byDate]);
+  const [filter, setFilter] = useState<PlanFilter>("all");
+  const counts = useMemo(() => filterCounts(dates, byDate), [dates, byDate]);
+  // While the month loads every day shows (as skeletons), whatever the filter.
+  const shown = useMemo(
+    () => filterPlan(dates, byDate, items === null ? "all" : filter),
+    [dates, byDate, filter, items],
+  );
   const total = planTotal(all);
   const created = all.filter((e) => e.done).length;
   const pct = all.length ? Math.round((created / all.length) * 100) : 0;
@@ -686,6 +696,13 @@ function ReleasePlan({ today }: { today: string }) {
           </p>
         )}
 
+        <FilterBar
+          value={filter}
+          counts={counts}
+          disabled={loading}
+          onChange={setFilter}
+        />
+
         <AnimatePresence mode="popLayout" initial={false} custom={direction}>
           <m.div
             key={month}
@@ -693,38 +710,86 @@ function ReleasePlan({ today }: { today: string }) {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: direction * -slide, opacity: 0 }}
             transition={{ duration: 0.32, ease: EASE_OUT }}
-            className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+            className="mt-3"
           >
-            {dates.map((date, i) => (
-              <DayCell
-                key={date}
-                index={i}
-                date={date}
-                today={today}
-                entries={byDate.get(date) ?? []}
-                loading={loading}
-                canAdd={!!releasedId}
-                reduceMotion={!!reduceMotion}
-                onOpen={() =>
-                  router.push(`/daily-checklist?date=${date}&tab=release`)
-                }
-                onAdd={() => open({ kind: "add", date })}
-                onEntry={(id) => open({ kind: "menu", id })}
-                onRemove={
-                  extraDates.includes(date) && !isPatternDate(date)
-                    ? () => removeDate(date)
-                    : undefined
-                }
-              />
-            ))}
-            {releasedId && (
-              <AddDateTile
-                index={dates.length}
-                month={month}
-                reduceMotion={!!reduceMotion}
-                onPick={(date) => addDate(date, false)}
-              />
-            )}
+            {/* A fixed grid: tiles keep their rows. When a filter takes some
+                away or brings them back, the rest glide to their new cells. */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <AnimatePresence mode="popLayout" initial={false}>
+                {[
+                  ...shown.map(({ date, entries }, i) => ({
+                    key: date,
+                    node: (
+                      <DayCell
+                        index={i}
+                        date={date}
+                        today={today}
+                        entries={entries}
+                        filter={filter}
+                        loading={loading}
+                        canAdd={!!releasedId}
+                        reduceMotion={!!reduceMotion}
+                        onOpen={() =>
+                          router.push(
+                            `/daily-checklist?date=${date}&tab=release`,
+                          )
+                        }
+                        onAdd={() => open({ kind: "add", date })}
+                        onEntry={(id) => open({ kind: "menu", id })}
+                        onRemove={
+                          extraDates.includes(date) && !isPatternDate(date)
+                            ? () => removeDate(date)
+                            : undefined
+                        }
+                      />
+                    ),
+                  })),
+                  ...(releasedId && (filter === "all" || filter === "free")
+                    ? [
+                        {
+                          key: "add-date",
+                          node: (
+                            <AddDateTile
+                              index={shown.length}
+                              month={month}
+                              reduceMotion={!!reduceMotion}
+                              onPick={(date) => addDate(date, false)}
+                            />
+                          ),
+                        },
+                      ]
+                    : []),
+                ].map(({ key, node }) => (
+                  <m.div
+                    key={key}
+                    layout={reduceMotion ? false : "position"}
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{
+                      opacity: 0,
+                      scale: 0.85,
+                      transition: { duration: reduceMotion ? 0 : 0.18 },
+                    }}
+                    transition={TILE_SPRING}
+                  >
+                    {node}
+                  </m.div>
+                ))}
+              </AnimatePresence>
+            </div>
+            <AnimatePresence>
+              {!loading && shown.length === 0 && (
+                <m.p
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="px-6 py-10 text-center text-sm font-semibold
+                    text-muted-foreground"
+                >
+                  {EMPTY_TEXT[filter]}
+                </m.p>
+              )}
+            </AnimatePresence>
           </m.div>
         </AnimatePresence>
 
@@ -790,11 +855,97 @@ function ReleasePlan({ today }: { today: string }) {
   );
 }
 
+const FILTERS: { value: PlanFilter; label: string }[] = [
+  { value: "all", label: "all" },
+  { value: "open", label: "not created" },
+  { value: "created", label: "created" },
+  { value: "free", label: "free" },
+];
+
+const EMPTY_TEXT: Record<PlanFilter, string> = {
+  all: "No days this month.",
+  open: "Every release this month is created.",
+  created: "Nothing created this month yet.",
+  free: "Every day this month has a release.",
+};
+
+/** How tiles glide to a new cell when a filter changes. */
+const TILE_SPRING = {
+  type: "spring",
+  stiffness: 340,
+  damping: 32,
+  mass: 0.8,
+} as const;
+
+/** The filter chips over the tiles; the selected pill slides between them. */
+function FilterBar({
+  value,
+  counts,
+  disabled,
+  onChange,
+}: {
+  value: PlanFilter;
+  counts: Record<PlanFilter, number>;
+  disabled: boolean;
+  onChange(next: PlanFilter): void;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Show"
+      className="flex gap-1 overflow-x-auto rounded-2xl border border-border
+        bg-card p-1 shadow-sm [scrollbar-width:none]
+        [&::-webkit-scrollbar]:hidden"
+    >
+      {FILTERS.map((f) => {
+        const selected = f.value === value;
+        return (
+          <button
+            key={f.value}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            disabled={disabled}
+            onClick={() => onChange(f.value)}
+            className={cn(
+              `relative flex shrink-0 grow items-center justify-center gap-1
+              rounded-xl px-2.5 py-2 text-xs font-bold whitespace-nowrap
+              transition-colors disabled:opacity-60`,
+              selected ? "text-primary-foreground" : "text-muted-foreground",
+            )}
+          >
+            {selected && (
+              <m.span
+                layoutId="plan-filter"
+                aria-hidden="true"
+                className="absolute inset-0 rounded-xl bg-primary"
+                transition={{ type: "spring", stiffness: 500, damping: 36 }}
+              />
+            )}
+            <span className="relative">{f.label}</span>
+            {!disabled && (
+              <span
+                className={cn(
+                  "relative tabular-nums",
+                  selected ? "opacity-80" : "opacity-60",
+                )}
+              >
+                {counts[f.value]}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function DayCell({
   index,
   date,
   today,
   entries,
+  filter,
   loading,
   canAdd,
   reduceMotion,
@@ -807,6 +958,8 @@ function DayCell({
   date: string;
   today: string;
   entries: PlanEntry[];
+  /** A filter change swaps the releases shown; that is no new plan. */
+  filter: PlanFilter;
   loading: boolean;
   canAdd: boolean;
   reduceMotion: boolean;
@@ -846,9 +999,12 @@ function DayCell({
     return () => observer.disconnect();
   }, [measure, entries.length, loading]);
   const count = useRef(entries.length);
+  const shownFilter = useRef(filter);
   useEffect(() => {
-    const grew = entries.length > count.current;
+    const grew =
+      entries.length > count.current && shownFilter.current === filter;
     count.current = entries.length;
+    shownFilter.current = filter;
     if (!grew || loading || reduceMotion) return;
     cell.current?.animate(
       [
@@ -859,7 +1015,7 @@ function DayCell({
       ],
       { duration: 420, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
     );
-  }, [entries.length, loading, reduceMotion]);
+  }, [entries.length, filter, loading, reduceMotion]);
 
   const monthShort = new Date(`${date}T00:00:00Z`)
     .toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })
@@ -875,6 +1031,7 @@ function DayCell({
         damping: 26,
         delay: Math.min(index, 14) * 0.025,
       }}
+      className="h-full"
     >
       <div
         ref={cell}
@@ -1193,7 +1350,7 @@ function AddDateTile({
         delay: Math.min(index, 14) * 0.025,
       }}
       whileTap={{ scale: 0.96 }}
-      className="relative"
+      className="relative h-full"
     >
       <button
         type="button"

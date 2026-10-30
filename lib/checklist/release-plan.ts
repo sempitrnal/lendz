@@ -143,3 +143,49 @@ export function shortAmount(n: number): string {
 export function planTotal(entries: PlanEntry[]): number {
   return entries.reduce((sum, e) => sum + (e.amount ?? 0), 0);
 }
+
+/**
+ * Which days the planner shows: every day, days with a release still to
+ * create, days with created releases, or days with nothing on them.
+ */
+export type PlanFilter = "all" | "open" | "created" | "free";
+
+/**
+ * The days a filter keeps, each with the releases it shows: "open" keeps only
+ * the releases still to create on a day, "created" only the created ones.
+ */
+export function filterPlan(
+  dates: string[],
+  byDate: Map<string, PlanEntry[]>,
+  filter: PlanFilter,
+): { date: string; entries: PlanEntry[] }[] {
+  const days = dates.map((date) => ({ date, entries: byDate.get(date) ?? [] }));
+  switch (filter) {
+    case "all":
+      return days;
+    case "free":
+      return days.filter((d) => d.entries.length === 0);
+    case "open":
+      return days
+        .map((d) => ({ ...d, entries: d.entries.filter((e) => !e.done) }))
+        .filter((d) => d.entries.length > 0);
+    case "created":
+      return days
+        .map((d) => ({ ...d, entries: d.entries.filter((e) => e.done) }))
+        .filter((d) => d.entries.length > 0);
+  }
+}
+
+/** What each filter's chip counts: releases for open and created, days otherwise. */
+export function filterCounts(
+  dates: string[],
+  byDate: Map<string, PlanEntry[]>,
+): Record<PlanFilter, number> {
+  const entries = dates.flatMap((d) => byDate.get(d) ?? []);
+  return {
+    all: dates.length,
+    open: entries.filter((e) => !e.done).length,
+    created: entries.filter((e) => e.done).length,
+    free: dates.filter((d) => (byDate.get(d) ?? []).length === 0).length,
+  };
+}
