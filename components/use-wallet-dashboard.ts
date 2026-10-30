@@ -24,7 +24,7 @@ export function isAccountDetailPath(pathname: string) {
 
 /**
  * True where the page draws its own green top band on a phone: the wallet
- * dashboard, the checklist, a borrower's page and an account's page. The
+ * dashboard, the checklist, the release plan, a borrower's page and an account's page. The
  * global mobile top bar turns green there.
  */
 export function usePageOwnsMobileHeader() {
@@ -33,6 +33,7 @@ export function usePageOwnsMobileHeader() {
   return (
     walletDashboard ||
     pathname === "/daily-checklist" ||
+    pathname === "/releases" ||
     isBorrowerDetailPath(pathname) ||
     isAccountDetailPath(pathname)
   );

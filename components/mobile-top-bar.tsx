@@ -92,10 +92,12 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
     };
   }, [ownsHeader, pathname]);
 
-  // A borrower's or an account's header caps itself with its own shadow under
+  // A borrower's, an account's or the release plan's header caps itself with its own shadow under
   // this bar.
   const capsItself =
-    isBorrowerDetailPath(pathname) || isAccountDetailPath(pathname);
+    isBorrowerDetailPath(pathname) ||
+    isAccountDetailPath(pathname) ||
+    pathname === "/releases";
   const hideAll =
     HIDE_ALL_PATHS.includes(pathname) ||
     (pathname.startsWith("/accounts/") && pathname.endsWith("/view"));

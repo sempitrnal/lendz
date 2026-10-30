@@ -124,6 +124,7 @@ export function AddSheet({
   mode,
   date,
   edit,
+  heading,
   api,
   onOpenBorrower,
   onClose,
@@ -132,6 +133,8 @@ export function AddSheet({
   date: string;
   /** Edit this collection row instead of adding one (Edit item). */
   edit?: RowView;
+  /** Overrides the "Add to today" title (the release planner names the day). */
+  heading?: string;
   api: AddSheetApi;
   /** Edit item: the borrower's name opens their page. */
   onOpenBorrower?(): void;
@@ -730,7 +733,9 @@ export function AddSheet({
 
   // ---------- compose ----------
   const isToday = date === todayDateValue();
-  const title = edit ? "Edit item" : `Add to ${isToday ? "today" : "this day"}`;
+  const title = edit
+    ? "Edit item"
+    : (heading ?? `Add to ${isToday ? "today" : "this day"}`);
   const subtitle = edit
     ? (borrower?.name ?? "")
     : isRelease

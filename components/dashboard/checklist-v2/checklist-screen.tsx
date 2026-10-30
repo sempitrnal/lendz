@@ -11,8 +11,9 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  Suspense,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { m, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
@@ -220,15 +221,29 @@ export default function ChecklistScreen() {
       </div>
     );
   }
-  return <ChecklistDay today={today} />;
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-md pb-32">
+          <ListSkeleton />
+        </div>
+      }
+    >
+      <ChecklistDay today={today} />
+    </Suspense>
+  );
 }
 
 function ChecklistDay({ today }: { today: string }) {
   const reduceMotion = useReducedMotion();
+  // Read through the router, not window.location: on an in-app jump (the
+  // release plan opening a day) the address bar changes only after this
+  // first render, so it would still show the page we came from.
+  const params = useSearchParams();
   // The day lives in the URL too (`?date=2026-10-20`); today has no param, so
   // a reload on a later day opens on that day, not the old one.
   const [date, setDate] = useState(() => {
-    const value = new URLSearchParams(window.location.search).get("date");
+    const value = params.get("date");
     return value &&
       /^\d{4}-\d{2}-\d{2}$/.test(value) &&
       !isNaN(Date.parse(value))
@@ -239,9 +254,7 @@ function ChecklistDay({ today }: { today: string }) {
   // a shared link opens on it. This only mounts on the client, so reading the
   // address here is safe.
   const [tab, setTabState] = useState<ChecklistTab>(() =>
-    new URLSearchParams(window.location.search).get("tab") === "release"
-      ? "release"
-      : "collect",
+    params.get("tab") === "release" ? "release" : "collect",
   );
   // Desktop width shows both lists at once, so neither tab is ever "left".
   const wide = useWideScreen();

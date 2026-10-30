@@ -47,10 +47,10 @@ export function navTarget(
 export function splashLabel(pathname: string): string {
   if (pathname === "/dashboard") return "dashboard";
   if (pathname === "/daily-checklist") return "checklist";
+  if (pathname === "/releases") return "release plan";
   if (pathname === "/borrowers") return "borrowers";
   if (pathname.startsWith("/borrowers/")) return "borrower";
   if (pathname.startsWith("/accounts/")) return "account";
-  if (pathname === "/calendar") return "calendar";
   if (pathname === "/upcoming") return "upcoming";
   return "page";
 }

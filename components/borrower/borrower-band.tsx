@@ -43,6 +43,8 @@ type Refs = {
   /** The header's shadow, kept apart from its fill so it can arrive later. */
   headShadow: React.RefObject<HTMLDivElement | null>;
   headStats: React.RefObject<HTMLDivElement | null>;
+  /** How much the folded header grows for its figures (0: it has none). */
+  statsPx?: number;
 };
 
 /**
@@ -64,6 +66,7 @@ export function useCollapsingBand({
   headBg,
   headShadow,
   headStats,
+  statsPx = STATS_PX,
 }: Refs) {
   useEffect(() => {
     const headEl = head.current;
@@ -94,9 +97,9 @@ export function useCollapsingBand({
       const h = slabEl.offsetHeight;
       // Sticks when only the folded header's height of the slab is left under
       // the bar: its name row plus the row of figures it grows.
-      const top = `${BAR_PX + c + STATS_PX - h}px`;
+      const top = `${BAR_PX + c + statsPx - h}px`;
       if (slabEl.style.top !== top) slabEl.style.top = top;
-      fold = Math.max(1, h - c - STATS_PX);
+      fold = Math.max(1, h - c - statsPx);
       // A short page couldn't scroll far enough to fold the band, so it gets
       // empty room below: just enough that the document ends `fold` past one
       // screen. A longer page already is, and this changes nothing for it.
@@ -173,7 +176,7 @@ export function useCollapsingBand({
       window.removeEventListener("resize", refresh);
       if (page) page.style.minHeight = "";
     };
-  }, [head, slab, body, headBg, headShadow, headStats]);
+  }, [head, slab, body, headBg, headShadow, headStats, statsPx]);
 }
 
 /**

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { QuickActionsButton } from "@/components/quick-actions";
 import { announceNavigation } from "@/lib/nav-splash";
 import { usePathname, useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/motion/tabs";
@@ -13,7 +12,7 @@ import {
   Wallet,
   Tag,
   ClipboardCheck,
-  CalendarDays,
+  CalendarRange,
   Trash2,
   CalendarClock,
   Menu,
@@ -40,12 +39,12 @@ const PRIMARY_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "dashboard", Icon: LayoutDashboard },
   { href: "/daily-checklist", label: "checklist", Icon: ClipboardCheck },
   { href: "/borrowers", label: "borrowers", Icon: Users },
+  { href: "/releases", label: "plan", Icon: CalendarRange },
 ];
 
+/** The More menu: the pages the tab bar has no room for. */
 const ALL_ITEMS: NavItem[] = [
-  ...PRIMARY_ITEMS,
   { href: "/due-this-month", label: "due this month", Icon: CalendarClock },
-  { href: "/calendar", label: "calendar", Icon: CalendarDays },
   { href: "/categories", label: "categories", Icon: Tag },
   { href: "/deleted", label: "trash", Icon: Trash2 },
   { href: "/whats-new", label: "what's new", Icon: Sparkles },
@@ -134,8 +133,6 @@ export default function BottomNav() {
                 ))}
               </TabsList>
             </Tabs>
-
-            <QuickActionsButton />
 
             {/* More / menu */}
             <button

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { useMemo, useState } from "react";
 import {
+  CalendarRange,
   Check,
   ChevronDown,
   CloudUpload,
@@ -161,6 +162,14 @@ export function ReleaseList({
       <p className="px-3 pt-2 text-center text-xs text-muted-foreground">
         Typed notes are read for you: amount, term and dates fill the form.
       </p>
+      <Link
+        href="/releases"
+        className="mx-auto flex w-fit items-center gap-1.5 rounded-full px-3
+          py-1.5 text-xs font-semibold text-primary active:bg-primary/10"
+      >
+        <CalendarRange className="size-3.5" />
+        Plan releases for the month
+      </Link>
     </div>
   );
 }
