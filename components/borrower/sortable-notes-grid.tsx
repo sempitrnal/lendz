@@ -253,7 +253,8 @@ export default function SortableNotesGrid({
     void saveOrder(next);
   };
 
-  if (ordered.length === 0) return null;
+  // With no notes the card still shows, so a first one can be added.
+  if (ordered.length === 0 && !onAddNote) return null;
 
   return (
     <section
@@ -272,12 +273,14 @@ export default function SortableNotesGrid({
         <h2 className="text-sm font-black text-card-foreground/80 lowercase">
           notes
         </h2>
-        <span
-          className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold
-            text-muted-foreground tabular-nums"
-        >
-          {ordered.length}
-        </span>
+        {ordered.length > 0 && (
+          <span
+            className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold
+              text-muted-foreground tabular-nums"
+          >
+            {ordered.length}
+          </span>
+        )}
         {onAddNote && (
           <button
             type="button"
@@ -291,7 +294,26 @@ export default function SortableNotesGrid({
           </button>
         )}
       </div>
-      <div className="px-3 pb-3">
+      {ordered.length === 0 && onAddNote && (
+        <div className="px-3 pb-3">
+          <button
+            type="button"
+            onClick={onAddNote}
+            className="flex w-full flex-col items-center justify-center gap-1
+              rounded-xl border-2 border-dashed border-border py-6 text-center
+              transition active:scale-[0.99] active:bg-muted/50"
+          >
+            <Plus className="size-5 text-muted-foreground" aria-hidden="true" />
+            <span className="text-sm font-bold text-muted-foreground">
+              Add a note
+            </span>
+            <span className="text-xs text-muted-foreground/70">
+              Reminders, agreements, anything about this borrower
+            </span>
+          </button>
+        </div>
+      )}
+      <div className={ordered.length === 0 ? "hidden" : "px-3 pb-3"}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

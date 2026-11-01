@@ -44,6 +44,10 @@ export type AccountSummary = {
   pct: number;
   paidInstallments: number;
   installmentCount: number;
+  /** The account's principal; missing on summaries saved before it was kept. */
+  principal?: number;
+  /** `YYYY-MM-DD`, when it was released; missing on older saved summaries. */
+  releaseDate?: string | null;
 };
 
 const SCHEDULES_KEY = "lendz-checklist-schedules";
@@ -59,10 +63,11 @@ const SCHEDULE_COLUMNS =
 type SummaryAccountRow = AccountBalanceInput & {
   id: string;
   type: string | null;
+  release_date: string | null;
 };
 
 const SUMMARY_ACCOUNT_COLUMNS =
-  "id, type, schedule_mode, interest_type, principal_amount, interest_rate";
+  "id, type, schedule_mode, interest_type, principal_amount, interest_rate, release_date";
 const SUMMARY_SCHEDULE_COLUMNS =
   "amount_due, amount_paid, remaining_amount, status";
 
@@ -279,6 +284,8 @@ async function fetchAccountSummaries(
       pct: total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0,
       paidInstallments: b.paidInstallments,
       installmentCount: b.installmentCount,
+      principal: Number(account.principal_amount ?? 0),
+      releaseDate: account.release_date,
     };
   }
   mergeMap(SUMMARIES_KEY, summaries);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
@@ -11,8 +12,15 @@ import { m, useAnimationControls, type TapInfo } from "motion/react";
 import { Check, ChevronDown, CloudUpload, NotebookPen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatShortDate } from "@/lib/checklist/labels";
+import { lateLabel } from "@/lib/checklist/late-label";
 import { plainLabelText, rowDisplayName } from "@/lib/checklist/row-name";
-import type { RowLine, RowView } from "@/lib/checklist/row-state";
+import {
+  groupLinesByAccount,
+  lineProfit,
+  type RowLine,
+  type RowView,
+} from "@/lib/checklist/row-state";
+import { useAccountSummaries } from "@/components/dashboard/checklist-v2/use-live-schedules";
 import { chipClass } from "@/components/dashboard/checklist/dom";
 import { totalProfit } from "@/lib/checklist/profit";
 import { showsPartial } from "@/lib/checklist/partial-display";
@@ -33,7 +41,7 @@ export const namePillClass = `inline-block max-w-full min-w-0 truncate
   rounded-md border border-[var(--grp-border,color-mix(in_srgb,var(--grp,#0ea5e9)_30%,transparent))]
   dark:border-[color-mix(in_srgb,var(--grp,#0ea5e9)_30%,transparent)]
   bg-[color-mix(in_srgb,var(--grp,#0ea5e9)_12%,transparent)] px-2.5 py-1
-  text-sm leading-none font-semibold text-slate-700 lowercase
+  text-sm leading-none font-extrabold text-slate-600 lowercase
   dark:text-slate-200 mb-1`;
 
 export const kindLabel = (type: string) =>
@@ -58,8 +66,8 @@ export const originalTotal = (row: RowView) =>
 /** The muted second line of a collection row, per the spec's row table. */
 function subline(row: RowView): {
   text: string;
-  /** "3d late": shown as the overdue pill after the text. */
-  lateLabel?: string;
+  /** Days late, shown as the overdue pill after the text. */
+  lateDays?: number;
   /** The installment types shown after the text: the one open schedule's, or
    * every schedule's on a paid row. */
   kinds?: string[];
@@ -88,7 +96,7 @@ function subline(row: RowView): {
   if (open.length > 1) {
     return {
       text: `${open.length} due`,
-      lateLabel: row.lateDays > 0 ? `oldest ${row.lateDays}d late` : undefined,
+      lateDays: row.lateDays > 0 ? row.lateDays : undefined,
       ...profit,
     };
   }
@@ -96,7 +104,7 @@ function subline(row: RowView): {
   const due = formatShortDate(line.due_date).toLowerCase();
   return {
     text: due,
-    lateLabel: line.overdue ? `${line.daysOverdue}d late` : undefined,
+    lateDays: line.overdue ? line.daysOverdue : undefined,
     kinds: [line.type],
     ...profit,
   };
@@ -405,11 +413,13 @@ export function CollectRow({
                   aria-label={`Pay ${open.length} installments for ${name}`}
                   data-tour="checklist-pay-pill"
                   onClick={guard(onPayRow)}
-                  className="flex h-8 items-center rounded-full border
-                    border-muted-foreground/40 px-2 lowercase text-xs
-                    font-semibold transition-colors active:bg-muted"
+                  // The check circles' size, so the column lines up.
+                  className="-mr-1 flex h-6 min-w-6 items-center justify-center
+                    rounded-full border border-muted-foreground/40 px-1
+                    text-[11px] font-bold tabular-nums transition-colors
+                    active:bg-muted"
                 >
-                  Pay {open.length}
+                  {open.length}
                 </button>
               ) : (
                 <button
@@ -419,18 +429,22 @@ export function CollectRow({
                   onClick={guard(onPayAll)}
                   className="-mr-1 flex size-6 items-center justify-center"
                 >
-                  <span
-                    className={cn(
-                      `flex size-6 items-center justify-center rounded-full
-                        border text-muted-foreground transition-colors
-                        active:bg-primary active:text-primary-foreground`,
-                      row.status === "partial"
-                        ? "border-primary/50 text-primary"
-                        : "border-muted-foreground/40",
-                    )}
-                  >
-                    <Check className="size-3.5" strokeWidth={2.5} />
-                  </span>
+                  {partialShown ? (
+                    <PartialMark />
+                  ) : (
+                    <span
+                      className={cn(
+                        `flex size-6 items-center justify-center rounded-full
+                          border text-muted-foreground transition-colors
+                          active:bg-primary active:text-primary-foreground`,
+                        row.status === "partial"
+                          ? "border-primary/50 text-primary"
+                          : "border-muted-foreground/40",
+                      )}
+                    >
+                      <Check className="size-3.5" strokeWidth={2.5} />
+                    </span>
+                  )}
                 </button>
               )}
             </div>
@@ -458,15 +472,13 @@ export function CollectRow({
                       data-tour="checklist-lines"
                       className="mx-4 mb-3 rounded-xl bg-muted/50 px-3 py-1"
                     >
-                      {row.lines.map((line) => (
-                        <LineItem
-                          key={line.id}
-                          line={line}
-                          showPartial={showsPartial(line.id, paidIds)}
-                          onOpen={guard(() => onOpenLine(line.id))}
-                          onPay={guard(() => onPayLine(line.id))}
-                        />
-                      ))}
+                      <LineList
+                        row={row}
+                        grouped={multi}
+                        paidIds={paidIds}
+                        onOpen={(id) => guard(() => onOpenLine(id))}
+                        onPay={(id) => guard(() => onPayLine(id))}
+                      />
                       {multi && (
                         <button
                           type="button"
@@ -534,7 +546,7 @@ function RowText({
           text-[10px] font-semibold text-muted-foreground"
       >
         {sub.text}
-        {sub.lateLabel && <LatePill label={sub.lateLabel} />}
+        {sub.lateDays !== undefined && <LatePill days={sub.lateDays} />}
         {sub.kinds?.map((type) => (
           <KindBadge key={type} type={type} compact />
         ))}
@@ -545,8 +557,13 @@ function RowText({
 }
 
 /** The old checklist's overdue pill. */
-function LatePill({ label }: { label: string }) {
-  return <span className={chipClass("overdue")}>{label}</span>;
+function LatePill({ days }: { days: number }) {
+  const { short, spoken } = lateLabel(days);
+  return (
+    <span className={cn(chipClass("overdue"), "font-bold")} aria-label={spoken}>
+      {short}
+    </span>
+  );
 }
 
 /** The installment's type: purple for a loan, amber for a cash advance. */
@@ -606,10 +623,13 @@ function WaitingIcon() {
 function LineItem({
   line,
   showPartial,
+  grouped = false,
   onOpen,
   onPay,
 }: {
   line: RowLine;
+  /** Under its loan's heading: the date leads, the type is the heading's. */
+  grouped?: boolean;
   /** Whether this schedule was paid on the viewed day (see `showsPartial`). */
   showPartial: boolean;
   /** Tapping the schedule itself, or a paid one's check: its pay drawer. */
@@ -630,19 +650,19 @@ function LineItem({
       >
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">
-            <KindBadge type={line.type} />
+            {grouped ? (
+              <span className="font-bold text-foreground/80">{due}</span>
+            ) : (
+              <KindBadge type={line.type} />
+            )}
           </p>
           <p
             className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5
               text-[10px] font-semibold text-muted-foreground"
           >
-            {due}
-            {line.overdue && <LatePill label={`${line.daysOverdue}d late`} />}
-            {line.state === "unpaid" ? (
-              <ProfitText amount={line.installmentProfit} expected />
-            ) : (
-              <ProfitText amount={line.earned} />
-            )}
+            {!grouped && due}
+            {line.overdue && <LatePill days={line.daysOverdue} />}
+            <ProfitText {...lineProfit(line, showPartial)} />
             {paid ? " paid · tap to edit" : ""}
           </p>
         </div>
@@ -674,20 +694,109 @@ function LineItem({
         onClick={paid ? onOpen : onPay}
         className="flex size-10 items-center justify-center"
       >
-        <span
-          className={cn(
-            "flex size-6 items-center justify-center rounded-full border",
-            paid
-              ? "border-transparent bg-primary text-primary-foreground"
-              : line.state === "partial"
-                ? "border-primary/50 text-primary"
-                : "border-muted-foreground/40 text-muted-foreground",
-          )}
-        >
-          <Check className="size-3.5" strokeWidth={2.5} />
-        </span>
+        {line.state === "partial" && showPartial ? (
+          <PartialMark />
+        ) : (
+          <span
+            className={cn(
+              "flex size-6 items-center justify-center rounded-full border",
+              paid
+                ? "border-transparent bg-primary text-primary-foreground"
+                : line.state === "partial"
+                  ? "border-primary/50 text-primary"
+                  : "border-muted-foreground/40 text-muted-foreground",
+            )}
+          >
+            <Check className="size-3.5" strokeWidth={2.5} />
+          </span>
+        )}
       </button>
     </div>
+  );
+}
+
+/**
+ * A part payment made on the viewed day: a circle half filled in the
+ * partial purple, in place of the check (paid, but not in full).
+ */
+function PartialMark() {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex size-6 items-center justify-center rounded-full border-2
+        border-[#7f5ead]"
+      style={{
+        backgroundImage:
+          "linear-gradient(to right, #7f5ead 50%, transparent 50%)",
+      }}
+    />
+  );
+}
+
+/**
+ * An open row's installments. A row with several is split per loan, each
+ * under a heading with its principal and release date.
+ */
+function LineList({
+  row,
+  grouped,
+  paidIds,
+  onOpen,
+  onPay,
+}: {
+  row: RowView;
+  grouped: boolean;
+  paidIds: CollectRowProps["paidIds"];
+  onOpen(lineId: string): (event: ReactMouseEvent<HTMLButtonElement>) => void;
+  onPay(lineId: string): (event: ReactMouseEvent<HTMLButtonElement>) => void;
+}) {
+  const lineIds = useMemo(() => row.lines.map((l) => l.id), [row.lines]);
+  const { data: summaries } = useAccountSummaries(grouped ? lineIds : []);
+  const item = (line: RowLine) => (
+    <LineItem
+      key={line.id}
+      line={line}
+      grouped={grouped}
+      showPartial={showsPartial(line.id, paidIds)}
+      onOpen={onOpen(line.id)}
+      onPay={onPay(line.id)}
+    />
+  );
+  if (!grouped) return <>{row.lines.map(item)}</>;
+  return (
+    <>
+      {groupLinesByAccount(row.lines).map(({ accountId, lines }) => {
+        const summary = accountId ? summaries?.[accountId] : undefined;
+        return (
+          <div
+            key={accountId ?? "unknown"}
+            className="border-b border-border/70 last:border-b-0"
+          >
+            <p
+              className="flex items-center gap-1.5 pt-2.5 pb-0.5 text-[11px]
+                font-bold text-muted-foreground"
+            >
+              <KindBadge type={lines[0].type} />
+              {summary?.principal ? (
+                <span className="text-foreground/80 tabular-nums">
+                  {peso(summary.principal)}
+                </span>
+              ) : null}
+              {summary?.releaseDate ? (
+                <span>
+                  · released{" "}
+                  {formatShortDate(summary.releaseDate).toLowerCase()}
+                </span>
+              ) : null}
+              <span className="ml-auto font-semibold tabular-nums">
+                {lines.length}
+              </span>
+            </p>
+            {lines.map(item)}
+          </div>
+        );
+      })}
+    </>
   );
 }
 

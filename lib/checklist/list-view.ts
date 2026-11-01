@@ -4,7 +4,25 @@ export type ChecklistFilter = "all" | "overdue" | "today" | "paid";
 
 const cents = (n: number) => Math.round(n * 100) / 100;
 
-export function matchesFilter(row: RowView, filter: ChecklistFilter): boolean {
+/** Schedules paid on the viewed day; null or undefined while unknown. */
+type PaidIds = ReadonlySet<string> | null | undefined;
+
+/**
+ * Paid as the day counts it: fully paid, or partly paid with a payment made
+ * on the viewed day (it stays open for the rest). A part payment from an
+ * earlier day, or while the day's payments are unknown, doesn't count.
+ */
+export function countsAsPaid(row: RowView, paidIds?: PaidIds): boolean {
+  if (row.status === "paid") return true;
+  if (row.status !== "partial" || !paidIds) return false;
+  return row.lines.some((l) => l.recorded > 0 && paidIds.has(l.id));
+}
+
+export function matchesFilter(
+  row: RowView,
+  filter: ChecklistFilter,
+  paidIds?: PaidIds,
+): boolean {
   switch (filter) {
     case "all":
       return true;
@@ -13,7 +31,7 @@ export function matchesFilter(row: RowView, filter: ChecklistFilter): boolean {
     case "today":
       return row.status !== "paid" && row.dueOnDay;
     case "paid":
-      return row.status === "paid";
+      return countsAsPaid(row, paidIds);
   }
 }
 
@@ -33,12 +51,15 @@ export function matchesSearch(row: RowView, query: string): boolean {
   return words.every((w) => text.includes(w));
 }
 
-export function filterCounts(rows: RowView[]): Record<ChecklistFilter, number> {
+export function filterCounts(
+  rows: RowView[],
+  paidIds?: PaidIds,
+): Record<ChecklistFilter, number> {
   return {
     all: rows.length,
     overdue: rows.filter((r) => matchesFilter(r, "overdue")).length,
     today: rows.filter((r) => matchesFilter(r, "today")).length,
-    paid: rows.filter((r) => matchesFilter(r, "paid")).length,
+    paid: rows.filter((r) => matchesFilter(r, "paid", paidIds)).length,
   };
 }
 
@@ -50,7 +71,10 @@ export function sortSettledLast(rows: RowView[]): RowView[] {
   ];
 }
 
-export function summarizeRows(rows: RowView[]): {
+export function summarizeRows(
+  rows: RowView[],
+  paidIds?: PaidIds,
+): {
   left: number;
   due: number;
   collected: number;
@@ -75,7 +99,7 @@ export function summarizeRows(rows: RowView[]): {
     left,
     due,
     collected: cents(due - left),
-    done: rows.filter((r) => r.status === "paid").length,
+    done: rows.filter((r) => countsAsPaid(r, paidIds)).length,
     count: rows.length,
   };
 }

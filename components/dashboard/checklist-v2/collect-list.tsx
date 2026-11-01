@@ -1,6 +1,6 @@
 "use client";
 
-import { groupColorStyle } from "@/lib/checklist/group-color";
+import { groupColorStyle, headerStyle } from "@/lib/checklist/group-color";
 import { useMemo, useState } from "react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { ChevronDown, ChevronUp, Undo2 } from "lucide-react";
@@ -16,10 +16,6 @@ import {
   type ChecklistFilter,
 } from "@/lib/checklist/list-view";
 import type { RowView } from "@/lib/checklist/row-state";
-import {
-  NEAR_WHITE_BORDER,
-  isNearWhite,
-} from "@/components/dashboard/checklist/dom";
 import { peso } from "@/components/dashboard/checklist-v2/header";
 import { CollectRow } from "@/components/dashboard/checklist-v2/collect-row";
 
@@ -107,7 +103,7 @@ export function CollectList({
 
   const { todayGroups, carriedGroups, carriedRows } = useMemo(() => {
     const visible = rows.filter(
-      (r) => matchesFilter(r, filter) && matchesSearch(r, search),
+      (r) => matchesFilter(r, filter, api.paidIds) && matchesSearch(r, search),
     );
     const carried = visible.filter((r) => r.carried);
     return {
@@ -118,7 +114,7 @@ export function CollectList({
       carriedGroups: buildGroups(carried, borrowers),
       carriedRows: carried,
     };
-  }, [rows, filter, search, borrowers]);
+  }, [rows, filter, search, borrowers, api.paidIds]);
   const searching = search.trim() !== "";
   // A search opens and closes groups on every keystroke: skip the motion.
   const still = useReducedMotion() || searching;
@@ -155,43 +151,48 @@ export function CollectList({
     const key = `${section}:${g.key}`;
     // A search opens every group: a match inside a folded one would hide.
     const isCollapsed = !searching && foldedByDefault(key) !== flipped.has(key);
-    const totals = summarizeRows(g.rows);
+    const totals = summarizeRows(g.rows, api.paidIds);
     return (
-      <div
-        key={key}
-        style={groupColorStyle(g.color)}
-        className="border-b border-border last:border-b-0"
-      >
+      <div key={key} style={groupColorStyle(g.color)}>
         <button
           type="button"
           data-tour="checklist-group"
           onClick={() => toggle(key)}
           aria-expanded={!isCollapsed}
           className={cn(
-            // Folded bars are roomy; an open one slims down. The padding
-            // eases with the same curve and time as the rows' fold below.
-            `flex w-full items-center gap-2 px-4 text-left text-xs font-semibold
-            lowercase transition-[padding] duration-[260ms]
-            ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none`,
-            isCollapsed ? "py-3.5" : "py-1.5",
+            // The same height open or folded.
+            `flex w-full items-center gap-2 px-4 py-3.5 text-left text-xs
+            font-semibold lowercase`,
             g.color
-              ? "bg-[color:color-mix(in_oklab,var(--grp)_8%,var(--card))]"
+              ? `bg-[color-mix(in_oklch,var(--hdr)_55%,var(--card))]
+                text-(--hdr-fg) dark:text-(--hdr-fg-dark)`
               : "bg-card",
           )}
+          // The category's colour, softened over the card, with text that
+          // reads on it in either theme.
+          style={headerStyle(g.color)}
         >
+          {!g.color && (
+            <span
+              className="size-2 shrink-0 rounded-full bg-muted-foreground
+                opacity-40"
+            />
+          )}
+          {/* A deep shade of the category's own colour. */}
           <span
-            className="size-2 shrink-0 rounded-full"
-            style={{
-              backgroundColor: g.color ?? "var(--muted-foreground)",
-              opacity: g.color ? 1 : 0.4,
-              boxShadow:
-                g.color && isNearWhite(g.color)
-                  ? `inset 0 0 0 1px ${NEAR_WHITE_BORDER}`
-                  : undefined,
-            }}
-          />
-          <span className="truncate font-bold">{g.name}</span>
-          <span className="shrink-0 text-muted-foreground tabular-nums">
+            className={cn(
+              "truncate text-sm font-black",
+              g.color && "text-(--hdr-name) dark:text-(--hdr-name-dark)",
+            )}
+          >
+            {g.name}
+          </span>
+          <span
+            className={cn(
+              "shrink-0 tabular-nums",
+              g.color ? "opacity-70" : "text-muted-foreground",
+            )}
+          >
             {totals.done}/{totals.count}
           </span>
           <span className="ml-auto flex shrink-0 items-center gap-1.5">
@@ -250,7 +251,7 @@ export function CollectList({
     );
   };
 
-  const carriedTotals = summarizeRows(carriedRows);
+  const carriedTotals = summarizeRows(carriedRows, api.paidIds);
   const carryCollapsed = !searching && flipped.has(CARRY_KEY);
 
   return (

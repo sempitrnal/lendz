@@ -1266,10 +1266,14 @@ export default function BorrowerAccountsSection({
           <DialogContent
             // dvh tracks the visible viewport as mobile toolbars show/hide;
             // svh is the smallest size and left a gap at the bottom.
-            className="top-[1dvh] h-[98dvh] max-h-[98dvh]
-              max-w-[calc(100%-1rem)] translate-y-0 gap-2 rounded-xl p-2 pt-3
-              sm:top-1/2 sm:h-[95dvh] sm:max-h-[95dvh] sm:max-w-5xl
-              sm:-translate-y-1/2 sm:gap-4 sm:p-6"
+            // Full screen on a phone (edge to edge, clear of the notch and
+            // home bar); a large centred window on wider screens.
+            className="top-0 h-dvh max-h-dvh max-w-full translate-y-0 gap-2
+              rounded-none border-0 p-2
+              pt-[max(env(safe-area-inset-top),0.75rem)]
+              pb-[max(env(safe-area-inset-bottom),0.5rem)] sm:top-1/2
+              sm:h-[95dvh] sm:max-h-[95dvh] sm:max-w-5xl sm:-translate-y-1/2
+              sm:gap-4 sm:rounded-xl sm:border sm:p-6"
           >
             {/* Shares the top row with the dialog's close button (top-right) */}
             <div

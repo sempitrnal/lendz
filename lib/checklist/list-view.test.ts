@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  countsAsPaid,
   filterCounts,
   matchesFilter,
   matchesSearch,
   sortSettledLast,
   summarizeRows,
 } from "@/lib/checklist/list-view";
-import type { RowStatus, RowView } from "@/lib/checklist/row-state";
+import type { RowLine, RowStatus, RowView } from "@/lib/checklist/row-state";
 
 function row(
   name: string,
@@ -127,5 +128,31 @@ describe("list-view", () => {
     });
     expect(matchesSearch(plain, "landlord")).toBe(true);
     expect(matchesSearch(plain, "maria")).toBe(false);
+  });
+});
+
+describe("countsAsPaid", () => {
+  const partial = row("p", {
+    status: "partial",
+    lines: [{ id: "s1", recorded: 300 } as RowLine],
+  });
+
+  it("counts a part payment made on the viewed day", () => {
+    expect(countsAsPaid(partial, new Set(["s1"]))).toBe(true);
+    expect(matchesFilter(partial, "paid", new Set(["s1"]))).toBe(true);
+    expect(filterCounts([partial], new Set(["s1"])).paid).toBe(1);
+    expect(summarizeRows([partial], new Set(["s1"])).done).toBe(1);
+  });
+
+  it("leaves out part payments from other days, or while unknown", () => {
+    expect(countsAsPaid(partial, new Set(["other"]))).toBe(false);
+    expect(countsAsPaid(partial, null)).toBe(false);
+    expect(countsAsPaid(partial)).toBe(false);
+  });
+
+  it("keeps a part-paid row open for the rest", () => {
+    expect(
+      matchesFilter({ ...partial, lateDays: 4 }, "overdue", new Set(["s1"])),
+    ).toBe(true);
   });
 });

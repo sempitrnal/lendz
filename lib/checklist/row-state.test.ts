@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { buildDueLabel } from "@/lib/checklist/labels";
 import type { ScheduleDialogRow } from "@/lib/checklist/schedule-cache";
 import type { DailyChecklistItem } from "@/lib/checklist/types";
-import { buildRowView } from "@/lib/checklist/row-state";
+import {
+  buildRowView,
+  groupLinesByAccount,
+  lineProfit,
+  type RowLine,
+} from "@/lib/checklist/row-state";
 
 const id = (i: number) => `00000000-0000-4000-8000-00000000000${i}`;
 
@@ -98,10 +103,27 @@ describe("buildRowView", () => {
       { due: "2026-10-10", amount: 1000 },
     ];
     const map = new Map([
-      sched(0, { amount_due: 1000, amount_paid: 1000, remaining_amount: 0, status: "paid", principal_share: 800 }),
-      sched(1, { amount_due: 1000, amount_paid: 500, remaining_amount: 500, status: "partial", principal_share: 800 }),
+      sched(0, {
+        amount_due: 1000,
+        amount_paid: 1000,
+        remaining_amount: 0,
+        status: "paid",
+        principal_share: 800,
+      }),
+      sched(1, {
+        amount_due: 1000,
+        amount_paid: 500,
+        remaining_amount: 500,
+        status: "partial",
+        principal_share: 800,
+      }),
       // No share known (an older cached row): profit is unknown, so 0.
-      sched(2, { amount_due: 1000, amount_paid: 1000, remaining_amount: 0, status: "paid" }),
+      sched(2, {
+        amount_due: 1000,
+        amount_paid: 1000,
+        remaining_amount: 0,
+        status: "paid",
+      }),
     ]);
     const v = buildRowView(item(lines), map);
     expect(v.lines.map((l) => l.profit)).toEqual([200, 0, 0]);
@@ -237,5 +259,56 @@ describe("recorded and original on a part-paid line", () => {
     const view = buildRowView(item([{ due: "2026-10-10", amount: 600 }]));
     expect(view.lines[0].recorded).toBe(0);
     expect(view.lines[0].original).toBe(600);
+  });
+});
+
+describe("groupLinesByAccount", () => {
+  const line = (id: string, accountId: string | null) =>
+    ({ id, accountId }) as unknown as RowLine;
+
+  it("groups lines per account in the order the accounts first appear", () => {
+    const groups = groupLinesByAccount([
+      line("a1", "A"),
+      line("b1", "B"),
+      line("a2", "A"),
+    ]);
+    expect(groups.map((g) => [g.accountId, g.lines.map((l) => l.id)])).toEqual([
+      ["A", ["a1", "a2"]],
+      ["B", ["b1"]],
+    ]);
+  });
+
+  it("keeps lines with no known account together", () => {
+    expect(
+      groupLinesByAccount([line("x", null), line("y", null)]).map(
+        (g) => g.lines.length,
+      ),
+    ).toEqual([2]);
+  });
+});
+
+describe("lineProfit", () => {
+  // ₱140 profit on the installment; ₱110 of it in what was part paid.
+  const partial = {
+    state: "partial" as const,
+    installmentProfit: 140,
+    earned: 110,
+  };
+
+  it("shows the profit gained on the day of a part payment", () => {
+    expect(lineProfit(partial, true)).toEqual({ amount: 110, expected: false });
+  });
+
+  it("shows the profit still to come on other days, muted", () => {
+    expect(lineProfit(partial, false)).toEqual({ amount: 30, expected: true });
+  });
+
+  it("keeps unpaid lines muted and paid lines earned", () => {
+    expect(
+      lineProfit({ state: "unpaid", installmentProfit: 140, earned: 0 }, true),
+    ).toEqual({ amount: 140, expected: true });
+    expect(
+      lineProfit({ state: "paid", installmentProfit: 140, earned: 140 }, false),
+    ).toEqual({ amount: 140, expected: false });
   });
 });

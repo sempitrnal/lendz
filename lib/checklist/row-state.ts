@@ -32,6 +32,8 @@ export type RowLine = CollectionRowLine & {
   earned: number | null;
   /** The installment's own amount: the saved schedule's, else the label's. */
   original: number;
+  /** Its account, from the saved schedule; null before that loads. */
+  accountId: string | null;
 };
 
 export type RowStatus = "paid" | "partial" | "unpaid";
@@ -106,6 +108,7 @@ function buildLine(
             row.principal_share,
           ),
     original: row ? cents(Number(row.amount_due)) : line.amount,
+    accountId: row?.account_id ?? null,
   };
 }
 
@@ -157,4 +160,43 @@ export function buildRowView(
     ),
     carried: lines.every((l) => l.due_date.slice(0, 10) < day),
   };
+}
+
+/**
+ * A row's installments by account, in the order the accounts first appear;
+ * lines whose account is not known yet share one group.
+ */
+export function groupLinesByAccount(
+  lines: RowLine[],
+): { accountId: string | null; lines: RowLine[] }[] {
+  const groups = new Map<string | null, RowLine[]>();
+  for (const line of lines) {
+    const list = groups.get(line.accountId) ?? [];
+    list.push(line);
+    groups.set(line.accountId, list);
+  }
+  return [...groups].map(([accountId, list]) => ({ accountId, lines: list }));
+}
+
+/**
+ * The profit a line shows: what it will earn while unpaid (muted), what it
+ * earned once paid, and on a part payment either the profit that payment
+ * brought (when it was made on the viewed day) or the profit still to come
+ * from what is left (muted).
+ */
+export function lineProfit(
+  line: Pick<RowLine, "state" | "installmentProfit" | "earned">,
+  paidOnViewedDay: boolean,
+): { amount: number | null; expected: boolean } {
+  if (line.state === "unpaid") {
+    return { amount: line.installmentProfit, expected: true };
+  }
+  if (line.state === "paid" || paidOnViewedDay) {
+    return { amount: line.earned, expected: false };
+  }
+  const left =
+    line.installmentProfit === null
+      ? null
+      : cents(Math.max(0, line.installmentProfit - (line.earned ?? 0)));
+  return { amount: left, expected: true };
 }

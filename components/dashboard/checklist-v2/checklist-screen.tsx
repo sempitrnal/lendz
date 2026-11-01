@@ -393,10 +393,13 @@ function ChecklistDay({ today }: { today: string }) {
     () => collectItems.map((item) => buildRowView(item, schedules)),
     [collectItems, schedules],
   );
-  const summary = useMemo(() => summarizeRows(rows), [rows]);
+  const dayPaidIds = useDayPaidIds(date);
+  const summary = useMemo(
+    () => summarizeRows(rows, dayPaidIds),
+    [rows, dayPaidIds],
+  );
   const monthProfit = useMonthProfit(date);
   const dayProfit = useDayProfit(date);
-  const dayPaidIds = useDayPaidIds(date);
   // What the morning run added: shown once per device per day, in a sheet.
   const autoSummary = useMemo(
     () => (date === today ? summarizeAutoPopulate(rows, date) : null),
@@ -430,8 +433,12 @@ function ChecklistDay({ today }: { today: string }) {
   const bulkRows = useMemo(() => bulkPaidRows(rows), [rows]);
   // The chips count what the search leaves, so they match the list.
   const counts = useMemo(
-    () => filterCounts(rows.filter((r) => matchesSearch(r, search))),
-    [rows, search],
+    () =>
+      filterCounts(
+        rows.filter((r) => matchesSearch(r, search)),
+        dayPaidIds,
+      ),
+    [rows, search, dayPaidIds],
   );
 
   const requestSheet = (kind: RowRequest, itemId: string, lineId?: string) => {
