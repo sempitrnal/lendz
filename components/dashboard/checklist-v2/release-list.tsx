@@ -1,6 +1,6 @@
 "use client";
 
-import { groupColorStyle } from "@/lib/checklist/group-color";
+import { groupColorStyle, headerStyle } from "@/lib/checklist/group-color";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -18,10 +18,6 @@ import { cn } from "@/lib/utils";
 import { namePillClass } from "@/components/dashboard/checklist-v2/collect-row";
 import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import { groupByBorrowerCategory } from "@/lib/checklist/labels";
-import {
-  NEAR_WHITE_BORDER,
-  isNearWhite,
-} from "@/components/dashboard/checklist/dom";
 import type { ReleaseRowView } from "@/lib/checklist/release-items";
 import {
   type CreateMark,
@@ -88,36 +84,43 @@ export function ReleaseList({
             const isCollapsed = collapsed.has(g.key);
             const done = g.rows.filter((v) => v.item.is_checked).length;
             return (
-              <div
-                key={g.key}
-                style={groupColorStyle(g.color)}
-                className="border-b border-border last:border-b-0"
-              >
+              <div key={g.key} style={groupColorStyle(g.color)}>
                 <button
                   type="button"
                   onClick={() => toggle(g.key)}
                   aria-expanded={!isCollapsed}
                   className={cn(
-                    `flex w-full items-center gap-2 px-4 py-2 text-left text-xs
-                      font-semibold lowercase`,
+                    // The same height open or folded, like Collect.
+                    `flex w-full items-center gap-2 px-4 py-3.5 text-left
+                      text-xs font-semibold lowercase`,
                     g.color
-                      ? "bg-[color:color-mix(in_oklab,var(--grp)_8%,var(--card))]"
+                      ? `bg-[color-mix(in_oklch,var(--hdr)_55%,var(--card))]
+                        text-(--hdr-fg) dark:text-(--hdr-fg-dark)`
                       : "bg-card",
                   )}
+                  style={headerStyle(g.color)}
                 >
+                  {!g.color && (
+                    <span
+                      className="size-2 shrink-0 rounded-full
+                        bg-muted-foreground opacity-40"
+                    />
+                  )}
                   <span
-                    className="size-2 shrink-0 rounded-full"
-                    style={{
-                      backgroundColor: g.color ?? "var(--muted-foreground)",
-                      opacity: g.color ? 1 : 0.4,
-                      boxShadow:
-                        g.color && isNearWhite(g.color)
-                          ? `inset 0 0 0 1px ${NEAR_WHITE_BORDER}`
-                          : undefined,
-                    }}
-                  />
-                  <span className="truncate">{g.name}</span>
-                  <span className="shrink-0 text-muted-foreground tabular-nums">
+                    className={cn(
+                      "truncate text-sm font-black",
+                      g.color &&
+                        "text-(--hdr-name) dark:text-(--hdr-name-dark)",
+                    )}
+                  >
+                    {g.name}
+                  </span>
+                  <span
+                    className={cn(
+                      "shrink-0 tabular-nums",
+                      g.color ? "opacity-70" : "text-muted-foreground",
+                    )}
+                  >
                     {done}/{g.rows.length}
                   </span>
                   <ChevronDown
@@ -242,7 +245,7 @@ function ReleaseRow({
         `flex items-center gap-3 border-b border-border px-4 py-3
         transition-colors duration-700 motion-reduce:transition-none
         last:border-b-0`,
-        highlight && "bg-primary/5",
+        highlight ? "bg-primary/5" : "bg-[color-mix(in_srgb,var(--grp,var(--card))_6%,var(--card))]",
       )}
     >
       <div className="min-w-0 flex-1" data-tour="release-row">

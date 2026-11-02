@@ -328,7 +328,7 @@ export function CollectRow({
         className={cn(
           `relative touch-pan-y transition-colors duration-700
           motion-reduce:transition-none`,
-          highlight ? "bg-primary/15" : "bg-card",
+          highlight ? "bg-primary/15" : "bg-[color-mix(in_srgb,var(--grp,var(--card))_6%,var(--card))]",
         )}
       >
         {isNote ? (
