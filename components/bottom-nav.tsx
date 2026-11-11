@@ -15,7 +15,6 @@ import {
   CalendarRange,
   Trash2,
   CalendarClock,
-  Menu,
   X,
   Settings,
   Sparkles,
@@ -140,17 +139,11 @@ export default function BottomNav() {
               onClick={() => setOpen(true)}
               aria-label="Open full menu"
               aria-expanded={open}
-              className="flex flex-1 flex-col items-center justify-center gap-1
-                rounded-xl py-2 text-muted-foreground transition-all
+              className="shrink-0 rounded-xl px-2.5 py-2.5 text-xs font-bold
+                tracking-tight text-muted-foreground transition-all
                 duration-200 hover:text-foreground active:bg-muted"
             >
-              <Menu className="size-5" strokeWidth={2} aria-hidden="true" />
-              <span
-                className="text-[10px] font-semibold leading-none
-                  tracking-tight"
-              >
-                More
-              </span>
+              more
             </button>
           </div>
         </div>

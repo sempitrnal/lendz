@@ -325,6 +325,18 @@ export function WalletHome({
                 {thisMonth?.month} · of{" "}
                 {mask(formatPeso(thisMonth?.expected ?? 0))} expected
               </p>
+              {thisMonth?.projected != null && (
+                <p
+                  className="mt-0.5 text-xs font-semibold text-emerald-700
+                    dark:text-emerald-400"
+                >
+                  projected {mask(formatPeso(thisMonth.projected))} ·{" "}
+                  {thisMonth.projectedPercent}% collected over the last{" "}
+                  {thisMonth.projectionMonths === 1
+                    ? "month"
+                    : `${thisMonth.projectionMonths} months`}
+                </p>
+              )}
             </div>
             {profitDelta != null && (
               <span

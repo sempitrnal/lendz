@@ -7,6 +7,7 @@ import {
   type AccountTerms,
 } from "@/lib/checklist/profit";
 import { getAllPaymentSchedules } from "@/lib/cache/schedules";
+import { profitCollectionRate, projectProfit } from "@/lib/profit-projection";
 import {
   isInstallmentFullyPaid,
   remainingOnInstallment,
@@ -62,6 +63,8 @@ type BorrowerNameRow = {
 const TZ = "Asia/Manila";
 const CHART_MONTHS = 12;
 const AVG_PROFIT_MONTHS = 6;
+/** Finished months whose collection rate projects the months still open. */
+const PROJECTION_MONTHS = 6;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Shift a YYYY-MM-DD date by whole days without touching local timezones. */
@@ -212,10 +215,19 @@ export default async function Dashboard({
     s.releasedCount += 1;
   }
 
+  // The share of expected profit the last finished months really brought in,
+  // as of today: it projects the current month and any later one.
+  const collectionRate = profitCollectionRate(
+    Array.from({ length: PROJECTION_MONTHS }, (_, i) =>
+      monthStats(monthKeyOffset(todayMonth, -(i + 1))),
+    ),
+  );
+
   const profitPerMonth: MonthlyProfit[] = [];
   for (let i = CHART_MONTHS - 1; i >= 0; i--) {
     const key = monthKeyOffset(activeMonth, -i);
     const s = monthStats(key);
+    const open = key >= todayMonth && s.expectedProfit > 0;
     profitPerMonth.push({
       key,
       month: monthLabel(key, "long"),
@@ -232,6 +244,14 @@ export default async function Dashboard({
       releasedCount: s.releasedCount,
       isCurrent: key === todayMonth,
       isFuture: key > todayMonth,
+      projected:
+        open && collectionRate
+          ? Math.round(projectProfit(s, collectionRate.rate))
+          : null,
+      projectedPercent: collectionRate
+        ? Math.round(collectionRate.rate * 100)
+        : null,
+      projectionMonths: collectionRate?.months ?? 0,
     });
   }
 

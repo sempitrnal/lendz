@@ -48,6 +48,15 @@ export interface MonthlyProfit {
   releasedCount: number;
   isCurrent: boolean;
   isFuture: boolean;
+  /**
+   * The profit a month still being collected is on course for (see
+   * lib/profit-projection.ts); null for finished months, or with no history.
+   */
+  projected: number | null;
+  /** The collection rate behind `projected`, as a percent. */
+  projectedPercent: number | null;
+  /** How many finished months that rate is drawn from. */
+  projectionMonths: number;
 }
 
 export interface CashFlowWeek {

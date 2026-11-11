@@ -54,6 +54,15 @@ function ChartTooltip({
         </span>{" "}
         · {d.percent}%
       </p>
+      {d.projected != null && (
+        <p>
+          projected{" "}
+          <span className="font-medium text-popover-foreground">
+            {formatPeso(d.projected)}
+          </span>{" "}
+          · {d.projectedPercent}% rate
+        </p>
+      )}
       <p>
         collected{" "}
         <span className="font-medium text-popover-foreground">
@@ -128,8 +137,10 @@ export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
           label={current ? current.short.toLowerCase() : "this month"}
           value={formatPeso(current?.actual ?? 0)}
           sub={
-            current?.isCurrent
-              ? `in progress · ${current.percent}% of expected`
+            current?.projected != null
+              ? `${current.percent}% in · projected ${formatPeso(current.projected)} at ${current.projectedPercent}%`
+              : current?.isCurrent
+                ? `in progress · ${current.percent}% of expected`
               : momDelta === null
                 ? undefined
                 : `${momDelta >= 0 ? "+" : ""}${momDelta}% vs ${previous!.short}`
