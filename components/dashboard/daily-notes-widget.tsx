@@ -26,6 +26,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
+import { Sheet } from "@/components/dashboard/checklist-v2/sheet";
 import {
   Dialog,
   DialogContent,
@@ -134,9 +135,7 @@ const CARRY_OVER_KEY = "carried-over";
 async function fetchDueGroups(
   targetDate: string,
 ): Promise<DueChecklistGroup[]> {
-  const res = await fetch(
-    `/api/checklist/due?date=${targetDate}&back=all`,
-  );
+  const res = await fetch(`/api/checklist/due?date=${targetDate}&back=all`);
   if (!res.ok) {
     throw new Error(
       navigator.onLine
@@ -1043,41 +1042,32 @@ function CategorySection({
         }}
       />
 
-      <Dialog
+      <Sheet
         open={Boolean(releasedAccount)}
-        onOpenChange={(open) => {
-          if (!open) setReleasedAccount(null);
-        }}
+        onClose={() => setReleasedAccount(null)}
+        label="Create account"
       >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              Create account for {releasedAccount?.parsed.borrowerName}
-            </DialogTitle>
-            <DialogDescription>
-              Prefilled from the checklist item. Review and save to check it
-              off.
-            </DialogDescription>
-          </DialogHeader>
-          {releasedAccount ? (
-            <>
-              <AccountForm
-                key={releasedAccount.item.id}
-                borrowerId={releasedAccount.parsed.borrowerId}
-                initialValues={releasedAccount.parsed.initialValues}
-                redirectOnCreate={false}
-                borrowerName={releasedAccount.parsed.borrowerName}
-                onSuccess={async () => {
-                  const { item, parsed } = releasedAccount;
-                  setReleasedAccount(null);
-                  onToggle(item);
-                  await invalidateBorrowerDetails(parsed.borrowerId);
-                  if (isConnectionGood()) router.refresh();
-                }}
-              />
+        {releasedAccount ? (
+          <>
+            <AccountForm
+              key={releasedAccount.item.id}
+              borrowerId={releasedAccount.parsed.borrowerId}
+              initialValues={releasedAccount.parsed.initialValues}
+              redirectOnCreate={false}
+              borrowerName={releasedAccount.parsed.borrowerName}
+              onSuccess={async () => {
+                const { item, parsed } = releasedAccount;
+                setReleasedAccount(null);
+                onToggle(item);
+                await invalidateBorrowerDetails(parsed.borrowerId);
+                if (isConnectionGood()) router.refresh();
+              }}
+            />
+            <div className="px-5 pb-4">
               <Button
                 type="button"
                 variant="ghost"
+                className="h-11 w-full"
                 onClick={() => {
                   const { item } = releasedAccount;
                   setReleasedAccount(null);
@@ -1086,10 +1076,10 @@ function CategorySection({
               >
                 Check off without account
               </Button>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+            </div>
+          </>
+        ) : null}
+      </Sheet>
     </div>
   );
 }

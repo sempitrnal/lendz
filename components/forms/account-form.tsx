@@ -2,8 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useForm, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
 import { triggerHaptic } from "@/lib/haptics";
 import { formatDate, formatMoney } from "@/lib/utils";
@@ -14,17 +14,50 @@ import {
 } from "@/lib/validations/account";
 import { logAuditAction } from "@/app/actions/audit";
 import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
-import {
-  formFieldErrorClassName,
-  formFieldInputClassName,
-  formFieldLabelClassName,
-} from "@/lib/form-field-classes";
 import { supabase } from "@/lib/supabase/client";
 import { wasQueuedOffline } from "@/lib/checklist/offline-cache";
 import { addPendingAccount } from "@/lib/offline/pending-accounts";
 import { Button } from "@/components/ui/button";
-import { Wallet, CheckCircle2 } from "lucide-react";
-import { buildSchedulesPayload } from "@/lib/payment-schedule/build-payload";
+import { AnimatePresence, m, MotionConfig } from "motion/react";
+import {
+  Banknote,
+  CalendarCheck,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  History,
+  Hourglass,
+  Landmark,
+  Pencil,
+  Percent,
+  Plus,
+  Repeat,
+  SlidersHorizontal,
+  Sparkles,
+  WifiOff,
+} from "lucide-react";
+import { SheetFooter } from "@/components/dashboard/checklist-v2/sheet";
+import {
+  accountInputClass,
+  Chip,
+  ChipRow,
+  Field,
+  FieldError,
+  HeroAmount,
+  INPUT_FOCUS,
+  Reveal,
+  Rise,
+  Roll,
+  Segmented,
+  Stagger,
+  StepperInput,
+  SwitchRow,
+  type Tone,
+} from "@/components/forms/account-form-parts";
+import {
+  buildSchedulesPayload,
+  countSkippedSchedules,
+} from "@/lib/payment-schedule/build-payload";
 import { deriveBimonthlyAnchors } from "@/lib/payment-schedule/bimonthly-legacy";
 import {
   planReschedule,
@@ -33,14 +66,16 @@ import {
   type RescheduleMode,
 } from "@/lib/payment-schedule/reschedule";
 import { snapshotAccount } from "@/lib/accounts/revisions";
-import { isConnectionGood } from "@/lib/offline/connection";
+import {
+  isConnectionGood,
+  useConnectionQuality,
+} from "@/lib/offline/connection";
 
 export {
   isoDateOnlyForInput,
   accountRowToFormInitial,
   type AccountEditableRow,
 } from "@/components/forms/account-form-initial";
-import { isoDateOnlyForInput } from "@/components/forms/account-form-initial";
 
 function ordinalSuffix(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -57,9 +92,20 @@ type AccountFormProps = {
   onSuccess?: () => void;
   /** After creating, navigate to the borrower page. When false, a detailed toast is shown instead. */
   redirectOnCreate?: boolean;
-  /** Shown in the creation toast when `redirectOnCreate` is false. */
+  /** Shown in the header, and in the creation toast when `redirectOnCreate` is false. */
   borrowerName?: string;
+  /** False when the sheet around the form has its own heading. */
+  showHeader?: boolean;
 };
+
+/** The longest term the live preview builds a schedule for. */
+const PREVIEW_MAX_TERM = 120;
+
+const hintClass = "mt-1.5 px-1 text-xs font-medium text-muted-foreground";
+
+/** Today's date where the lending happens, as yyyy-mm-dd. */
+const manilaToday = () =>
+  new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
 
 /** Interest rate (%) a new account starts with. */
 const DEFAULT_INTEREST_RATE = 3.8;
@@ -86,6 +132,7 @@ export default function AccountForm({
   onSuccess,
   redirectOnCreate = true,
   borrowerName,
+  showHeader = true,
 }: AccountFormProps) {
   const router = useRouter();
   const isEdit = Boolean(accountId);
@@ -96,9 +143,9 @@ export default function AccountForm({
     setValue,
     reset,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isSubmitted },
   } = useForm<AccountFormValues>({
-    resolver: zodResolver(accountSchema) as any,
+    resolver: zodResolver(accountSchema) as Resolver<AccountFormValues>,
     defaultValues: {
       ...emptyDefaults(borrowerId),
       ...initialValues,
@@ -113,7 +160,7 @@ export default function AccountForm({
 
   const [principalText, setPrincipalText] = useState(
     initialValues?.principal_amount
-      ? Number(initialValues.principal_amount).toLocaleString()
+      ? Number(initialValues.principal_amount).toLocaleString("en-US")
       : "",
   );
   const [interestRateText, setInterestRateText] = useState(
@@ -136,6 +183,16 @@ export default function AccountForm({
   const isManual = scheduleMode === "manual";
   const isRolling = isManual && interestType === "rolling";
   const isPending = status === "pending";
+
+  const formRef = useRef<HTMLFormElement>(null);
+  const optionsRef = useRef<HTMLDivElement>(null);
+  const quality = useConnectionQuality();
+  // Schedule mode and status: tucked away unless they are not the usual ones.
+  const [optionsOpen, setOptionsOpen] = useState(
+    () =>
+      initialValues?.schedule_mode === "manual" ||
+      (!accountId && initialValues?.status === "pending"),
+  );
 
   useEffect(() => {
     if (!releaseDateValue) {
@@ -166,6 +223,31 @@ export default function AccountForm({
       cancelled = true;
     };
   }, [isEdit, accountId]);
+
+  // Opening Options, or a choice in it that adds or removes fields, moves the
+  // section; follow it while it settles so it stays on screen.
+  // Only when one of them really changed: not on open, and not on the second
+  // run of the effect that development mode adds.
+  const optionsKey = `${optionsOpen}|${scheduleMode}|${interestType}|${status}`;
+  const lastOptionsKey = useRef(optionsKey);
+  useEffect(() => {
+    if (lastOptionsKey.current === optionsKey) return;
+    lastOptionsKey.current = optionsKey;
+    const started = performance.now();
+    let frame = requestAnimationFrame(function follow(now) {
+      optionsRef.current?.scrollIntoView({ block: "nearest" });
+      if (now - started < 900) frame = requestAnimationFrame(follow);
+    });
+    // Once more when everything has settled.
+    const settled = setTimeout(
+      () => optionsRef.current?.scrollIntoView({ block: "nearest" }),
+      1000,
+    );
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(settled);
+    };
+  }, [optionsKey]);
 
   const onSubmit = async (values: AccountFormValues) => {
     const schedulesPayload = (id: string) => buildSchedulesPayload(id, values);
@@ -517,700 +599,810 @@ export default function AccountForm({
     onSuccess?.();
   };
 
+  /** Sets a value; once a save was tried, also re-checks it so errors clear. */
+  const set = <K extends keyof AccountFormValues>(
+    name: K,
+    next: AccountFormValues[K],
+  ) =>
+    setValue(name, next as never, {
+      shouldDirty: true,
+      shouldValidate: isSubmitted,
+    });
+
+  const onInvalid = () => {
+    triggerHaptic("error");
+    requestAnimationFrame(() => {
+      formRef.current
+        ?.querySelector("[data-field-error]")
+        ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+  };
+
+  const onRateText = (raw: string) => {
+    const v = raw.replace(",", ".");
+    setInterestRateText(v);
+    if (v === "" || v === ".") return set("interest_rate", 0);
+    const num = Number(v);
+    if (!isNaN(num)) set("interest_rate", num);
+  };
+  const setRate = (rate: number) => {
+    set("interest_rate", rate);
+    setInterestRateText(String(rate));
+  };
+
+  const onTermText = (raw: string) => {
+    const v = raw.replace(",", ".");
+    setTermMonthsText(v);
+    if (v === "" || v === ".") return set("term_months", 0);
+    const num = Number(v);
+    if (!isNaN(num)) set("term_months", num);
+  };
+  const setTerm = (term: number) => {
+    set("term_months", term);
+    setTermMonthsText(String(term));
+  };
+
+  const firstPaymentChips = useMemo(() => {
+    if (!releaseDateValue) return [];
+    const base = new Date(releaseDateValue);
+    const baseYear = base.getFullYear();
+    const baseMonth = base.getMonth();
+    const baseDay = base.getDate();
+    return [4, 5, 7, 8, 10, 15]
+      .map((day) => {
+        let target: Date;
+        if (day > baseDay) {
+          target = new Date(baseYear, baseMonth, day);
+        } else {
+          const nextMonth = baseMonth + 1;
+          const nextYear = baseYear + (nextMonth > 11 ? 1 : 0);
+          target = new Date(nextYear, nextMonth % 12, day);
+        }
+        const y = target.getFullYear();
+        const m = String(target.getMonth() + 1).padStart(2, "0");
+        const d = String(target.getDate()).padStart(2, "0");
+        return {
+          value: `${y}-${m}-${d}`,
+          label: target.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          }),
+          ts: target.getTime(),
+        };
+      })
+      .sort((a, b) => a.ts - b.ts);
+  }, [releaseDateValue]);
+
+  // What saving would create, from the same builder that saves it.
+  const preview = useMemo(() => {
+    if (isManual || isPending) return null;
+    const principal = Number(value) || 0;
+    const term = Number(termMonthsValue) || 0;
+    const rate = Number(interestRateValue) || 0;
+    if (principal <= 0 || !firstPaymentDateValue) return null;
+    if (term <= 0 || term > PREVIEW_MAX_TERM) return null;
+    if (isCustom ? !Number.isInteger(term) : term % 0.5 !== 0) return null;
+    try {
+      const rows = buildSchedulesPayload("preview", {
+        principal_amount: principal,
+        interest_rate: rate,
+        term_months: term,
+        first_payment_date: firstPaymentDateValue,
+        payment_frequency: frequency,
+        release_date: releaseDateValue || undefined,
+        calculate_skipped_schedules: calculateSkipped,
+      });
+      if (rows.length === 0) return null;
+      const total =
+        Math.round(rows.reduce((sum, r) => sum + r.amount_due, 0) * 100) / 100;
+      return {
+        count: rows.length,
+        each: rows[0].amount_due,
+        first: rows[0].due_date,
+        last: rows[rows.length - 1].due_date,
+        total,
+        interest: Math.round((total - principal) * 100) / 100,
+        // What each payment earns: its share of the interest.
+        profitEach: Math.round(((total - principal) / rows.length) * 100) / 100,
+        skipped: releaseDateValue
+          ? countSkippedSchedules(
+              releaseDateValue,
+              firstPaymentDateValue,
+              frequency,
+            )
+          : 0,
+      };
+    } catch {
+      return null;
+    }
+  }, [
+    isManual,
+    isPending,
+    isCustom,
+    value,
+    termMonthsValue,
+    interestRateValue,
+    firstPaymentDateValue,
+    releaseDateValue,
+    frequency,
+    calculateSkipped,
+  ]);
+
+  const rollingFirstDue =
+    isRolling && !isPending && Number(value) > 0 && interestRateValue > 0
+      ? Math.round(Number(value) * (1 + interestRateValue / 100) * 100) / 100
+      : null;
+
+  const showsSchedule = !isManual && !isPending;
+  const typeTone: Tone = typeValue === "cash_advance" ? "amber" : "violet";
+  const optionsSummary = [
+    isManual ? `Manual schedule, ${interestType ?? "flat"}` : "Auto schedule",
+    ...(isEdit ? [] : [isPending ? "Pending" : "Active"]),
+  ].join(" · ");
+  const hasCarried =
+    isEdit &&
+    !isManual &&
+    carried !== null &&
+    carried.paid + carried.partial > 0;
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-      <input type="hidden" {...register("borrower_id")} />
+    <MotionConfig reducedMotion="user">
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit(onSubmit, onInvalid)}
+        noValidate
+        data-account-form=""
+        className="lowercase [&_button]:lowercase"
+      >
+        <input type="hidden" {...register("borrower_id")} />
 
-      <div>
-        <label className={formFieldLabelClassName}>Account type</label>
-        <div className="flex gap-2">
-          <label
-            className={`flex cursor-pointer items-center gap-2 rounded-xl border
-              px-3 py-2 text-sm font-semibold transition ${
-                typeValue === "loan"
-                  ? `border-emerald-500 bg-emerald-50 text-emerald-700
-                    dark:border-emerald-500 dark:bg-emerald-900/30
-                    dark:text-emerald-300`
-                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
-                    dark:border-slate-700 dark:bg-card
-                    dark:text-muted-foreground dark:hover:bg-muted`
-              }`}
-          >
-            <input
-              type="radio"
-              value="loan"
-              {...register("type")}
-              className="sr-only"
-            />
-            <span>loan</span>
-          </label>
-          <label
-            className={`flex cursor-pointer items-center gap-2 rounded-xl border
-              px-3 py-2 text-sm font-semibold transition ${
-                typeValue === "cash_advance"
-                  ? `border-amber-500 bg-amber-50 text-amber-700
-                    dark:border-amber-500 dark:bg-amber-900/30
-                    dark:text-amber-300`
-                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
-                    dark:border-slate-700 dark:bg-card
-                    dark:text-muted-foreground dark:hover:bg-muted`
-              }`}
-          >
-            <input
-              type="radio"
-              value="cash_advance"
-              {...register("type")}
-              className="sr-only"
-            />
-            <span>cash advance</span>
-          </label>
-        </div>
-        {errors.type?.message ? (
-          <p className={formFieldErrorClassName}>{errors.type.message}</p>
-        ) : null}
-      </div>
-
-      <div>
-        <label className={formFieldLabelClassName}>Schedule mode</label>
-        <div className="flex gap-2">
-          <label
-            className={`flex cursor-pointer items-center gap-2 rounded-xl border
-              px-3 py-2 text-sm font-semibold transition ${
-                scheduleMode === "auto"
-                  ? `border-sky-500 bg-sky-50 text-sky-700 dark:border-sky-500
-                    dark:bg-sky-900/30 dark:text-sky-300`
-                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
-                    dark:border-slate-700 dark:bg-card
-                    dark:text-muted-foreground dark:hover:bg-muted`
-              }`}
-          >
-            <input
-              type="radio"
-              value="auto"
-              {...register("schedule_mode")}
-              className="sr-only"
-            />
-            <span>auto</span>
-            <span className="text-[10px] font-normal opacity-70">
-              generate schedules
-            </span>
-          </label>
-          <label
-            className={`flex cursor-pointer items-center gap-2 rounded-xl border
-              px-3 py-2 text-sm font-semibold transition ${
-                scheduleMode === "manual"
-                  ? `border-violet-500 bg-violet-50 text-violet-700
-                    dark:border-violet-500 dark:bg-violet-900/30
-                    dark:text-violet-300`
-                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
-                    dark:border-slate-700 dark:bg-card
-                    dark:text-muted-foreground dark:hover:bg-muted`
-              }`}
-          >
-            <input
-              type="radio"
-              value="manual"
-              {...register("schedule_mode")}
-              className="sr-only"
-            />
-            <span>manual</span>
-            <span className="text-[10px] font-normal opacity-70">
-              add schedules yourself
-            </span>
-          </label>
-        </div>
-      </div>
-
-      {!isEdit && (
-        <div>
-          <label className={formFieldLabelClassName}>Account status</label>
-          <div className="flex gap-2">
-            <label
-              className={`flex cursor-pointer items-center gap-2 rounded-xl
-              border px-3 py-2 text-sm font-semibold transition ${
-                !isPending
-                  ? `border-emerald-500 bg-emerald-50 text-emerald-700
-                    dark:border-emerald-500 dark:bg-emerald-900/30
-                    dark:text-emerald-300`
-                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
-                    dark:border-slate-700 dark:bg-card
-                    dark:text-muted-foreground dark:hover:bg-muted`
+        {showHeader && (
+          <div className="flex items-center gap-3 px-5 pt-2 pb-4">
+            <m.span
+              aria-hidden="true"
+              initial={{ scale: 0.6, rotate: -20 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 18 }}
+              className={`flex size-14 shrink-0 items-center justify-center
+              rounded-full shadow-sm transition-colors duration-300 ${
+                typeTone === "amber"
+                  ? `border border-amber-500 bg-amber-50 text-amber-700
+                    dark:bg-amber-900/30 dark:text-amber-300`
+                  : `border border-violet-500 bg-violet-50 text-violet-700
+                    dark:bg-violet-900/30 dark:text-violet-300`
               }`}
             >
-              <input
-                type="radio"
-                value="active"
-                {...register("status")}
-                className="sr-only"
-              />
-              <span>active</span>
-            </label>
-            <label
-              className={`flex cursor-pointer items-center gap-2 rounded-xl
-              border px-3 py-2 text-sm font-semibold transition ${
-                isPending
-                  ? `border-amber-500 bg-amber-50 text-amber-700
-                    dark:border-amber-500 dark:bg-amber-900/30
-                    dark:text-amber-300`
-                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
-                    dark:border-slate-700 dark:bg-card
-                    dark:text-muted-foreground dark:hover:bg-muted`
-              }`}
-            >
-              <input
-                type="radio"
-                value="pending"
-                {...register("status")}
-                className="sr-only"
-              />
-              <span>pending</span>
-            </label>
-          </div>
-          {isPending && (
-            <p
-              className="mt-1.5 text-xs text-slate-500
-                dark:text-muted-foreground"
-            >
-              Payment schedules will be created when this account is activated.
-              A calendar event will be added using the release date.
-            </p>
-          )}
-        </div>
-      )}
-
-      {isManual && (
-        <div>
-          <label className={formFieldLabelClassName}>Interest type</label>
-          <div className="flex gap-2">
-            {(["flat", "rolling"] as const).map((type) => (
-              <label
-                key={type}
-                className={`flex cursor-pointer items-center gap-2 rounded-xl
-                border px-3 py-2 text-sm font-semibold transition ${
-                  interestType === type
-                    ? `border-violet-500 bg-violet-50 text-violet-700
-                      dark:border-violet-500 dark:bg-violet-900/30
-                      dark:text-violet-300`
-                    : `border-slate-200 bg-white text-slate-600
-                      hover:bg-slate-50 dark:border-slate-700 dark:bg-card
-                      dark:text-muted-foreground dark:hover:bg-muted`
-                }`}
-              >
-                <input
-                  type="radio"
-                  value={type}
-                  {...register("interest_type")}
-                  className="sr-only"
-                />
-                <span className="capitalize">{type}</span>
-                <span className="text-[10px] font-normal opacity-70">
-                  {type === "flat" ? "fixed total" : "applies each cycle"}
-                </span>
-              </label>
-            ))}
-          </div>
-          {isRolling && (
-            <p
-              className="mt-1.5 text-xs text-slate-500
-                dark:text-muted-foreground"
-            >
-              First schedule auto-created on save. Each partial payment
-              generates the next cycle with interest on remaining balance.
-            </p>
-          )}
-        </div>
-      )}
-
-      <div>
-        <label className={formFieldLabelClassName} htmlFor="principal_amount">
-          Principal amount
-        </label>
-        <div className="relative">
-          <span
-            className="pointer-events-none absolute top-1/2 left-3
-              -translate-y-1/2 text-lg font-bold text-slate-400"
-          >
-            ₱
-          </span>
-          <input
-            id="principal_amount"
-            type="text"
-            inputMode="decimal"
-            {...register("principal_amount", {
-              setValueAs: (v) => Number(String(v).replace(/,/g, "")),
-            })}
-            value={principalText}
-            onChange={(e) => {
-              setPrincipalText(e.target.value);
-              const raw = e.target.value.replace(/,/g, "");
-              if (raw === "") {
-                setValue("principal_amount", 0);
-                return;
-              }
-              const num = Number(raw);
-              if (!isNaN(num)) {
-                setValue("principal_amount", num);
-              }
-            }}
-            onBlur={() => {
-              const raw = principalText.replace(/,/g, "");
-              const num = Number(raw);
-              if (!isNaN(num)) {
-                setValue("principal_amount", num);
-                setPrincipalText(num.toLocaleString());
-              } else {
-                setPrincipalText("");
-                setValue("principal_amount", 0);
-              }
-            }}
-            onFocus={(e) => e.target.select()}
-            className={`${formFieldInputClassName} pl-8 text-right text-lg
-              font-bold`}
-          />
-        </div>
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {[5000, 10000, 15000, 20000, 30000, 40000, 50000].map((amt) => (
-            <button
-              key={amt}
-              type="button"
-              onClick={() => {
-                setValue("principal_amount", amt);
-                setPrincipalText(amt.toLocaleString());
-              }}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold
-              transition ${
-                Number(value) === amt
-                  ? `border-slate-700 bg-slate-700 text-white
-                    dark:border-foreground dark:bg-foreground
-                    dark:text-background`
-                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
-                    dark:border-slate-700 dark:bg-card
-                    dark:text-muted-foreground dark:hover:bg-muted`
-              }`}
-            >
-              {amt.toLocaleString()}
-            </button>
-          ))}
-        </div>
-        {errors.principal_amount?.message ? (
-          <p className={formFieldErrorClassName}>
-            {errors.principal_amount.message}
-          </p>
-        ) : null}
-      </div>
-
-      <div>
-        <label className={formFieldLabelClassName} htmlFor="interest_rate">
-          Interest rate (%)
-        </label>
-        <input
-          id="interest_rate"
-          type="text"
-          inputMode="decimal"
-          step="0.01"
-          {...register("interest_rate")}
-          value={interestRateText}
-          onChange={(e) => {
-            const v = e.target.value.replace(",", ".");
-            setInterestRateText(v);
-            if (v === "" || v === ".") {
-              setValue("interest_rate", 0);
-              return;
-            }
-            const num = Number(v);
-            if (!isNaN(num)) {
-              setValue("interest_rate", num);
-            }
-          }}
-          onBlur={() => {
-            const num = Number(interestRateText.replace(",", "."));
-            if (!isNaN(num)) {
-              setValue("interest_rate", num);
-              setInterestRateText(String(num));
-            } else {
-              setInterestRateText("");
-              setValue("interest_rate", 0);
-            }
-          }}
-          onFocus={(e) => e.target.select()}
-          className={formFieldInputClassName}
-        />
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {[3.3, 3.8, 4, 5].map((rate) => (
-            <button
-              key={rate}
-              type="button"
-              onClick={() => {
-                setValue("interest_rate", rate);
-                setInterestRateText(String(rate));
-              }}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold
-              transition ${
-                interestRateValue === rate
-                  ? `border-slate-700 bg-slate-700 text-white
-                    dark:border-foreground dark:bg-foreground
-                    dark:text-background`
-                  : `border-slate-200 bg-white text-slate-600 hover:bg-slate-50
-                    dark:border-slate-700 dark:bg-card
-                    dark:text-muted-foreground dark:hover:bg-muted`
-              }`}
-            >
-              {rate}%
-            </button>
-          ))}
-        </div>
-        {errors.interest_rate?.message ? (
-          <p className={formFieldErrorClassName}>
-            {errors.interest_rate.message}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="min-w-0">
-          <label className={formFieldLabelClassName} htmlFor="release_date">
-            Release date
-          </label>
-
-          <input
-            id="release_date"
-            type="date"
-            {...register("release_date")}
-            className={`${formFieldInputClassName} w-full min-w-0`}
-          />
-
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                const today = new Date().toISOString().split("T")[0];
-                setValue("release_date", today);
-              }}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5
-                text-xs font-semibold text-slate-600 transition
-                hover:bg-slate-50 dark:border-slate-700 dark:bg-card
-                dark:text-muted-foreground dark:hover:bg-muted"
-            >
-              today
-            </button>
-          </div>
-
-          {errors.release_date?.message ? (
-            <p className={formFieldErrorClassName}>
-              {errors.release_date.message}
-            </p>
-          ) : null}
-        </div>
-
-        {!isManual && !isPending && releaseDateValue && (
-          <div className="min-w-0">
-            <label
-              className={formFieldLabelClassName}
-              htmlFor="first_payment_date"
-            >
-              First payment date
-            </label>
-
-            <input
-              id="first_payment_date"
-              type="date"
-              min={releaseDateValue}
-              {...register("first_payment_date")}
-              className={`${formFieldInputClassName} w-full min-w-0`}
-            />
-
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {(() => {
-                const release = watch("release_date");
-                const base = release ? new Date(release) : new Date();
-                const baseYear = base.getFullYear();
-                const baseMonth = base.getMonth();
-                const baseDay = base.getDate();
-
-                const buttons = [4, 5, 7, 8, 10, 15].map((day) => {
-                  let target: Date;
-                  if (day > baseDay) {
-                    target = new Date(baseYear, baseMonth, day);
-                  } else {
-                    const nextMonth = baseMonth + 1;
-                    const nextYear = baseYear + (nextMonth > 11 ? 1 : 0);
-                    target = new Date(nextYear, nextMonth % 12, day);
-                  }
-                  const y = target.getFullYear();
-                  const m = String(target.getMonth() + 1).padStart(2, "0");
-                  const d = String(target.getDate()).padStart(2, "0");
-                  return {
-                    value: `${y}-${m}-${d}`,
-                    label: target.toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    }),
-                    ts: target.getTime(),
-                  };
-                });
-
-                buttons.sort((a, b) => a.ts - b.ts);
-
-                return buttons.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setValue("first_payment_date", value)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                      firstPaymentDateValue === value
-                        ? "border-slate-700 bg-slate-700 text-white dark:border-foreground dark:bg-foreground dark:text-background"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-card dark:text-muted-foreground dark:hover:bg-muted"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ));
-              })()}
-            </div>
-
-            {errors.first_payment_date?.message ? (
-              <p className={formFieldErrorClassName}>
-                {errors.first_payment_date.message}
+              <AnimatePresence mode="popLayout" initial={false}>
+                <m.span
+                  key={isEdit ? "edit" : typeValue}
+                  initial={{ y: 10, opacity: 0, scale: 0.7 }}
+                  animate={{ y: 0, opacity: 1, scale: 1 }}
+                  exit={{ y: -10, opacity: 0, scale: 0.7 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                >
+                  {isEdit ? (
+                    <Pencil className="size-6" strokeWidth={2.5} />
+                  ) : typeValue === "cash_advance" ? (
+                    <Banknote className="size-6" strokeWidth={2.5} />
+                  ) : (
+                    <Landmark className="size-6" strokeWidth={2.5} />
+                  )}
+                </m.span>
+              </AnimatePresence>
+            </m.span>
+            <div className="min-w-0">
+              <h2 className="text-xl font-black tracking-tight">
+                {isEdit ? "Edit account" : "New account"}
+              </h2>
+              <p className="truncate text-sm font-semibold
+                text-muted-foreground">
+                {borrowerName ? (
+                  <>
+                    for <span className="lowercase">{borrowerName}</span>
+                  </>
+                ) : isEdit ? (
+                  "Update the terms and schedule"
+                ) : (
+                  "Loan or cash advance"
+                )}
               </p>
-            ) : null}
+            </div>
           </div>
         )}
-      </div>
 
-      {!isManual && !isPending && (
-        <>
-          <div>
-            <label className={formFieldLabelClassName}>
-              Calculate skipped schedules
-            </label>
-            <div className="flex gap-2">
-              <label
-                className={`flex cursor-pointer items-center gap-2 rounded-xl
-                border px-3 py-2 text-sm font-semibold transition ${
-                  calculateSkipped
-                    ? `border-emerald-500 bg-emerald-50 text-emerald-700
-                      dark:border-emerald-500 dark:bg-emerald-900/30
-                      dark:text-emerald-300`
-                    : `border-slate-200 bg-white text-slate-600
-                      hover:bg-slate-50 dark:border-slate-700 dark:bg-card
-                      dark:text-muted-foreground dark:hover:bg-muted`
-                }`}
-              >
-                <input
-                  type="radio"
-                  value="true"
-                  checked={calculateSkipped}
-                  onChange={() => setValue("calculate_skipped_schedules", true)}
-                  className="sr-only"
-                />
-                <span>yes</span>
-              </label>
-              <label
-                className={`flex cursor-pointer items-center gap-2 rounded-xl
-                border px-3 py-2 text-sm font-semibold transition ${
-                  !calculateSkipped
-                    ? `border-red-500 bg-red-50 text-red-700 dark:border-red-500
-                      dark:bg-red-900/30 dark:text-red-300`
-                    : `border-slate-200 bg-white text-slate-600
-                      hover:bg-slate-50 dark:border-slate-700 dark:bg-card
-                      dark:text-muted-foreground dark:hover:bg-muted`
-                }`}
-              >
-                <input
-                  type="radio"
-                  value="false"
-                  checked={!calculateSkipped}
-                  onChange={() =>
-                    setValue("calculate_skipped_schedules", false)
-                  }
-                  className="sr-only"
-                />
-                <span>no</span>
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <label
-              className={formFieldLabelClassName}
-              htmlFor="payment_frequency"
-            >
-              Payment frequency
-            </label>
-            <select
-              id="payment_frequency"
-              {...register("payment_frequency")}
-              className={formFieldInputClassName}
-            >
-              <option value="weekly">weekly</option>
-              <option value="bimonthly">bimonthly</option>
-              <option value="monthly">monthly</option>
-              <option value="custom">custom</option>
-            </select>
-            {releaseDateValue &&
-              firstPaymentDateValue &&
-              frequency === "bimonthly" && (
-                <p
-                  className="mt-1.5 text-sm font-bold text-slate-600
-                    dark:text-slate-300"
-                >
-                  {(() => {
-                    const day = new Date(firstPaymentDateValue).getDate();
-                    const [a1, a2] = deriveBimonthlyAnchors(day);
-                    return `(${ordinalSuffix(a1)} & ${ordinalSuffix(a2)})`;
-                  })()}
-                </p>
-              )}
-            {errors.payment_frequency?.message ? (
-              <p className={formFieldErrorClassName}>
-                {errors.payment_frequency.message}
-              </p>
-            ) : null}
-          </div>
-
-          <div>
-            <label className={formFieldLabelClassName} htmlFor="term_months">
-              {isCustom ? "Term installments (gives)" : "Term (months)"}
-            </label>
-            <input
-              id="term_months"
-              type="text"
-              inputMode={isCustom ? "numeric" : "decimal"}
-              {...register("term_months", {
-                setValueAs: (v) => {
-                  if (v === "" || v === undefined || v === null) return 0;
-                  const num = Number(String(v).replace(",", "."));
-                  return isNaN(num) ? 0 : num;
-                },
-              })}
-              value={termMonthsText}
-              onChange={(e) => {
-                const v = e.target.value.replace(",", ".");
-                setTermMonthsText(v);
-                if (v === "" || v === ".") {
-                  setValue("term_months", 0);
-                  return;
-                }
-                const num = Number(v);
-                if (!isNaN(num)) {
-                  setValue("term_months", num);
-                }
+        <Stagger className="px-5 pb-5">
+          <Rise>
+            <HeroAmount
+              id="principal_amount"
+              tone={typeTone}
+              value={principalText}
+              invalid={!!errors.principal_amount}
+              onChange={(text) => {
+                setPrincipalText(text);
+                const num = Number(text.replace(/,/g, ""));
+                set("principal_amount", text === "" || isNaN(num) ? 0 : num);
               }}
-              onBlur={() => {
-                const num = Number(termMonthsText.replace(",", "."));
-                if (!isNaN(num)) {
-                  setValue("term_months", num);
-                  setTermMonthsText(String(num));
-                } else {
-                  setTermMonthsText("");
-                  setValue("term_months", 0);
-                }
-              }}
-              onFocus={(e) => e.target.select()}
-              className={formFieldInputClassName}
             />
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {[1, 2, 3, 5, 6, 10, 12].map((m) => (
-                <button
-                  key={m}
-                  type="button"
+            <ChipRow>
+              {[5000, 10000, 15000, 20000, 30000, 40000, 50000].map((amt) => (
+                <Chip
+                  key={amt}
+                  tone={typeTone}
+                  selected={Number(value) === amt}
                   onClick={() => {
-                    setValue("term_months", m);
-                    setTermMonthsText(String(m));
+                    set("principal_amount", amt);
+                    setPrincipalText(amt.toLocaleString("en-US"));
                   }}
-                  className={`rounded-lg border px-3 py-1.5 text-xs
-                  font-semibold transition ${
-                    Number(termMonthsValue) === m
-                      ? `border-slate-700 bg-slate-700 text-white
-                        dark:border-foreground dark:bg-foreground
-                        dark:text-background`
-                      : `border-slate-200 bg-white text-slate-600
-                        hover:bg-slate-50 dark:border-slate-700 dark:bg-card
-                        dark:text-muted-foreground dark:hover:bg-muted`
-                  }`}
                 >
-                  {m}
-                </button>
+                  {amt / 1000}k
+                </Chip>
               ))}
-            </div>
-            {errors.term_months?.message ? (
-              <p className={formFieldErrorClassName}>
-                {errors.term_months.message}
-              </p>
-            ) : null}
-          </div>
-        </>
-      )}
+            </ChipRow>
+            <FieldError message={errors.principal_amount?.message} />
+          </Rise>
 
-      {isEdit && !isManual && carried && carried.paid + carried.partial > 0 && (
-        <fieldset className="space-y-2">
-          <legend className={formFieldLabelClassName}>Existing payments</legend>
-          {(
-            [
-              {
-                mode: "carry",
-                title: "Keep them on the new dates",
-                hint: `${carried.paid} paid${
-                  carried.partial ? ` and ${carried.partial} partial` : ""
-                } installment${
-                  carried.paid + carried.partial === 1 ? "" : "s"
-                } move in order (1st to 1st, 2nd to 2nd) with their payments.`,
-              },
-              {
-                mode: "reset",
-                title: "Start over",
-                hint: "Every installment starts unpaid; recorded payments are removed.",
-              },
-            ] as const
-          ).map((option) => (
-            <label
-              key={option.mode}
-              className={`flex cursor-pointer gap-3 rounded-xl border p-3
-              transition ${
-                rescheduleMode === option.mode
-                  ? "border-primary bg-primary/5"
-                  : "border-border"
-              }`}
-            >
-              <input
-                type="radio"
-                name="reschedule-mode"
-                className="mt-1 accent-[var(--primary)]"
-                checked={rescheduleMode === option.mode}
-                onChange={() => setRescheduleMode(option.mode)}
+          <Rise>
+            <div className="pt-5">
+              <Segmented
+                label="Account type"
+                tone={typeTone}
+                value={typeValue}
+                onChange={(v) => set("type", v)}
+                options={[
+                  { value: "loan", label: "Loan", tone: "violet" },
+                  {
+                    value: "cash_advance",
+                    label: "Cash advance",
+                    tone: "amber",
+                  },
+                ]}
               />
-              <span>
-                <span className="block text-sm font-semibold">
-                  {option.title}
-                  {option.mode === "carry" && (
-                    <span className="ml-1.5 text-xs font-medium text-primary">
-                      recommended
-                    </span>
-                  )}
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  {option.hint}
-                </span>
-              </span>
-            </label>
-          ))}
-        </fieldset>
-      )}
+              <FieldError message={errors.type?.message} />
+            </div>
+          </Rise>
 
-      <Button
-        type="submit"
-        disabled={isSubmitting}
-        className="mt-2 w-full"
-        size="lg"
-      >
-        {isSubmitting
-          ? isEdit
-            ? "Saving..."
-            : "Creating..."
-          : isEdit
-            ? "Save changes"
-            : "Create account"}
-      </Button>
-    </form>
+          <Rise>
+            <div className="pt-5">
+              <Field
+                id="interest_rate"
+                label="Interest rate"
+                icon={Percent}
+                tone="fuchsia"
+                error={errors.interest_rate?.message}
+              >
+                <StepperInput
+                  id="interest_rate"
+                  label="interest rate"
+                  tone="fuchsia"
+                  suffix="%"
+                  value={interestRateText}
+                  invalid={!!errors.interest_rate}
+                  onChange={onRateText}
+                  onBlur={() => {
+                    const num = Number(interestRateText.replace(",", "."));
+                    if (!isNaN(num)) setRate(num);
+                    else {
+                      setInterestRateText("");
+                      set("interest_rate", 0);
+                    }
+                  }}
+                  onStep={(dir) => {
+                    const now = Number(interestRateValue) || 0;
+                    const next = Math.round((now + dir * 0.1) * 100) / 100;
+                    setRate(Math.min(100, Math.max(0, next)));
+                  }}
+                />
+                <ChipRow>
+                  {[3.3, 3.8, 4, 5].map((rate) => (
+                    <Chip
+                      key={rate}
+                      tone="fuchsia"
+                      selected={interestRateValue === rate}
+                      onClick={() => setRate(rate)}
+                    >
+                      {rate}%
+                    </Chip>
+                  ))}
+                </ChipRow>
+              </Field>
+            </div>
+          </Rise>
+
+          <Rise>
+            <Reveal show={showsSchedule}>
+              <div className="pt-5">
+                <Field
+                  label="Pays"
+                  icon={Repeat}
+                  tone="sky"
+                  error={errors.payment_frequency?.message}
+                  aside={
+                    frequency === "bimonthly" && firstPaymentDateValue
+                      ? (() => {
+                          const day = new Date(firstPaymentDateValue).getDate();
+                          const [a1, a2] = deriveBimonthlyAnchors(day);
+                          return `${ordinalSuffix(a1)} & ${ordinalSuffix(a2)}`;
+                        })()
+                      : undefined
+                  }
+                >
+                  <Segmented
+                    label="Payment frequency"
+                    tone="sky"
+                    value={frequency}
+                    onChange={(v) => set("payment_frequency", v)}
+                    options={[
+                      { value: "weekly", label: "Weekly" },
+                      { value: "bimonthly", label: "Bimonthly" },
+                      { value: "monthly", label: "Monthly" },
+                      { value: "custom", label: "Custom" },
+                    ]}
+                  />
+                </Field>
+              </div>
+
+              <div className="pt-5">
+                <Field
+                  id="term_months"
+                  label={isCustom ? "Installments (gives)" : "Term"}
+                  icon={Hourglass}
+                  tone="lime"
+                  error={errors.term_months?.message}
+                >
+                  <StepperInput
+                    id="term_months"
+                    label={isCustom ? "installments" : "term"}
+                    tone="lime"
+                    suffix={
+                      isCustom
+                        ? Number(termMonthsValue) === 1
+                          ? "give"
+                          : "gives"
+                        : Number(termMonthsValue) === 1
+                          ? "month"
+                          : "months"
+                    }
+                    inputMode={isCustom ? "numeric" : "decimal"}
+                    value={termMonthsText}
+                    invalid={!!errors.term_months}
+                    onChange={onTermText}
+                    onBlur={() => {
+                      const num = Number(termMonthsText.replace(",", "."));
+                      if (!isNaN(num)) setTerm(num);
+                      else {
+                        setTermMonthsText("");
+                        set("term_months", 0);
+                      }
+                    }}
+                    onStep={(dir) => {
+                      const now = Number(termMonthsValue) || 0;
+                      const size = isCustom ? 1 : 0.5;
+                      const next = Math.round((now + dir * size) / size) * size;
+                      setTerm(Math.max(0, next));
+                    }}
+                  />
+                  <ChipRow>
+                    {[1, 2, 3, 5, 6, 10, 12].map((months) => (
+                      <Chip
+                        key={months}
+                        tone="lime"
+                        selected={Number(termMonthsValue) === months}
+                        onClick={() => setTerm(months)}
+                      >
+                        {months}
+                      </Chip>
+                    ))}
+                  </ChipRow>
+                </Field>
+              </div>
+            </Reveal>
+          </Rise>
+
+          <Rise>
+            <div className="pt-5">
+              <Field
+                id="release_date"
+                label="Release date"
+                icon={CalendarDays}
+                tone="orange"
+                error={errors.release_date?.message}
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    id="release_date"
+                    type="date"
+                    aria-invalid={!!errors.release_date}
+                    {...register("release_date")}
+                    className={`${accountInputClass} ${INPUT_FOCUS.orange}`}
+                  />
+                  <Chip
+                    tone="orange"
+                    className="h-12 rounded-2xl px-4"
+                    selected={releaseDateValue === manilaToday()}
+                    onClick={() => set("release_date", manilaToday())}
+                  >
+                    Today
+                  </Chip>
+                </div>
+              </Field>
+            </div>
+          </Rise>
+
+          <Rise>
+            <Reveal
+              show={showsSchedule && Boolean(releaseDateValue)}
+              className="pt-5"
+            >
+              <Field
+                id="first_payment_date"
+                label="First payment"
+                icon={CalendarCheck}
+                tone="emerald"
+                error={errors.first_payment_date?.message}
+              >
+                <input
+                  id="first_payment_date"
+                  type="date"
+                  min={releaseDateValue}
+                  aria-invalid={!!errors.first_payment_date}
+                  {...register("first_payment_date")}
+                  className={`${accountInputClass} ${INPUT_FOCUS.emerald}`}
+                />
+                <ChipRow>
+                  {firstPaymentChips.map((chip) => (
+                    <Chip
+                      key={chip.value}
+                      tone="emerald"
+                      selected={firstPaymentDateValue === chip.value}
+                      onClick={() => set("first_payment_date", chip.value)}
+                    >
+                      {chip.label}
+                    </Chip>
+                  ))}
+                </ChipRow>
+              </Field>
+            </Reveal>
+          </Rise>
+
+          <Rise>
+            <Reveal show={showsSchedule && preview !== null} className="pt-5">
+              {preview && (
+                <div
+                  className="relative overflow-hidden rounded-3xl
+                    bg-linear-to-br from-emerald-500 to-emerald-700 p-4
+                    text-white"
+                >
+                  <Sparkles
+                    aria-hidden="true"
+                    className="absolute -top-2 -right-2 size-20 text-white/10"
+                  />
+                  <p className="text-xs font-bold text-white/80">
+                    Schedule preview
+                  </p>
+                  <p className="mt-1 text-lg font-black tracking-tight">
+                    <Roll value={String(preview.count)} /> payment
+                    {preview.count === 1 ? "" : "s"} of{" "}
+                    <span className="tabular-nums">
+                      <Roll value={formatMoney(preview.each)} />
+                    </span>
+                  </p>
+                  <p className="text-sm font-semibold text-white/80">
+                    {formatDate(preview.first)}
+                    {preview.count > 1 && <> → {formatDate(preview.last)}</>}
+                  </p>
+                  <p
+                    className="mt-1 text-sm font-bold text-yellow-200
+                      tabular-nums"
+                  >
+                    <Roll value={`+${formatMoney(preview.profitEach)}`} />{" "}
+                    profit per payment
+                  </p>
+                  <dl
+                    className="mt-3 grid grid-cols-2 gap-2 border-t
+                      border-white/20 pt-3 text-sm"
+                  >
+                    <div>
+                      <dt className="text-xs font-semibold text-white/75">
+                        Total to collect
+                      </dt>
+                      <dd className="font-black tabular-nums">
+                        <Roll value={formatMoney(preview.total)} />
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-semibold text-white/75">
+                        Interest
+                      </dt>
+                      <dd className="font-black tabular-nums text-yellow-200">
+                        <Roll value={`+${formatMoney(preview.interest)}`} />
+                      </dd>
+                    </div>
+                  </dl>
+                  <Reveal show={preview.skipped > 0}>
+                    <div className="mt-3 border-t border-white/20 pt-3">
+                      <SwitchRow
+                        checked={calculateSkipped}
+                        onChange={(on) =>
+                          set("calculate_skipped_schedules", on)
+                        }
+                      >
+                        Add interest for {preview.skipped} skipped period
+                        {preview.skipped === 1 ? "" : "s"}
+                        <span
+                          className="block text-xs font-medium text-white/75"
+                        >
+                          Between the release and the first payment.
+                        </span>
+                      </SwitchRow>
+                    </div>
+                  </Reveal>
+                </div>
+              )}
+            </Reveal>
+            <Reveal show={showsSchedule && preview === null} className="pt-5">
+              <p
+                className="rounded-3xl border border-dashed
+                  border-emerald-500/40 bg-emerald-500/5 p-4 text-center text-sm
+                  font-medium text-muted-foreground"
+              >
+                Add the amount, term and first payment to preview the schedule.
+              </p>
+            </Reveal>
+
+            <Reveal show={rollingFirstDue !== null} className="pt-5">
+              <div
+                className="rounded-3xl bg-linear-to-br from-emerald-500
+                  to-emerald-700 p-4 text-white"
+              >
+                <p className="text-xs font-bold text-white/80">
+                  First schedule
+                </p>
+                <p
+                  className="mt-1 text-lg font-black tracking-tight
+                    tabular-nums"
+                >
+                  <Roll value={formatMoney(rollingFirstDue ?? 0)} />
+                </p>
+                <p className="text-sm font-semibold text-white/80">
+                  {releaseDateValue
+                    ? `Due ${formatDate(releaseDateValue)}`
+                    : "Due on the release date"}
+                </p>
+              </div>
+            </Reveal>
+          </Rise>
+
+          <Rise>
+            <div
+              ref={optionsRef}
+              className="mt-5 scroll-mt-4 scroll-mb-24 rounded-3xl bg-muted/40"
+            >
+              <button
+                type="button"
+                aria-expanded={optionsOpen}
+                onClick={() => setOptionsOpen((open) => !open)}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left"
+              >
+                <span
+                  aria-hidden="true"
+                  className="flex size-9 shrink-0 items-center justify-center
+                    rounded-xl bg-indigo-100 text-indigo-700
+                    dark:bg-indigo-500/20 dark:text-indigo-300"
+                >
+                  <SlidersHorizontal className="size-4" strokeWidth={2.75} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold">Options</span>
+                  <span
+                    className="block truncate text-xs font-semibold
+                      text-muted-foreground"
+                  >
+                    {optionsSummary}
+                  </span>
+                </span>
+                <m.span
+                  animate={{ rotate: optionsOpen ? 180 : 0 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                >
+                  <ChevronDown className="size-5 shrink-0 text-muted-foreground" />
+                </m.span>
+              </button>
+              <Reveal show={optionsOpen}>
+                <div className="space-y-4 px-4 pb-4">
+                  <Field label="Schedule">
+                    <Segmented
+                      label="Schedule mode"
+                      tone="sky"
+                      value={scheduleMode}
+                      onChange={(v) => set("schedule_mode", v)}
+                      options={[
+                        { value: "auto", label: "Auto", tone: "sky" },
+                        { value: "manual", label: "Manual", tone: "violet" },
+                      ]}
+                    />
+                    <p className={hintClass}>
+                      {isManual
+                        ? "You add the schedules yourself."
+                        : "Schedules are generated from the terms."}
+                    </p>
+                  </Field>
+
+                  <Reveal show={isManual}>
+                    <Field label="Interest type">
+                      <Segmented
+                        label="Interest type"
+                        tone="violet"
+                        value={interestType ?? "flat"}
+                        onChange={(v) => set("interest_type", v)}
+                        options={[
+                          { value: "flat", label: "Flat" },
+                          { value: "rolling", label: "Rolling" },
+                        ]}
+                      />
+                      <p className={hintClass}>
+                        {isRolling
+                          ? "First schedule auto-created on save. Each partial payment generates the next cycle with interest on remaining balance."
+                          : "A fixed total."}
+                      </p>
+                    </Field>
+                  </Reveal>
+
+                  {!isEdit && (
+                    <Field label="Status">
+                      <Segmented
+                        label="Account status"
+                        tone="emerald"
+                        value={status}
+                        onChange={(v) => set("status", v)}
+                        options={[
+                          { value: "active", label: "Active", tone: "emerald" },
+                          { value: "pending", label: "Pending", tone: "amber" },
+                        ]}
+                      />
+                      <Reveal show={isPending}>
+                        <p className={hintClass}>
+                          Payment schedules will be created when this account is
+                          activated. A calendar event will be added using the
+                          release date.
+                        </p>
+                      </Reveal>
+                    </Field>
+                  )}
+                </div>
+              </Reveal>
+            </div>
+          </Rise>
+
+          <Reveal show={hasCarried} className="pt-5">
+            {carried && (
+              <Field label="Existing payments" icon={History} tone="violet">
+                <div
+                  role="radiogroup"
+                  aria-label="Existing payments"
+                  className="space-y-2"
+                >
+                  {(
+                    [
+                      {
+                        mode: "carry",
+                        title: "Keep them on the new dates",
+                        hint: `${carried.paid} paid${
+                          carried.partial
+                            ? ` and ${carried.partial} partial`
+                            : ""
+                        } installment${
+                          carried.paid + carried.partial === 1 ? "" : "s"
+                        } move in order (1st to 1st, 2nd to 2nd) with their payments.`,
+                      },
+                      {
+                        mode: "reset",
+                        title: "Start over",
+                        hint: "Every installment starts unpaid; recorded payments are removed.",
+                      },
+                    ] as const
+                  ).map((option) => {
+                    const on = rescheduleMode === option.mode;
+                    const danger = option.mode === "reset";
+                    return (
+                      <m.button
+                        key={option.mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setRescheduleMode(option.mode)}
+                        className={`flex w-full items-start gap-3 rounded-2xl
+                        border p-3 text-left transition-colors ${
+                          !on
+                            ? "border-border bg-card"
+                            : danger
+                              ? "border-rose-500/50 bg-rose-500/10"
+                              : "border-emerald-500/50 bg-emerald-500/10"
+                        }`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`mt-0.5 flex size-5 shrink-0 items-center
+                          justify-center rounded-full border transition-colors
+                          ${
+                            !on
+                              ? "border-muted-foreground/40"
+                              : danger
+                                ? "border-rose-500 bg-rose-500 text-white"
+                                : "border-emerald-500 bg-emerald-500 text-white"
+                          }`}
+                        >
+                          {on && <Check className="size-3.5" strokeWidth={3} />}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-bold">
+                            {option.title}
+                            {option.mode === "carry" && (
+                              <span
+                                className="ml-1.5 text-xs font-semibold
+                                  text-emerald-600 dark:text-emerald-300"
+                              >
+                                recommended
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            className="block text-xs font-medium
+                              text-muted-foreground"
+                          >
+                            {option.hint}
+                          </span>
+                        </span>
+                      </m.button>
+                    );
+                  })}
+                </div>
+              </Field>
+            )}
+          </Reveal>
+
+          <Reveal
+            show={isEdit && !isManual && quality !== "good"}
+            className="pt-5"
+          >
+            <p
+              role="status"
+              className="flex gap-2 rounded-2xl border border-amber-500/40
+                bg-amber-500/10 p-3 text-xs font-semibold"
+            >
+              <WifiOff className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              Saving rewrites the schedules, which needs a good connection. Try
+              again when you are back online.
+            </p>
+          </Reveal>
+        </Stagger>
+
+        <SheetFooter>
+          <m.div whileTap={{ scale: 0.97 }}>
+            <Button
+              type="submit"
+              data-account-submit=""
+              disabled={isSubmitting}
+              size="lg"
+              className="h-12 w-full rounded-2xl text-base font-bold shadow-lg
+                shadow-primary/25"
+            >
+              {isEdit ? (
+                <Check className="size-5" strokeWidth={2.75} />
+              ) : (
+                <Plus className="size-5" strokeWidth={2.75} />
+              )}
+              {isSubmitting
+                ? isEdit
+                  ? "Saving…"
+                  : "Creating…"
+                : isEdit
+                  ? "Save changes"
+                  : "Create account"}
+            </Button>
+          </m.div>
+        </SheetFooter>
+      </form>
+    </MotionConfig>
   );
 }

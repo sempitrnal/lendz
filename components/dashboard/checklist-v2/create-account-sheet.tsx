@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formFieldErrorClassName } from "@/lib/form-field-classes";
 import type { ReleaseRowView } from "@/lib/checklist/release-items";
 import {
   classifySubmitSample,
@@ -19,8 +18,9 @@ const AccountForm = dynamic(() => import("@/components/forms/account-form"), {
   loading: () => <FormSkeleton />,
 });
 
-/** The form's own submit button (its last child); the sticky CSS uses it too. */
-const SUBMIT_BUTTON = "form > button:last-child";
+/** The form's own submit button, and its validation messages. */
+const SUBMIT_BUTTON = "form [data-account-submit]";
+const FIELD_ERROR = "form [data-field-error]";
 /** How often the form is sampled after a submit. */
 const SAMPLE_MS = 100;
 
@@ -28,9 +28,8 @@ const SAMPLE_MS = 100;
  * The create-account sheet for a release item: the real `AccountForm`,
  * prefilled from the typed note, creating without leaving the checklist.
  *
- * The form's own Create button (its last child) is made sticky from here
- * with CSS only, so the form itself is unchanged. There is no schedule
- * preview: it would need the form's live values, which it doesn't expose.
+ * The form brings its own sticky Create button and schedule preview; this
+ * sheet adds the heading, the note and the duplicate warning around it.
  *
  * Guarding against a second account, from outside the form:
  * - A submit is caught on its way to the form (capture phase). While the
@@ -104,9 +103,7 @@ export function CreateAccountSheet({
       const button = wrap?.querySelector<HTMLButtonElement>(SUBMIT_BUTTON);
       if (!wrap || !button) return;
       if (button.disabled) seenBusy = true;
-      const fieldErrors = [...wrap.querySelectorAll("form p")].filter(
-        (p) => p.className === formFieldErrorClassName,
-      ).length;
+      const fieldErrors = wrap.querySelectorAll(FIELD_ERROR).length;
       const verdict = classifySubmitSample({
         buttonDisabled: button.disabled,
         seenBusy,
@@ -160,88 +157,87 @@ export function CreateAccountSheet({
   const attempted = needsCreateConfirm(mark);
 
   return (
-    <div className="px-5 pt-2 pb-4">
-      <h2 className="text-lg font-semibold">
-        Create account{" "}
-        <span className="lowercase">for {parsed.borrowerName}</span>
-      </h2>
-      {note && (
-        <p className="text-sm text-muted-foreground">
-          Filled in from your note: <span className="lowercase">“{note}”</span>
-        </p>
-      )}
-      {attempted && (
-        <div
-          ref={warningRef}
-          role="alert"
-          className={`mt-4 rounded-xl border p-3 text-sm ${
-            heldBack
-              ? "border-destructive bg-destructive/10"
-              : "border-amber-500/40 bg-amber-500/10"
-          }`}
-        >
-          <p className="flex gap-2">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-            <span>{CREATE_AGAIN_WARNING}</span>
+    <div className="pt-2 pb-4">
+      <div className="px-5 pb-4">
+        <h2 className="text-xl font-black tracking-tight">
+          Create account{" "}
+          <span className="lowercase">for {parsed.borrowerName}</span>
+        </h2>
+        {note && (
+          <p className="text-sm font-semibold text-muted-foreground">
+            Filled in from your note:{" "}
+            <span className="lowercase">“{note}”</span>
           </p>
-          <div className="mt-3 flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 flex-1"
-              onClick={onOpenBorrower}
-            >
-              Open borrower page
-            </Button>
-            <Button
-              type="button"
-              className="h-11 flex-1"
-              onClick={createAnyway}
-            >
-              Create anyway
-            </Button>
+        )}
+        {attempted && (
+          <div
+            ref={warningRef}
+            role="alert"
+            className={`mt-4 rounded-xl border p-3 text-sm ${
+              heldBack
+                ? "border-destructive bg-destructive/10"
+                : "border-amber-500/40 bg-amber-500/10"
+            }`}
+          >
+            <p className="flex gap-2">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              <span>{CREATE_AGAIN_WARNING}</span>
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 flex-1"
+                onClick={onOpenBorrower}
+              >
+                Open borrower page
+              </Button>
+              <Button
+                type="button"
+                className="h-11 flex-1"
+                onClick={createAnyway}
+              >
+                Create anyway
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
       {showForm && (
-        <div
-          ref={wrapRef}
-          onSubmitCapture={onSubmitCapture}
-          className="mt-4 [&_form>button:last-child]:sticky
-            [&_form>button:last-child]:bottom-3 [&_form>button:last-child]:z-10
-            [&_form>button:last-child]:h-12 [&_form>button:last-child]:text-base
-            [&_form>button:last-child]:shadow-[0_0_0_12px_var(--card)]"
-        >
+        <div ref={wrapRef} onSubmitCapture={onSubmitCapture}>
           <AccountForm
             key={`${release.item.id}-${date}-${formKey}`}
             borrowerId={parsed.borrowerId}
             initialValues={parsed.initialValues}
             redirectOnCreate={false}
             borrowerName={parsed.borrowerName}
+            showHeader={false}
             onSuccess={onCreated}
           />
         </div>
       )}
-      <p className="mt-4 text-center text-xs text-muted-foreground">
-        If an error shows after Create, check the borrower page before trying
-        again.
-      </p>
-      <Button
-        type="button"
-        variant="ghost"
-        className="mt-2 h-11 w-full"
-        disabled={mark === "creating"}
-        onClick={onCheckOff}
-      >
-        Check off without account
-      </Button>
+      <div className="px-5">
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          If an error shows after Create, check the borrower page before trying
+          again.
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          className="mt-2 h-11 w-full"
+          disabled={mark === "creating"}
+          onClick={onCheckOff}
+        >
+          Check off without account
+        </Button>
+      </div>
     </div>
   );
 }
 
 function FormSkeleton() {
   return (
-    <div className="space-y-4" aria-busy="true">
+    <div className="space-y-4 px-5" aria-busy="true">
       <span className="sr-only">Loading the form</span>
       {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} className="space-y-1.5">

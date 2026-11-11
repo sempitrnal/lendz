@@ -28,6 +28,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Sheet } from "@/components/dashboard/checklist-v2/sheet";
 import { useBorrowersSearch } from "@/hooks/use-borrowers-search";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import { borrowerCategoryColor } from "@/lib/checklist/labels";
@@ -266,33 +267,24 @@ export function QuickActionsButton() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
+      <Sheet
         open={step.kind === "form" && step.action === "account"}
-        onOpenChange={(open) => !open && close()}
+        onClose={close}
+        label="Add account"
       >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="text-xl font-semibold tracking-tight">
-              Add account
-            </DialogTitle>
-            <DialogDescription>
-              New loan or cash advance for{" "}
-              <span className="lowercase">{formBorrower?.name}</span>.
-            </DialogDescription>
-          </DialogHeader>
-          {formBorrower && (
-            <AccountForm
-              key={formBorrower.id}
-              borrowerId={formBorrower.id}
-              onSuccess={async () => {
-                close();
-                await invalidateBorrowerDetails(formBorrower.id);
-                router.refresh();
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+        {formBorrower && (
+          <AccountForm
+            key={formBorrower.id}
+            borrowerId={formBorrower.id}
+            borrowerName={formBorrower.name}
+            onSuccess={async () => {
+              close();
+              await invalidateBorrowerDetails(formBorrower.id);
+              router.refresh();
+            }}
+          />
+        )}
+      </Sheet>
 
       <Dialog
         open={step.kind === "form" && step.action === "note"}

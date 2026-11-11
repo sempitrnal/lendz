@@ -6,8 +6,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function MonthPicker({
   currentMonth,
+  variant = "default",
 }: {
   currentMonth: string;
+  /** "card": round arrows and a short lowercase month, as on the dashboard's cards. */
+  variant?: "default" | "card";
 }) {
   const router = useRouter();
   const [value, setValue] = useState(currentMonth);
@@ -39,6 +42,49 @@ export default function MonthPicker({
     month: "long",
     year: "numeric",
   });
+
+  if (variant === "card") {
+    const short = new Date(`${value}-01`)
+      .toLocaleDateString("en-US", { month: "short", year: "numeric" })
+      .toLowerCase();
+    const arrow =
+      "flex size-8 items-center justify-center rounded-full text-muted-foreground active:bg-muted";
+    return (
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={prevMonth}
+          className={arrow}
+          aria-label="Previous month"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+        <label className="relative cursor-pointer">
+          <span
+            className="block min-w-[4.5rem] text-center text-xs font-bold
+              text-card-foreground/80"
+          >
+            {short}
+          </span>
+          <input
+            type="month"
+            aria-label="Month"
+            value={value}
+            onChange={(e) => e.target.value && navigate(e.target.value)}
+            className="absolute inset-0 opacity-0"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={nextMonth}
+          className={arrow}
+          aria-label="Next month"
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-1">

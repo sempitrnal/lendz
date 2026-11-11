@@ -12,6 +12,7 @@ import {
   EyeOff,
   HandCoins,
   Sparkles,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ import { HIDDEN_AMOUNT, useHideAmounts } from "@/lib/hide-amounts";
 import MonthPicker from "@/components/month-picker";
 import HeaderSearch from "@/components/header-search";
 import ThemeToggle from "@/components/theme-toggle";
+import { ProfitCalendar } from "@/components/components-2/dashboard/profit-calendar";
 
 export type RecentPayment = {
   id: string;
@@ -242,12 +244,24 @@ export function WalletHome({
       </div>
 
       <div data-settle-group className="relative z-10 -mt-14 space-y-4 px-1">
-        <div className={card}>
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-card-foreground/80">
-              Monthly collections
-            </p>
-            <MonthPicker currentMonth={activeMonth} />
+        <div className={cn(card, "lowercase")}>
+          <div className="-mt-1 -mr-2 flex items-center gap-2">
+            <span
+              className="flex size-8 shrink-0 items-center justify-center
+                rounded-full bg-emerald-100 text-emerald-700
+                dark:bg-emerald-500/20 dark:text-emerald-300"
+            >
+              <HandCoins className="size-4" aria-hidden="true" />
+            </span>
+            <h2
+              className="text-sm font-black whitespace-nowrap
+                text-card-foreground/80"
+            >
+              monthly collections
+            </h2>
+            <div className="ml-auto">
+              <MonthPicker currentMonth={activeMonth} variant="card" />
+            </div>
           </div>
           <div className="mt-3 flex items-center gap-4">
             <div
@@ -309,14 +323,44 @@ export function WalletHome({
           </dl>
         </div>
 
-        <div className={card}>
-          <div className="flex items-start justify-between gap-3">
+        <ProfitCalendar hide={hide} />
+
+        <div className={cn(card, "lowercase")}>
+          <div className="flex items-center gap-2">
+            <span
+              className="flex size-8 shrink-0 items-center justify-center
+                rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20
+                dark:text-amber-300"
+            >
+              <TrendingUp className="size-4" aria-hidden="true" />
+            </span>
+            <h2
+              className="text-sm font-black whitespace-nowrap
+                text-card-foreground/80"
+            >
+              profit per month
+            </h2>
+            {profitDelta != null && (
+              <span
+                className={cn(
+                  `ml-auto shrink-0 rounded-full px-2.5 py-1 text-[11px]
+                  font-bold`,
+                  profitDelta >= 0
+                    ? `bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20
+                      dark:text-emerald-300`
+                    : `bg-rose-100 text-rose-700 dark:bg-rose-500/20
+                      dark:text-rose-300`,
+                )}
+              >
+                {profitDelta >= 0 ? "▲" : "▼"} {Math.abs(profitDelta)}% vs last
+                month
+              </span>
+            )}
+          </div>
+          <div className="mt-2">
             <div>
-              <p className="text-sm font-bold text-card-foreground/80">
-                Profit per month
-              </p>
               <p
-                className="mt-1 text-2xl font-bold tracking-tight
+                className="text-2xl font-bold tracking-tight
                   text-card-foreground/80 tabular-nums"
               >
                 {mask(formatPeso(thisMonth?.actual ?? 0))}
@@ -338,21 +382,6 @@ export function WalletHome({
                 </p>
               )}
             </div>
-            {profitDelta != null && (
-              <span
-                className={cn(
-                  "shrink-0 rounded-full px-2.5 py-1 text-xs font-bold",
-                  profitDelta >= 0
-                    ? `bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20
-                      dark:text-emerald-300`
-                    : `bg-rose-100 text-rose-700 dark:bg-rose-500/20
-                      dark:text-rose-300`,
-                )}
-              >
-                {profitDelta >= 0 ? "▲" : "▼"} {Math.abs(profitDelta)}% vs last
-                month
-              </span>
-            )}
           </div>
 
           <div className="mt-5 flex h-32 items-end gap-2">
