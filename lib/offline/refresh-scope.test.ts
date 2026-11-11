@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CHECKLIST_ROUTES,
   parseRefreshScope,
+  passBroughtPagesUpToDate,
   urlsToRefresh,
 } from "@/lib/offline/refresh-scope";
 
@@ -83,5 +84,30 @@ describe("urlsToRefresh", () => {
       "/daily-checklist/v2",
       "/daily-checklist/categories",
     ]);
+  });
+});
+
+describe("passBroughtPagesUpToDate", () => {
+  it("counts a partial pass the worker finished without pruning", () => {
+    expect(
+      passBroughtPagesUpToDate({ prune: false }, { refreshed: true, pruned: false }),
+    ).toBe(true);
+  });
+
+  it("counts a full pass only once old pages and files were dropped", () => {
+    expect(
+      passBroughtPagesUpToDate({ prune: true }, { refreshed: true, pruned: false }),
+    ).toBe(false);
+    expect(
+      passBroughtPagesUpToDate({ prune: true }, { refreshed: true, pruned: true }),
+    ).toBe(true);
+  });
+
+  it("ignores a worker too old to understand refresh", () => {
+    expect(passBroughtPagesUpToDate({ prune: false }, {})).toBe(false);
+  });
+
+  it("treats a pass stored before prune was recorded as partial", () => {
+    expect(passBroughtPagesUpToDate({}, { refreshed: true })).toBe(true);
   });
 });

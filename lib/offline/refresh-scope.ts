@@ -41,3 +41,17 @@ export function urlsToRefresh(urls: string[], scope: RefreshScope): string[] {
     );
   });
 }
+
+/**
+ * Whether a finished download pass brought the saved pages up to the new
+ * build. A worker too old to understand `refresh` never does. A full refresh
+ * (`prune`) also has to have dropped the old build's pages and files; a
+ * partial one keeps them on purpose, so it is done as soon as it finishes.
+ */
+export function passBroughtPagesUpToDate(
+  pending: { prune?: boolean },
+  done: { refreshed?: boolean; pruned?: boolean },
+): boolean {
+  if (!done.refreshed) return false;
+  return !pending.prune || done.pruned === true;
+}

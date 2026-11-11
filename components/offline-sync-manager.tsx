@@ -6,7 +6,11 @@ import { useOnline } from "@/hooks/use-online";
 import { warmChecklistCache } from "@/lib/checklist/offline-cache";
 import { requestOutboxReplay } from "@/lib/offline/outbox";
 import { readStored, writeStored } from "@/lib/offline/storage";
-import { parseRefreshScope, urlsToRefresh } from "@/lib/offline/refresh-scope";
+import {
+  parseRefreshScope,
+  passBroughtPagesUpToDate,
+  urlsToRefresh,
+} from "@/lib/offline/refresh-scope";
 
 /** Written after each build by scripts/offline-manifest.mjs. */
 type OfflineManifest = {
@@ -57,6 +61,8 @@ const STATIC_ROUTES = [
   "/daily-checklist",
   "/daily-checklist/v2",
   "/daily-checklist/categories",
+  "/releases",
+  "/whats-new",
   "/test-account",
 ];
 
@@ -89,15 +95,18 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === "PREFETCH_DONE" && event.data.hash) {
         const hash = String(event.data.hash);
-        const pending = readStored<{ hash: string; buildId: string }>(
-          PENDING_VERSION_KEY,
-        );
+        const pending = readStored<{
+          hash: string;
+          buildId: string;
+          prune?: boolean;
+        }>(PENDING_VERSION_KEY);
         // Only the pass started for the new version can mark it synced: a
         // pass from before the deploy finishing now left old pages behind.
         // A worker from before this change ignores `refresh`/`prune`, so its
-        // "done" doesn't count either: ask again next tick.
+        // "done" doesn't count either: ask again next tick. A partial refresh
+        // never prunes, and still counts.
         if (pending?.hash === hash) {
-          if (!event.data.refreshed || !event.data.pruned) return;
+          if (!passBroughtPagesUpToDate(pending, event.data)) return;
           writeStored(SYNCED_MANIFEST_KEY, { buildId: pending.buildId });
           localStorage.removeItem(PENDING_VERSION_KEY);
         }
@@ -173,6 +182,7 @@ export function OfflineSyncManager({ enabled }: { enabled: boolean }) {
           writeStored(PENDING_VERSION_KEY, {
             hash: listHash,
             buildId: manifest.buildId,
+            prune: fullRefresh,
           });
         }
         postToWorker({
