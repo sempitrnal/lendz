@@ -49,6 +49,19 @@ export async function loadPuzzleResult(
   return puzzle ? { status: "ok", puzzle } : { status: "none" };
 }
 
+/**
+ * `loadPuzzleResult` in a browser; null on the server. The server renders this
+ * page too, but a relative URL cannot be fetched there, so a load started
+ * during server rendering would always come back as an error.
+ */
+export function loadPuzzleOnClient(
+  date: string,
+  fetchFn?: typeof fetch,
+): Promise<LoadResult> | null {
+  if (typeof window === "undefined") return null;
+  return loadPuzzleResult(date, fetchFn);
+}
+
 /** Starts fetching a month's file so a later load finds it ready. */
 export function prefetchMonth(
   month: string,

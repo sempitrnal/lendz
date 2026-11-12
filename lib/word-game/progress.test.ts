@@ -33,7 +33,7 @@ describe("addFound", () => {
 
 describe("the day a puzzle was solved on", () => {
   const almost = () => {
-    let p = addFound(testPuzzle, emptyProgress, "PLANE");
+    const p = addFound(testPuzzle, emptyProgress, "PLANE");
     return addFound(testPuzzle, p, "PEN");
   };
 

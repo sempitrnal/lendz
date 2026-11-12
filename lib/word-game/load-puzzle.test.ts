@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearPuzzleCache,
+  loadPuzzleOnClient,
   loadPuzzleResult,
   prefetchMonth,
 } from "./load-puzzle";
@@ -79,5 +80,22 @@ describe("prefetchMonth", () => {
     prefetchMonth("2026-11", fetchFn);
     await loadPuzzleResult("2026-11-12", fetchFn);
     expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("loadPuzzleOnClient", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("starts no load on the server, where there is no window", async () => {
+    const fetchFn = vi.fn(async () => ok());
+    expect(loadPuzzleOnClient("2026-11-12", fetchFn)).toBeNull();
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("loads in a browser", async () => {
+    vi.stubGlobal("window", {});
+    const fetchFn = vi.fn(async () => ok());
+    const result = await loadPuzzleOnClient("2026-11-12", fetchFn);
+    expect(result).toEqual({ status: "ok", puzzle: testPuzzle });
   });
 });

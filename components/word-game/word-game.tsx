@@ -12,7 +12,7 @@ import { playChaChing, primeAudio } from "@/lib/sound/cha-ching";
 import { monthOf, shiftDate } from "@/lib/word-game/date";
 import {
   clearPuzzleCache,
-  loadPuzzleResult,
+  loadPuzzleOnClient,
   prefetchMonth,
   type LoadResult,
 } from "@/lib/word-game/load-puzzle";
@@ -38,7 +38,7 @@ export function WordGame({ date, today }: { date: string; today: string }) {
   const streak = currentStreak(solvedDates(all), today);
   const puzzle = useMemo(() => {
     void attempt;
-    return loadPuzzleResult(date);
+    return loadPuzzleOnClient(date);
   }, [date, attempt]);
 
   useEffect(() => {
@@ -111,11 +111,13 @@ function PuzzleView({
   today,
   onRetry,
 }: {
-  promise: Promise<LoadResult>;
+  /** Null while the server renders: the page shows "loading" until it is in a browser. */
+  promise: Promise<LoadResult> | null;
   date: string;
   today: string;
   onRetry(): void;
 }) {
+  if (!promise) return <Message>loading the puzzle…</Message>;
   const result = use(promise);
   if (result.status === "none")
     return <Message>no puzzle for this day</Message>;
