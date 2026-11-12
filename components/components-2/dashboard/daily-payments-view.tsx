@@ -246,9 +246,7 @@ export function DailyPaymentsView({
           className="band-bg absolute inset-0 rounded-b-3xl"
         />
         <div className="relative z-20 flex items-center justify-between">
-          <p className="text-xs font-bold tracking-wider uppercase">
-            daily payments
-          </p>
+          <p className="text-xs font-bold tracking-wider">daily payments</p>
           <button
             type="button"
             onClick={toggleHide}
