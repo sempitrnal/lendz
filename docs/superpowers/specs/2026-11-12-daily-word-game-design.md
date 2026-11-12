@@ -171,9 +171,16 @@ Reused as they are: `canvas-confetti`, `lib/haptics`, `lib/sound`,
 - Manual check in a phone-sized browser: swiping, shuffle, hint, finishing a
   puzzle, replaying a past day.
 
-## Open details for the plan
+## Decisions made in the plan
 
-- The exact word-list packages and their licences.
-- Whether the service worker already caches `public/` JSON, and whether the
-  offline manifest should list the puzzle files.
-- The sound used for found words (reuse an existing one from `lib/sound`).
+- **Word lists** (dev-only inputs to the script): `word-list` (MIT) is every word
+  that counts; `popular-english-words` (ISC) ranks the words that may appear in
+  the grid, with short words held to a higher popularity bar because the list
+  comes from Wikipedia and lets names through; `badwords-list` (MIT) plus
+  `scripts/word-puzzles/blocklist.txt` is the blocklist.
+- **Offline:** the service worker already keeps same-origin JSON it has fetched
+  (network first, saved copy when offline), so the month files need no entry in
+  the offline manifest. A month works offline once it has been opened online.
+- **Sounds:** found words reuse `playChaChing("partial")`; a solved puzzle reuses
+  `playChaChing("full")`.
+- **File size:** each month file is about 24 KB, not the 40 KB first estimated.
