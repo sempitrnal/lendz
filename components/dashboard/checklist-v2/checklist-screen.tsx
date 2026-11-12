@@ -57,6 +57,7 @@ import {
 } from "@/components/dashboard/checklist-v2/release-sheets";
 import { releaseDisplayName } from "@/lib/checklist/release-edit";
 import { extractBorrowerMention } from "@/lib/checklist/labels";
+import { loadAccountForm } from "@/components/forms/account-form-loader";
 import { CreateAccountSheet } from "@/components/dashboard/checklist-v2/create-account-sheet";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import { isConnectionGood } from "@/lib/offline/connection";
@@ -213,6 +214,10 @@ function setUrlParam(key: string, value: string | null) {
  * shows the skeleton and the day loads once the screen is on the client.
  */
 export default function ChecklistScreen() {
+  // The create-account sheet's form, fetched ahead so the sheet opens ready.
+  useEffect(() => {
+    void loadAccountForm().catch(() => {});
+  }, []);
   const today = useSyncExternalStore(noopSubscribe, todayDateValue, () => null);
   if (today === null) {
     return (

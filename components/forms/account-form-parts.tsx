@@ -15,9 +15,9 @@ import {
  * The building blocks of the account form: labelled fields with a coloured
  * icon, the big amount input, segmented choices with a sliding pill,
  * quick-pick chips, a number box with − / +, and the small animations they
- * share. Each field has its own colour ("tone"); the amount and the account
- * type follow the type's colour (violet for loans, amber for cash advances),
- * as on the borrower page.
+ * share. The form is green throughout, matching the app; the one other colour is
+ * amber, for cash advances (and a pending status). A field's "tone" picks its
+ * colour.
  */
 
 export type Tone =

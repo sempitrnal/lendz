@@ -31,22 +31,14 @@ import {
   useInvalidateBorrowerDetails,
 } from "@/lib/hooks/use-borrower-details";
 import dynamic from "next/dynamic";
+import {
+  AccountForm,
+  loadAccountForm,
+} from "@/components/forms/account-form-loader";
 
 const NotesCanvas = dynamic(() => import("./notes-canvas"), { ssr: false });
 // Only needed once a dialog or the notes grid is actually shown.
-const loadAccountForm = () => import("@/components/forms/account-form");
 const loadActivateDialog = () => import("./activate-account-dialog");
-const AccountForm = dynamic(loadAccountForm, {
-  // While the form's code arrives, the dialog isn't an empty box.
-  loading: () => (
-    <div className="space-y-3" aria-hidden="true">
-      <div className="h-10 animate-pulse rounded-lg bg-muted" />
-      <div className="h-10 animate-pulse rounded-lg bg-muted" />
-      <div className="h-10 animate-pulse rounded-lg bg-muted" />
-      <div className="h-10 animate-pulse rounded-lg bg-muted" />
-    </div>
-  ),
-});
 const ActivateAccountDialog = dynamic(loadActivateDialog);
 const SortableNotesGrid = dynamic(() => import("./sortable-notes-grid"));
 import { AccountRow as AccountRowItem, type RowActions } from "./account-row";
@@ -560,10 +552,17 @@ export default function BorrowerAccountsSection({
     (id: string) => latestHandlers.current.toggleSelect(id),
     [],
   );
-  const stableEditAccount = useCallback((acc: AccountRow) => {
-    setEditingAccount(acc);
-    setIsAccountDialogOpen(true);
+  // The sheet opens once the form's code is here (right away when it was
+  // fetched ahead), so it never shows a loading placeholder.
+  const openAccountSheet = useCallback((account: AccountRow | null) => {
+    setEditingAccount(account);
+    loadAccountForm()
+      .then(() => setIsAccountDialogOpen(true))
+      .catch(() =>
+        toast.error("couldn't open the form. check your connection."),
+      );
   }, []);
+  const stableEditAccount = openAccountSheet;
   // Behind each row: what the three-dot menu used to offer.
   const accountById = useMemo(
     () => new Map((accounts ?? []).map((a) => [a.id, a])),
@@ -759,10 +758,8 @@ export default function BorrowerAccountsSection({
     <button
       type="button"
       data-tour="borrower-add"
-      onClick={() => {
-        setEditingAccount(null);
-        setIsAccountDialogOpen(true);
-      }}
+      onPointerDown={() => void loadAccountForm()}
+      onClick={() => openAccountSheet(null)}
       className="ml-auto flex items-center gap-1 rounded-full bg-emerald-100
         px-3 py-1.5 text-xs font-bold text-emerald-700 active:bg-emerald-200
         dark:bg-emerald-500/20 dark:text-emerald-300"
@@ -896,10 +893,8 @@ export default function BorrowerAccountsSection({
               <div className="px-3 pb-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditingAccount(null);
-                    setIsAccountDialogOpen(true);
-                  }}
+                  onPointerDown={() => void loadAccountForm()}
+                  onClick={() => openAccountSheet(null)}
                   className="flex w-full flex-col items-center justify-center
                     gap-1 rounded-xl border-2 border-dashed border-border py-6
                     text-center transition active:scale-[0.99]

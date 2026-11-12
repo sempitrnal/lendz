@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import dynamic from "next/dynamic";
+import { AccountForm } from "@/components/forms/account-form-loader";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ReleaseRowView } from "@/lib/checklist/release-items";
@@ -13,10 +13,6 @@ import {
   type CreateEvent,
   type CreateMark,
 } from "@/lib/checklist/release-list";
-
-const AccountForm = dynamic(() => import("@/components/forms/account-form"), {
-  loading: () => <FormSkeleton />,
-});
 
 /** The form's own submit button, and its validation messages. */
 const SUBMIT_BUTTON = "form [data-account-submit]";
@@ -231,20 +227,6 @@ export function CreateAccountSheet({
           Check off without account
         </Button>
       </div>
-    </div>
-  );
-}
-
-function FormSkeleton() {
-  return (
-    <div className="space-y-4 px-5" aria-busy="true">
-      <span className="sr-only">Loading the form</span>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="space-y-1.5">
-          <div className="h-3.5 w-28 animate-pulse rounded bg-muted" />
-          <div className="h-10 animate-pulse rounded-lg bg-muted/70" />
-        </div>
-      ))}
     </div>
   );
 }

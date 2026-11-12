@@ -141,6 +141,7 @@ export default function AccountForm({
     register,
     handleSubmit,
     setValue,
+    getValues,
     reset,
     watch,
     formState: { errors, isSubmitting, isSubmitted },
@@ -195,10 +196,12 @@ export default function AccountForm({
   );
 
   useEffect(() => {
-    if (!releaseDateValue) {
+    // Only when there is a date to clear: setting the value re-renders the
+    // whole form, and the form starts out empty.
+    if (!releaseDateValue && getValues("first_payment_date")) {
       setValue("first_payment_date", "");
     }
-  }, [releaseDateValue, setValue]);
+  }, [releaseDateValue, setValue, getValues]);
 
   // Editing: what the existing schedules already have paid, so the form can
   // offer to keep those payments when the dates change.
@@ -734,7 +737,7 @@ export default function AccountForm({
       : null;
 
   const showsSchedule = !isManual && !isPending;
-  const typeTone: Tone = typeValue === "cash_advance" ? "amber" : "violet";
+  const typeTone: Tone = typeValue === "cash_advance" ? "amber" : "emerald";
   const optionsSummary = [
     isManual ? `Manual schedule, ${interestType ?? "flat"}` : "Auto schedule",
     ...(isEdit ? [] : [isPending ? "Pending" : "Active"]),
@@ -768,8 +771,8 @@ export default function AccountForm({
                 typeTone === "amber"
                   ? `border border-amber-500 bg-amber-50 text-amber-700
                     dark:bg-amber-900/30 dark:text-amber-300`
-                  : `border border-violet-500 bg-violet-50 text-violet-700
-                    dark:bg-violet-900/30 dark:text-violet-300`
+                  : `border border-emerald-500 bg-emerald-50 text-emerald-700
+                    dark:bg-emerald-900/30 dark:text-emerald-300`
               }`}
             >
               <AnimatePresence mode="popLayout" initial={false}>
@@ -849,7 +852,7 @@ export default function AccountForm({
                 value={typeValue}
                 onChange={(v) => set("type", v)}
                 options={[
-                  { value: "loan", label: "Loan", tone: "violet" },
+                  { value: "loan", label: "Loan", tone: "emerald" },
                   {
                     value: "cash_advance",
                     label: "Cash advance",
@@ -867,13 +870,13 @@ export default function AccountForm({
                 id="interest_rate"
                 label="Interest rate"
                 icon={Percent}
-                tone="fuchsia"
+                tone="emerald"
                 error={errors.interest_rate?.message}
               >
                 <StepperInput
                   id="interest_rate"
                   label="interest rate"
-                  tone="fuchsia"
+                  tone="emerald"
                   suffix="%"
                   value={interestRateText}
                   invalid={!!errors.interest_rate}
@@ -896,7 +899,7 @@ export default function AccountForm({
                   {[3.3, 3.8, 4, 5].map((rate) => (
                     <Chip
                       key={rate}
-                      tone="fuchsia"
+                      tone="emerald"
                       selected={interestRateValue === rate}
                       onClick={() => setRate(rate)}
                     >
@@ -914,7 +917,7 @@ export default function AccountForm({
                 <Field
                   label="Pays"
                   icon={Repeat}
-                  tone="sky"
+                  tone="emerald"
                   error={errors.payment_frequency?.message}
                   aside={
                     frequency === "bimonthly" && firstPaymentDateValue
@@ -928,7 +931,7 @@ export default function AccountForm({
                 >
                   <Segmented
                     label="Payment frequency"
-                    tone="sky"
+                    tone="emerald"
                     value={frequency}
                     onChange={(v) => set("payment_frequency", v)}
                     options={[
@@ -946,13 +949,13 @@ export default function AccountForm({
                   id="term_months"
                   label={isCustom ? "Installments (gives)" : "Term"}
                   icon={Hourglass}
-                  tone="lime"
+                  tone="emerald"
                   error={errors.term_months?.message}
                 >
                   <StepperInput
                     id="term_months"
                     label={isCustom ? "installments" : "term"}
-                    tone="lime"
+                    tone="emerald"
                     suffix={
                       isCustom
                         ? Number(termMonthsValue) === 1
@@ -985,7 +988,7 @@ export default function AccountForm({
                     {[1, 2, 3, 5, 6, 10, 12].map((months) => (
                       <Chip
                         key={months}
-                        tone="lime"
+                        tone="emerald"
                         selected={Number(termMonthsValue) === months}
                         onClick={() => setTerm(months)}
                       >
@@ -1004,7 +1007,7 @@ export default function AccountForm({
                 id="release_date"
                 label="Release date"
                 icon={CalendarDays}
-                tone="orange"
+                tone="emerald"
                 error={errors.release_date?.message}
               >
                 <div className="flex items-center gap-2">
@@ -1013,10 +1016,10 @@ export default function AccountForm({
                     type="date"
                     aria-invalid={!!errors.release_date}
                     {...register("release_date")}
-                    className={`${accountInputClass} ${INPUT_FOCUS.orange}`}
+                    className={`${accountInputClass} ${INPUT_FOCUS.emerald}`}
                   />
                   <Chip
-                    tone="orange"
+                    tone="emerald"
                     className="h-12 rounded-2xl px-4"
                     selected={releaseDateValue === manilaToday()}
                     onClick={() => set("release_date", manilaToday())}
@@ -1186,8 +1189,8 @@ export default function AccountForm({
                 <span
                   aria-hidden="true"
                   className="flex size-9 shrink-0 items-center justify-center
-                    rounded-xl bg-indigo-100 text-indigo-700
-                    dark:bg-indigo-500/20 dark:text-indigo-300"
+                    rounded-xl bg-emerald-100 text-emerald-700
+                    dark:bg-emerald-500/20 dark:text-emerald-300"
                 >
                   <SlidersHorizontal className="size-4" strokeWidth={2.75} />
                 </span>
@@ -1212,12 +1215,12 @@ export default function AccountForm({
                   <Field label="Schedule">
                     <Segmented
                       label="Schedule mode"
-                      tone="sky"
+                      tone="emerald"
                       value={scheduleMode}
                       onChange={(v) => set("schedule_mode", v)}
                       options={[
-                        { value: "auto", label: "Auto", tone: "sky" },
-                        { value: "manual", label: "Manual", tone: "violet" },
+                        { value: "auto", label: "Auto", tone: "emerald" },
+                        { value: "manual", label: "Manual", tone: "emerald" },
                       ]}
                     />
                     <p className={hintClass}>
@@ -1231,7 +1234,7 @@ export default function AccountForm({
                     <Field label="Interest type">
                       <Segmented
                         label="Interest type"
-                        tone="violet"
+                        tone="emerald"
                         value={interestType ?? "flat"}
                         onChange={(v) => set("interest_type", v)}
                         options={[
@@ -1255,8 +1258,16 @@ export default function AccountForm({
                         value={status}
                         onChange={(v) => set("status", v)}
                         options={[
-                          { value: "active", label: "Active", tone: "emerald" },
-                          { value: "pending", label: "Pending", tone: "amber" },
+                          {
+                            value: "active",
+                            label: "Active",
+                            tone: "emerald",
+                          },
+                          {
+                            value: "pending",
+                            label: "Pending",
+                            tone: "amber",
+                          },
                         ]}
                       />
                       <Reveal show={isPending}>
@@ -1275,7 +1286,7 @@ export default function AccountForm({
 
           <Reveal show={hasCarried} className="pt-5">
             {carried && (
-              <Field label="Existing payments" icon={History} tone="violet">
+              <Field label="Existing payments" icon={History} tone="emerald">
                 <div
                   role="radiogroup"
                   aria-label="Existing payments"

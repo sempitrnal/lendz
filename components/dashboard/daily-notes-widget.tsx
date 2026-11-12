@@ -42,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { AccountForm } from "@/components/forms/account-form-loader";
 import {
   Popover,
   PopoverAnchor,
@@ -49,7 +50,6 @@ import {
 } from "@/components/ui/popover";
 import dynamic from "next/dynamic";
 
-const AccountForm = dynamic(() => import("@/components/forms/account-form"));
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import {
   parseReleasedLabel,
