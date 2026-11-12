@@ -109,8 +109,8 @@ releasing submits. The wheel does not scroll the page while dragging
 
 On release:
 
-- **Grid word, not yet found:** its squares fill with a small pop; haptic and
-  sound.
+- **Grid word, not yet found:** its squares fill with a small pop, with a
+  haptic buzz.
 - **Bonus word, not yet found:** counted; the chip goes up.
 - **Already found (grid or bonus):** the wheel shakes and a short note says so.
 - **Not a word:** the wheel shakes.
@@ -146,8 +146,8 @@ never affect it.
 - `use-word-progress.ts`: a small `localStorage` hook in the style of
   `lib/hide-amounts.ts`.
 
-Reused as they are: `canvas-confetti`, `lib/haptics`, `lib/sound`,
-`components/day-picker.tsx`, the green band pattern.
+Reused as they are: `canvas-confetti`, `lib/haptics`,
+`components/day-picker.tsx`, the green band pattern. The game makes no sound.
 
 ## Errors and edge cases
 
@@ -181,6 +181,6 @@ Reused as they are: `canvas-confetti`, `lib/haptics`, `lib/sound`,
 - **Offline:** the service worker already keeps same-origin JSON it has fetched
   (network first, saved copy when offline), so the month files need no entry in
   the offline manifest. A month works offline once it has been opened online.
-- **Sounds:** found words reuse `playChaChing("partial")`; a solved puzzle reuses
-  `playChaChing("full")`.
+- **Sounds:** none. The game is silent (it first reused `playChaChing`, removed at
+  the owner's request); haptics and confetti remain.
 - **File size:** each month file is about 24 KB, not the 40 KB first estimated.
