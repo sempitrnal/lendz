@@ -22,6 +22,10 @@ export interface CurrentMonthData {
   toCollectSoFar: number;
   collected: number;
   meme: number;
+  /** Profit collected in the month, on the day it was paid. */
+  profitCollected: number;
+  /** The part of `profitCollected` on installments due in the same month. */
+  profitDueThisMonth: number;
   expectedProfit: number;
   remainingProfit: number;
 }

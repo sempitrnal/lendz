@@ -33,12 +33,16 @@ describe("dailyProfit", () => {
         payments: 1,
         collected: 1200,
         otherMonths: 0,
+        byDueMonth: {},
+        notDue: [],
       },
       "2026-11-05": {
         profit: 100,
         payments: 1,
         collected: 600,
         otherMonths: 0,
+        byDueMonth: {},
+        notDue: [],
       },
     });
   });
@@ -74,6 +78,8 @@ describe("dailyProfit", () => {
       payments: 1,
       collected: 300,
       otherMonths: 0,
+      byDueMonth: {},
+      notDue: [],
     });
   });
 
@@ -94,6 +100,16 @@ describe("dailyProfit", () => {
     );
     expect(out["2026-11-04"].profit).toBe(600);
     expect(out["2026-11-04"].otherMonths).toBe(300);
+    expect(out["2026-11-04"].byDueMonth).toEqual({
+      "2026-10": 200,
+      "2026-12": 100,
+    });
+    expect(
+      out["2026-11-04"].notDue.map((p) => [p.id, p.dueDate, p.profit]),
+    ).toEqual([
+      ["a", "2026-10-23", 200],
+      ["c", "2026-12-08", 100],
+    ]);
   });
 });
 

@@ -3,20 +3,21 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, m } from "motion/react";
-import { CalendarHeart, ChevronLeft, ChevronRight, Crown } from "lucide-react";
+import { CalendarHeart, ChevronDown, ChevronLeft, ChevronRight, Crown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase/client";
-import { principalShare, type AccountTerms } from "@/lib/checklist/profit";
 import {
   compactAmount,
-  dailyProfit,
-  monthBounds,
   monthGrid,
   shiftMonth,
-  type CalendarPayment,
   type DayFigure,
 } from "@/lib/dashboard/daily-profit";
+import {
+  NotDueSheet,
+  type NotDueGroup,
+} from "@/components/components-2/dashboard/not-due-sheet";
+import { loadDayFigures } from "@/lib/dashboard/payment-profit";
 import { formatPeso } from "@/lib/dashboard-data";
 import { HIDDEN_AMOUNT } from "@/lib/hide-amounts";
 
@@ -26,73 +27,8 @@ import { HIDDEN_AMOUNT } from "@/lib/hide-amounts";
  * was. Tapping a day shows its figures underneath.
  */
 
-type Embedded<T> = T | T[] | null;
-const one = <T,>(value: Embedded<T>): T | null =>
-  Array.isArray(value) ? (value[0] ?? null) : value;
-
-type PaymentRow = {
-  id: string;
-  schedule_id: string;
-  amount: number | null;
-  payment_date: string;
-  created_at: string | null;
-  payment_schedules: Embedded<{
-    due_date: string | null;
-    accounts: Embedded<AccountTerms>;
-  }>;
-};
-
-/** Ids per request: a month's schedules don't fit in one address. */
-const ID_BATCH = 100;
-
-async function loadMonth(month: string): Promise<Record<string, DayFigure>> {
-  const [from, to] = monthBounds(month);
-  const inMonth = await supabase
-    .from("schedule_payments")
-    .select(
-      "id, schedule_id, amount, payment_date, created_at, payment_schedules!inner(due_date, accounts!inner(principal_amount, term_months, payment_frequency, term_installments, schedule_mode, deleted_at))",
-    )
-    .gte("payment_date", from)
-    .lt("payment_date", to)
-    .is("payment_schedules.accounts.deleted_at", null)
-    .range(0, 4999);
-  if (inMonth.error) throw new Error(inMonth.error.message);
-  const rows = (inMonth.data ?? []) as unknown as PaymentRow[];
-  if (rows.length === 0) return {};
-
-  // What each of those schedules had been paid before the month began.
-  const ids = [...new Set(rows.map((r) => r.schedule_id))];
-  const before = new Map<string, number>();
-  for (let i = 0; i < ids.length; i += ID_BATCH) {
-    const earlier = await supabase
-      .from("schedule_payments")
-      .select("schedule_id, amount")
-      .in("schedule_id", ids.slice(i, i + ID_BATCH))
-      .lt("payment_date", from)
-      .range(0, 9999);
-    if (earlier.error) throw new Error(earlier.error.message);
-    for (const p of earlier.data ?? []) {
-      const id = String(p.schedule_id);
-      before.set(id, (before.get(id) ?? 0) + Number(p.amount ?? 0));
-    }
-  }
-
-  const shares = new Map<string, number>();
-  const payments: CalendarPayment[] = [];
-  for (const r of rows) {
-    const account = one(one(r.payment_schedules)?.accounts ?? null);
-    if (account) shares.set(r.schedule_id, principalShare(account));
-    payments.push({
-      id: r.id,
-      scheduleId: r.schedule_id,
-      date: r.payment_date.slice(0, 10),
-      amount: Number(r.amount ?? 0),
-      createdAt: r.created_at,
-      dueDate: one(r.payment_schedules)?.due_date ?? null,
-    });
-  }
-  return dailyProfit(payments, before, shares);
-}
+const loadMonth = (month: string): Promise<Record<string, DayFigure>> =>
+  loadDayFigures(supabase, month, month);
 
 const manilaToday = () =>
   new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
@@ -132,6 +68,8 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
   /** Which way the month last moved, for the slide. */
   const [direction, setDirection] = useState(1);
   const [picked, setPicked] = useState<string | null>(today);
+  const [showDue, setShowDue] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const { data, isPending, isError } = useQuery({
     queryKey: ["dashboard-profit-calendar", month],
@@ -146,6 +84,30 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
   // the gap between this total and the dashboard's by-due-month figures.
   const otherMonths = figures.reduce((sum, f) => sum + f.otherMonths, 0);
   const otherPct = total > 0 ? Math.round((otherMonths / total) * 100) : 0;
+  // The same figure split by the month each installment was due, latest first.
+  const dueTotals = new Map<string, number>();
+  for (const f of figures) {
+    for (const [due, value] of Object.entries(f.byDueMonth)) {
+      dueTotals.set(due, (dueTotals.get(due) ?? 0) + value);
+    }
+  }
+  const dueRows = [...dueTotals.entries()]
+    .map(([due, value]) => ({ due, value: Math.round(value * 100) / 100 }))
+    .filter((row) => row.value > 0)
+    .sort((a, b) => b.due.localeCompare(a.due));
+  // The payments behind those rows, the latest due month first, and within a
+  // month the latest paid first.
+  const detailGroups: NotDueGroup[] = dueRows.map(({ due, value }) => ({
+    due,
+    profit: value,
+    payments: figures
+      .flatMap((f) => f.notDue)
+      .filter((p) => p.dueDate.slice(0, 7) === due)
+      .sort(
+        (a, b) =>
+          b.paidDate.localeCompare(a.paidDate) || a.id.localeCompare(b.id),
+      ),
+  }));
   const best = Object.entries(days).reduce<[string, DayFigure] | null>(
     (top, entry) =>
       entry[1].profit > 0 && (!top || entry[1].profit > top[1].profit)
@@ -160,6 +122,8 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
     const next = shiftMonth(month, by);
     setDirection(by);
     setMonth(next);
+    setShowDue(false);
+    setDetailOpen(false);
     // Today when it is in view; otherwise nothing until a day is tapped.
     setPicked(next === thisMonth ? today : null);
   };
@@ -228,10 +192,13 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
             profit collected · {earningDays} day{earningDays === 1 ? "" : "s"}
           </p>
           {otherMonths > 0 && (
-            <p
+            <button
+              type="button"
+              aria-expanded={showDue}
+              onClick={() => setShowDue((v) => !v)}
               className="mt-1.5 inline-flex items-center gap-1.5 rounded-full
                 bg-sky-100 px-2 py-0.5 text-[11px] font-bold text-sky-800
-                dark:bg-sky-500/15 dark:text-sky-300"
+                active:bg-sky-200 dark:bg-sky-500/15 dark:text-sky-300"
             >
               <span
                 aria-hidden="true"
@@ -240,7 +207,14 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
               {mask(formatPeso(otherMonths))} not due in{" "}
               {monthLabel(month).split(" ")[0]}
               {hide ? "" : ` · ${otherPct}%`}
-            </p>
+              <ChevronDown
+                aria-hidden="true"
+                className={cn(
+                  "size-3 transition-transform",
+                  showDue && "rotate-180",
+                )}
+              />
+            </button>
           )}
         </div>
         {best && (
@@ -257,6 +231,57 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
           </button>
         )}
       </div>
+
+      <AnimatePresence initial={false}>
+        {showDue && dueRows.length > 0 && (
+          <m.div
+            key="due-breakdown"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="mx-4 mb-3 rounded-xl bg-sky-50 px-3 py-2 dark:bg-sky-500/10">
+              <p className="pb-1 text-[11px] font-bold text-sky-800 dark:text-sky-300">
+                where it came from · by due month
+              </p>
+              <ul className="space-y-1">
+                {dueRows.map(({ due, value }) => (
+                  <li
+                    key={due}
+                    className="flex items-center justify-between gap-2 text-xs"
+                  >
+                    <span className="font-bold text-card-foreground/80">
+                      {monthLabel(due)}
+                      <span className="ml-1.5 font-semibold text-muted-foreground">
+                        {due < month ? "paid late" : "paid ahead"}
+                      </span>
+                    </span>
+                    <span className="font-bold text-sky-800 tabular-nums dark:text-sky-300">
+                      {mask(formatPeso(value))}
+                      {!hide && otherMonths > 0
+                        ? ` · ${Math.round((value / otherMonths) * 100)}%`
+                        : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => setDetailOpen(true)}
+                className="mt-2 flex w-full items-center justify-center
+                  gap-1 rounded-lg bg-sky-100 py-1.5 text-[11px] font-bold
+                  text-sky-800 active:bg-sky-200 dark:bg-sky-500/20
+                  dark:text-sky-300"
+              >
+                see more detailed breakdown
+                <ChevronRight className="size-3" aria-hidden="true" />
+              </button>
+            </div>
+          </m.div>
+        )}
+      </AnimatePresence>
 
       <div className="px-3 pb-3">
         <div
@@ -399,6 +424,15 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
           </m.div>
         )}
       </AnimatePresence>
+      <NotDueSheet
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        month={month}
+        monthName={monthLabel(month).split(" ")[0]}
+        groups={detailGroups}
+        total={otherMonths}
+        hide={hide}
+      />
     </section>
   );
 }

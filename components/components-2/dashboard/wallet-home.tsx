@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { animate, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -30,6 +31,52 @@ import MonthPicker from "@/components/month-picker";
 import HeaderSearch from "@/components/header-search";
 import ThemeToggle from "@/components/theme-toggle";
 import { ProfitCalendar } from "@/components/components-2/dashboard/profit-calendar";
+
+/**
+ * The collection ring: it fills from empty to its percent when it appears, and
+ * from the old figure to the new one when the month changes. The number counts
+ * along with it.
+ */
+function CollectionRing({ pct }: { pct: number }) {
+  const reduceMotion = useReducedMotion();
+  const [shown, setShown] = useState(reduceMotion ? pct : 0);
+  const from = useRef(shown);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      from.current = pct;
+      setShown(pct);
+      return;
+    }
+    const controls = animate(from.current, pct, {
+      duration: 0.9,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => {
+        from.current = v;
+        setShown(v);
+      },
+    });
+    return () => controls.stop();
+  }, [pct, reduceMotion]);
+
+  return (
+    <div
+      role="img"
+      aria-label={`${pct}% collected`}
+      className="relative size-20 shrink-0 rounded-full"
+      style={{
+        background: `conic-gradient(#34d399 ${shown * 3.6}deg, #d1fae5 0)`,
+      }}
+    >
+      <div
+        className="absolute inset-2 flex items-center justify-center
+          rounded-full bg-card text-lg font-bold text-emerald-500 tabular-nums"
+      >
+        {Math.round(shown)}%
+      </div>
+    </div>
+  );
+}
 
 export type RecentPayment = {
   id: string;
@@ -264,19 +311,7 @@ export function WalletHome({
             </div>
           </div>
           <div className="mt-3 flex items-center gap-4">
-            <div
-              className="relative size-20 shrink-0 rounded-full"
-              style={{
-                background: `conic-gradient(#34d399 ${collectedPct * 3.6}deg, #d1fae5 0)`,
-              }}
-            >
-              <div
-                className="absolute inset-2 flex items-center justify-center
-                  rounded-full bg-card text-lg font-bold text-emerald-500"
-              >
-                {collectedPct}%
-              </div>
-            </div>
+            <CollectionRing pct={collectedPct} />
             <div className="space-y-1">
               <p className="text-xs font-semibold text-muted-foreground">
                 Collected
@@ -298,23 +333,26 @@ export function WalletHome({
                 className="text-xs font-semibold text-amber-700
                   dark:text-amber-400"
               >
-                Profit collected
+                profit collected (due this month)
               </dt>
               <dd className="font-bold text-card-foreground/80 tabular-nums">
-                {mask(
-                  formatPeso(
-                    Math.max(
-                      0,
-                      currentMonth.expectedProfit -
-                        currentMonth.remainingProfit,
-                    ),
-                  ),
-                )}
+                {mask(formatPeso(currentMonth.profitDueThisMonth))}
               </dd>
             </div>
-            <div className="rounded-xl bg-muted p-2.5">
+            <div className="rounded-xl bg-emerald-50 p-2.5 dark:bg-emerald-500/10">
+              <dt
+                className="text-xs font-semibold text-emerald-700
+                  dark:text-emerald-400"
+              >
+                total profit collected (this month)
+              </dt>
+              <dd className="font-bold text-card-foreground/80 tabular-nums">
+                {mask(formatPeso(currentMonth.profitCollected))}
+              </dd>
+            </div>
+            <div className="col-span-2 rounded-xl bg-muted p-2.5">
               <dt className="text-xs font-semibold text-muted-foreground">
-                Profit remaining
+                profit remaining
               </dt>
               <dd className="font-bold text-card-foreground/80 tabular-nums">
                 {mask(formatPeso(currentMonth.remainingProfit))}

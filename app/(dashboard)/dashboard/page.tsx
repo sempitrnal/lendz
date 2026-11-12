@@ -8,6 +8,7 @@ import {
 } from "@/lib/checklist/profit";
 import { getAllPaymentSchedules } from "@/lib/cache/schedules";
 import { profitCollectionRate, projectProfit } from "@/lib/profit-projection";
+import { loadDayFigures, totalsByMonth } from "@/lib/dashboard/payment-profit";
 import {
   isInstallmentFullyPaid,
   remainingOnInstallment,
@@ -208,6 +209,19 @@ export default async function Dashboard({
     s.expectedProfit += Math.max(0, due - principalShare);
     s.profit += Math.max(0, paid - principalShare);
   }
+  // What was really collected in each month, and its profit, counted on the
+  // day it was paid (the profit calendar's figure) rather than by the month
+  // the installment was due. Expected amounts stay by due month.
+  const paidByMonth = totalsByMonth(
+    await loadDayFigures(
+      supabase,
+      monthKeyOffset(activeMonth, -(CHART_MONTHS - 1)),
+      activeMonth,
+    ),
+  );
+  const paidIn = (key: string) =>
+    paidByMonth.get(key) ?? { collected: 0, profit: 0, otherMonths: 0 };
+
   for (const a of accountTotals) {
     if (a.status === "pending" || !a.release_date) continue;
     const s = monthStats(a.release_date.slice(0, 7));
@@ -227,18 +241,19 @@ export default async function Dashboard({
   for (let i = CHART_MONTHS - 1; i >= 0; i--) {
     const key = monthKeyOffset(activeMonth, -i);
     const s = monthStats(key);
+    const paid = paidIn(key);
     const open = key >= todayMonth && s.expectedProfit > 0;
     profitPerMonth.push({
       key,
       month: monthLabel(key, "long"),
       short: monthLabel(key, "short"),
-      actual: Math.round(s.profit),
+      actual: Math.round(paid.profit),
       expected: Math.round(s.expectedProfit),
       percent:
         s.expectedProfit > 0
-          ? Math.min(100, Math.round((s.profit / s.expectedProfit) * 100))
+          ? Math.min(100, Math.round((paid.profit / s.expectedProfit) * 100))
           : 0,
-      collected: Math.round(s.collected),
+      collected: Math.round(paid.collected),
       due: Math.round(s.expected),
       released: Math.round(s.released),
       releasedCount: s.releasedCount,
@@ -246,7 +261,12 @@ export default async function Dashboard({
       isFuture: key > todayMonth,
       projected:
         open && collectionRate
-          ? Math.round(projectProfit(s, collectionRate.rate))
+          ? Math.round(
+              projectProfit(
+                { profit: paid.profit, expectedProfit: s.expectedProfit },
+                collectionRate.rate,
+              ),
+            )
           : null,
       projectedPercent: collectionRate
         ? Math.round(collectionRate.rate * 100)
@@ -256,13 +276,17 @@ export default async function Dashboard({
   }
 
   const active = monthStats(activeMonth);
+  const activePaid = paidIn(activeMonth);
   const currentMonth: CurrentMonthData = {
     label: monthLabel(activeMonth, "long"),
     toCollectThisMonth: Math.round(active.expected),
     toCollectSoFar: Math.round(active.expectedSoFar),
-    collected: Math.round(active.collected),
-    meme: Math.round(active.profit),
+    collected: Math.round(activePaid.collected),
+    meme: Math.round(activePaid.profit),
+    profitCollected: Math.round(activePaid.profit),
+    profitDueThisMonth: Math.round(activePaid.profit - activePaid.otherMonths),
     expectedProfit: Math.round(active.expectedProfit),
+    // Still to come on this month's own installments, by due month.
     remainingProfit: Math.round(
       Math.max(0, active.expectedProfit - active.profit),
     ),

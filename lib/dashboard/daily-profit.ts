@@ -10,6 +10,26 @@ export type CalendarPayment = {
   createdAt: string | null;
   /** yyyy-mm-dd the installment was due, when known. */
   dueDate?: string | null;
+  /** Who paid, for lists. */
+  name?: string | null;
+  /** The payer's categories, for lists. */
+  categories?: PaymentCategory[];
+};
+
+export type PaymentCategory = { name: string; color: string | null };
+
+/** A payment whose installment was due in a different month than it was paid. */
+export type NotDuePayment = {
+  id: string;
+  /** yyyy-mm-dd the installment was due. */
+  dueDate: string;
+  /** yyyy-mm-dd it was paid. */
+  paidDate: string;
+  name: string | null;
+  categories: PaymentCategory[];
+  amount: number;
+  /** The profit this payment added. */
+  profit: number;
 };
 
 export type DayFigure = {
@@ -24,6 +44,13 @@ export type DayFigure = {
    * one they were paid in: late ones catching up, or ones paid ahead.
    */
   otherMonths: number;
+  /**
+   * `otherMonths` split by the month the installments were due ("2026-10").
+   * Its values add up to `otherMonths` exactly.
+   */
+  byDueMonth: Record<string, number>;
+  /** The payments behind `byDueMonth`, those that added profit. */
+  notDue: NotDuePayment[];
 };
 
 /**
@@ -61,7 +88,8 @@ export function dailyProfit(
     // Payment by payment, as `dayProfit` does: each earns profit for the
     // part that lifts its schedule past its principal share.
     let profit = 0;
-    let otherMonths = 0;
+    const dueMonths = new Map<string, number>();
+    const notDue: NotDuePayment[] = [];
     let collected = 0;
     for (const p of ordered) {
       const prior = paid.get(p.scheduleId) ?? 0;
@@ -73,15 +101,36 @@ export function dailyProfit(
         profitOnInstallment(prior + p.amount, share) -
         profitOnInstallment(prior, share);
       profit += gained;
-      if (p.dueDate && p.dueDate.slice(0, 7) !== date.slice(0, 7)) {
-        otherMonths += gained;
+      const dueMonth = p.dueDate?.slice(0, 7);
+      if (dueMonth && dueMonth !== date.slice(0, 7)) {
+        dueMonths.set(dueMonth, (dueMonths.get(dueMonth) ?? 0) + gained);
+        if (gained > 0) {
+          notDue.push({
+            id: p.id,
+            dueDate: p.dueDate!,
+            paidDate: date,
+            name: p.name ?? null,
+            categories: p.categories ?? [],
+            amount: p.amount,
+            profit: cents(gained),
+          });
+        }
       }
+    }
+    // Round each month's part first so the parts sum to the day's figure.
+    const byDueMonth: Record<string, number> = {};
+    let otherMonths = 0;
+    for (const [month, value] of dueMonths) {
+      byDueMonth[month] = cents(value);
+      otherMonths += byDueMonth[month];
     }
     out[date] = {
       profit: cents(profit),
       payments: ordered.length,
       collected: cents(collected),
       otherMonths: cents(otherMonths),
+      byDueMonth,
+      notDue,
     };
   }
   return out;
