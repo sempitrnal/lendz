@@ -38,6 +38,10 @@ export function LetterWheel({
   const positions = letterPositions(letters.length, RADIUS);
   const box = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
+  // The chain lives in a ref, so quick events (a swipe that lifts as the
+  // finger reaches the last tile) always see the latest chain; the state copy
+  // is only for drawing.
+  const chainRef = useRef<number[]>([]);
   const [chain, setChain] = useState<number[]>([]);
   const [finger, setFinger] = useState<Point | null>(null);
 
@@ -62,6 +66,7 @@ export function LetterWheel({
     } catch {
       // The pointer is already gone: the chain still works without capture.
     }
+    chainRef.current = [index];
     setChain([index]);
     setFinger(point);
     onChange?.(spell([index]));
@@ -73,8 +78,9 @@ export function LetterWheel({
     setFinger(point);
     const index = letterAt(point, positions, HIT);
     if (index === null) return;
-    const next = extendChain(chain, index);
-    if (next !== chain) {
+    const next = extendChain(chainRef.current, index);
+    if (next !== chainRef.current) {
+      chainRef.current = next;
       setChain(next);
       onChange?.(spell(next));
     }
@@ -83,7 +89,8 @@ export function LetterWheel({
   function onUp() {
     if (!dragging.current) return;
     dragging.current = false;
-    const word = spell(chain);
+    const word = spell(chainRef.current);
+    chainRef.current = [];
     setChain([]);
     setFinger(null);
     onChange?.("");
