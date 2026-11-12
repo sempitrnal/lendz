@@ -47,10 +47,27 @@ export function WordGame({ date, today }: { date: string; today: string }) {
     prefetchMonth(monthOf(shiftDate(`${monthOf(date)}-28`, 4)));
   }, [date]);
 
+  // The page fits the screen and never scrolls: no rubber-band bounce either
+  // (restored when leaving the page).
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const before = [
+      html.style.overscrollBehavior,
+      body.style.overscrollBehavior,
+    ];
+    html.style.overscrollBehavior = "none";
+    body.style.overscrollBehavior = "none";
+    return () => {
+      html.style.overscrollBehavior = before[0];
+      body.style.overscrollBehavior = before[1];
+    };
+  }, []);
+
   return (
     <div
-      className="-mt-16 flex h-[calc(100dvh-4.75rem)] flex-col overflow-hidden
-        pb-2 lowercase sm:mt-0 sm:h-[calc(100dvh-2rem)]"
+      className="-mt-16 flex h-[calc(100dvh-4.75rem)] touch-none flex-col
+        overflow-hidden pb-2 lowercase sm:mt-0 sm:h-[calc(100dvh-2rem)]"
     >
       <div
         data-settle-group="band"

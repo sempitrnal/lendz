@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { usePageOwnsMobileHeader } from "@/components/use-wallet-dashboard";
 
 const PULL_THRESHOLD = 72; // px to trigger
@@ -10,8 +10,17 @@ const MAX_PULL = 130; // px hard cap
 const SNAP_MS = 280; // snap-back / settle duration
 const REFRESH_HOLD_MS = 900; // how long to hold loading before snapping back
 
+/** Pages that must not move or refresh when pulled: the daily word game. */
+const NO_PULL_PATHS = new Set(["/word-game"]);
+
 export function PullToRefresh({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
+  // Read by the touch handlers, which are attached once and never see new props.
+  const pullableRef = useRef(!NO_PULL_PATHS.has(pathname));
+  useEffect(() => {
+    pullableRef.current = !NO_PULL_PATHS.has(pathname);
+  }, [pathname]);
   const ownsHeader = usePageOwnsMobileHeader();
   const [distance, setDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -35,7 +44,10 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
     refreshingRef.current = refreshing;
   }, [refreshing]);
 
-  const isAtTop = useCallback(() => window.scrollY <= 5, []);
+  const isAtTop = useCallback(
+    () => pullableRef.current && window.scrollY <= 5,
+    [],
+  );
 
   /* Direct DOM paint via rAF — bypasses React render pipeline */
   const paint = useCallback((d: number, animate = false) => {
