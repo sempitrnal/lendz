@@ -4,6 +4,29 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { logAuditAfter } from "@/lib/audit";
 import { revalidatePath, updateTag } from "next/cache";
 import type { PaidDateStrategy } from "@/components/batch-schedule-toolbar";
+import { addSchedulesToChecklist } from "@/lib/checklist/add-schedules";
+import { manilaDate } from "@/lib/checklist/auto-populate";
+
+/**
+ * Lists schedules changed outside the checklist on the checklist of the day
+ * they were paid (today when no date is given): a new row, or under the
+ * borrower's row. The change is already saved, so this never throws.
+ */
+async function listOnChecklist(
+  sb: Awaited<ReturnType<typeof createSupabaseServer>>,
+  ids: string[],
+  paidDate: string | null,
+) {
+  try {
+    await addSchedulesToChecklist(
+      sb,
+      paidDate || manilaDate(new Date()),
+      ids,
+    );
+  } catch (e) {
+    console.warn("checklist update failed:", e);
+  }
+}
 
 const scheduleStatuses = ["pending", "paid", "overdue", "partial"] as const;
 type ScheduleStatus = (typeof scheduleStatuses)[number];
@@ -155,6 +178,10 @@ export async function updateScheduleStatusAction(
           .eq("schedule_id", scheduleId),
   ]);
 
+  if (status === "paid") {
+    await listOnChecklist(updateSupabase, [scheduleId], paidDate);
+  }
+
   logAuditAfter({
     action: "schedule.status_changed",
     entity_type: "payment_schedule",
@@ -222,6 +249,14 @@ export async function batchUpdateScheduleStatusAction(
     }));
   if (payments.length > 0) {
     await updateSupabase.from("schedule_payments").insert(payments);
+  }
+
+  const idsByDate = new Map<string | null, string[]>();
+  for (const { id, paidDate } of paid) {
+    idsByDate.set(paidDate, [...(idsByDate.get(paidDate) ?? []), id]);
+  }
+  for (const [date, dateIds] of idsByDate) {
+    await listOnChecklist(updateSupabase, dateIds, date);
   }
 
   logAuditAfter({
@@ -404,6 +439,8 @@ export async function applyPartialPaymentAction(formData: FormData) {
     }),
     rolledSchedule ? sb.from("payment_schedules").insert(rolledSchedule) : null,
   ]);
+
+  await listOnChecklist(sb, [scheduleId], paymentDate);
 
   logAuditAfter({
     action: "schedule.payment_applied",

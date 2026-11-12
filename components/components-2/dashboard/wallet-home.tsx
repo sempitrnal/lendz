@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
   HandCoins,
+  Plus,
   Sparkles,
   TrendingUp,
   Users,
@@ -31,6 +32,7 @@ import MonthPicker from "@/components/month-picker";
 import HeaderSearch from "@/components/header-search";
 import ThemeToggle from "@/components/theme-toggle";
 import { ReleaseCalendar } from "@/components/components-2/dashboard/release-calendar";
+import { NewLoanFlow } from "@/components/components-2/dashboard/new-loan-flow";
 import { ProfitCalendar } from "@/components/components-2/dashboard/profit-calendar";
 
 /**
@@ -187,37 +189,6 @@ export function WalletHome({
     null,
   );
   const agingTotal = overdueBuckets.reduce((s, b) => s + b.amount, 0);
-
-  const shortcuts = [
-    {
-      label: "Overdue",
-      href: "/upcoming",
-      icon: AlertTriangle,
-      tone: "bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400",
-      badge: summary.overdueBorrowers,
-    },
-    {
-      label: "Due today",
-      href: "/daily-checklist",
-      icon: CalendarClock,
-      tone: "bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400",
-      badge: summary.duesTodaySchedules,
-    },
-    {
-      label: "Borrowers",
-      href: "/borrowers",
-      icon: Users,
-      tone: "bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-400",
-      badge: 0,
-    },
-    {
-      label: "New loan",
-      href: "/accounts",
-      icon: HandCoins,
-      tone: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400",
-      badge: 0,
-    },
-  ];
 
   const banners = [
     {
@@ -525,37 +496,107 @@ export function WalletHome({
 
         <ReleaseCalendar hide={hide} />
 
-        <div className={cn(card, "grid grid-cols-4 gap-2")}>
-          {shortcuts.map((a) => (
-            <Link
-              key={a.label}
-              href={a.href}
-              className="flex flex-col items-center gap-1.5"
-            >
-              <span
-                className={cn(
-                  `relative flex size-12 items-center justify-center
-                  rounded-full`,
-                  a.tone,
-                )}
+        <NewLoanFlow>
+          {({ open, warm }) => (
+            <div className="grid grid-cols-2 gap-2.5 lowercase">
+              <button
+                type="button"
+                onPointerDown={warm}
+                onClick={open}
+                className="relative row-span-2 flex flex-col justify-between
+                  overflow-hidden rounded-2xl bg-linear-to-br from-emerald-500
+                  to-teal-600 p-4 text-left text-white shadow-sm
+                  transition-transform active:scale-[0.97]"
               >
-                <a.icon className="size-5" aria-hidden="true" />
-                {a.badge > 0 && (
-                  <span
-                    className="absolute -top-1 -right-1 flex size-5 items-center
-                      justify-center rounded-full bg-rose-500 text-[10px]
-                      font-bold text-white"
-                  >
-                    {a.badge}
+                <HandCoins
+                  className="absolute -right-3 -bottom-3 size-24 opacity-15"
+                  aria-hidden="true"
+                />
+                <span
+                  className="flex size-10 items-center justify-center
+                    rounded-full bg-white/20"
+                >
+                  <Plus className="size-5" strokeWidth={2.75} aria-hidden="true" />
+                </span>
+                <span className="relative mt-6">
+                  <span className="block text-base font-black">new loan</span>
+                  <span className="block text-xs font-semibold opacity-85">
+                    pick a borrower, add an account
                   </span>
-                )}
-              </span>
-              <span className="text-[11px] font-semibold text-muted-foreground">
-                {a.label}
-              </span>
-            </Link>
-          ))}
-        </div>
+                </span>
+              </button>
+
+              <Link
+                href="/daily-checklist"
+                className="flex items-center gap-3 rounded-2xl bg-card p-3
+                  shadow-sm ring-1 ring-black/5 transition-transform
+                  active:scale-[0.97] dark:ring-white/10"
+              >
+                <span
+                  className="relative flex size-10 shrink-0 items-center
+                    justify-center rounded-full bg-amber-100 text-amber-600
+                    dark:bg-amber-500/15 dark:text-amber-400"
+                >
+                  <CalendarClock className="size-5" aria-hidden="true" />
+                  {summary.duesTodaySchedules > 0 && (
+                    <span
+                      className="absolute -top-1 -right-1 flex h-5 min-w-5
+                        items-center justify-center rounded-full bg-rose-500
+                        px-1 text-[10px] font-bold text-white"
+                    >
+                      {summary.duesTodaySchedules}
+                    </span>
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span
+                    className="block text-sm font-black
+                      text-card-foreground/80"
+                  >
+                    due today
+                  </span>
+                  <span
+                    className="block truncate text-xs font-semibold
+                      text-muted-foreground tabular-nums"
+                  >
+                    {summary.duesTodaySchedules > 0
+                      ? mask(formatPeso(summary.duesToday))
+                      : "all clear"}
+                  </span>
+                </span>
+              </Link>
+
+              <Link
+                href="/borrowers"
+                className="flex items-center gap-3 rounded-2xl bg-card p-3
+                  shadow-sm ring-1 ring-black/5 transition-transform
+                  active:scale-[0.97] dark:ring-white/10"
+              >
+                <span
+                  className="flex size-10 shrink-0 items-center justify-center
+                    rounded-full bg-sky-100 text-sky-600 dark:bg-sky-500/15
+                    dark:text-sky-400"
+                >
+                  <Users className="size-5" aria-hidden="true" />
+                </span>
+                <span className="min-w-0">
+                  <span
+                    className="block text-sm font-black
+                      text-card-foreground/80"
+                  >
+                    borrowers
+                  </span>
+                  <span
+                    className="block truncate text-xs font-semibold
+                      text-muted-foreground tabular-nums"
+                  >
+                    {summary.activeBorrowers} active
+                  </span>
+                </span>
+              </Link>
+            </div>
+          )}
+        </NewLoanFlow>
 
         <div>
           <p className="mb-2 px-1 text-sm font-bold text-card-foreground/80">

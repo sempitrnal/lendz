@@ -1,5 +1,7 @@
 "use client";
 
+import { PaymentHistory } from "@/components/dashboard/checklist-v2/payment-history";
+import { useSchedulePayments } from "@/components/dashboard/checklist-v2/use-schedule-payments";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -319,6 +321,8 @@ export function ScheduleCheckDialog({
     staleTime: 30_000,
     placeholderData: () => readCachedSummaries(scheduleIds) ?? undefined,
   });
+  // Each schedule's payments, for the history under it.
+  const history = useSchedulePayments(scheduleIds, open);
   const accountGroups = useMemo(() => {
     const groups = new Map<string, ScheduleDialogRow[]>();
     for (const row of rows) {
@@ -682,6 +686,10 @@ export function ScheduleCheckDialog({
                             />
                           ) : null}
                         </p>
+                        <PaymentHistory
+                          payments={history?.[row.id]}
+                          dueDate={row.due_date}
+                        />
                       </div>
                       <p
                         className={cn(

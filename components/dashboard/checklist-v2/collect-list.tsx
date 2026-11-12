@@ -10,6 +10,7 @@ import type { BorrowerSearchItem } from "@/app/api/borrowers/route";
 import { groupByBorrowerCategory } from "@/lib/checklist/labels";
 import {
   matchesFilter,
+  paidView,
   matchesSearch,
   sortSettledLast,
   summarizeRows,
@@ -102,9 +103,13 @@ export function CollectList({
     });
 
   const { todayGroups, carriedGroups, carriedRows } = useMemo(() => {
-    const visible = rows.filter(
-      (r) => matchesFilter(r, filter, api.paidIds) && matchesSearch(r, search),
-    );
+    const visible = rows
+      .filter(
+        (r) =>
+          matchesFilter(r, filter, api.paidIds) && matchesSearch(r, search),
+      )
+      // The Paid tab lists only a row's paid schedules, not its unpaid ones.
+      .map((r) => (filter === "paid" ? (paidView(r, api.paidIds) ?? r) : r));
     const carried = visible.filter((r) => r.carried);
     return {
       todayGroups: buildGroups(

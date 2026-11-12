@@ -15,12 +15,15 @@ import { formatShortDate } from "@/lib/checklist/labels";
 import { lateLabel } from "@/lib/checklist/late-label";
 import { plainLabelText, rowDisplayName } from "@/lib/checklist/row-name";
 import {
-  groupLinesByAccount,
   lineProfit,
   type RowLine,
   type RowView,
 } from "@/lib/checklist/row-state";
-import { useAccountSummaries } from "@/components/dashboard/checklist-v2/use-live-schedules";
+import { PaymentHistory } from "@/components/dashboard/checklist-v2/payment-history";
+import {
+  useSchedulePayments,
+  type SchedulePayment,
+} from "@/components/dashboard/checklist-v2/use-schedule-payments";
 import { chipClass } from "@/components/dashboard/checklist/dom";
 import { totalProfit } from "@/lib/checklist/profit";
 import { showsPartial } from "@/lib/checklist/partial-display";
@@ -88,7 +91,11 @@ function subline(row: RowView): {
       : { profit: totalProfit(row.lines.map((l) => l.earned)) };
   if (row.status === "paid") {
     return {
-      text: "paid · tap to edit",
+      // One schedule: its due date (the payment date is on the line below).
+      text:
+        row.lines.length === 1
+          ? formatShortDate(row.lines[0].due_date).toLowerCase()
+          : "",
       kinds: [...new Set(row.lines.map((l) => l.type))],
       ...profit,
     };
@@ -179,8 +186,9 @@ export function CollectRow({
   const open = openLines(row);
   const multi = !isNote && open.length > 1;
   // Several schedules on one borrower: the row expands to list every one,
-  // paid ones included, so a paid schedule can be tapped to edit it.
-  const expandable = !isNote && !done && row.lines.length > 1;
+  // paid ones included, so a paid schedule can be tapped to edit it. A row
+  // that is all paid expands too, so its schedules can be seen one by one.
+  const expandable = !isNote && row.lines.length > 1;
   const hasPayments = row.lines.some(
     (l) => l.state === "paid" || l.recorded > 0,
   );
@@ -328,7 +336,9 @@ export function CollectRow({
         className={cn(
           `relative touch-pan-y transition-colors duration-700
           motion-reduce:transition-none`,
-          highlight ? "bg-primary/15" : "bg-[color-mix(in_srgb,var(--grp,var(--card))_6%,var(--card))]",
+          highlight
+            ? "bg-primary/15"
+            : "bg-[color-mix(in_srgb,var(--grp,var(--card))_6%,var(--card))]",
         )}
       >
         {isNote ? (
@@ -474,7 +484,7 @@ export function CollectRow({
                     >
                       <LineList
                         row={row}
-                        grouped={multi}
+                        grouped
                         paidIds={paidIds}
                         onOpen={(id) => guard(() => onOpenLine(id))}
                         onPay={(id) => guard(() => onPayLine(id))}
@@ -517,6 +527,11 @@ function RowText({
 }) {
   const sub = subline(row);
   const borrowerId = row.model?.borrower?.id ?? null;
+  // A row of one schedule has no list to open: its payment dates show here.
+  const single = row.lines.length === 1 ? row.lines[0] : null;
+  const hasPayment =
+    !!single && (single.state === "paid" || single.recorded > 0);
+  const payments = useSchedulePayments(single ? [single.id] : [], hasPayment);
   return (
     <div className={cn("min-w-0 flex-1", done && "opacity-55")}>
       <p className="flex min-w-0 items-center gap-1.5">
@@ -552,6 +567,12 @@ function RowText({
         ))}
         <ProfitText amount={sub.profit} expected={sub.expected} />
       </p>
+      {single && hasPayment && (
+        <PaymentHistory
+          payments={payments?.[single.id]}
+          dueDate={single.due_date}
+        />
+      )}
     </div>
   );
 }
@@ -624,10 +645,13 @@ function LineItem({
   line,
   showPartial,
   grouped = false,
+  payments,
   onOpen,
   onPay,
 }: {
   line: RowLine;
+  /** Payments made on this schedule, oldest first, once loaded. */
+  payments?: SchedulePayment[];
   /** Under its loan's heading: the date leads, the type is the heading's. */
   grouped?: boolean;
   /** Whether this schedule was paid on the viewed day (see `showsPartial`). */
@@ -663,8 +687,8 @@ function LineItem({
             {!grouped && due}
             {line.overdue && <LatePill days={line.daysOverdue} />}
             <ProfitText {...lineProfit(line, showPartial)} />
-            {paid ? " paid · tap to edit" : ""}
           </p>
+          <PaymentHistory payments={payments} dueDate={line.due_date} />
         </div>
         <span className="shrink-0 text-right">
           {line.state === "partial" && showPartial && (
@@ -751,43 +775,37 @@ function LineList({
   onPay(lineId: string): (event: ReactMouseEvent<HTMLButtonElement>) => void;
 }) {
   const lineIds = useMemo(() => row.lines.map((l) => l.id), [row.lines]);
-  const { data: summaries } = useAccountSummaries(grouped ? lineIds : []);
+  const payments = useSchedulePayments(lineIds, true);
   const item = (line: RowLine) => (
     <LineItem
       key={line.id}
       line={line}
       grouped={grouped}
+      payments={payments?.[line.id]}
       showPartial={showsPartial(line.id, paidIds)}
       onOpen={onOpen(line.id)}
       onPay={onPay(line.id)}
     />
   );
   if (!grouped) return <>{row.lines.map(item)}</>;
+  // One heading per type, loans first, its schedules listed under it by due
+  // date.
+  const byType = (type: string) =>
+    row.lines
+      .filter((l) => (l.type === "cash_advance") === (type === "cash_advance"))
+      .sort((a, b) => a.due_date.localeCompare(b.due_date));
   return (
     <>
-      {groupLinesByAccount(row.lines).map(({ accountId, lines }) => {
-        const summary = accountId ? summaries?.[accountId] : undefined;
+      {["loan", "cash_advance"].map((type) => {
+        const lines = byType(type);
+        if (lines.length === 0) return null;
         return (
-          <div
-            key={accountId ?? "unknown"}
-            className="border-b border-border/70 last:border-b-0"
-          >
+          <div key={type} className="border-b border-border/70 last:border-b-0">
             <p
               className="flex items-center gap-1.5 pt-2.5 pb-0.5 text-[11px]
                 font-bold text-muted-foreground"
             >
-              <KindBadge type={lines[0].type} />
-              {summary?.principal ? (
-                <span className="text-foreground/80 tabular-nums">
-                  {peso(summary.principal)}
-                </span>
-              ) : null}
-              {summary?.releaseDate ? (
-                <span>
-                  · released{" "}
-                  {formatShortDate(summary.releaseDate).toLowerCase()}
-                </span>
-              ) : null}
+              <KindBadge type={type} />
               <span className="ml-auto font-semibold tabular-nums">
                 {lines.length}
               </span>

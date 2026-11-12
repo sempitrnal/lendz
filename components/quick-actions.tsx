@@ -322,7 +322,7 @@ export function QuickActionsButton() {
 }
 
 /** Searchable borrower list; the borrower whose page is open comes first. */
-function BorrowerPicker({
+export function BorrowerPicker({
   open,
   title,
   currentBorrowerId,

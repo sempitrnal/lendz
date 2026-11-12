@@ -18,6 +18,40 @@ export function countsAsPaid(row: RowView, paidIds?: PaidIds): boolean {
   return row.lines.some((l) => l.recorded > 0 && paidIds.has(l.id));
 }
 
+/**
+ * What the Paid tab shows of a row: all of it when it is fully paid; when
+ * only some of its schedules are paid, just those (a paid schedule, or a part
+ * payment made on the viewed day), so the unpaid ones stay out of the tab.
+ * Null when nothing in the row is paid.
+ */
+export function paidView(row: RowView, paidIds?: PaidIds): RowView | null {
+  if (row.status === "paid") return row;
+  const lines = row.lines.filter(
+    (l) =>
+      l.state === "paid" || (l.recorded > 0 && !!paidIds && paidIds.has(l.id)),
+  );
+  if (lines.length === 0) return null;
+  if (lines.length === row.lines.length) return row;
+  const day = row.item.checklist_date.slice(0, 10);
+  const left = cents(lines.reduce((sum, l) => sum + l.left, 0));
+  return {
+    ...row,
+    lines,
+    status: lines.every((l) => l.state === "paid") ? "paid" : "partial",
+    left,
+    total: cents(lines.reduce((sum, l) => sum + l.amount, 0)),
+    profit: cents(lines.reduce((sum, l) => sum + l.profit, 0)),
+    lateDays: lines.reduce(
+      (max, l) => (l.overdue ? Math.max(max, l.daysOverdue) : max),
+      0,
+    ),
+    dueOnDay: lines.some(
+      (l) => l.state !== "paid" && l.due_date.slice(0, 10) === day,
+    ),
+    carried: lines.every((l) => l.due_date.slice(0, 10) < day),
+  };
+}
+
 export function matchesFilter(
   row: RowView,
   filter: ChecklistFilter,
@@ -31,7 +65,7 @@ export function matchesFilter(
     case "today":
       return row.status !== "paid" && row.dueOnDay;
     case "paid":
-      return countsAsPaid(row, paidIds);
+      return paidView(row, paidIds) !== null;
   }
 }
 

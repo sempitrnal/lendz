@@ -4,6 +4,7 @@ import {
   filterCounts,
   matchesFilter,
   matchesSearch,
+  paidView,
   sortSettledLast,
   summarizeRows,
 } from "@/lib/checklist/list-view";
@@ -154,5 +155,68 @@ describe("countsAsPaid", () => {
     expect(
       matchesFilter({ ...partial, lateDays: 4 }, "overdue", new Set(["s1"])),
     ).toBe(true);
+  });
+});
+
+describe("paidView", () => {
+  const line = (id: string, p: Partial<RowLine>): RowLine =>
+    ({
+      id,
+      due_date: "2026-11-10",
+      amount: 100,
+      left: 100,
+      profit: 5,
+      recorded: 0,
+      overdue: false,
+      daysOverdue: 0,
+      state: "unpaid",
+      type: "loan",
+      ...p,
+    }) as RowLine;
+  const mixed = row("m", {
+    status: "partial",
+    item: { id: "m", checklist_date: "2026-11-12" } as RowView["item"],
+    lines: [
+      line("s1", { state: "paid", left: 0 }),
+      line("s2", { state: "unpaid", overdue: true, daysOverdue: 2 }),
+      line("s3", { state: "unpaid" }),
+    ],
+    total: 300,
+    left: 200,
+    lateDays: 2,
+  });
+
+  it("keeps only the paid schedule of a mixed row", () => {
+    const v = paidView(mixed)!;
+    expect(v.lines.map((l) => l.id)).toEqual(["s1"]);
+    expect(v.status).toBe("paid");
+    expect(v.left).toBe(0);
+    expect(v.total).toBe(100);
+    expect(v.lateDays).toBe(0);
+  });
+
+  it("counts a part payment made on the viewed day", () => {
+    const r = row("p", {
+      status: "partial",
+      item: { id: "p", checklist_date: "2026-11-12" } as RowView["item"],
+      lines: [
+        line("s1", { state: "partial", recorded: 40, left: 60 }),
+        line("s2", { state: "unpaid" }),
+      ],
+    });
+    expect(paidView(r)).toBeNull();
+    const v = paidView(r, new Set(["s1"]))!;
+    expect(v.lines.map((l) => l.id)).toEqual(["s1"]);
+    expect(v.status).toBe("partial");
+  });
+
+  it("returns a fully paid row as is, and null with nothing paid", () => {
+    const a = rows[0];
+    expect(paidView(a)).toBe(a);
+    expect(paidView(rows[1])).toBeNull();
+  });
+
+  it("the Paid filter matches a mixed row", () => {
+    expect(matchesFilter(mixed, "paid")).toBe(true);
   });
 });
