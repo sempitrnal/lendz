@@ -13,17 +13,26 @@ The app only looks puzzles up by date; it never builds one.
    the range has a valid puzzle and that no blocked word is in any of them.
 4. Commit `public/word-puzzles` and `config.ts`.
 
+## Days already played are frozen
+
+Players save progress as the words they found, so a puzzle must never change
+once it may have been played. `npm run words:generate` therefore keeps the
+existing puzzle for every date up to today and only builds the dates after
+today (and any date with no puzzle yet). To rebuild everything on purpose, run
+`npm run words:generate -- --force`; expect saved progress for changed days to
+no longer match.
+
 ## If a puzzle has a word you don't want
 
 Add the word, lowercase, one per line, to `blocklist.txt`, then run
-`npm run words:generate`. A blocked word is removed from both the grid and the
-bonus list; because the puzzle changes, that date's puzzle may change for
-players who have not played it yet, and anyone who already found a word that is
-now blocked keeps their saved progress.
+`npm run words:generate`. The word is removed from every puzzle after today,
+grid and bonus alike. Puzzles for today and earlier keep it. Note that adding
+a word can change which puzzle a future date gets, because the choice for each
+date comes from the whole word list; that is fine for days nobody has seen.
 
 ## Changing how puzzles are chosen
 
 Changing `build.ts`, `layout.ts`, the sizes in `config.ts` or the word lists
-changes puzzles for dates that may already have been played, because progress is
-saved as words found. Prefer extending the date range and the blocklist; only
-regenerate everything on purpose.
+(or updating the `word-list` / `popular-english-words` packages) changes the
+puzzles of every date after today, which is fine, and never touches today or
+earlier unless you use `--force`.

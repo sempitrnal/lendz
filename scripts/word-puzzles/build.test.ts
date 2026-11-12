@@ -3,7 +3,17 @@ import { findLayoutProblems } from "../../lib/word-game/layout-check";
 import { sizeForDate } from "./config";
 import { buildPuzzle, NoPuzzleError, type Lists } from "./build";
 
-const common = ["plane", "pen", "ale", "lap", "nap", "pal", "lea", "pea", "ape"];
+const common = [
+  "plane",
+  "pen",
+  "ale",
+  "lap",
+  "nap",
+  "pal",
+  "lea",
+  "pea",
+  "ape",
+];
 const extras = ["lean", "lane", "plan", "plea", "elan", "neap", "pane"];
 const lists = (blocked: string[] = []): Lists => ({
   common,

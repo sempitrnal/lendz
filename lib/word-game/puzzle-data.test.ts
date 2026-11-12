@@ -7,7 +7,7 @@ import {
   START_DATE,
   sizeForDate,
 } from "../../scripts/word-puzzles/config";
-import { shiftDate, monthOf } from "./date";
+import { manilaToday, shiftDate, monthOf } from "./date";
 import { findLayoutProblems } from "./layout-check";
 import type { MonthFile } from "./puzzle";
 
@@ -22,6 +22,10 @@ const blocked = new Set(
     ...blocklistFile.split("\n").filter((l) => l.trim() && !l.startsWith("#")),
   ].map((w) => w.trim().toLowerCase()),
 );
+
+// Dates up to today keep their puzzles when regenerating (they may have been
+// played), so a word blocked later can still be in one of them.
+const TODAY = manilaToday();
 
 const dates: string[] = [];
 for (let d = START_DATE; d <= END_DATE; d = shiftDate(d, 1)) dates.push(d);
@@ -76,7 +80,9 @@ describe("generated word puzzles", () => {
         for (const w of puzzle.bonus) {
           expect(w, date).toMatch(/^[A-Z]{3,}$/);
           expect(spellable(w, puzzle.letters), `${date} ${w}`).toBe(true);
-          expect(blocked.has(w.toLowerCase()), `${date} ${w}`).toBe(false);
+          if (date > TODAY) {
+            expect(blocked.has(w.toLowerCase()), `${date} ${w}`).toBe(false);
+          }
         }
       }
     }

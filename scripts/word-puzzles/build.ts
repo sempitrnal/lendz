@@ -59,7 +59,9 @@ export function buildPuzzle(date: string, lists: Lists): Puzzle {
   const ok = (w: string) => !lists.blocked.has(w);
 
   const bases = shuffled(
-    lists.common.filter((w) => w.length === size && ok(w) && lists.valid.has(w)),
+    lists.common.filter(
+      (w) => w.length === size && ok(w) && lists.valid.has(w),
+    ),
     random,
   );
 
