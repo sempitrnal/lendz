@@ -8,6 +8,12 @@ export type Progress = {
   /** Squares revealed by hints, `[row, col]`. */
   hints: Array<[number, number]>;
   solved: boolean;
+  /**
+   * The real day the puzzle was solved on, `yyyy-mm-dd`; null until solved. A
+   * day counts for the streak only when this is that same day, so solving a
+   * missed day later does not repair a broken streak.
+   */
+  solvedOn: string | null;
 };
 
 /** Progress for every date played, keyed by `yyyy-mm-dd`. */
@@ -18,6 +24,7 @@ export const emptyProgress: Progress = {
   bonus: [],
   hints: [],
   solved: false,
+  solvedOn: null,
 };
 
 /** Solved once every grid word has been spelled. Hints never count. */
@@ -25,10 +32,24 @@ export function isSolved(puzzle: Puzzle, p: Progress): boolean {
   return puzzle.words.every((w) => p.found.includes(w.word));
 }
 
-export function addFound(puzzle: Puzzle, p: Progress, word: string): Progress {
+/**
+ * `today` is the real date, recorded as `solvedOn` when this word completes the
+ * puzzle (and kept if it was recorded already).
+ */
+export function addFound(
+  puzzle: Puzzle,
+  p: Progress,
+  word: string,
+  today?: string,
+): Progress {
   const w = word.toUpperCase();
   const next = p.found.includes(w) ? p : { ...p, found: [...p.found, w] };
-  return { ...next, solved: isSolved(puzzle, next) };
+  const solved = isSolved(puzzle, next);
+  return {
+    ...next,
+    solved,
+    solvedOn: next.solvedOn ?? (solved && today ? today : null),
+  };
 }
 
 export function addBonus(p: Progress, word: string): Progress {

@@ -20,6 +20,9 @@ function isProgress(v: unknown): v is Progress {
     isStringList(p.found) &&
     isStringList(p.bonus) &&
     typeof p.solved === "boolean" &&
+    (p.solvedOn === undefined ||
+      p.solvedOn === null ||
+      typeof p.solvedOn === "string") &&
     Array.isArray(p.hints) &&
     p.hints.every(
       (h) =>
@@ -42,7 +45,9 @@ export function readAll(
     if (typeof parsed !== "object" || parsed === null) return {};
     const out: AllProgress = {};
     for (const [date, value] of Object.entries(parsed)) {
-      if (isProgress(value)) out[date] = value;
+      if (isProgress(value)) {
+        out[date] = { ...value, solvedOn: value.solvedOn ?? null };
+      }
     }
     return out;
   } catch {

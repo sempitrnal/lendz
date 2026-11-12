@@ -34,9 +34,7 @@ export function classifyWord(puzzle: Puzzle, word: string): WordKind {
 /** The `[row, col]` of every square a word covers. */
 export function wordCells(word: PlacedWord): Array<[number, number]> {
   return Array.from({ length: word.word.length }, (_, i) =>
-    word.dir === "across"
-      ? [word.row, word.col + i]
-      : [word.row + i, word.col],
+    word.dir === "across" ? [word.row, word.col + i] : [word.row + i, word.col],
   );
 }
 

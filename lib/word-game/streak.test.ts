@@ -43,11 +43,42 @@ describe("currentStreak", () => {
 });
 
 describe("solvedDates", () => {
-  it("lists only the dates marked solved", () => {
+  const solved = (solvedOn: string | null) => ({
+    ...emptyProgress,
+    solved: true,
+    solvedOn,
+  });
+
+  it("lists a day solved on that day", () => {
+    expect(solvedDates({ "2026-11-10": solved("2026-11-10") })).toEqual([
+      "2026-11-10",
+    ]);
+  });
+
+  it("ignores a day marked solved but not solved on that day", () => {
+    expect(solvedDates({ "2026-11-10": solved("2026-11-12") })).toEqual([]);
+    expect(solvedDates({ "2026-11-10": solved(null) })).toEqual([]);
+  });
+
+  it("ignores a day that is not solved", () => {
+    expect(
+      solvedDates({
+        "2026-11-10": {
+          ...emptyProgress,
+          solved: false,
+          solvedOn: "2026-11-10",
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it("does not let solving missed days later repair the streak", () => {
     const all = {
-      "2026-11-10": { ...emptyProgress, solved: true },
-      "2026-11-11": { ...emptyProgress, solved: false },
+      "2026-11-09": solved("2026-11-09"),
+      "2026-11-10": solved("2026-11-12"),
+      "2026-11-11": solved("2026-11-12"),
+      "2026-11-12": solved("2026-11-12"),
     };
-    expect(solvedDates(all)).toEqual(["2026-11-10"]);
+    expect(currentStreak(solvedDates(all), "2026-11-12")).toBe(1);
   });
 });

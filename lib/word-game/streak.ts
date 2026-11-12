@@ -1,9 +1,14 @@
 import type { AllProgress } from "./progress";
 import { shiftDate } from "./date";
 
-/** The dates marked solved. */
+/**
+ * The dates that count for the streak: solved, and solved on that very day.
+ * A day solved later (replaying a missed day) does not count.
+ */
 export function solvedDates(all: AllProgress): string[] {
-  return Object.keys(all).filter((date) => all[date].solved);
+  return Object.keys(all).filter(
+    (date) => all[date].solved && all[date].solvedOn === date,
+  );
 }
 
 /**

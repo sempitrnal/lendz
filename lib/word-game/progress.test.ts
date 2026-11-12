@@ -31,6 +31,36 @@ describe("addFound", () => {
   });
 });
 
+describe("the day a puzzle was solved on", () => {
+  const almost = () => {
+    let p = addFound(testPuzzle, emptyProgress, "PLANE");
+    return addFound(testPuzzle, p, "PEN");
+  };
+
+  it("starts empty", () => {
+    expect(emptyProgress.solvedOn).toBeNull();
+  });
+
+  it("is recorded when the last word is found", () => {
+    const p = addFound(testPuzzle, almost(), "ALE", "2026-11-12");
+    expect(p.solved).toBe(true);
+    expect(p.solvedOn).toBe("2026-11-12");
+  });
+
+  it("stays empty while the puzzle is unsolved", () => {
+    expect(
+      addFound(testPuzzle, emptyProgress, "PEN", "2026-11-12").solvedOn,
+    ).toBeNull();
+  });
+
+  it("keeps the first day when more is found later", () => {
+    const done = addFound(testPuzzle, almost(), "ALE", "2026-11-12");
+    expect(addFound(testPuzzle, done, "PEN", "2026-11-15").solvedOn).toBe(
+      "2026-11-12",
+    );
+  });
+});
+
 describe("addBonus", () => {
   it("ignores a bonus word it already has", () => {
     const p = addBonus(addBonus(emptyProgress, "lap"), "LAP");

@@ -24,9 +24,35 @@ describe("readAll", () => {
 
   it("reads saved progress", () => {
     const all = {
-      "2026-11-12": { found: ["PEN"], bonus: [], hints: [], solved: false },
+      "2026-11-12": {
+        found: ["PEN"],
+        bonus: [],
+        hints: [],
+        solved: false,
+        solvedOn: null,
+      },
     };
     expect(readAll(stored(JSON.stringify(all)))).toEqual(all);
+  });
+
+  it("reads an entry saved without solvedOn as solved on no day", () => {
+    const text = JSON.stringify({
+      "2026-11-12": { found: [], bonus: [], hints: [], solved: true },
+    });
+    expect(readAll(stored(text))["2026-11-12"].solvedOn).toBeNull();
+  });
+
+  it("drops an entry whose solvedOn is not a date text or null", () => {
+    const text = JSON.stringify({
+      "2026-11-12": {
+        found: [],
+        bonus: [],
+        hints: [],
+        solved: true,
+        solvedOn: 5,
+      },
+    });
+    expect(readAll(stored(text))).toEqual({});
   });
 
   it("drops a badly shaped entry and keeps the good ones", () => {

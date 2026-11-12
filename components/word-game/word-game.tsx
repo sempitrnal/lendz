@@ -187,7 +187,7 @@ function Board({
     const kind = classifyWord(puzzle, w);
     if (kind === "grid") {
       if (progress.found.includes(w)) return reject("already found");
-      const next = addFound(puzzle, progress, w);
+      const next = addFound(puzzle, progress, w, today);
       update(next);
       setJustFound(w);
       if (next.solved) return celebrate();
