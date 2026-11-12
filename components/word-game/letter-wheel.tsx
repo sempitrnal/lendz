@@ -57,7 +57,11 @@ export function LetterWheel({
     if (index === null) return;
     onFirstTouch?.();
     dragging.current = true;
-    e.currentTarget.setPointerCapture(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // The pointer is already gone: the chain still works without capture.
+    }
     setChain([index]);
     setFinger(point);
     onChange?.(spell([index]));

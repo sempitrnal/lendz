@@ -9,6 +9,7 @@ import {
   Wallet,
   CalendarClock,
   HandCoins,
+  Puzzle,
   CalendarDays,
   Tag,
   ClipboardCheck,
@@ -60,6 +61,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/categories", label: "Categories", Icon: Tag },
       { href: "/daily-checklist", label: "Checklist", Icon: ClipboardCheck },
+      { href: "/word-game", label: "Daily word", Icon: Puzzle },
     ],
   },
   {

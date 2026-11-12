@@ -16,6 +16,7 @@ import {
   Trash2,
   CalendarClock,
   HandCoins,
+  Puzzle,
   X,
   Settings,
   Sparkles,
@@ -45,6 +46,7 @@ const PRIMARY_ITEMS: NavItem[] = [
 /** The More menu: the pages the tab bar has no room for. */
 const ALL_ITEMS: NavItem[] = [
   { href: "/daily-payments", label: "daily payments", Icon: HandCoins },
+  { href: "/word-game", label: "daily word", Icon: Puzzle },
   { href: "/due-this-month", label: "due this month", Icon: CalendarClock },
   { href: "/categories", label: "categories", Icon: Tag },
   { href: "/deleted", label: "trash", Icon: Trash2 },
