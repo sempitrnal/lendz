@@ -15,6 +15,7 @@ import {
   CalendarRange,
   Trash2,
   CalendarClock,
+  HandCoins,
   X,
   Settings,
   Sparkles,
@@ -43,6 +44,7 @@ const PRIMARY_ITEMS: NavItem[] = [
 
 /** The More menu: the pages the tab bar has no room for. */
 const ALL_ITEMS: NavItem[] = [
+  { href: "/daily-payments", label: "daily payments", Icon: HandCoins },
   { href: "/due-this-month", label: "due this month", Icon: CalendarClock },
   { href: "/categories", label: "categories", Icon: Tag },
   { href: "/deleted", label: "trash", Icon: Trash2 },
@@ -90,7 +92,7 @@ export default function BottomNav() {
             pair; the bar's own colours come from `--nav-*`, which it never
             redefines, so nothing refers to itself. */}
         <div
-          className="flex w-full max-w-md items-center gap-1 rounded-2xl border
+          className="flex w-full max-w-md items-center rounded-2xl border
             border-onpage/15 bg-(--nav-bg) p-1.5 shadow-lg shadow-black/25
             [--nav-bg:var(--page-1)] [--nav-fg:var(--page-fg)]
             [--nav-on:var(--page-on)]"
@@ -112,7 +114,7 @@ export default function BottomNav() {
               }}
               variant="pill"
               icons="selected"
-              className="flex-1"
+              className="grow-[4]"
             >
               <TabsList
                 aria-label="Pages"
@@ -125,7 +127,8 @@ export default function BottomNav() {
                     icon={<Icon className="size-4" aria-hidden="true" />}
                     onMouseEnter={() => router.prefetch(href)}
                     onTouchStart={() => router.prefetch(href)}
-                    className="px-2.5 py-2.5 text-xs font-bold tracking-tight"
+                    className="min-w-10 grow px-1.5 py-2.5 text-xs font-bold
+                      tracking-tight"
                   >
                     {label}
                   </TabsTrigger>
@@ -139,8 +142,8 @@ export default function BottomNav() {
               onClick={() => setOpen(true)}
               aria-label="Open full menu"
               aria-expanded={open}
-              className="shrink-0 rounded-xl px-2.5 py-2.5 text-xs font-bold
-                tracking-tight text-muted-foreground transition-all
+              className="min-w-10 shrink-0 grow rounded-xl px-1.5 py-2.5 text-xs
+                font-bold tracking-tight text-muted-foreground transition-all
                 duration-200 hover:text-foreground active:bg-muted"
             >
               more

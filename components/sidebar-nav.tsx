@@ -8,6 +8,7 @@ import {
   Users,
   Wallet,
   CalendarClock,
+  HandCoins,
   CalendarDays,
   Tag,
   ClipboardCheck,
@@ -51,6 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Due this month",
         Icon: CalendarClock,
       },
+      { href: "/daily-payments", label: "Daily payments", Icon: HandCoins },
     ],
   },
   {

@@ -30,6 +30,7 @@ const HIDE_BACK_PATHS = [
   "/categories",
   "/daily-checklist",
   "/due-this-month",
+  "/daily-payments",
 ];
 
 export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {

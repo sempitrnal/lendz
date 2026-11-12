@@ -3,6 +3,7 @@
 import { Sheet } from "@/components/dashboard/checklist-v2/sheet";
 import { formatPeso } from "@/lib/dashboard-data";
 import { HIDDEN_AMOUNT } from "@/lib/hide-amounts";
+import { NameChip } from "@/components/name-chip";
 import type { NotDuePayment } from "@/lib/dashboard/daily-profit";
 
 /**
@@ -23,14 +24,6 @@ const short = (date: string) => {
     .toLocaleDateString("en-US", { month: "short", day: "numeric" })
     .toLowerCase();
 };
-
-/** A category's hex colour as a faint background; null when it isn't one. */
-const tint = (color: string | null, alpha = 0.12) =>
-  color && /^#[0-9a-f]{6}$/i.test(color)
-    ? `${color}${Math.round(alpha * 255)
-        .toString(16)
-        .padStart(2, "0")}`
-    : undefined;
 
 const longMonth = (month: string) => {
   const [y, mo] = month.split("-").map(Number);
@@ -147,9 +140,6 @@ export function NotDueSheet({
                 <div
                   key={category.name}
                   className="mt-2 rounded-xl bg-muted/40 px-2 pt-1.5 pb-0.5"
-                  style={{
-                    backgroundColor: tint(category.color, 0.08),
-                  }}
                 >
                   <div className="flex items-center justify-between gap-2 px-1">
                     <p
@@ -178,12 +168,7 @@ export function NotDueSheet({
                           py-2.5"
                       >
                         <div className="min-w-0">
-                          <p
-                            className="truncate text-sm font-bold
-                              text-card-foreground/80"
-                          >
-                            {p.name ?? "unknown borrower"}
-                          </p>
+                          <NameChip name={p.name} color={category.color} />
                           <p
                             className="text-xs font-semibold
                               text-muted-foreground"
