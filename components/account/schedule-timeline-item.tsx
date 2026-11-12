@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   m,
-  AnimatePresence,
   animate,
   useDragControls,
   useMotionValue,
@@ -121,6 +120,9 @@ export function ScheduleTimelineItem({
   const { isEditing, isSelected, toggleId } = useScheduleSelection();
   const selected = isSelected(scheduleId);
   const [open, setOpen] = useState(defaultOpen ?? isNext);
+  // The expanded content is built on the first press, while the finger is
+  // still down, so the tap itself only has to slide it open.
+  const [built, setBuilt] = useState(open);
   const reduceMotion = useReducedMotion();
 
   const hasExpand = Boolean(actions || history);
@@ -274,6 +276,7 @@ export function ScheduleTimelineItem({
           <div
             onClick={handleTap}
             onPointerDown={(e) => {
+              if (hasExpand) setBuilt(true);
               if (canSwipe) dragControls.start(e);
             }}
             style={canSwipe ? { touchAction: "pan-y" } : undefined}
@@ -359,23 +362,28 @@ export function ScheduleTimelineItem({
             </div>
           </div>
 
-          {hasExpand ? (
-            <AnimatePresence initial={false}>
-              {open ? (
-                <m.div
-                  initial={reduceMotion ? false : { height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
-                  transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
-                  className="overflow-hidden"
-                >
-                  <div className="space-y-3 px-3 pt-1 pb-3">
-                    {actions}
-                    {history}
-                  </div>
-                </m.div>
-              ) : null}
-            </AnimatePresence>
+          {hasExpand && (built || open) ? (
+            // Opens and closes in CSS (the rows below slide with it), instead
+            // of a script setting the height on every frame: far lighter for a
+            // phone with this long a list. The content stays built once it has
+            // been opened.
+            <div
+              className={cn(
+                `grid transition-[grid-template-rows,opacity] duration-300
+                  ease-[cubic-bezier(0.32,0.72,0,1)]
+                  motion-reduce:transition-none`,
+                open
+                  ? "grid-rows-[1fr] opacity-100"
+                  : "grid-rows-[0fr] opacity-0",
+              )}
+            >
+              <div className="min-h-0 overflow-hidden" inert={!open}>
+                <div className="space-y-3 px-3 pt-1 pb-3">
+                  {actions}
+                  {history}
+                </div>
+              </div>
+            </div>
           ) : null}
         </m.div>
       </div>

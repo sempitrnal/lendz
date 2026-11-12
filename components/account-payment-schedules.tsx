@@ -155,8 +155,8 @@ export function AccountPaymentSchedules({
           if (!s) return null;
 
           const due = Math.max(0, Number(s.amount_due ?? 0));
-          const hasHistory =
-            s.status === "partial" && (paymentsMap[s.id] ?? []).length > 0;
+          // Paid installments keep their payments on show too.
+          const hasHistory = (paymentsMap[s.id] ?? []).length > 0;
 
           const paidDiffDays =
             s.paid_date && s.paid_date !== s.due_date

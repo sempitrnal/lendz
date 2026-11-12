@@ -289,11 +289,16 @@ export function ScheduleTimeline({
       </div>
     );
 
+    // Every payment made on the installment, for a paid one too; a partial
+    // one also gets its payment form above the list.
+    const payments = (optimistic.paymentsMap[schedule.id] ??
+      []) as SchedulePayment[];
+    const isPartial = schedule.status === "partial";
     const history =
-      schedule.status === "partial" &&
-      (!isRolling || (optimistic.paymentsMap[schedule.id] ?? []).length > 0) ? (
+      (isPartial && (!isRolling || payments.length > 0)) ||
+      payments.length > 0 ? (
         <div className="space-y-3">
-          {!isRolling ? (
+          {isPartial && !isRolling ? (
             <PartialPaymentForm
               scheduleId={schedule.id}
               applyPartialPayment={applyPartialPayment}
@@ -303,11 +308,9 @@ export function ScheduleTimeline({
               onOptimisticUpdate={addOptimistic}
             />
           ) : null}
-          {(optimistic.paymentsMap[schedule.id] ?? []).length > 0 ? (
+          {payments.length > 0 ? (
             <PaymentHistoryPanel
-              payments={
-                (optimistic.paymentsMap[schedule.id] ?? []) as SchedulePayment[]
-              }
+              payments={payments}
               updatePayment={updatePaymentEntry}
               deletePayment={deletePaymentEntry}
             />
@@ -385,8 +388,8 @@ export function ScheduleTimeline({
 
   return (
     <div
-      className="rounded-2xl bg-card p-3 shadow-sm ring-1 ring-black/5
-        dark:ring-white/10"
+      className="rounded-2xl bg-card p-3 shadow-sm ring-1 ring-black/5 lowercase
+        dark:ring-white/10 [&_button]:lowercase"
     >
       <p className="px-1 pb-2 text-xs font-bold text-muted-foreground lowercase">
         payment schedule · {total} installment{total === 1 ? "" : "s"}

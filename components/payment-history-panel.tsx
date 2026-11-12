@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Banknote, ChevronRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,10 @@ function formatMoney(value: number) {
   return `₱${value.toLocaleString()}`;
 }
 
+/** An input in the details dialog: soft, rounded, green when focused. */
+const fieldClass =
+  "h-11 w-full rounded-xl border border-border bg-muted/40 px-3 text-sm font-semibold text-card-foreground/80 outline-none transition-colors focus-visible:border-emerald-500/60 focus-visible:ring-4 focus-visible:ring-emerald-500/15";
+
 function PaymentRow({
   payment,
   updatePayment,
@@ -56,7 +61,7 @@ function PaymentRow({
   }
 
   function handleDelete() {
-    if (!confirm("Delete this payment entry?")) return;
+    if (!confirm("delete this payment entry?")) return;
     const fd = new FormData();
     fd.set("paymentId", payment.id);
     fd.set("scheduleId", payment.schedule_id);
@@ -67,60 +72,56 @@ function PaymentRow({
 
   return (
     <>
-      <li
-        onClick={() => setOpen(true)}
-        className="dark:border-slate-700 dark:bg-slate-900
-          dark:hover:bg-slate-800 flex cursor-pointer items-center
-          justify-between gap-2 rounded-lg border border-slate-300 bg-slate-50
-          px-3 py-2 transition hover:bg-slate-100"
-      >
-        <div className="min-w-0 flex-1">
+      <li>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex w-full items-center gap-3 rounded-xl bg-muted/50 px-3
+            lowercase py-2.5 text-left transition-colors active:bg-muted"
+        >
           <span
-            className="dark:text-foreground font-black text-slate-600
-              tabular-nums"
+            aria-hidden="true"
+            className="flex size-8 shrink-0 items-center justify-center
+              rounded-full bg-emerald-100 text-emerald-700
+              dark:bg-emerald-500/20 dark:text-emerald-300"
           >
-            {formatMoney(payment.amount)}
+            <Banknote className="size-4" />
           </span>
-          <span className="dark:text-border mx-1.5 text-slate-300">·</span>
-          <span
-            className="dark:text-muted-foreground text-xs font-semibold
-              text-slate-600"
-          >
-            {formatDate(payment.payment_date)}
+          <span className="min-w-0 flex-1">
+            <span
+              className="block text-sm font-bold text-card-foreground/80
+                tabular-nums"
+            >
+              {formatMoney(payment.amount)}
+            </span>
+            <span
+              className="block truncate text-xs font-semibold
+                text-muted-foreground"
+            >
+              {formatDate(payment.payment_date)}
+              {payment.note ? ` · ${payment.note}` : ""}
+            </span>
           </span>
-          {payment.note ? (
-            <>
-              <span className="dark:text-border mx-1.5 text-slate-300">·</span>
-              <span
-                className="dark:text-muted-foreground truncate text-xs
-                  text-slate-500"
-              >
-                {payment.note}
-              </span>
-            </>
-          ) : null}
-        </div>
+          <ChevronRight
+            className="size-4 shrink-0 text-muted-foreground/60"
+            aria-hidden="true"
+          />
+        </button>
       </li>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="rounded-3xl lowercase sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle
-              className="dark:text-foreground text-sm font-black tracking-wide
-                text-slate-600 uppercase"
-            >
-              Payment Details
+            <DialogTitle className="text-base font-black tracking-tight">
+              payment details
             </DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <label
-                className="dark:text-muted-foreground text-[10px] font-black
-                  tracking-wide text-slate-600 uppercase"
-              >
-                Amount
-              </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="px-1 text-xs font-bold text-muted-foreground">
+                amount
+              </span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -128,81 +129,59 @@ function PaymentRow({
                 step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="dark:border-border dark:bg-card dark:text-foreground
-                  dark:focus-visible:ring-border w-full rounded-md border
-                  border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold
-                  text-slate-600 tabular-nums outline-none focus-visible:ring-2
-                  focus-visible:ring-slate-900"
+                className={fieldClass + " tabular-nums"}
               />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label
-                className="dark:text-muted-foreground text-[10px] font-black
-                  tracking-wide text-slate-600 uppercase"
-              >
-                Date
-              </label>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="px-1 text-xs font-bold text-muted-foreground">
+                date
+              </span>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="dark:border-border dark:bg-card dark:text-foreground
-                  dark:focus-visible:ring-border w-full min-w-0 rounded-md
-                  border border-slate-300 bg-white px-2 py-1.5 text-sm
-                  font-semibold text-slate-600 outline-none focus-visible:ring-2
-                  focus-visible:ring-slate-900"
+                className={fieldClass + " min-w-0"}
               />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label
-                className="dark:text-muted-foreground text-[10px] font-black
-                  tracking-wide text-slate-600 uppercase"
-              >
-                Note
-              </label>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="px-1 text-xs font-bold text-muted-foreground">
+                note
+              </span>
               <input
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 maxLength={500}
                 placeholder="—"
-                className="dark:border-border dark:bg-card dark:text-foreground
-                  dark:focus-visible:ring-border w-full rounded-md border
-                  border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-600
-                  outline-none focus-visible:ring-2
-                  focus-visible:ring-slate-900"
+                className={fieldClass}
               />
-            </div>
+            </label>
           </div>
 
           <DialogFooter
-            className="flex flex-row gap-2 border-t-0 bg-transparent pt-0
+            className="flex flex-row gap-2 border-t-0 bg-transparent pt-1
               sm:justify-between"
           >
             <button
               type="button"
               onClick={handleDelete}
               disabled={isPending}
-              className="dark:bg-card cursor-pointer rounded-md border
-                border-rose-200 bg-white px-3 py-1.5 text-xs font-black
-                tracking-wide text-rose-500 uppercase transition
-                hover:bg-rose-50 hover:text-rose-700 disabled:opacity-70
-                dark:border-rose-400/40 dark:text-rose-300
-                dark:hover:bg-rose-400/10 dark:hover:text-rose-200"
+              className="h-11 flex-1 cursor-pointer rounded-xl bg-rose-50
+                text-sm font-bold text-rose-600 transition-colors
+                active:bg-rose-100 disabled:opacity-70 dark:bg-rose-500/15
+                dark:text-rose-300 dark:active:bg-rose-500/25"
             >
-              {isPending ? "…" : "Delete"}
+              {isPending ? "…" : "delete"}
             </button>
             <button
               type="button"
               onClick={handleSave}
               disabled={isPending}
-              className="dark:border-border cursor-pointer rounded-md border
-                border-slate-300 bg-emerald-100 px-3 py-1.5 text-xs font-black
-                tracking-wide text-emerald-900 uppercase transition
-                hover:bg-emerald-200 disabled:opacity-70 dark:bg-emerald-400/25
-                dark:text-emerald-100 dark:hover:bg-emerald-400/40"
+              className="h-11 flex-1 cursor-pointer rounded-xl bg-emerald-600
+                text-sm font-bold text-white transition-colors
+                active:bg-emerald-700 disabled:opacity-70"
             >
-              {isPending ? "…" : "Save"}
+              {isPending ? "…" : "save"}
             </button>
           </DialogFooter>
         </DialogContent>
@@ -221,20 +200,20 @@ export default function PaymentHistoryPanel({
   const total = payments.reduce((s, p) => s + Number(p.amount), 0);
 
   return (
-    <div className="mt-2">
-      <p
-        className="dark:text-muted-foreground mb-1.5 text-[10px] font-black
-          tracking-wide text-slate-600 uppercase"
-      >
-        Payment history
-        <span
-          className="dark:text-muted-foreground ml-2 font-semibold
-            text-slate-500"
+    <div className="mt-2 lowercase">
+      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+        <p className="text-xs font-bold text-muted-foreground">
+          payment history
+        </p>
+        <p
+          className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px]
+            font-bold text-emerald-800 tabular-nums dark:bg-emerald-500/15
+            dark:text-emerald-300"
         >
-          ({payments.length} payment{payments.length !== 1 ? "s" : ""} · total{" "}
-          {formatMoney(total)})
-        </span>
-      </p>
+          {payments.length} payment{payments.length !== 1 ? "s" : ""} ·{" "}
+          {formatMoney(total)}
+        </p>
+      </div>
       <ul className="flex flex-col gap-1.5">
         {payments.map((p) => (
           <PaymentRow

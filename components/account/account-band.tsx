@@ -299,10 +299,10 @@ export function AccountBand({
             style={{ height: STATS_PX }}
           >
             {[
-              ["Left", mask(peso(left))],
-              ["Collected", mask(peso(collected))],
-              ["Profit", mask(peso(Math.max(0, profit)))],
-              ["Done", `${pct}%`],
+              ["left", mask(peso(left))],
+              ["collected", mask(peso(collected))],
+              ["profit", mask(peso(Math.max(0, profit)))],
+              ["done", `${pct}%`],
             ].map(([label, value]) => (
               <div key={label} className="min-w-0">
                 <p className="truncate text-[10px] font-semibold opacity-80">
@@ -405,7 +405,7 @@ export function AccountBand({
                 className="flex items-center gap-2 text-xs font-semibold
                   opacity-80"
               >
-                Principal
+                principal
                 {hide ? (
                   <EyeOff className="size-4" />
                 ) : (
