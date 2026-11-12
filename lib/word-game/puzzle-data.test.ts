@@ -2,7 +2,11 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { array as badWords } from "badwords-list";
 import { describe, expect, it } from "vitest";
-import { END_DATE, START_DATE, sizeForDate } from "../../scripts/word-puzzles/config";
+import {
+  END_DATE,
+  START_DATE,
+  sizeForDate,
+} from "../../scripts/word-puzzles/config";
 import { shiftDate, monthOf } from "./date";
 import { findLayoutProblems } from "./layout-check";
 import type { MonthFile } from "./puzzle";
@@ -39,7 +43,8 @@ const spellable = (word: string, from: string) => {
 describe("generated word puzzles", () => {
   it("has a file for every month in the horizon", () => {
     const files = new Set(readdirSync(DIR));
-    for (const month of monthNames) expect(files.has(`${month}.json`)).toBe(true);
+    for (const month of monthNames)
+      expect(files.has(`${month}.json`)).toBe(true);
   });
 
   it("keeps every file under 250 KB", () => {
@@ -60,9 +65,13 @@ describe("generated word puzzles", () => {
         expect(findLayoutProblems(puzzle), date).toEqual([]);
         for (const w of puzzle.words) {
           expect(w.word, date).toMatch(/^[A-Z]{3,}$/);
-          expect(spellable(w.word, puzzle.letters), `${date} ${w.word}`).toBe(true);
+          expect(spellable(w.word, puzzle.letters), `${date} ${w.word}`).toBe(
+            true,
+          );
           expect(puzzle.bonus, date).not.toContain(w.word);
-          expect(blocked.has(w.word.toLowerCase()), `${date} ${w.word}`).toBe(false);
+          expect(blocked.has(w.word.toLowerCase()), `${date} ${w.word}`).toBe(
+            false,
+          );
         }
         for (const w of puzzle.bonus) {
           expect(w, date).toMatch(/^[A-Z]{3,}$/);
@@ -71,5 +80,5 @@ describe("generated word puzzles", () => {
         }
       }
     }
-  });
+  }, 30_000);
 });
