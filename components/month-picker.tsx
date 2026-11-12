@@ -48,7 +48,7 @@ export default function MonthPicker({
       .toLocaleDateString("en-US", { month: "short", year: "numeric" })
       .toLowerCase();
     const arrow =
-      "flex size-8 items-center justify-center rounded-full text-muted-foreground active:bg-muted";
+      "relative z-10 flex size-8 items-center justify-center rounded-full text-muted-foreground active:bg-muted";
     return (
       <div className="flex items-center gap-0.5">
         <button
@@ -59,7 +59,7 @@ export default function MonthPicker({
         >
           <ChevronLeft className="size-4" />
         </button>
-        <label className="relative cursor-pointer">
+        <label className="relative cursor-pointer overflow-hidden">
           <span
             className="block min-w-[4.5rem] text-center text-xs font-bold
               text-card-foreground/80"
@@ -71,7 +71,7 @@ export default function MonthPicker({
             aria-label="Month"
             value={value}
             onChange={(e) => e.target.value && navigate(e.target.value)}
-            className="absolute inset-0 opacity-0"
+            className="absolute inset-0 h-full w-full min-w-0 appearance-none opacity-0"
           />
         </label>
         <button
@@ -91,7 +91,7 @@ export default function MonthPicker({
       <button
         type="button"
         onClick={prevMonth}
-        className="inline-flex items-center justify-center rounded-md p-1
+        className="relative z-10 inline-flex items-center justify-center rounded-md p-1
           text-slate-400 transition hover:bg-slate-100 hover:text-slate-600
           dark:hover:bg-white/10 dark:hover:text-foreground"
         aria-label="Previous month"
@@ -99,7 +99,7 @@ export default function MonthPicker({
         <ChevronLeft className="size-4" />
       </button>
 
-      <label className="relative cursor-pointer">
+      <label className="relative cursor-pointer overflow-hidden">
         <span
           className="dark:text-muted-foreground inline-block text-xs
             font-semibold tracking-wider text-slate-600 uppercase"
@@ -110,14 +110,14 @@ export default function MonthPicker({
           type="month"
           value={value}
           onChange={(e) => navigate(e.target.value)}
-          className="absolute inset-0 opacity-0"
+          className="absolute inset-0 h-full w-full min-w-0 appearance-none opacity-0"
         />
       </label>
 
       <button
         type="button"
         onClick={nextMonth}
-        className="inline-flex items-center justify-center rounded-md p-1
+        className="relative z-10 inline-flex items-center justify-center rounded-md p-1
           text-slate-400 transition hover:bg-slate-100 hover:text-slate-600
           dark:hover:bg-white/10 dark:hover:text-foreground"
         aria-label="Next month"
