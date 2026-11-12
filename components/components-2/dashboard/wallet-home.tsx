@@ -30,6 +30,7 @@ import { HIDDEN_AMOUNT, useHideAmounts } from "@/lib/hide-amounts";
 import MonthPicker from "@/components/month-picker";
 import HeaderSearch from "@/components/header-search";
 import ThemeToggle from "@/components/theme-toggle";
+import { ReleaseCalendar } from "@/components/components-2/dashboard/release-calendar";
 import { ProfitCalendar } from "@/components/components-2/dashboard/profit-calendar";
 
 /**
@@ -155,7 +156,6 @@ export function WalletHome({
   payments: RecentPayment[];
 }) {
   const [hide, toggleHide] = useHideAmounts();
-  const [tab, setTab] = useState<"outstanding" | "profit">("outstanding");
 
   const mask = (text: string) => (hide ? HIDDEN_AMOUNT : text);
 
@@ -167,10 +167,6 @@ export function WalletHome({
         ),
       )
     : 0;
-  const principalPct =
-    summary.outstanding > 0
-      ? (summary.outstandingPrincipal / summary.outstanding) * 100
-      : 0;
   const chartMonths = profitPerMonth.slice(-6);
   const maxProfit = Math.max(
     1,
@@ -284,10 +280,27 @@ export function WalletHome({
             )}
           </Link>
         </div>
-        <p className="relative text-sm font-bold sm:mt-4">utangz dashboard</p>
-        <p className="relative text-xs font-semibold opacity-80">
-          {currentMonth.label}
-        </p>
+        <div className="relative flex items-start justify-between gap-3 sm:mt-4">
+          <div>
+            <p className="text-sm font-bold">utangz dashboard</p>
+            <p className="text-xs font-semibold opacity-80">
+              {currentMonth.label}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={toggleHide}
+            aria-label={hide ? "Show amounts" : "Hide amounts"}
+            className="flex size-9 items-center justify-center rounded-full
+              bg-white/15 active:bg-white/25"
+          >
+            {hide ? (
+              <EyeOff className="size-4" aria-hidden="true" />
+            ) : (
+              <Eye className="size-4" aria-hidden="true" />
+            )}
+          </button>
+        </div>
       </div>
 
       <div data-settle-group className="relative z-10 -mt-14 space-y-4 px-1">
@@ -510,84 +523,7 @@ export function WalletHome({
           </dl>
         </div>
 
-        <div className={cn(card, "overflow-hidden p-0")}>
-          <div className="flex gap-1 bg-emerald-50 p-1.5 dark:bg-emerald-500/10">
-            {(["outstanding", "profit"] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setTab(k)}
-                className={cn(
-                  "flex-1 rounded-xl py-1.5 text-xs font-semibold capitalize",
-                  tab === k
-                    ? "bg-card text-emerald-600 shadow-sm"
-                    : "text-emerald-700/60 dark:text-emerald-300/60",
-                )}
-              >
-                {k}
-              </button>
-            ))}
-          </div>
-          <div className="p-4">
-            <div
-              className="flex items-center justify-between text-xs font-semibold
-                text-muted-foreground"
-            >
-              <span>
-                {tab === "outstanding"
-                  ? `Outstanding balance · ${summary.activeLoans} active loans`
-                  : "Profit still to earn"}
-              </span>
-              <button
-                type="button"
-                onClick={toggleHide}
-                aria-label={hide ? "Show amounts" : "Hide amounts"}
-              >
-                {hide ? (
-                  <EyeOff className="size-4" />
-                ) : (
-                  <Eye className="size-4" />
-                )}
-              </button>
-            </div>
-            <p
-              className="mt-1 text-3xl font-bold tracking-tight
-                text-card-foreground/80 tabular-nums"
-            >
-              {mask(
-                formatPeso(
-                  tab === "outstanding"
-                    ? summary.outstanding
-                    : summary.outstandingProfit,
-                ),
-              )}
-            </p>
-            <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-muted">
-              <div
-                className="bg-emerald-400"
-                style={{ width: `${principalPct}%` }}
-              />
-              <div className="flex-1 bg-amber-300" />
-            </div>
-            <div
-              className="mt-2 flex justify-between text-xs font-semibold
-                text-muted-foreground"
-            >
-              <span>
-                ● Principal{" "}
-                <b className="text-card-foreground/80">
-                  {mask(formatPeso(summary.outstandingPrincipal))}
-                </b>
-              </span>
-              <span>
-                ● Profit{" "}
-                <b className="text-card-foreground/80">
-                  {mask(formatPeso(summary.outstandingProfit))}
-                </b>
-              </span>
-            </div>
-          </div>
-        </div>
+        <ReleaseCalendar hide={hide} />
 
         <div className={cn(card, "grid grid-cols-4 gap-2")}>
           {shortcuts.map((a) => (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -14,12 +14,17 @@ export default function MonthPicker({
 }) {
   const router = useRouter();
   const [value, setValue] = useState(currentMonth);
+  const [pending, startTransition] = useTransition();
 
   const navigate = (newValue: string) => {
     setValue(newValue);
     const url = new URL(window.location.href);
     url.searchParams.set("month", newValue);
-    router.push(url.pathname + url.search, { scroll: false });
+    // In a transition, so the page on screen stays put until the new month
+    // is ready instead of dropping to the loading screen.
+    startTransition(() => {
+      router.push(url.pathname + url.search, { scroll: false });
+    });
   };
 
   const prevMonth = () => {
@@ -50,7 +55,9 @@ export default function MonthPicker({
     const arrow =
       "relative z-10 flex size-8 items-center justify-center rounded-full text-muted-foreground active:bg-muted";
     return (
-      <div className="flex items-center gap-0.5">
+      <div
+        className={`flex items-center gap-0.5 ${pending ? "opacity-60" : ""}`}
+      >
         <button
           type="button"
           onClick={prevMonth}

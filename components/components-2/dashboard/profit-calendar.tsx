@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, m } from "motion/react";
 import { CalendarHeart, ChevronDown, ChevronLeft, ChevronRight, Crown } from "lucide-react";
 
@@ -71,11 +72,23 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
   const [showDue, setShowDue] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const { data, isPending, isError } = useQuery({
-    queryKey: ["dashboard-profit-calendar", month],
-    queryFn: () => loadMonth(month),
-    staleTime: 60_000,
+  const queryClient = useQueryClient();
+  const monthQuery = (m: string) => ({
+    queryKey: ["dashboard-profit-calendar", m],
+    queryFn: () => loadMonth(m),
+    staleTime: 5 * 60_000,
   });
+  const { data, isPending, isError } = useQuery(monthQuery(month));
+
+  // Once this month is in, quietly fetch its neighbours so the arrows land on
+  // a month that is already there.
+  useEffect(() => {
+    if (isPending) return;
+    void queryClient.prefetchQuery(monthQuery(shiftMonth(month, -1)));
+    if (month < thisMonth) {
+      void queryClient.prefetchQuery(monthQuery(shiftMonth(month, 1)));
+    }
+  }, [month, isPending, thisMonth, queryClient]);
 
   const days = data ?? {};
   const figures = Object.values(days);
@@ -186,7 +199,9 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
             className="text-2xl font-bold tracking-tight text-card-foreground/80
               tabular-nums"
           >
-            {isPending ? "…" : mask(formatPeso(total))}
+            <span className={cn(isPending && "opacity-40")}>
+              {mask(formatPeso(total))}
+            </span>
           </p>
           <p className="text-xs font-semibold text-muted-foreground">
             profit collected · {earningDays} day{earningDays === 1 ? "" : "s"}
@@ -307,7 +322,7 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
             animate="shown"
             exit="exit"
             transition={{ type: "spring", stiffness: 420, damping: 36 }}
-            className={cn("space-y-1", isPending && "animate-pulse")}
+            className="space-y-1"
           >
             {monthGrid(month).map((week, w) => (
               <div key={w} className="grid grid-cols-7 gap-1">
@@ -415,12 +430,24 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
                   : "no payments recorded"}
               </p>
             </div>
-            <p
-              className="shrink-0 text-lg font-bold text-emerald-600
-                tabular-nums dark:text-emerald-300"
-            >
-              {mask(`+${formatPeso(pickedFigure?.profit ?? 0)}`)}
-            </p>
+            <div className="flex shrink-0 flex-col items-end">
+              <p
+                className="text-lg font-bold text-emerald-600 tabular-nums
+                  dark:text-emerald-300"
+              >
+                {mask(`+${formatPeso(pickedFigure?.profit ?? 0)}`)}
+              </p>
+              {pickedFigure && (
+                <Link
+                  href={`/daily-payments?date=${picked}`}
+                  className="flex items-center text-[11px] font-bold
+                    text-emerald-700 active:opacity-60 dark:text-emerald-300"
+                >
+                  see payments
+                  <ChevronRight className="size-3" aria-hidden="true" />
+                </Link>
+              )}
+            </div>
           </m.div>
         )}
       </AnimatePresence>

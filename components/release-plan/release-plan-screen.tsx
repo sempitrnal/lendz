@@ -142,9 +142,19 @@ function ReleasePlan({ today }: { today: string }) {
   const thisMonth = monthKeyOf(today);
   // The month lives in the URL (`?month=2026-11`) so a reload stays on it.
   const [month, setMonthState] = useState<MonthKey>(() => {
-    const value = new URLSearchParams(window.location.search).get("month");
+    const params = new URLSearchParams(window.location.search);
+    const value = params.get("month");
+    const date = params.get("date");
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) return monthKeyOf(date);
     return value && /^\d{4}-\d{2}$/.test(value) ? value : thisMonth;
   });
+  // `?date=` (the dashboard's calendar): scroll to that day once it is shown.
+  const focusDate = useRef<string>(
+    (() => {
+      const date = new URLSearchParams(window.location.search).get("date");
+      return date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "";
+    })(),
+  );
   /** Which way the last month change went, for the slide. */
   const [direction, setDirection] = useState(1);
   const setMonth = (next: MonthKey) => {
@@ -195,6 +205,58 @@ function ReleasePlan({ today }: { today: string }) {
     if (loaded) writeCachedPlan(loaded.month, loaded.items);
   }, [loaded]);
   const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const date = focusDate.current;
+    if (!date || items === null || monthKeyOf(date) !== month) return;
+    // Waits for the navigation splash to lift and the page's own scroll reset
+    // to pass, then scrolls; checks it landed and tries again if not.
+    const root = document.documentElement;
+    let tries = 0;
+    let done = false;
+    const timers: number[] = [];
+    const place = () => {
+      const cell = document.querySelector<HTMLElement>(
+        `[data-plan-date="${date}"]`,
+      );
+      if (!cell) return false;
+      const rect = cell.getBoundingClientRect();
+      const target =
+        window.scrollY + rect.top - (window.innerHeight - rect.height) / 2;
+      window.scrollTo({ top: Math.max(0, target), behavior: "auto" });
+      return true;
+    };
+    const attempt = () => {
+      tries += 1;
+      if (root.dataset.navSplash && tries < 60) {
+        timers.push(window.setTimeout(attempt, 100));
+        return;
+      }
+      if (!place() && tries < 60) {
+        timers.push(window.setTimeout(attempt, 100));
+        return;
+      }
+      if (done) return;
+      done = true;
+      focusDate.current = "";
+      // Once more shortly after, in case the page settled and moved it.
+      timers.push(window.setTimeout(place, 400));
+      document
+        .querySelector<HTMLElement>(`[data-plan-date="${date}"]`)
+        ?.animate(
+          [
+            { boxShadow: "0 0 0 0 rgb(16 185 129 / 0)" },
+            { boxShadow: "0 0 0 4px rgb(16 185 129 / 0.7)" },
+            { boxShadow: "0 0 0 0 rgb(16 185 129 / 0)" },
+          ],
+          { duration: 1400, easing: "ease-in-out" },
+        );
+      const url = new URL(window.location.href);
+      url.searchParams.delete("date");
+      window.history.replaceState(null, "", url);
+    };
+    timers.push(window.setTimeout(attempt, 300));
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [items, month]);
   // For each borrower's category; the checklist shares this list.
   const { data: borrowers = NO_BORROWERS } = useBorrowersSearch();
   /**
@@ -1048,6 +1110,7 @@ function DayCell({
     >
       <div
         ref={cell}
+        data-plan-date={date}
         role="link"
         tabIndex={0}
         onClick={(e) => {

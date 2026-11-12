@@ -94,7 +94,7 @@ export default function BottomNav() {
             pair; the bar's own colours come from `--nav-*`, which it never
             redefines, so nothing refers to itself. */}
         <div
-          className="flex w-full max-w-md items-center rounded-2xl border
+          className="flex w-full max-w-md items-center gap-1.5 rounded-2xl border
             border-onpage/15 bg-(--nav-bg) p-1.5 shadow-lg shadow-black/25
             [--nav-bg:var(--page-1)] [--nav-fg:var(--page-fg)]
             [--nav-on:var(--page-on)]"
@@ -116,11 +116,11 @@ export default function BottomNav() {
               }}
               variant="pill"
               icons="selected"
-              className="grow-[4]"
+              className="min-w-0 grow-[4]"
             >
               <TabsList
                 aria-label="Pages"
-                className="flex w-full justify-between gap-0 bg-transparent p-0"
+                className="flex w-full gap-1.5 bg-transparent p-0 [&>div]:grow"
               >
                 {PRIMARY_ITEMS.map(({ href, label, Icon }) => (
                   <TabsTrigger

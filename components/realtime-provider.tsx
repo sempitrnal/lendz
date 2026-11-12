@@ -8,6 +8,18 @@ import { BORROWERS_SEARCH_KEY } from "@/hooks/use-borrowers-search";
 import { refreshCachedAccounts } from "@/lib/checklist/schedule-cache";
 import { isConnectionGood } from "@/lib/offline/connection";
 
+/** Tables the dashboard's profit calendar is worked out from. */
+const PROFIT_TABLES = new Set([
+  "accounts",
+  "borrower_categories",
+  "borrowers",
+  "categories",
+  "payment_schedules",
+  "schedule_payments",
+]);
+const PROFIT_CALENDAR_KEY = ["dashboard-profit-calendar"];
+const RELEASE_CALENDAR_KEY = ["dashboard-release-calendar"];
+
 const REALTIME_TABLES = [
   "accounts",
   "borrower_categories",
@@ -103,6 +115,13 @@ export default function RealtimeProvider({
         { event: "*", schema: "public", table },
         (payload: unknown) => {
           if (needsPageRefresh(table, pathnameRef.current)) refresh();
+          // Cached calendar months are worked out from these rows: drop them.
+          if (table === "daily_checklist_items") {
+            queryClient.invalidateQueries({ queryKey: RELEASE_CALENDAR_KEY });
+          }
+          if (PROFIT_TABLES.has(table)) {
+            queryClient.invalidateQueries({ queryKey: PROFIT_CALENDAR_KEY });
+          }
 
           // Mention dropdown, pill colors and checklist grouping read this list.
           if (
@@ -152,13 +171,18 @@ export default function RealtimeProvider({
       const awayFor = hiddenAt === null ? Infinity : Date.now() - hiddenAt;
       hiddenAt = null;
       if (awayFor >= STALE_AFTER_HIDDEN_MS && isConnectionGood()) {
+        queryClient.invalidateQueries({ queryKey: PROFIT_CALENDAR_KEY });
         router.refresh();
       }
     };
     document.addEventListener("visibilitychange", onVisible);
 
     // Give the connection monitor a moment to confirm the link is good again.
-    const onOnline = () => window.setTimeout(() => refresh(0), 1500);
+    const onOnline = () =>
+      window.setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: PROFIT_CALENDAR_KEY });
+        refresh(0);
+      }, 1500);
     window.addEventListener("online", onOnline);
 
     // Fallback polling for pages where schedule/borrower data must stay current
