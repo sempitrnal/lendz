@@ -4,6 +4,7 @@ import {
   installmentProfit,
   principalShare,
   profitGained,
+  dayPaymentsProfit,
   profitOnInstallment,
   dayProfit,
   monthProfit,
@@ -263,5 +264,37 @@ describe("paidProfit", () => {
   it("is nothing before any payment or without profit", () => {
     expect(paidProfit(0, 840, 700)).toBe(0);
     expect(paidProfit(500, 1000, 1000)).toBe(0);
+  });
+});
+
+describe("dayPaymentsProfit", () => {
+  // ₱2,500 due, ₱2,000 principal share: ₱500 profit, 20 centavos a peso.
+  const terms = new Map([["a", { due: 2500, share: 2000 }]]);
+  it("counts a partial in proportion to its amount", () => {
+    expect(dayPaymentsProfit([{ scheduleId: "a", amount: 250 }], terms)).toBe(
+      50,
+    );
+  });
+  it("ignores what was paid on earlier days", () => {
+    // Only today's ₱100 counts, however much was paid before.
+    expect(dayPaymentsProfit([{ scheduleId: "a", amount: 100 }], terms)).toBe(
+      20,
+    );
+  });
+  it("never earns more than the installment's profit", () => {
+    expect(
+      dayPaymentsProfit(
+        [
+          { scheduleId: "a", amount: 2000 },
+          { scheduleId: "a", amount: 2000 },
+        ],
+        terms,
+      ),
+    ).toBe(500);
+  });
+  it("skips schedules with unknown terms", () => {
+    expect(dayPaymentsProfit([{ scheduleId: "z", amount: 100 }], terms)).toBe(
+      0,
+    );
   });
 });

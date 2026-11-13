@@ -6,6 +6,7 @@ import { revalidatePath, updateTag } from "next/cache";
 import type { PaidDateStrategy } from "@/components/batch-schedule-toolbar";
 import { addSchedulesToChecklist } from "@/lib/checklist/add-schedules";
 import { manilaDate } from "@/lib/checklist/auto-populate";
+import { unlistScheduleFromDay } from "@/lib/checklist/unlist-schedules";
 
 /**
  * Lists schedules changed outside the checklist on the checklist of the day
@@ -18,11 +19,7 @@ async function listOnChecklist(
   paidDate: string | null,
 ) {
   try {
-    await addSchedulesToChecklist(
-      sb,
-      paidDate || manilaDate(new Date()),
-      ids,
-    );
+    await addSchedulesToChecklist(sb, paidDate || manilaDate(new Date()), ids);
   } catch (e) {
     console.warn("checklist update failed:", e);
   }
@@ -159,6 +156,22 @@ export async function updateScheduleStatusAction(
           paid_date: null,
         };
 
+  // Undoing: the days its payments listed it on, to take it back off below.
+  let undoneDays: string[] = [];
+  if (status !== "paid") {
+    const { data: paymentRows } = await updateSupabase
+      .from("schedule_payments")
+      .select("payment_date")
+      .eq("schedule_id", scheduleId);
+    undoneDays = [
+      ...new Set(
+        ((paymentRows ?? []) as { payment_date: string | null }[])
+          .map((p) => p.payment_date?.slice(0, 10))
+          .filter((d): d is string => !!d),
+      ),
+    ];
+  }
+
   const owed = alreadyPaid ? 0 : due - previouslyPaid;
   // The schedule and its payment rows are separate tables; neither write
   // needs the other's result.
@@ -180,6 +193,10 @@ export async function updateScheduleStatusAction(
 
   if (status === "paid") {
     await listOnChecklist(updateSupabase, [scheduleId], paidDate);
+  } else {
+    for (const day of undoneDays) {
+      await unlistScheduleFromDay(updateSupabase, day, scheduleId);
+    }
   }
 
   logAuditAfter({
@@ -535,7 +552,7 @@ export async function deletePaymentEntryAction(
   const sb = await createSupabaseServer();
   const { data: payment } = await sb
     .from("schedule_payments")
-    .select("id, schedule_id, amount")
+    .select("id, schedule_id, amount, payment_date")
     .eq("id", paymentId)
     .single();
   if (!payment) return;
@@ -581,6 +598,15 @@ export async function deletePaymentEntryAction(
             .neq("id", sid)
         : null,
     ]);
+
+    // The payment may be what listed the borrower on that day's checklist.
+    if (payment.payment_date) {
+      await unlistScheduleFromDay(
+        sb,
+        String(payment.payment_date).slice(0, 10),
+        sid,
+      );
+    }
 
     logAuditAfter({
       action: "schedule.payment_deleted",

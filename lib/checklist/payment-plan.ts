@@ -66,7 +66,10 @@ export function buildPaymentPlan(
     const amount = Math.min(typed, remainingOnInstallment(row));
     if (amount <= 0) continue;
     plan.payments.push({ scheduleId: row.id, amount });
-    plan.partials.push({ id: row.id, amount });
+    // Typing (or picking "full") the whole balance settles the installment:
+    // it is a payment in full, not a partial one.
+    if (amount >= remainingOnInstallment(row)) plan.paidIds.push(row.id);
+    else plan.partials.push({ id: row.id, amount });
   }
 
   return plan;

@@ -87,6 +87,9 @@ export type ChecklistItemsApi = {
   restoreItems(rows: DailyChecklistItem[]): Promise<void>;
 };
 
+/** Fired after a payment is undone, so the open checklist reloads its rows. */
+export const CHECKLIST_RELOAD_EVENT = "lendz:checklist-reload";
+
 /** Coming back to the tab refetches the day only after being away this long. */
 const VISIBLE_REFETCH_AFTER_MS = 30_000;
 /** Realtime bursts (a bulk write) collapse into one reload. */
@@ -325,6 +328,14 @@ export function useChecklistItems(date: string): ChecklistItemsApi {
       window.removeEventListener("online", reload);
     };
   }, [date, loadItems, loadCategories, clearWaiting]);
+
+  // A payment undone elsewhere (the pay sheet) may have taken a row off this
+  // day's list on the server: reload instead of waiting for the live channel.
+  useEffect(() => {
+    const onReload = () => void loadItems(date, { detectChanges: true });
+    window.addEventListener(CHECKLIST_RELOAD_EVENT, onReload);
+    return () => window.removeEventListener(CHECKLIST_RELOAD_EVENT, onReload);
+  }, [date, loadItems]);
 
   useEffect(() => {
     let refreshTimer: number | null = null;

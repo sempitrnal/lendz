@@ -66,13 +66,24 @@ export function paidProfit(
  */
 export function profitGained(
   payments: { scheduleId: string; amount: number }[],
-  rows: Map<string, { amount_paid: number; principal_share?: number }>,
+  rows: Map<
+    string,
+    { amount_paid: number; principal_share?: number; amount_due?: number }
+  >,
 ): number {
   let total = 0;
   for (const { scheduleId, amount } of payments) {
     const row = rows.get(scheduleId);
     if (!row || row.principal_share === undefined) continue;
     const before = Number(row.amount_paid ?? 0);
+    const due = Number(row.amount_due ?? 0);
+    if (due > 0) {
+      // Only this payment counts: its share of the installment's profit, not
+      // what was paid on earlier days.
+      total += paidProfit(before + amount, due, row.principal_share);
+      total -= paidProfit(before, due, row.principal_share);
+      continue;
+    }
     total +=
       profitOnInstallment(before + amount, row.principal_share) -
       profitOnInstallment(before, row.principal_share);
@@ -137,6 +148,28 @@ export function dayProfit(
     total +=
       profitOnInstallment(prior + amount, share) -
       profitOnInstallment(prior, share);
+  }
+  return cents(total);
+}
+
+/**
+ * The profit the payments made on one day earn, counting only those payments:
+ * each peso paid carries the same share of profit as its installment does
+ * (`paidProfit`), whatever was paid on earlier days. Payments to one schedule
+ * together never earn more than the installment's profit.
+ */
+export function dayPaymentsProfit(
+  payments: { scheduleId: string; amount: number }[],
+  terms: Map<string, { due: number; share: number }>,
+): number {
+  const paid = new Map<string, number>();
+  for (const { scheduleId, amount } of payments) {
+    paid.set(scheduleId, (paid.get(scheduleId) ?? 0) + amount);
+  }
+  let total = 0;
+  for (const [scheduleId, amount] of paid) {
+    const t = terms.get(scheduleId);
+    if (t) total += paidProfit(amount, t.due, t.share);
   }
   return cents(total);
 }

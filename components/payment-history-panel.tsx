@@ -2,7 +2,7 @@
 
 import { paidDay } from "@/lib/paid-day";
 import { useState, useTransition } from "react";
-import { Banknote, ChevronRight } from "lucide-react";
+import { Banknote, ChevronRight, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +49,23 @@ function PaymentRow({
   const [date, setDate] = useState(payment.payment_date ?? "");
   const [note, setNote] = useState(payment.note ?? "");
   const [isPending, startTransition] = useTransition();
+  /** The quick delete waits for a second tap before it removes anything. */
+  const [sure, setSure] = useState(false);
+
+  function quickDelete() {
+    if (!sure) {
+      setSure(true);
+      window.setTimeout(() => setSure(false), 3500);
+      return;
+    }
+    setSure(false);
+    const fd = new FormData();
+    fd.set("paymentId", payment.id);
+    fd.set("scheduleId", payment.schedule_id);
+    startTransition(() => {
+      void deletePayment(fd);
+    });
+  }
 
   function handleSave() {
     const fd = new FormData();
@@ -73,11 +90,11 @@ function PaymentRow({
 
   return (
     <>
-      <li>
+      <li className="flex items-center gap-1.5 rounded-xl bg-muted/50 pr-2">
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex w-full items-center gap-3 rounded-xl bg-muted/50 px-3
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3
             lowercase py-2.5 text-left transition-colors active:bg-muted"
         >
           <span
@@ -109,6 +126,26 @@ function PaymentRow({
             className="size-4 shrink-0 text-muted-foreground/60"
             aria-hidden="true"
           />
+        </button>
+        <button
+          type="button"
+          onClick={quickDelete}
+          disabled={isPending}
+          aria-label={`Delete ${formatMoney(payment.amount)} payment`}
+          className={
+            sure
+              ? `flex h-8 shrink-0 items-center gap-1 rounded-full
+                bg-linear-to-br from-rose-400 to-rose-500 px-3 text-xs font-bold
+                text-white shadow-sm shadow-rose-500/25 transition
+                active:scale-95 disabled:opacity-60`
+              : `flex size-8 shrink-0 items-center justify-center rounded-full
+                border border-rose-300/70 text-rose-600/80 transition
+                hover:bg-rose-500/10 active:scale-95 disabled:opacity-60
+                dark:border-rose-400/30 dark:text-rose-300/80`
+          }
+        >
+          <Trash2 className="size-3.5" aria-hidden="true" />
+          {sure && "sure?"}
         </button>
       </li>
 

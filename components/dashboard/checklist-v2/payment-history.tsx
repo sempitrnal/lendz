@@ -25,7 +25,11 @@ function PaymentTiming({ due, paid }: { due: string; paid: string }) {
   );
 }
 
-/** When a schedule was paid: one payment as "paid nov 12 ₱520", several as a list. */
+/**
+ * When a schedule was paid. One payment stays a single quiet line ("paid nov
+ * 12 · 1d early ₱520"); several become a short stacked list, one payment per
+ * line with the amounts lined up on the right and the total on top.
+ */
 export function PaymentHistory({
   payments,
   dueDate,
@@ -35,26 +39,62 @@ export function PaymentHistory({
   dueDate: string;
 }) {
   if (!payments || payments.length === 0) return null;
-  return (
-    <p
-      className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[10px]
-        font-semibold text-muted-foreground/80"
-    >
-      <span className="font-bold">
-        {payments.length > 1 ? "payments" : "paid"}
-      </span>
-      {payments.map((p, i) => (
-        <span key={i} className="tabular-nums">
-          {i > 0 && "· "}
-          {p.payment_date
-            ? paidDay(p.payment_date, (d) => formatShortDate(d).toLowerCase())
-            : "no date"}{" "}
-          {peso(p.amount)}
+  const day = (p: SchedulePayment) =>
+    p.payment_date
+      ? paidDay(p.payment_date, (d) => formatShortDate(d).toLowerCase())
+      : "no date";
+
+  if (payments.length === 1) {
+    const [p] = payments;
+    return (
+      <p
+        className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[10px]
+          font-semibold text-muted-foreground/80"
+      >
+        <span className="tabular-nums">
+          {day(p)}
           {p.payment_date && (
             <PaymentTiming due={dueDate} paid={p.payment_date} />
           )}
         </span>
-      ))}
-    </p>
+        <span className="font-bold text-card-foreground/70 tabular-nums">
+          {peso(p.amount)}
+        </span>
+      </p>
+    );
+  }
+
+  const total = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  return (
+    <div
+      className="mt-1 rounded-lg bg-muted/50 px-2 py-1 text-[10px] font-semibold
+        text-muted-foreground/80"
+    >
+      <p className="flex items-center justify-between gap-2 font-bold">
+        <span>{payments.length} payments</span>
+        <span className="tabular-nums">{peso(total)}</span>
+      </p>
+      <ul className="mt-0.5 divide-y divide-border/50">
+        {payments.map((p, i) => (
+          <li
+            key={i}
+            className="flex items-center justify-between gap-2 py-0.5"
+          >
+            <span className="min-w-0 tabular-nums">
+              {day(p)}
+              {p.payment_date && (
+                <PaymentTiming due={dueDate} paid={p.payment_date} />
+              )}
+            </span>
+            <span
+              className="shrink-0 font-bold text-card-foreground/70
+                tabular-nums"
+            >
+              {peso(p.amount)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

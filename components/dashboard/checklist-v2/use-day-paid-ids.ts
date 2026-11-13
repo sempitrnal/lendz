@@ -8,6 +8,7 @@ import type { DayPayment } from "@/lib/checklist/day-summary";
 
 type PaymentRow = {
   schedule_id: string;
+  amount: number | string | null;
   payment_schedules:
     | { due_date: string | null }
     | { due_date: string | null }[]
@@ -21,11 +22,11 @@ type PaymentRow = {
  */
 export function useDayPayments(date: string): readonly DayPayment[] | null {
   const { data } = useQuery({
-    queryKey: [DAY_PROFIT_KEY, "day-payments", date],
+    queryKey: [DAY_PROFIT_KEY, "day-payments", "with-amounts", date],
     queryFn: async (): Promise<DayPayment[]> => {
       const res = await supabase
         .from("schedule_payments")
-        .select("schedule_id, payment_schedules(due_date)")
+        .select("schedule_id, amount, payment_schedules(due_date)")
         .eq("payment_date", date)
         .range(0, 4999);
       if (res.error) throw new Error(res.error.message);
@@ -35,6 +36,7 @@ export function useDayPayments(date: string): readonly DayPayment[] | null {
           : p.payment_schedules;
         return {
           scheduleId: String(p.schedule_id),
+          amount: Number(p.amount ?? 0),
           dueDate: schedule?.due_date ?? null,
         };
       });

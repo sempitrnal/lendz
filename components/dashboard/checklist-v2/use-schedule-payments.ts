@@ -5,6 +5,8 @@ import { supabase } from "@/lib/supabase/client";
 import { DAY_PROFIT_KEY } from "@/components/dashboard/checklist-v2/use-day-profit";
 
 export type SchedulePayment = {
+  /** The payment's own id, to undo just this one. */
+  id?: string;
   amount: number;
   /** `YYYY-MM-DD`; null when the payment was saved without a date. */
   payment_date: string | null;
@@ -21,23 +23,25 @@ export function useSchedulePayments(
 ): Record<string, SchedulePayment[]> | undefined {
   const ids = [...new Set(scheduleIds)].sort();
   const { data } = useQuery({
-    queryKey: [DAY_PROFIT_KEY, "schedule-payments", ids],
+    queryKey: [DAY_PROFIT_KEY, "schedule-payments", "with-ids", ids],
     enabled: enabled && ids.length > 0,
     queryFn: async () => {
       const res = await supabase
         .from("schedule_payments")
-        .select("schedule_id, amount, payment_date")
+        .select("id, schedule_id, amount, payment_date")
         .in("schedule_id", ids)
         .order("payment_date", { ascending: true, nullsFirst: true })
         .range(0, 4999);
       if (res.error) throw new Error(res.error.message);
       const by: Record<string, SchedulePayment[]> = {};
       for (const p of (res.data ?? []) as {
+        id: string;
         schedule_id: string;
         amount: number | string | null;
         payment_date: string | null;
       }[]) {
         (by[String(p.schedule_id)] ??= []).push({
+          id: String(p.id),
           amount: Number(p.amount ?? 0),
           payment_date: p.payment_date
             ? String(p.payment_date).slice(0, 10)

@@ -402,17 +402,28 @@ function ChecklistDay({ today }: { today: string }) {
     [collectItems],
   );
   const schedules = useCachedSchedules(scheduleIds);
-  const rows = useMemo(
-    () => collectItems.map((item) => buildRowView(item, schedules)),
-    [collectItems, schedules],
-  );
   const dayPaidIds = useDayPaidIds(date);
-  const summary = useMemo(() => {
-    const day = summarizeDay(rows, dayPaidIds);
-    return { ...day.all, today: day.today, carried: day.carried };
-  }, [rows, dayPaidIds]);
-  // How the payments made on this day compare with their due dates.
+  // The payments made on this day: what "collected" adds up, and how early
+  // or late they were.
   const dayPayments = useDayPayments(date);
+  // What each schedule was paid on this day, for the profit a row shows.
+  const dayPaidAmounts = useMemo(() => {
+    if (!dayPayments) return null;
+    const map = new Map<string, number>();
+    for (const p of dayPayments) {
+      map.set(p.scheduleId, (map.get(p.scheduleId) ?? 0) + p.amount);
+    }
+    return map;
+  }, [dayPayments]);
+  const rows = useMemo(
+    () =>
+      collectItems.map((item) => buildRowView(item, schedules, dayPaidAmounts)),
+    [collectItems, schedules, dayPaidAmounts],
+  );
+  const summary = useMemo(() => {
+    const day = summarizeDay(rows, dayPaidIds, dayPayments);
+    return { ...day.all, today: day.today, carried: day.carried };
+  }, [rows, dayPaidIds, dayPayments]);
   const timing = useMemo(() => {
     if (!dayPayments) return { early: null, late: null };
     const ids = new Set(rows.flatMap((r) => r.lines.map((l) => l.id)));

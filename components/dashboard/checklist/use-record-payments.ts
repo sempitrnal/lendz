@@ -13,6 +13,7 @@ import {
   undoPaymentsInCache,
 } from "@/lib/checklist/schedule-cache";
 import { celebrate } from "@/lib/checklist/celebrate";
+import { CHECKLIST_RELOAD_EVENT } from "@/components/dashboard/checklist-v2/use-checklist-items";
 import { profitGained } from "@/lib/checklist/profit";
 import type { PaymentPlan } from "@/lib/checklist/payment-plan";
 import { getPendingOutboxCount } from "@/lib/offline/outbox";
@@ -107,6 +108,10 @@ export function useRecordPayments() {
           return updateScheduleStatusAction(accountId, fd);
         }),
       ]);
+      // An undo may have taken the row off the day's list on the server.
+      if (plan.undoCalls.length > 0) {
+        window.dispatchEvent(new Event(CHECKLIST_RELOAD_EVENT));
+      }
       // Re-download so the saved copy matches what the server recorded.
       void refreshCachedAccounts(accountIds).catch(() => {});
       if (borrowerId) invalidateBorrowerDetails(borrowerId);

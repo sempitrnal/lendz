@@ -41,14 +41,15 @@ describe("buildPaymentPlan", () => {
     expect(plan.paidIds).toEqual([]);
   });
 
-  it("clamps a partial larger than what is owed", () => {
+  it("counts a partial of the whole balance as paid in full", () => {
     const plan = buildPaymentPlan(
       [row()],
       { s1: { status: "partial", amount: "99999" } },
       CUTOFF,
     );
     expect(plan.payments).toEqual([{ scheduleId: "s1", amount: 1500 }]);
-    expect(plan.partials).toEqual([{ id: "s1", amount: 1500 }]);
+    expect(plan.paidIds).toEqual(["s1"]);
+    expect(plan.partials).toEqual([]);
   });
 
   it.each(["0", "-5", "abc", ""])("ignores partial amount %j", (amount) => {

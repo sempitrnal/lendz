@@ -1,13 +1,15 @@
 "use client";
 
-import { PaymentHistory } from "@/components/dashboard/checklist-v2/payment-history";
+import { paidDay } from "@/lib/paid-day";
+import { paymentTiming } from "@/lib/checklist/late-label";
 import { useSchedulePayments } from "@/components/dashboard/checklist-v2/use-schedule-payments";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { CHECKLIST_RELOAD_EVENT } from "@/components/dashboard/checklist-v2/use-checklist-items";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, HandCoins, Landmark, Undo2 } from "lucide-react";
+import { Check, HandCoins, Landmark, Plus, Undo2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +24,10 @@ import { cn } from "@/lib/utils";
 import { ProfitText } from "@/components/dashboard/checklist/profit-text";
 import { installmentProfit } from "@/lib/checklist/profit";
 import { Sheet, SheetFooter } from "@/components/dashboard/checklist-v2/sheet";
-import { markSchedulesPaidAction } from "@/lib/actions/schedules";
+import {
+  deletePaymentEntryAction,
+  markSchedulesPaidAction,
+} from "@/lib/actions/schedules";
 import {
   amountPaidOnInstallment,
   remainingOnInstallment,
@@ -299,6 +304,12 @@ export function ScheduleCheckDialog({
   const [loading, setLoading] = useState(false);
   const [choices, setChoices] = useState<Record<string, ScheduleChoice>>({});
   const [submitting, setSubmitting] = useState(false);
+  /** The installment whose amount box was opened by a tap (it takes focus). */
+  const [focusId, setFocusId] = useState<string | null>(null);
+  /** What is being saved right now: an installment (add) or a payment (undo). */
+  const [busyId, setBusyId] = useState<string | null>(null);
+  /** The payment whose undo is waiting for a second tap. */
+  const [sureUndoId, setSureUndoId] = useState<string | null>(null);
   const lineKey = lineIds?.join(",") ?? "";
   const refs = useMemo(
     () =>
@@ -320,6 +331,8 @@ export function ScheduleCheckDialog({
     [borrowers, borrower?.id],
   );
   const recordPayments = useRecordPayments();
+  const queryClient = useQueryClient();
+  const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
   const router = useRouter();
   const open = refs.length > 0;
   const scheduleIds = useMemo(() => refs.map((r) => r.id).sort(), [refs]);
@@ -351,6 +364,35 @@ export function ScheduleCheckDialog({
     }));
   }, [rows]);
 
+  /** Shows fresh rows, keeping any Paid/Partial already picked. */
+  const applyRows = (data: ScheduleDialogRow[]) => {
+    const order = new Map(refs.map((r, i) => [r.id, i]));
+    const sorted = [...data].sort(
+      (a, b) =>
+        (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0) ||
+        a.due_date.localeCompare(b.due_date),
+    );
+    setRows(sorted);
+    // Keep any Paid/Partial already picked on the saved rows; untouched
+    // rows take the fresh remaining amount.
+    setChoices((prev) => {
+      const next: Record<string, ScheduleChoice> = {};
+      for (const r of sorted) {
+        // A part-paid installment opens on Partial with an empty amount, so
+        // adding the next payment is one tap; empty pays nothing.
+        const partlyPaid =
+          r.status !== "paid" && amountPaidOnInstallment(r) > 0;
+        next[r.id] = prev[r.id]?.status
+          ? prev[r.id]
+          : partlyPaid
+            ? { status: "partial", amount: "" }
+            : { status: null, amount: String(remainingOnInstallment(r)) };
+      }
+      return next;
+    });
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (refs.length === 0) {
       setRows([]);
@@ -359,27 +401,7 @@ export function ScheduleCheckDialog({
     }
     let cancelled = false;
     const ids = refs.map((r) => r.id);
-    const order = new Map(refs.map((r, i) => [r.id, i]));
-    const show = (data: ScheduleDialogRow[]) => {
-      const sorted = [...data].sort(
-        (a, b) =>
-          (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0) ||
-          a.due_date.localeCompare(b.due_date),
-      );
-      setRows(sorted);
-      // Keep any Paid/Partial already picked on the saved rows; untouched
-      // rows take the fresh remaining amount.
-      setChoices((prev) => {
-        const next: Record<string, ScheduleChoice> = {};
-        for (const r of sorted) {
-          next[r.id] = prev[r.id]?.status
-            ? prev[r.id]
-            : { status: null, amount: String(remainingOnInstallment(r)) };
-        }
-        return next;
-      });
-      setLoading(false);
-    };
+    const show = applyRows;
 
     // Saved rows show at once; the load below refreshes them.
     const cached = readCachedSchedules(ids);
@@ -405,6 +427,95 @@ export function ScheduleCheckDialog({
       cancelled = true;
     };
   }, [refs]);
+
+  /** Re-reads the rows after a payment was added or undone here. */
+  const reloadRows = async () => {
+    try {
+      applyRows(await loadSchedules(refs.map((r) => r.id)));
+    } catch {
+      // The saved copy already shows the change; the next open re-reads.
+    }
+  };
+
+  /** Adds the typed partial payment now, without closing or checking off. */
+  const addNow = async (row: ScheduleDialogRow) => {
+    if (busyId) return;
+    const typed = Number.parseFloat(choices[row.id]?.amount || "0");
+    const amount = Math.min(
+      Math.round(typed * 100) / 100,
+      remainingOnInstallment(row),
+    );
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    const full = amount >= remainingOnInstallment(row);
+    setBusyId(row.id);
+    try {
+      const result = await recordPayments({
+        plan: {
+          payments: [{ scheduleId: row.id, amount }],
+          // The whole balance settles it: that is paid, not partial.
+          paidIds: full ? [row.id] : [],
+          partials: full ? [] : [{ id: row.id, amount }],
+          undoCalls: [],
+        },
+        celebrateProfit: true,
+        accountIds: [row.account_id],
+        borrowerId: borrower ? borrower.id : null,
+        paymentDate: todayDateValue(),
+        onApplied: () => {
+          toast.success(
+            full
+              ? `₱${amount.toLocaleString()} paid in full`
+              : `₱${amount.toLocaleString()} payment added`,
+          );
+          // The saved copy already has it: show it at once.
+          applyRows(readCachedSchedules(refs.map((r) => r.id)));
+          setChoice(
+            row.id,
+            full
+              ? { status: null, amount: "" }
+              : { status: "partial", amount: "" },
+          );
+        },
+      });
+      if (result !== "failed") await reloadRows();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  /** Undoes one payment (the second tap confirms). */
+  const undoPayment = async (row: ScheduleDialogRow, paymentId: string) => {
+    if (busyId) return;
+    if (sureUndoId !== paymentId) {
+      setSureUndoId(paymentId);
+      window.setTimeout(
+        () => setSureUndoId((cur) => (cur === paymentId ? null : cur)),
+        3500,
+      );
+      return;
+    }
+    setSureUndoId(null);
+    setBusyId(paymentId);
+    try {
+      const fd = new FormData();
+      fd.set("paymentId", paymentId);
+      fd.set("scheduleId", row.id);
+      await deletePaymentEntryAction(row.account_id, fd);
+      // The server may have taken the row off the day's list.
+      window.dispatchEvent(new Event(CHECKLIST_RELOAD_EVENT));
+      await refreshCachedAccounts([row.account_id]).catch(() => {});
+      if (borrower) invalidateBorrowerDetails(borrower.id);
+      queryClient.invalidateQueries({ queryKey: [ACCOUNT_SUMMARIES_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["checklist-month-profit"] });
+      queryClient.invalidateQueries({ queryKey: ["checklist-day-profit"] });
+      await reloadRows();
+      toast.success("Payment undone");
+    } catch {
+      toast.error("Couldn't undo that payment");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const setChoice = (id: string, patch: Partial<ScheduleChoice>) => {
     setChoices((prev) => ({
@@ -727,10 +838,6 @@ export function ScheduleCheckDialog({
                             />
                           ) : null}
                         </p>
-                        <PaymentHistory
-                          payments={history?.[row.id]}
-                          dueDate={row.due_date}
-                        />
                       </div>
                       <p
                         className={cn(
@@ -749,6 +856,162 @@ export function ScheduleCheckDialog({
                         ).toLocaleString()}
                       </p>
                     </div>
+
+                    {(state === "partial" ||
+                      (history?.[row.id] ?? []).length > 0) &&
+                      !undoing && (
+                        <div
+                          className="mt-2.5 rounded-xl bg-card/80 p-2.5 ring-1
+                            ring-black/5 dark:ring-white/10"
+                        >
+                          <div
+                            className="flex items-center justify-between gap-2"
+                          >
+                            <p
+                              className="text-[11px] font-black
+                                text-muted-foreground"
+                            >
+                              payment history
+                              {state !== "partial" && (
+                                <span className="ml-1.5 font-semibold">
+                                  {(history?.[row.id] ?? []).length} · ₱
+                                  {paidSoFar.toLocaleString()}
+                                </span>
+                              )}
+                            </p>
+                            {state === "partial" && chosen !== "paid" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setChoice(row.id, {
+                                    status: "partial",
+                                    amount: choice?.amount ?? "",
+                                  });
+                                  setFocusId(row.id);
+                                  // The box may already be open: focus it directly.
+                                  requestAnimationFrame(() =>
+                                    document
+                                      .getElementById(
+                                        `partial-amount-${row.id}`,
+                                      )
+                                      ?.focus(),
+                                  );
+                                }}
+                                className="flex h-7 items-center gap-1
+                                  rounded-full bg-linear-to-br from-[#9784d8]
+                                  to-[#7a66c0] px-2.5 text-xs font-bold
+                                  text-white lowercase shadow-sm
+                                  shadow-[#7a66c0]/25 transition
+                                  active:scale-95"
+                              >
+                                <Plus className="size-3.5" strokeWidth={3} />
+                                add payment
+                              </button>
+                            )}
+                          </div>
+                          {history === undefined ? (
+                            <p
+                              className="mt-1.5 text-xs font-semibold
+                                text-muted-foreground"
+                            >
+                              loading…
+                            </p>
+                          ) : (history[row.id] ?? []).length === 0 ? (
+                            <p
+                              className="mt-1.5 text-xs font-semibold
+                                text-muted-foreground"
+                            >
+                              ₱{paidSoFar.toLocaleString()} recorded · no dated
+                              payments
+                            </p>
+                          ) : (
+                            <ul className="mt-1 divide-y divide-border/60">
+                              {(history[row.id] ?? []).map((p, i) => {
+                                const timing = p.payment_date
+                                  ? paymentTiming(row.due_date, p.payment_date)
+                                  : null;
+                                return (
+                                  <li
+                                    key={i}
+                                    className="flex items-center justify-between
+                                      gap-2 py-1.5 text-xs font-semibold"
+                                  >
+                                    <span
+                                      className="min-w-0 text-muted-foreground"
+                                    >
+                                      {p.payment_date
+                                        ? paidDay(p.payment_date, (d) =>
+                                            formatShortDate(d).toLowerCase(),
+                                          )
+                                        : "no date"}
+                                      {timing && (
+                                        <span
+                                          className={cn(
+                                            "ml-1.5",
+                                            timing.tone === "late" &&
+                                              "text-rose-600 dark:text-rose-400",
+                                            timing.tone === "early" &&
+                                              `text-emerald-600
+                                                dark:text-emerald-400`,
+                                          )}
+                                        >
+                                          {timing.text}
+                                        </span>
+                                      )}
+                                    </span>
+                                    <span
+                                      className="flex shrink-0 items-center
+                                        gap-2"
+                                    >
+                                      <span
+                                        className="font-bold tabular-nums
+                                          text-card-foreground/80"
+                                      >
+                                        ₱{p.amount.toLocaleString()}
+                                      </span>
+                                      {p.id && (
+                                        <button
+                                          type="button"
+                                          disabled={busyId !== null}
+                                          onClick={() =>
+                                            void undoPayment(
+                                              row,
+                                              p.id as string,
+                                            )
+                                          }
+                                          aria-label={`Undo ₱${p.amount.toLocaleString()} payment`}
+                                          className={cn(
+                                            `flex h-6 items-center gap-1
+                                              rounded-full px-2 text-[11px]
+                                              font-bold lowercase transition
+                                              active:scale-95
+                                              disabled:opacity-50`,
+                                            sureUndoId === p.id
+                                              ? `bg-linear-to-br from-orange-400
+                                                to-orange-500 text-white
+                                                shadow-sm shadow-orange-500/25`
+                                              : `border border-orange-300/70
+                                                bg-transparent
+                                                text-orange-700/80
+                                                hover:bg-orange-500/10
+                                                dark:border-orange-400/30
+                                                dark:text-orange-300/80`,
+                                          )}
+                                        >
+                                          <Undo2 className="size-3" />
+                                          {sureUndoId === p.id
+                                            ? "sure?"
+                                            : "undo"}
+                                        </button>
+                                      )}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+                      )}
 
                     <div className="mt-2.5 flex items-center gap-2">
                       {isPaid ? (
@@ -792,9 +1055,9 @@ export function ScheduleCheckDialog({
                                 [
                                   "partial",
                                   "Partial",
-                                  `bg-linear-to-br from-violet-400 to-violet-500
-                                    text-white shadow-sm shadow-violet-500/25`,
-                                  `border border-violet-300/70 bg-transparent text-violet-700/80 hover:bg-violet-500/10 dark:border-violet-400/30 dark:text-violet-300/80`,
+                                  `bg-linear-to-br from-[#9784d8] to-[#7a66c0]
+                                    text-white shadow-sm shadow-[#7a66c0]/25`,
+                                  `border border-[#9784d8]/40 bg-transparent text-[#7a66c0] hover:bg-[#9784d8]/10 dark:border-[#a99ad6]/30 dark:text-[#a99ad6]`,
                                 ],
                               ] as const
                             ).map(([value, label, on, idle]) => (
@@ -802,11 +1065,14 @@ export function ScheduleCheckDialog({
                                 key={value}
                                 type="button"
                                 aria-pressed={chosen === value}
-                                onClick={() =>
+                                onClick={() => {
                                   setChoice(row.id, {
                                     status: chosen === value ? null : value,
-                                  })
-                                }
+                                  });
+                                  if (value === "partial" && chosen !== value) {
+                                    setFocusId(row.id);
+                                  }
+                                }}
                                 className={cn(
                                   `rounded-full text-sm font-bold lowercase
                                     transition-all duration-200
@@ -862,8 +1128,9 @@ export function ScheduleCheckDialog({
                             type="text"
                             inputMode="decimal"
                             placeholder="0"
+                            id={`partial-amount-${row.id}`}
                             aria-label="Amount paid"
-                            autoFocus
+                            autoFocus={focusId === row.id}
                             autoComplete="off"
                             onFocus={(e) => e.currentTarget.select()}
                             value={formatAmount(choice?.amount ?? "")}
@@ -912,15 +1179,25 @@ export function ScheduleCheckDialog({
                                 className={cn(
                                   `h-8 rounded-full text-xs font-bold lowercase
                                     transition active:scale-95`,
-                                  picked
-                                    ? `bg-linear-to-br from-violet-400
-                                      to-violet-600 text-white shadow-sm
-                                      shadow-violet-500/25`
-                                    : `border border-violet-300/70
-                                      bg-transparent text-violet-700/80
-                                      hover:bg-violet-500/10
-                                      dark:border-violet-400/30
-                                      dark:text-violet-300/80`,
+                                  pct === 100
+                                    ? picked
+                                      ? `bg-linear-to-br from-emerald-400
+                                        to-emerald-500 text-white shadow-sm
+                                        shadow-emerald-500/25`
+                                      : `border border-emerald-300/70
+                                        bg-transparent text-emerald-700/80
+                                        hover:bg-emerald-500/10
+                                        dark:border-emerald-400/30
+                                        dark:text-emerald-300/80`
+                                    : picked
+                                      ? `bg-linear-to-br from-[#9784d8]
+                                        to-[#7a66c0] text-white shadow-sm
+                                        shadow-[#7a66c0]/25`
+                                      : `border border-[#9784d8]/40
+                                        bg-transparent text-[#7a66c0]
+                                        hover:bg-[#9784d8]/10
+                                        dark:border-[#a99ad6]/30
+                                        dark:text-[#a99ad6]`,
                                 )}
                               >
                                 {label}
@@ -928,6 +1205,49 @@ export function ScheduleCheckDialog({
                             );
                           })}
                         </div>
+                        {(() => {
+                          const typed = Number.parseFloat(
+                            choice?.amount || "0",
+                          );
+                          const ok = Number.isFinite(typed) && typed > 0;
+                          const shown = Math.min(
+                            Math.round(typed * 100) / 100,
+                            remaining,
+                          );
+                          // The whole balance settles it: pay in full, in green.
+                          const isFull = ok && typed >= remaining;
+                          return (
+                            <button
+                              type="button"
+                              disabled={!ok || busyId !== null}
+                              onClick={() => void addNow(row)}
+                              className={cn(
+                                `mt-2 flex h-10 w-full items-center
+                                  justify-center gap-1.5 rounded-full bg-linear-to-br
+                                  text-sm font-bold text-white lowercase shadow-sm
+                                  transition active:scale-[0.98] disabled:opacity-40`,
+                                isFull
+                                  ? "from-emerald-400 to-emerald-500 shadow-emerald-500/25"
+                                  : "from-[#9784d8] to-[#7a66c0] shadow-[#7a66c0]/25",
+                              )}
+                            >
+                              {isFull ? (
+                                <Check className="size-4" strokeWidth={3} />
+                              ) : (
+                                <Plus className="size-4" strokeWidth={3} />
+                              )}
+                              {busyId === row.id
+                                ? isFull
+                                  ? "paying…"
+                                  : "adding…"
+                                : isFull
+                                  ? `pay full ₱${shown.toLocaleString()}`
+                                  : ok
+                                    ? `add ₱${shown.toLocaleString()} now`
+                                    : "add now"}
+                            </button>
+                          );
+                        })()}
                       </>
                     )}
                   </li>

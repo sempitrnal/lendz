@@ -138,10 +138,13 @@ export function Header({
   const relative = relativeDayLabel(date, today);
   // The headline and its bar are today's own schedules; what is carried over
   // from earlier days has a line of its own.
+  // Everything paid on the day, whichever day it was due.
+  const collectedDay = summary.today.collected + summary.carried.collected;
+  // How much of the day's list is collected: paid that day, against that and
+  // everything still open (today's and carried over).
+  const dayTotal = collectedDay + summary.today.left + summary.carried.left;
   const progress =
-    summary.today.due > 0
-      ? Math.min(100, (summary.today.collected / summary.today.due) * 100)
-      : 0;
+    dayTotal > 0 ? Math.min(100, (collectedDay / dayTotal) * 100) : 0;
   const dayWord = date === today ? "today" : "this day";
   const carriedOpen = summary.carried.count - summary.carried.done;
   /** The lines under the headline: carried over, then early and late. */
@@ -151,12 +154,10 @@ export function Header({
         className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold
           tabular-nums"
       >
-        <span>{peso(summary.today.collected)} collected</span>
+        <span>{peso(collectedDay)} collected</span>
         {summary.carried.left > 0 ? (
           <span className="text-amber-200">
             {peso(summary.carried.left)} carried over · {carriedOpen} left
-            {summary.carried.collected > 0 &&
-              ` · ${peso(summary.carried.collected)} collected`}
           </span>
         ) : (
           <span className="opacity-80">nothing carried over</span>

@@ -58,6 +58,7 @@ function buildLine(
   line: CollectionRowLine,
   ticked: boolean,
   schedules?: Map<string, ScheduleDialogRow>,
+  dayPaid?: ReadonlyMap<string, number> | null,
 ): RowLine {
   const row = schedules?.get(line.id);
   let state: LineState;
@@ -96,7 +97,10 @@ function buildLine(
       row?.principal_share === undefined
         ? null
         : paidProfit(
-            amountPaidOnInstallment(row),
+            // Only what was paid on the viewed day, once that is known.
+            dayPaid
+              ? (dayPaid.get(line.id) ?? 0)
+              : amountPaidOnInstallment(row),
             Number(row.amount_due),
             row.principal_share,
           ),
@@ -115,6 +119,8 @@ function buildLine(
 export function buildRowView(
   item: DailyChecklistItem,
   schedules?: Map<string, ScheduleDialogRow>,
+  /** What each schedule was paid on the viewed day; null while it loads. */
+  dayPaid?: ReadonlyMap<string, number> | null,
 ): RowView {
   const model = collectionRowModel(item.label, item.checklist_date);
   if (!model) {
@@ -133,7 +139,7 @@ export function buildRowView(
   }
 
   const lines = model.lines.map((l) =>
-    buildLine(l, item.is_checked, schedules),
+    buildLine(l, item.is_checked, schedules, dayPaid),
   );
   const left = cents(lines.reduce((sum, l) => sum + l.left, 0));
   const status: RowStatus = lines.every((l) => l.state === "paid")

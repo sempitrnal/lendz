@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  dayProfit,
+  dayPaymentsProfit,
   principalShare,
   type AccountTerms,
 } from "@/lib/checklist/profit";
@@ -19,13 +19,17 @@ type DayPayment = {
   schedule_id: string;
   amount: number | null;
   created_at: string | null;
-  payment_schedules: Embedded<{ accounts: Embedded<AccountTerms> }>;
+  payment_schedules: Embedded<{
+    amount_due: number | null;
+    accounts: Embedded<AccountTerms>;
+  }>;
 };
 
 /**
- * Profit collected on `date`: what the payments made that day add beyond each
- * schedule's principal share, whichever day the schedule was due. A partial
- * payment's profit lands on the day it was paid, not on later days. Null until
+ * Profit collected on `date`: only the payments made that day, each carrying
+ * its installment's share of profit in proportion to the amount paid,
+ * whichever day the schedule was due. A partial payment's profit lands on the
+ * day it was paid, not on later days. Null until
  * it loads, and while offline with nothing saved.
  */
 export function useDayProfit(date: string): number | null {
@@ -35,7 +39,7 @@ export function useDayProfit(date: string): number | null {
       const today = await supabase
         .from("schedule_payments")
         .select(
-          "id, schedule_id, amount, created_at, payment_schedules!inner(accounts!inner(principal_amount, term_months, payment_frequency, term_installments, schedule_mode, deleted_at))",
+          "id, schedule_id, amount, created_at, payment_schedules!inner(amount_due, accounts!inner(principal_amount, term_months, payment_frequency, term_installments, schedule_mode, deleted_at))",
         )
         .eq("payment_date", date)
         .is("payment_schedules.accounts.deleted_at", null)
@@ -44,37 +48,25 @@ export function useDayProfit(date: string): number | null {
       const payments = (today.data ?? []) as unknown as DayPayment[];
       if (payments.length === 0) return 0;
 
-      const ids = [...new Set(payments.map((p) => p.schedule_id))];
-      const earlier = await supabase
-        .from("schedule_payments")
-        .select("schedule_id, amount")
-        .in("schedule_id", ids)
-        .lt("payment_date", date)
-        .range(0, 9999);
-      if (earlier.error) throw new Error(earlier.error.message);
-
-      const before = new Map<string, number>();
-      for (const p of earlier.data ?? []) {
-        const id = String(p.schedule_id);
-        before.set(id, (before.get(id) ?? 0) + Number(p.amount ?? 0));
-      }
-      const shares = new Map<string, number>();
+      // Only the payments made that day count, each in proportion to what
+      // its installment earns: earlier payments don't change it.
+      const terms = new Map<string, { due: number; share: number }>();
       for (const p of payments) {
-        const account = one(one(p.payment_schedules)?.accounts ?? null);
-        if (account) shares.set(p.schedule_id, principalShare(account));
+        const schedule = one(p.payment_schedules);
+        const account = one(schedule?.accounts ?? null);
+        if (account) {
+          terms.set(p.schedule_id, {
+            due: Number(schedule?.amount_due ?? 0),
+            share: principalShare(account),
+          });
+        }
       }
-      const ordered = [...payments].sort(
-        (a, b) =>
-          (a.created_at ?? "").localeCompare(b.created_at ?? "") ||
-          a.id.localeCompare(b.id),
-      );
-      return dayProfit(
-        ordered.map((p) => ({
+      return dayPaymentsProfit(
+        payments.map((p) => ({
           scheduleId: p.schedule_id,
           amount: Number(p.amount ?? 0),
         })),
-        before,
-        shares,
+        terms,
       );
     },
     staleTime: 30_000,
