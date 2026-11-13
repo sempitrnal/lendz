@@ -1,5 +1,6 @@
 "use client";
 
+import { announceNavigation } from "@/lib/nav-splash";
 import { groupColorStyle, headerStyle } from "@/lib/checklist/group-color";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -73,18 +74,23 @@ export function ReleaseList({
   );
 
   return (
-    <div className="mt-3 space-y-3">
+    <div className="mt-3 space-y-3 px-2 lg:px-3">
       {views.length === 0 ? (
-        <p className="px-3 py-10 text-center text-sm text-muted-foreground">
+        <p className="py-10 text-center text-sm text-muted-foreground">
           No releases on this day yet. Add one with New release.
         </p>
       ) : (
-        <section className="overflow-hidden border-y border-border bg-card">
+        <section className="space-y-3">
           {groups.map((g) => {
             const isCollapsed = collapsed.has(g.key);
             const done = g.rows.filter((v) => v.item.is_checked).length;
             return (
-              <div key={g.key} style={groupColorStyle(g.color)}>
+              <div
+                key={g.key}
+                style={groupColorStyle(g.color)}
+                className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1
+                  ring-black/5 dark:ring-white/10"
+              >
                 <button
                   type="button"
                   onClick={() => toggle(g.key)}
@@ -155,14 +161,14 @@ export function ReleaseList({
       <Button
         variant="outline"
         data-tour="release-new"
-        className="mx-3 h-11 w-[calc(100%-1.5rem)] gap-2"
+        className="h-11 w-full gap-2 rounded-2xl"
         disabled={disabled}
         onClick={onNewRelease}
       >
         <HandCoins className="size-4" />
         New release
       </Button>
-      <p className="px-3 pt-2 text-center text-xs text-muted-foreground">
+      <p className="pt-2 text-center text-xs text-muted-foreground">
         Typed notes are read for you: amount, term and dates fill the form.
       </p>
       <Link
@@ -231,8 +237,11 @@ function ReleaseRow({
     if (state !== "created") return;
     if ((event.target as Element).closest("button, a")) return;
     void createdAccountPath(view).then(
-      (path) => router.push(path),
-      () => view.borrowerId && router.push(`/borrowers/${view.borrowerId}`),
+      (path) => (announceNavigation(path), router.push(path)),
+      () =>
+        view.borrowerId &&
+        (announceNavigation(`/borrowers/${view.borrowerId}`),
+        router.push(`/borrowers/${view.borrowerId}`)),
     );
   };
 
@@ -245,13 +254,15 @@ function ReleaseRow({
         `flex items-center gap-3 border-b border-border px-4 py-3
         transition-colors duration-700 motion-reduce:transition-none
         last:border-b-0`,
-        highlight ? "bg-primary/5" : "bg-[color-mix(in_srgb,var(--grp,var(--card))_6%,var(--card))]",
+        highlight
+          ? "bg-primary/5"
+          : "bg-[color-mix(in_srgb,var(--grp,var(--card))_6%,var(--card))]",
       )}
     >
       <div className="min-w-0 flex-1" data-tour="release-row">
         <p
           className={cn(
-            "truncate text-[15px] font-bold lowercase",
+            "text-[15px] font-bold break-words lowercase",
             plainDone && "text-muted-foreground line-through",
           )}
         >

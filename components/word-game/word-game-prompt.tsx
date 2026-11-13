@@ -1,5 +1,6 @@
 "use client";
 
+import { announceNavigation } from "@/lib/nav-splash";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Puzzle } from "lucide-react";
@@ -82,7 +83,7 @@ export function WordGamePrompt() {
             type="button"
             onClick={() => {
               setOpen(false);
-              router.push("/word-game");
+              (announceNavigation("/word-game"), router.push("/word-game"));
             }}
             className="h-11 flex-1 rounded-xl bg-emerald-600 text-sm font-bold
               text-white active:bg-emerald-700"

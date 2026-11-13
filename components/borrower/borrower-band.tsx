@@ -331,16 +331,15 @@ export function BorrowerBand({
       <div
         ref={slab}
         data-settle-group="band"
-        className="sticky z-0 -mx-4 overflow-hidden px-4 text-onpage sm:relative
-          sm:mx-0 sm:overflow-visible sm:px-5 sm:pt-5"
+        className="sticky z-0 -mx-4 overflow-hidden text-onpage sm:relative
+          sm:overflow-visible"
         style={{ top: BAR_PX - 300 }}
       >
         <div
           aria-hidden="true"
           data-nav-band
           className="absolute inset-0 rounded-b-3xl
-            bg-[linear-gradient(to_bottom,var(--page-1),var(--page-2))]
-            sm:rounded-3xl"
+            bg-[linear-gradient(to_bottom,var(--page-1),var(--page-2))]"
         />
         <div
           aria-hidden="true"
@@ -350,7 +349,8 @@ export function BorrowerBand({
         />
         <div
           ref={body}
-          className="relative origin-top pb-12 will-change-transform sm:pb-20"
+          className="relative mx-auto max-w-2xl md:max-w-6xl origin-top px-4
+            pb-12 will-change-transform sm:px-5 sm:pt-5 sm:pb-20"
         >
           {/* Wider screens have no top bar to dock into: the name sits here. */}
           <div className="mb-5 hidden sm:block">

@@ -1,5 +1,6 @@
 "use client";
 
+import { paidDay } from "@/lib/paid-day";
 import { Sheet } from "@/components/dashboard/checklist-v2/sheet";
 import { formatPeso } from "@/lib/dashboard-data";
 import { HIDDEN_AMOUNT } from "@/lib/hide-amounts";
@@ -173,8 +174,8 @@ export function NotDueSheet({
                             className="text-xs font-semibold
                               text-muted-foreground"
                           >
-                            paid {short(p.paidDate)} · due {short(p.dueDate)} ·{" "}
-                            {mask(formatPeso(p.amount))}
+                            paid {paidDay(p.paidDate, short)} · due{" "}
+                            {short(p.dueDate)} · {mask(formatPeso(p.amount))}
                           </p>
                         </div>
                         <p

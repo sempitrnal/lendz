@@ -1,7 +1,11 @@
 import { useSyncExternalStore } from "react";
 
-/** Wide enough to show Collect and Release side by side: tablets and up. */
-const WIDE_QUERY = "(min-width: 768px)";
+/**
+ * Wide enough to show Collect and Release side by side: laptops and up. A
+ * tablet has the sidebar beside the page, which leaves each list too narrow
+ * for its cards, so it keeps the phone's one list at a time.
+ */
+const WIDE_QUERY = "(min-width: 1024px)";
 
 function subscribe(onChange: () => void) {
   const query = window.matchMedia(WIDE_QUERY);

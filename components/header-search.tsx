@@ -1,5 +1,6 @@
 "use client";
 
+import { announceNavigation } from "@/lib/nav-splash";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, Search, X, XCircle } from "lucide-react";
@@ -121,7 +122,8 @@ export default function HeaderSearch({
     setInput("");
     setDebouncedQuery("");
     inputRef.current?.blur();
-    router.push(`/borrowers/${borrower.id}`);
+    (announceNavigation(`/borrowers/${borrower.id}`),
+      router.push(`/borrowers/${borrower.id}`));
   }
 
   return (

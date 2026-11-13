@@ -1,5 +1,6 @@
 "use client";
 
+import { paidDay } from "@/lib/paid-day";
 import {
   Fragment,
   useMemo,
@@ -28,6 +29,8 @@ import {
   ScheduleTimelineItem,
   type ScheduleState,
 } from "./schedule-timeline-item";
+import { ScheduleLedger } from "./schedule-ledger";
+import { TABLET_PX, useMinWidth } from "@/lib/hooks/use-min-width";
 
 function formatMoney(value: number) {
   return `₱${value.toLocaleString()}`;
@@ -183,6 +186,7 @@ export function ScheduleTimeline({
   }
   const [hide] = useHideAmounts();
   const mask = (text: string) => (hide ? HIDDEN_AMOUNT : text);
+  const roomy = useMinWidth(TABLET_PX);
   const total = all.length;
   // "Next up" is the first pending schedule; overdue ones have their own section.
   const nextIndex = all.findIndex((s) => s.status === "pending");
@@ -225,7 +229,8 @@ export function ScheduleTimeline({
   // The first one that needs you opens by itself, with its buttons showing.
   const firstOpenId = openRows[0]?.s.id;
 
-  function renderItem(schedule: PaymentScheduleRow, i: number, isLast = false) {
+  /** Everything one installment shows, for the rail and for the ledger. */
+  function describe(schedule: PaymentScheduleRow, i: number) {
     const state = schedule.status as ScheduleState;
     const isNext = i === nextIndex;
     const paid = amountPaidOnInstallment(schedule);
@@ -249,7 +254,7 @@ export function ScheduleTimeline({
     let subTone: "slate" | "emerald" | "amber" | "rose" = "slate";
     if (schedule.status === "paid") {
       const paidOn = schedule.paid_date ?? schedule.due_date;
-      subLabel = `paid ${formatDate(paidOn)}`;
+      subLabel = `paid ${paidDay(paidOn, formatDate)}`;
       subTone = "emerald";
       if (schedule.paid_date && schedule.paid_date !== schedule.due_date) {
         const diff = daysBetween(schedule.due_date, schedule.paid_date);
@@ -268,6 +273,15 @@ export function ScheduleTimeline({
       } else {
         subLabel = `due in ${until} day${until === 1 ? "" : "s"}`;
       }
+      // A part-paid installment says when the last part was paid.
+      if (schedule.status === "partial") {
+        const last = (optimistic.paymentsMap[schedule.id] ?? [])
+          .map((p) => p.payment_date)
+          .filter((d): d is string => !!d)
+          .sort()
+          .pop();
+        if (last) subLabel += ` · last paid ${paidDay(last, formatDate)}`;
+      }
     }
 
     const actions = (
@@ -281,6 +295,7 @@ export function ScheduleTimeline({
           applyPartialPayment={applyPartialPayment}
           borrowerId={borrowerId}
           onOptimisticUpdate={addOptimistic}
+          remaining={remaining}
         />
         <ScheduleDeleteButton
           scheduleId={schedule.id}
@@ -306,6 +321,7 @@ export function ScheduleTimeline({
               dueDate={schedule.due_date}
               borrowerId={borrowerId}
               onOptimisticUpdate={addOptimistic}
+              remaining={remaining}
             />
           ) : null}
           {payments.length > 0 ? (
@@ -318,36 +334,53 @@ export function ScheduleTimeline({
         </div>
       ) : undefined;
 
+    return {
+      state,
+      isNext,
+      paid,
+      due,
+      remaining,
+      pct,
+      rollingInterestLabel,
+      subLabel,
+      subTone,
+      actions,
+      history,
+    };
+  }
+
+  function renderItem(schedule: PaymentScheduleRow, i: number, isLast = false) {
+    const d = describe(schedule, i);
     return (
       <ScheduleTimelineItem
         key={schedule.id}
         scheduleId={schedule.id}
-        id={isNext ? "next-schedule" : undefined}
+        id={d.isNext ? "next-schedule" : undefined}
         number={i + 1}
         total={total}
-        isNext={isNext}
+        isNext={d.isNext}
         defaultOpen={
           schedule.id === firstOpenId || focusScheduleId === schedule.id
         }
         isLast={isLast}
-        state={state}
+        state={d.state}
         dueDate={schedule.due_date}
-        amountLabel={mask(formatMoney(due))}
-        subLabel={subLabel}
-        subTone={subTone}
-        rollingInterestLabel={rollingInterestLabel}
+        amountLabel={mask(formatMoney(d.due))}
+        subLabel={d.subLabel}
+        subTone={d.subTone}
+        rollingInterestLabel={d.rollingInterestLabel}
         partial={
           schedule.status === "partial"
             ? {
-                paidLabel: mask(formatMoney(paid)),
-                leftLabel: mask(formatMoney(remaining)),
-                pct,
+                paidLabel: mask(formatMoney(d.paid)),
+                leftLabel: mask(formatMoney(d.remaining)),
+                pct: d.pct,
               }
             : undefined
         }
         note={schedule.note}
-        actions={actions}
-        history={history}
+        actions={d.actions}
+        history={d.history}
         onDelete={() => handleDelete(schedule.id)}
       />
     );
@@ -385,6 +418,37 @@ export function ScheduleTimeline({
     paidOpen && visibleOpen.length === 0 && paidRows.length > 0
       ? paidRows[paidRows.length - 1].s
       : null;
+
+  // A tablet or a laptop gets the schedule as a ledger table instead of the
+  // rail: every installment in view, its actions opening under its own row.
+  if (roomy) {
+    return (
+      <ScheduleLedger
+        rows={all.map((s, i) => {
+          const d = describe(s, i);
+          return {
+            id: s.id,
+            number: i + 1,
+            dueDate: s.due_date,
+            paidDate: s.paid_date,
+            note: s.note,
+            state: d.state,
+            isNext: d.isNext,
+            due: d.due,
+            paid: d.paid,
+            remaining: d.remaining,
+            subLabel: d.subLabel,
+            subTone: d.subTone,
+            rollingInterestLabel: d.rollingInterestLabel,
+            actions: d.actions,
+            history: d.history,
+          };
+        })}
+        openId={focusScheduleId ?? firstOpenId}
+        mask={mask}
+      />
+    );
+  }
 
   return (
     <div

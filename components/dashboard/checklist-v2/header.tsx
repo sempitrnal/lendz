@@ -48,7 +48,20 @@ const FILTERS: [ChecklistFilter, string][] = [
   ["paid", "Paid"],
 ];
 
+/** One slice of the day: today's own schedules, or the carried-over ones. */
+export type SummarySlice = {
+  left: number;
+  due: number;
+  collected: number;
+  done: number;
+  count: number;
+};
+
 export type HeaderSummary = {
+  /** Today's schedules; the headline figure and progress are this slice. */
+  today: SummarySlice;
+  /** Schedules carried over from earlier days. */
+  carried: SummarySlice;
   left: number;
   leftToday: number;
   leftCarried: number;
@@ -86,6 +99,7 @@ export function Header({
   monthProfit,
   dayProfit,
   releaseProgress,
+  timing,
 }: {
   date: string;
   today: string;
@@ -117,13 +131,50 @@ export function Header({
   dayProfit: number | null;
   /** Releases created so far, of the day's parsed ones. */
   releaseProgress: { created: number; total: number };
+  /** The day's early and late payments, worded; null each with none. */
+  timing: { early: string | null; late: string | null };
 }) {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const relative = relativeDayLabel(date, today);
+  // The headline and its bar are today's own schedules; what is carried over
+  // from earlier days has a line of its own.
   const progress =
-    summary.due > 0
-      ? Math.min(100, (summary.collected / summary.due) * 100)
+    summary.today.due > 0
+      ? Math.min(100, (summary.today.collected / summary.today.due) * 100)
       : 0;
+  const dayWord = date === today ? "today" : "this day";
+  const carriedOpen = summary.carried.count - summary.carried.done;
+  /** The lines under the headline: carried over, then early and late. */
+  const detailLines = (
+    <>
+      <div
+        className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold
+          tabular-nums"
+      >
+        <span>{peso(summary.today.collected)} collected</span>
+        {summary.carried.left > 0 ? (
+          <span className="text-amber-200">
+            {peso(summary.carried.left)} carried over · {carriedOpen} left
+            {summary.carried.collected > 0 &&
+              ` · ${peso(summary.carried.collected)} collected`}
+          </span>
+        ) : (
+          <span className="opacity-80">nothing carried over</span>
+        )}
+      </div>
+      {(timing.early || timing.late) && (
+        <div
+          className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold
+            tabular-nums"
+        >
+          {timing.early && (
+            <span className="text-emerald-100">{timing.early}</span>
+          )}
+          {timing.late && <span className="text-rose-200">{timing.late}</span>}
+        </div>
+      )}
+    </>
+  );
 
   const releasePercent =
     releaseProgress.total > 0
@@ -290,265 +341,268 @@ export function Header({
             need to sit above (search dropdown, buttons) carry z-20. */}
         <div
           data-settle-group="band"
-          className="relative -mt-16 px-4 pt-[4.75rem] pb-14 text-white sm:mt-0
-            sm:pt-4"
+          className="relative -mt-16 text-white sm:-mt-6 md:mt-0"
         >
           <div
             aria-hidden="true"
             data-nav-band
             className="band-bg absolute inset-0 rounded-b-3xl"
           />
-          <div className="relative z-20 flex items-center justify-between
-            sm:mt-0">
-            <div
-              data-tour="checklist-date"
-              className="relative flex min-w-0 items-center gap-0.5"
-            >
-              <button
-                type="button"
-                aria-label="Previous day"
-                onClick={() => onDateChange(shiftDateValue(date, -1))}
-                className="-ml-2 flex size-9 shrink-0 items-center
-                  justify-center rounded-full active:bg-white/15"
-              >
-                <ChevronLeft className="size-5" />
-              </button>
-              <div className="relative min-w-0">
-                <button
-                  type="button"
-                  aria-label={`${headerDate(date, today)}${
-                    relative ? ` (${relative})` : ""
-                  }, pick a date`}
-                  onClick={openDatePicker}
-                  className="flex min-w-0 items-center gap-1.5 rounded-lg px-1
-                    py-1"
-                >
-                  <span
-                    className="truncate text-xs font-bold tracking-wider
-                      uppercase"
-                  >
-                    {headerDate(date, today)}
-                  </span>
-                  {relative && (
-                    <span
-                      className="shrink-0 rounded-full bg-white/20 px-2 py-0.5
-                        text-[11px] font-semibold"
-                    >
-                      {relative}
-                    </span>
-                  )}
-                </button>
-                <input
-                  ref={dateInputRef}
-                  type="date"
-                  value={date}
-                  onChange={(e) => {
-                    if (e.target.value) onDateChange(e.target.value);
-                  }}
-                  onClick={(e) => {
-                    try {
-                      e.currentTarget.showPicker();
-                    } catch {
-                      // Already open, or not supported: the tap did its job.
-                    }
-                  }}
-                  tabIndex={-1}
-                  aria-hidden
-                  className="absolute inset-0 h-full w-full cursor-pointer
-                    opacity-0"
-                />
-              </div>
-              <button
-                type="button"
-                aria-label="Next day"
-                onClick={() => onDateChange(shiftDateValue(date, 1))}
-                className="flex size-9 shrink-0 items-center justify-center
-                  rounded-full active:bg-white/15"
-              >
-                <ChevronRight className="size-5" />
-              </button>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {tab === "collect" && (
-                <button
-                  type="button"
-                  data-tour="checklist-menu"
-                  onClick={onMenu}
-                  disabled={loading}
-                  aria-label={`${date === today ? "Today's" : "This day's"} list options`}
-                  className={cn(bandButton, "bg-white/20")}
-                >
-                  <MoreHorizontal className="size-5" />
-                </button>
-              )}
-              <button
-                type="button"
-                data-tour="checklist-add"
-                onClick={() => onAdd(tab)}
-                disabled={loading}
-                aria-label={tab === "release" ? "Add a release" : "Add an item"}
-                className={cn(
-                  bandButton,
-                  "bg-white text-emerald-600 shadow-sm",
-                )}
-              >
-                <Plus className="size-5" />
-              </button>
-            </div>
-          </div>
-
-          {date !== today && (
-            <button
-              type="button"
-              onClick={() => onDateChange(today)}
-              className="relative z-20 mt-1 text-xs font-bold text-white
-                underline underline-offset-2"
-            >
-              Back to today
-            </button>
-          )}
-
+          {/* Full bleed at every width; the content keeps a phone's width. */}
           <div
-            className="relative z-20 mt-4 min-h-[8.75rem]"
-            data-tour={tab === "collect" ? "checklist-summary" : undefined}
+            className="relative mx-auto max-w-md px-4 pt-[4.75rem] pb-14
+              sm:pt-4"
           >
-            {tab === "collect" ? (
-              <>
-                {loading ? (
-                  <div className="space-y-2" aria-busy="true">
-                    <span className="sr-only">Loading the day</span>
+            <div
+              className="relative z-20 flex items-center justify-between
+                sm:mt-0"
+            >
+              <div
+                data-tour="checklist-date"
+                className="relative flex min-w-0 items-center gap-0.5"
+              >
+                <button
+                  type="button"
+                  aria-label="Previous day"
+                  onClick={() => onDateChange(shiftDateValue(date, -1))}
+                  className="-ml-2 flex size-9 shrink-0 items-center
+                    justify-center rounded-full active:bg-white/15"
+                >
+                  <ChevronLeft className="size-5" />
+                </button>
+                <div className="relative min-w-0">
+                  <button
+                    type="button"
+                    aria-label={`${headerDate(date, today)}${
+                      relative ? ` (${relative})` : ""
+                    }, pick a date`}
+                    onClick={openDatePicker}
+                    className="flex min-w-0 items-center gap-1.5 rounded-lg px-1
+                      py-1"
+                  >
                     <span
-                      className="block h-10 w-48 animate-pulse rounded-lg
-                        bg-white/25"
-                      aria-hidden="true"
-                    />
-                    <span
-                      className="block h-2 animate-pulse rounded-full
-                        bg-white/20"
-                      aria-hidden="true"
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-baseline gap-2">
+                      className="truncate text-xs font-bold tracking-wider
+                        uppercase"
+                    >
+                      {headerDate(date, today)}
+                    </span>
+                    {relative && (
                       <span
-                        className="text-4xl font-bold tracking-tight
-                          tabular-nums"
+                        className="shrink-0 rounded-full bg-white/20 px-2 py-0.5
+                          text-[11px] font-semibold"
                       >
-                        {peso(summary.left)}
+                        {relative}
                       </span>
-                      <span className="text-sm font-semibold opacity-80">
-                        left
-                      </span>
+                    )}
+                  </button>
+                  <input
+                    ref={dateInputRef}
+                    type="date"
+                    value={date}
+                    onChange={(e) => {
+                      if (e.target.value) onDateChange(e.target.value);
+                    }}
+                    onClick={(e) => {
+                      try {
+                        e.currentTarget.showPicker();
+                      } catch {
+                        // Already open, or not supported: the tap did its job.
+                      }
+                    }}
+                    tabIndex={-1}
+                    aria-hidden
+                    className="absolute inset-0 h-full w-full cursor-pointer
+                      opacity-0"
+                  />
+                </div>
+                <button
+                  type="button"
+                  aria-label="Next day"
+                  onClick={() => onDateChange(shiftDateValue(date, 1))}
+                  className="flex size-9 shrink-0 items-center justify-center
+                    rounded-full active:bg-white/15"
+                >
+                  <ChevronRight className="size-5" />
+                </button>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {tab === "collect" && (
+                  <button
+                    type="button"
+                    data-tour="checklist-menu"
+                    onClick={onMenu}
+                    disabled={loading}
+                    aria-label={`${date === today ? "Today's" : "This day's"} list options`}
+                    className={cn(bandButton, "bg-white/20")}
+                  >
+                    <MoreHorizontal className="size-5" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  data-tour="checklist-add"
+                  onClick={() => onAdd(tab)}
+                  disabled={loading}
+                  aria-label={
+                    tab === "release" ? "Add a release" : "Add an item"
+                  }
+                  className={cn(
+                    bandButton,
+                    "bg-white text-emerald-600 shadow-sm",
+                  )}
+                >
+                  <Plus className="size-5" />
+                </button>
+              </div>
+            </div>
+
+            {date !== today && (
+              <button
+                type="button"
+                onClick={() => onDateChange(today)}
+                className="relative z-20 mt-1 text-xs font-bold text-white
+                  underline underline-offset-2"
+              >
+                Back to today
+              </button>
+            )}
+
+            <div
+              className="relative z-20 mt-4 min-h-[8.75rem]"
+              data-tour={tab === "collect" ? "checklist-summary" : undefined}
+            >
+              {tab === "collect" ? (
+                <>
+                  {loading ? (
+                    <div className="space-y-2" aria-busy="true">
+                      <span className="sr-only">Loading the day</span>
+                      <span
+                        className="block h-10 w-48 animate-pulse rounded-lg
+                          bg-white/25"
+                        aria-hidden="true"
+                      />
+                      <span
+                        className="block h-2 animate-pulse rounded-full
+                          bg-white/20"
+                        aria-hidden="true"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-baseline gap-2">
+                        <span
+                          className="text-4xl font-bold tracking-tight
+                            tabular-nums"
+                        >
+                          {peso(summary.today.left)}
+                        </span>
+                        <span className="text-sm font-semibold opacity-80">
+                          left {dayWord}
+                        </span>
+                        <span
+                          className="ml-auto text-sm font-semibold tabular-nums
+                            opacity-90"
+                        >
+                          {summary.today.done}/{summary.today.count} paid
+                        </span>
+                      </div>
+                      <div
+                        className="mt-3 h-2 overflow-hidden rounded-full
+                          bg-white/25"
+                        role="progressbar"
+                        aria-label="Collected"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(progress)}
+                      >
+                        <div
+                          className="h-full rounded-full bg-white transition-all
+                            duration-500"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      {detailLines}
+                      <div
+                        className="mt-3 inline-flex flex-wrap items-center
+                          gap-x-1.5 rounded-full bg-white/20 px-3 py-1 text-xs
+                          font-bold tabular-nums"
+                      >
+                        <span>{peso(dayProfit ?? summary.profit)} profit</span>
+                        {monthProfit !== null && (
+                          <span className="opacity-80">
+                            · {peso(monthProfit)} {monthLabel(date, today)}
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : loading ? (
+                <div className="space-y-2" aria-busy="true">
+                  <span className="sr-only">Loading the day</span>
+                  <span
+                    className="block h-10 w-48 animate-pulse rounded-lg
+                      bg-white/25"
+                    aria-hidden="true"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      className="text-4xl font-bold tracking-tight tabular-nums"
+                    >
+                      {peso(releaseTotal)}
+                    </span>
+                    <span className="text-sm font-semibold opacity-80">
+                      {releasedDayText(date === today)}
+                    </span>
+                    {releaseProgress.total > 0 && (
                       <span
                         className="ml-auto text-sm font-semibold tabular-nums
                           opacity-90"
                       >
-                        {summary.done}/{summary.count} paid
+                        {releaseProgress.created}/{releaseProgress.total}{" "}
+                        created
                       </span>
-                    </div>
-                    <div
-                      className="mt-3 h-2 overflow-hidden rounded-full
-                        bg-white/25"
-                      role="progressbar"
-                      aria-label="Collected"
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={Math.round(progress)}
-                    >
-                      <div
-                        className="h-full rounded-full bg-white transition-all
-                          duration-500"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <div
-                      className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs
-                        font-semibold tabular-nums"
-                    >
-                      <span>{peso(summary.collected)} collected</span>
-                      <span>
-                        {peso(summary.leftToday)}{" "}
-                        {date === today ? "due today" : "due this day"}
-                      </span>
-                      {summary.leftCarried > 0 && (
-                        <span className="text-amber-200">
-                          {peso(summary.leftCarried)} carried over
-                        </span>
-                      )}
-                    </div>
-                    <div
-                      className="mt-3 inline-flex flex-wrap items-center
-                        gap-x-1.5 rounded-full bg-white/20 px-3 py-1 text-xs
-                        font-bold tabular-nums"
-                    >
-                      <span>{peso(dayProfit ?? summary.profit)} profit</span>
-                      {monthProfit !== null && (
-                        <span className="opacity-80">
-                          · {peso(monthProfit)} {monthLabel(date, today)}
-                        </span>
-                      )}
-                    </div>
-                  </>
-                )}
-              </>
-            ) : loading ? (
-              <div className="space-y-2" aria-busy="true">
-                <span className="sr-only">Loading the day</span>
-                <span
-                  className="block h-10 w-48 animate-pulse rounded-lg
-                    bg-white/25"
-                  aria-hidden="true"
-                />
-              </div>
-            ) : (
-              <>
-                <div className="flex items-baseline gap-2">
-                  <span
-                    className="text-4xl font-bold tracking-tight tabular-nums"
-                  >
-                    {peso(releaseTotal)}
-                  </span>
-                  <span className="text-sm font-semibold opacity-80">
-                    {releasedDayText(date === today)}
-                  </span>
-                  {releaseProgress.total > 0 && (
-                    <span
-                      className="ml-auto text-sm font-semibold tabular-nums
-                        opacity-90"
-                    >
-                      {releaseProgress.created}/{releaseProgress.total} created
-                    </span>
-                  )}
-                </div>
-                <div
-                  className="mt-3 h-2 overflow-hidden rounded-full bg-white/25"
-                  role="progressbar"
-                  aria-label="Created"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={releasePercent}
-                >
+                    )}
+                  </div>
                   <div
-                    className="h-full rounded-full bg-white transition-all
-                      duration-500"
-                    style={{ width: `${releasePercent}%` }}
-                  />
-                </div>
-                <p className="mt-2 truncate text-xs font-semibold">
-                  {releaseHintLines(releaseCount, date === today)[0]}
-                </p>
-                <p className="mt-0.5 truncate text-xs font-semibold opacity-80">
-                  {releaseHintLines(releaseCount, date === today)[1]}
-                </p>
-              </>
-            )}
+                    className="mt-3 h-2 overflow-hidden rounded-full
+                      bg-white/25"
+                    role="progressbar"
+                    aria-label="Created"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={releasePercent}
+                  >
+                    <div
+                      className="h-full rounded-full bg-white transition-all
+                        duration-500"
+                      style={{ width: `${releasePercent}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 truncate text-xs font-semibold">
+                    {releaseHintLines(releaseCount, date === today)[0]}
+                  </p>
+                  <p
+                    className="mt-0.5 truncate text-xs font-semibold opacity-80"
+                  >
+                    {releaseHintLines(releaseCount, date === today)[1]}
+                  </p>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
         {/* The tab switch and filters float on a card over the band's edge and
             stay put under the screen's top as the list scrolls. */}
-        <div data-settle className="sticky top-2 z-20 -mt-8 px-4 sm:top-[66px]">
+        <div
+          data-settle
+          className="sticky top-2 z-20 mx-auto -mt-8 max-w-md px-4
+            sm:top-[66px]"
+        >
           <div
             className="space-y-3 rounded-2xl bg-card p-3 shadow-sm ring-1
               ring-black/5 dark:ring-white/10"
@@ -628,295 +682,300 @@ export function Header({
 
   return (
     <>
-      <div className={cn("pt-3", !wide && "px-4")}>
+      {/* The green band, as on a phone: the date row, then both lists' figures
+          side by side on glass panels. The toolbars float over its lower
+          edge. */}
+      <div data-settle-group="band" className="relative text-white">
         <div
-          className={cn("flex items-center justify-between", wide && "px-4")}
-        >
+          aria-hidden="true"
+          data-nav-band
+          className="band-bg absolute inset-0 rounded-b-3xl"
+        />
+        <div className="relative mx-auto max-w-7xl px-2 pt-3 pb-12 lg:px-3">
           <div
-            data-tour="checklist-date"
-            className="relative flex min-w-0 items-center gap-0.5"
+            className={cn(
+              "relative z-10 flex items-center justify-between",
+              wide && "px-4",
+            )}
           >
-            <button
-              type="button"
-              aria-label="Previous day"
-              onClick={() => onDateChange(shiftDateValue(date, -1))}
-              className="-ml-2 flex size-9 shrink-0 items-center justify-center
-                rounded-full text-muted-foreground active:bg-muted"
+            <div
+              data-tour="checklist-date"
+              className="relative flex min-w-0 items-center gap-0.5"
             >
-              <ChevronLeft className="size-5" />
-            </button>
-            {/* The real date input sits invisibly over the label, so a tap
+              <button
+                type="button"
+                aria-label="Previous day"
+                onClick={() => onDateChange(shiftDateValue(date, -1))}
+                className="-ml-2 flex size-9 shrink-0 items-center
+                  justify-center rounded-full active:bg-white/15"
+              >
+                <ChevronLeft className="size-5" />
+              </button>
+              {/* The real date input sits invisibly over the label, so a tap
                 lands on it: the phone's own picker opens on every browser
                 (a script can't open one from a 1px hidden input on iOS). The
                 button underneath is for keyboards and screen readers. */}
-            <div className="relative min-w-0">
+              <div className="relative min-w-0">
+                <button
+                  type="button"
+                  aria-label={`${headerDate(date, today)}${
+                    relative ? ` (${relative})` : ""
+                  }, pick a date`}
+                  onClick={openDatePicker}
+                  className="flex min-w-0 items-center gap-1.5 rounded-lg px-1
+                    py-1"
+                >
+                  <span
+                    className="truncate text-xs font-bold tracking-wider
+                      uppercase"
+                  >
+                    {headerDate(date, today)}
+                  </span>
+                  {relative && (
+                    <span
+                      className="shrink-0 rounded-full bg-white/20 px-2 py-0.5
+                        text-[11px] font-semibold"
+                    >
+                      {relative}
+                    </span>
+                  )}
+                </button>
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={date}
+                  onChange={(e) => {
+                    if (e.target.value) onDateChange(e.target.value);
+                  }}
+                  // Desktop browsers only open the picker from the icon; ask.
+                  onClick={(e) => {
+                    try {
+                      e.currentTarget.showPicker();
+                    } catch {
+                      // Already open, or not supported: the tap did its job.
+                    }
+                  }}
+                  tabIndex={-1}
+                  aria-hidden
+                  className="absolute inset-0 h-full w-full cursor-pointer
+                    opacity-0"
+                />
+              </div>
               <button
                 type="button"
-                aria-label={`${headerDate(date, today)}${
-                  relative ? ` (${relative})` : ""
-                }, pick a date`}
-                onClick={openDatePicker}
-                className="flex min-w-0 items-center gap-1.5 rounded-lg px-1
-                  py-1"
+                aria-label="Next day"
+                onClick={() => onDateChange(shiftDateValue(date, 1))}
+                className="flex size-9 shrink-0 items-center justify-center
+                  rounded-full active:bg-white/15"
               >
-                <span
-                  className="truncate text-xs font-semibold tracking-wider
-                    text-muted-foreground uppercase"
-                >
-                  {headerDate(date, today)}
-                </span>
-                {relative && (
-                  <span
-                    className="shrink-0 rounded-full bg-muted px-2 py-0.5
-                      text-[11px] font-semibold text-muted-foreground"
-                  >
-                    {relative}
-                  </span>
-                )}
+                <ChevronRight className="size-5" />
               </button>
-              <input
-                ref={dateInputRef}
-                type="date"
-                value={date}
-                onChange={(e) => {
-                  if (e.target.value) onDateChange(e.target.value);
-                }}
-                // Desktop browsers only open the picker from the icon; ask.
-                onClick={(e) => {
-                  try {
-                    e.currentTarget.showPicker();
-                  } catch {
-                    // Already open, or not supported: the tap did its job.
-                  }
-                }}
-                tabIndex={-1}
-                aria-hidden
-                className="absolute inset-0 h-full w-full cursor-pointer
-                  opacity-0"
-              />
             </div>
-            <button
-              type="button"
-              aria-label="Next day"
-              onClick={() => onDateChange(shiftDateValue(date, 1))}
-              className="flex size-9 shrink-0 items-center justify-center
-                rounded-full text-muted-foreground active:bg-muted"
-            >
-              <ChevronRight className="size-5" />
-            </button>
-          </div>
-          {/* 36px buttons with 44px tap areas (4px around each border box,
+            {/* 36px buttons with 44px tap areas (4px around each border box,
               meeting in the 8px gap; the bordered one measures from inside
               its 1px border, hence 5px). Side by side, each list has its own
               beside its title. */}
-          {!wide && (
-            <div className="flex shrink-0 items-center gap-2">
-              {tab === "collect" && menuButton}
-              {addButton(tab)}
-            </div>
-          )}
-        </div>
+            {!wide && (
+              <div className="flex shrink-0 items-center gap-2">
+                {tab === "collect" && menuButton}
+                {addButton(tab)}
+              </div>
+            )}
+          </div>
 
-        {date !== today && (
-          <button
-            type="button"
-            onClick={() => onDateChange(today)}
+          {date !== today && (
+            <button
+              type="button"
+              onClick={() => onDateChange(today)}
+              className={cn(
+                `relative z-10 mt-1 text-xs font-bold text-white underline
+                underline-offset-2`,
+                wide && "mx-4",
+              )}
+            >
+              Back to today
+            </button>
+          )}
+
+          <div
             className={cn(
-              "mt-1 text-xs font-semibold text-primary",
-              wide && "mx-4",
+              // Side by side, each list's figures sit on a glass panel.
+              wide &&
+                `relative z-10 grid grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]
+                gap-4 lg:gap-6 [&>*]:rounded-2xl [&>*]:bg-white/12 [&>*]:p-3
+                lg:[&>*]:p-4`,
             )}
           >
-            Back to today
-          </button>
-        )}
-
-        <div
-          className={cn(
-            wide && "grid grid-cols-2 divide-x divide-border [&>*]:px-4",
-          )}
-        >
-          {showCollect && (
-            <div className="mt-2" data-tour="checklist-summary">
-              {loading ? (
-                <div className="flex items-center gap-2" aria-busy="true">
-                  <span className="sr-only">Loading the day</span>
-                  <span
-                    className="h-9 w-32 animate-pulse rounded-lg bg-muted"
-                    aria-hidden="true"
-                  />
-                  <span
-                    className="ml-auto h-4 w-16 animate-pulse rounded
-                      bg-muted/70"
-                    aria-hidden="true"
-                  />
-                </div>
-              ) : (
-                <div className="flex items-baseline gap-2">
-                  <span
-                    className="text-3xl font-semibold tracking-tight
-                      tabular-nums"
-                  >
-                    {peso(summary.left)}
-                  </span>
-                  <span className="text-sm text-muted-foreground">left</span>
-                  <span
-                    className="ml-auto text-sm text-muted-foreground
-                      tabular-nums"
-                  >
-                    {summary.done}/{summary.count} paid
-                  </span>
-                </div>
-              )}
-
-              <div
-                className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary"
-                role="progressbar"
-                aria-label="Collected"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={loading ? undefined : Math.round(progress)}
-              >
-                <div
-                  className="h-full rounded-full bg-primary transition-all
-                    duration-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              {/* Due today and carried over, apart. The Release block below keeps
-                a blank line of the same height so switching tabs doesn't move. */}
-              <div
-                className="mt-1 flex h-4 items-center gap-3 text-xs tabular-nums
-                  text-muted-foreground"
-              >
+            {showCollect && (
+              <div className="mt-2" data-tour="checklist-summary">
                 {loading ? (
-                  <span
-                    className="h-3 w-40 animate-pulse rounded bg-muted/70"
-                    aria-hidden="true"
-                  />
+                  <div className="flex items-center gap-2" aria-busy="true">
+                    <span className="sr-only">Loading the day</span>
+                    <span
+                      className="h-9 w-32 animate-pulse rounded-lg bg-white/25"
+                      aria-hidden="true"
+                    />
+                    <span
+                      className="ml-auto h-4 w-16 animate-pulse rounded
+                        bg-white/20"
+                      aria-hidden="true"
+                    />
+                  </div>
                 ) : (
-                  <div className="font-medium flex gap-2">
-                    <span>
-                      <span className="font-semibold">
-                        {peso(summary.leftToday)}
-                      </span>{" "}
-                      {date === today ? "due today" : "due this day"}
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      className="text-3xl font-semibold tracking-tight
+                        tabular-nums"
+                    >
+                      {peso(summary.today.left)}
                     </span>
-                    {summary.leftCarried > 0 && (
-                      <span className="text-amber-700 dark:text-amber-400">
-                        <span className="font-semibold">
-                          {peso(summary.leftCarried)}
+                    <span className="text-sm font-semibold opacity-80">
+                      left {dayWord}
+                    </span>
+                    <span
+                      className="ml-auto text-sm font-semibold tabular-nums
+                        opacity-90"
+                    >
+                      {summary.today.done}/{summary.today.count} paid
+                    </span>
+                  </div>
+                )}
+
+                <div
+                  className="mt-2 h-1.5 overflow-hidden rounded-full
+                    bg-white/25"
+                  role="progressbar"
+                  aria-label="Collected"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={loading ? undefined : Math.round(progress)}
+                >
+                  <div
+                    className="h-full rounded-full bg-white transition-all
+                      duration-500"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                {loading ? (
+                  <div className="mt-2 space-y-1.5" aria-hidden="true">
+                    <span
+                      className="block h-3 w-44 animate-pulse rounded
+                        bg-white/20"
+                    />
+                    <span
+                      className="block h-3 w-32 animate-pulse rounded
+                        bg-white/20"
+                    />
+                  </div>
+                ) : (
+                  detailLines
+                )}
+                <div
+                  className="mt-1 flex min-h-4 items-center text-xs
+                    tabular-nums"
+                >
+                  {loading ? (
+                    <span
+                      className="h-3 w-28 animate-pulse rounded bg-white/20"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <span className="flex gap-3 font-semibold">
+                      <span>
+                        <span className="font-black">
+                          {peso(dayProfit ?? summary.profit)}
                         </span>{" "}
-                        carried over
+                        profit collected
+                      </span>
+                      {monthProfit !== null && (
+                        <span>
+                          <span className="font-extrabold">
+                            {peso(monthProfit)}
+                          </span>{" "}
+                          {monthLabel(date, today)}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            {showRelease && (
+              // Same height as the Collect block (the figure, then the progress
+              // bar's row), so switching tabs doesn't move the list.
+              <div className="mt-2">
+                {loading ? (
+                  <div className="flex items-center gap-2" aria-busy="true">
+                    <span className="sr-only">Loading the day</span>
+                    <span
+                      className="h-9 w-32 animate-pulse rounded-lg bg-white/25"
+                      aria-hidden="true"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      className="text-3xl font-semibold tracking-tight
+                        tabular-nums"
+                    >
+                      {peso(releaseTotal)}
+                    </span>
+                    <span className="text-sm font-semibold opacity-80">
+                      {releasedDayText(date === today)}
+                    </span>
+                    {releaseProgress.total > 0 && (
+                      <span
+                        className="ml-auto text-sm font-semibold tabular-nums
+                          opacity-90"
+                      >
+                        {releaseProgress.created}/{releaseProgress.total}{" "}
+                        created
                       </span>
                     )}
                   </div>
                 )}
-              </div>
-              <div
-                className="mt-0.5 flex h-4 items-center text-xs tabular-nums
-                  text-muted-foreground"
-              >
-                {loading ? (
-                  <span
-                    className="h-3 w-28 animate-pulse rounded bg-muted/70"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <span
-                    className="flex gap-3 font-semibold text-emerald-700
-                      dark:text-emerald-400"
-                  >
-                    <span>
-                      <span className="font-black">
-                        {peso(dayProfit ?? summary.profit)}
-                      </span>{" "}
-                      profit collected
-                    </span>
-                    {monthProfit !== null && (
-                      <span>
-                        <span className="font-extrabold">
-                          {peso(monthProfit)}
-                        </span>{" "}
-                        {monthLabel(date, today)}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-          {showRelease && (
-            // Same height as the Collect block (the figure, then the progress
-            // bar's row), so switching tabs doesn't move the list.
-            <div className="mt-2">
-              {loading ? (
-                <div className="flex items-center gap-2" aria-busy="true">
-                  <span className="sr-only">Loading the day</span>
-                  <span
-                    className="h-9 w-32 animate-pulse rounded-lg bg-muted"
-                    aria-hidden="true"
-                  />
-                </div>
-              ) : (
-                <div className="flex items-baseline gap-2">
-                  <span
-                    className="text-3xl font-semibold tracking-tight
-                      tabular-nums"
-                  >
-                    {peso(releaseTotal)}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {releasedDayText(date === today)}
-                  </span>
-                  {releaseProgress.total > 0 && (
-                    <span
-                      className="ml-auto text-sm text-muted-foreground
-                        tabular-nums"
-                    >
-                      {releaseProgress.created}/{releaseProgress.total} created
-                    </span>
-                  )}
-                </div>
-              )}
-              {/* Two lines, the height of Collect's breakdown and profit lines, so
+                {/* Two lines, the height of Collect's breakdown and profit lines, so
                 switching tabs doesn't move the list. */}
-              <p
-                className="mt-1 h-4 truncate text-xs font-semibold
-                  text-muted-foreground"
-              >
-                {!loading && releaseHintLines(releaseCount, date === today)[0]}
-              </p>
-              <p
-                className="mt-0.5 h-4 truncate text-xs font-semibold
-                  text-muted-foreground"
-              >
-                {!loading && releaseHintLines(releaseCount, date === today)[1]}
-              </p>
-              <div
-                className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary"
-                role="progressbar"
-                aria-label="Created"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={loading ? undefined : releasePercent}
-              >
+                <p className="mt-1 h-4 truncate text-xs font-semibold">
+                  {!loading &&
+                    releaseHintLines(releaseCount, date === today)[0]}
+                </p>
+                <p
+                  className="mt-0.5 h-4 truncate text-xs font-semibold
+                    opacity-80"
+                >
+                  {!loading &&
+                    releaseHintLines(releaseCount, date === today)[1]}
+                </p>
                 <div
-                  className="h-full rounded-full bg-primary transition-all
-                    duration-500"
-                  style={{ width: `${releasePercent}%` }}
-                />
+                  className="mt-2 h-1.5 overflow-hidden rounded-full
+                    bg-white/25"
+                  role="progressbar"
+                  aria-label="Created"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={loading ? undefined : releasePercent}
+                >
+                  <div
+                    className="h-full rounded-full bg-white transition-all
+                      duration-500"
+                    style={{ width: `${releasePercent}%` }}
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
       {/* Sticks under the mobile top bar (4rem) or the site header (66px). */}
       {wide ? (
         <div
-          className="sticky top-16 z-20 sm:top-[66px] mt-3 grid grid-cols-2
-            divide-x divide-border border-b border-border bg-background
-            [&>*]:px-4 [&>*]:py-2.5"
+          className="sticky top-16 z-20 mx-auto -mt-8 grid max-w-7xl
+            grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] items-start gap-4 px-2
+            py-2 lg:gap-6 lg:px-3 sm:top-[66px] [&>*]:rounded-2xl [&>*]:bg-card
+            [&>*]:px-4 [&>*]:py-2.5 [&>*]:shadow-sm [&>*]:ring-1
+            [&>*]:ring-black/5 dark:[&>*]:ring-white/10"
         >
           <div className="min-w-0 space-y-2">
             <div className="flex items-center justify-between gap-3">

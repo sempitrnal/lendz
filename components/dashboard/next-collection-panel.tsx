@@ -1,5 +1,6 @@
 "use client";
 
+import { announceNavigation } from "@/lib/nav-splash";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition, type SyntheticEvent } from "react";
@@ -42,7 +43,8 @@ export default function NextCollectionPanel({
   const goToBorrower = (borrowerId: string) => {
     setNavigatingBorrowerId(borrowerId);
     startNavigationTransition(() => {
-      router.push(`/borrowers/${borrowerId}`);
+      (announceNavigation(`/borrowers/${borrowerId}`),
+        router.push(`/borrowers/${borrowerId}`));
     });
   };
 
@@ -239,8 +241,8 @@ export default function NextCollectionPanel({
                             ? `cursor-pointer outline-none focus-visible:ring-2
                               focus-visible:ring-slate-900
                               focus-visible:ring-offset-2 ${
-                              isOpening ? "cursor-wait opacity-80" : ""
-                            }`
+                                isOpening ? "cursor-wait opacity-80" : ""
+                              }`
                             : ""
                         }`}
                     >

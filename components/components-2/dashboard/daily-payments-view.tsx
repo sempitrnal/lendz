@@ -292,41 +292,46 @@ export function DailyPaymentsView({
             description="nothing was paid on this day."
           />
         ) : (
-          groups.map((group) => (
-            <section
-              key={group.name}
-              aria-label={group.name}
-              className="rounded-2xl bg-card p-2 shadow-sm ring-1 ring-black/5
-                dark:ring-white/10"
-            >
-              <div className="flex items-center justify-between gap-2 px-2 pt-1">
-                <p
-                  className="flex min-w-0 items-center gap-1.5 text-xs font-bold
-                    text-muted-foreground"
+          // Laptop and up: the groups flow into two or three columns.
+          <div className="space-y-3 lg:columns-2 lg:gap-3 2xl:columns-3">
+            {groups.map((group) => (
+              <section
+                key={group.name}
+                aria-label={group.name}
+                className="rounded-2xl bg-card p-2 shadow-sm ring-1 ring-black/5
+                  lg:break-inside-avoid dark:ring-white/10"
+              >
+                <div
+                  className="flex items-center justify-between gap-2 px-2 pt-1"
                 >
-                  <span
-                    aria-hidden="true"
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: group.color ?? "#94a3b8" }}
-                  />
-                  <span className="truncate">{group.name}</span>
-                </p>
-                <p
-                  className="shrink-0 text-xs font-bold text-muted-foreground
-                    tabular-nums"
-                >
-                  {mask(formatPeso(group.collected))}
-                </p>
-              </div>
-              <ul className="divide-y divide-border/70">
-                {byBorrower(group.payments).map((borrower) => (
-                  <li key={borrower.key}>
-                    <BorrowerRow group={borrower} mask={mask} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))
+                  <p
+                    className="flex min-w-0 items-center gap-1.5 text-xs
+                      font-bold text-muted-foreground"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: group.color ?? "#94a3b8" }}
+                    />
+                    <span className="truncate">{group.name}</span>
+                  </p>
+                  <p
+                    className="shrink-0 text-xs font-bold text-muted-foreground
+                      tabular-nums"
+                  >
+                    {mask(formatPeso(group.collected))}
+                  </p>
+                </div>
+                <ul className="divide-y divide-border/70">
+                  {byBorrower(group.payments).map((borrower) => (
+                    <li key={borrower.key}>
+                      <BorrowerRow group={borrower} mask={mask} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
         )}
       </div>
     </div>

@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
 } from "react";
 import { m, useAnimationControls, type TapInfo } from "motion/react";
 import { Check, ChevronDown, CloudUpload, NotebookPen } from "lucide-react";
@@ -24,7 +25,6 @@ import {
   useSchedulePayments,
   type SchedulePayment,
 } from "@/components/dashboard/checklist-v2/use-schedule-payments";
-import { chipClass } from "@/components/dashboard/checklist/dom";
 import { totalProfit } from "@/lib/checklist/profit";
 import { showsPartial } from "@/lib/checklist/partial-display";
 import { ProfitText } from "@/components/dashboard/checklist/profit-text";
@@ -40,11 +40,13 @@ const SPRING = { type: "spring", stiffness: 500, damping: 40 } as const;
  * A borrower's name as the old checklist's pill: tinted with the group's
  * category colour (`--grp`, set by the list), sky when it has none.
  */
-export const namePillClass = `inline-block max-w-full min-w-0 truncate
+// The whole name always shows: a long one wraps onto a second line instead of
+// being cut off.
+export const namePillClass = `inline-block max-w-full min-w-0 break-words
   rounded-md border border-[var(--grp-border,color-mix(in_srgb,var(--grp,#0ea5e9)_30%,transparent))]
   dark:border-[color-mix(in_srgb,var(--grp,#0ea5e9)_30%,transparent)]
   bg-[color-mix(in_srgb,var(--grp,#0ea5e9)_12%,transparent)] px-2.5 py-1
-  text-sm leading-none font-extrabold text-slate-600 lowercase
+  text-sm leading-[1.15] font-extrabold text-slate-600 lowercase
   dark:text-slate-200 mb-1`;
 
 export const kindLabel = (type: string) =>
@@ -66,7 +68,20 @@ export const paidSoFar = (row: RowView) =>
 export const originalTotal = (row: RowView) =>
   Math.round(row.lines.reduce((sum, l) => sum + l.original, 0) * 100) / 100;
 
-/** The muted second line of a collection row, per the spec's row table. */
+/** "oct 23 – dec 8", or one date when they are all the same day. */
+function dueRange(lines: { due_date: string }[]) {
+  const days = lines.map((l) => l.due_date.slice(0, 10)).sort();
+  const word = (d: string) => formatShortDate(d).toLowerCase();
+  const first = word(days[0]);
+  const last = word(days[days.length - 1]);
+  return first === last ? first : `${first} – ${last}`;
+}
+
+/**
+ * What a collection row says about itself. Under the name: when it is due, how
+ * late, and what kind it is, then what was paid. The profit goes with the
+ * amount on the right.
+ */
 function subline(row: RowView): {
   text: string;
   /** Days late, shown as the overdue pill after the text. */
@@ -74,6 +89,16 @@ function subline(row: RowView): {
   /** The installment types shown after the text: the one open schedule's, or
    * every schedule's on a paid row. */
   kinds?: string[];
+  /** A parent row of several schedules: more about what it holds. */
+  multi?: {
+    /** "oct 23 – dec 8": the span of the open schedules' due dates. */
+    range: string;
+    /** How many of the open schedules are overdue. */
+    overdue: number;
+    /** Schedules already paid, of all the row's. */
+    paid: number;
+    total: number;
+  };
   /**
    * Nothing paid yet: what the open schedules earn once paid (`expected`).
    * Anything paid: the profit in what has been paid so far.
@@ -92,10 +117,20 @@ function subline(row: RowView): {
   if (row.status === "paid") {
     return {
       // One schedule: its due date (the payment date is on the line below).
+      // Several: how many, and the span they were due over.
       text:
         row.lines.length === 1
-          ? formatShortDate(row.lines[0].due_date).toLowerCase()
-          : "",
+          ? `due ${formatShortDate(row.lines[0].due_date).toLowerCase()}`
+          : `${row.lines.length} paid`,
+      multi:
+        row.lines.length > 1
+          ? {
+              range: dueRange(row.lines),
+              overdue: 0,
+              paid: row.lines.length,
+              total: row.lines.length,
+            }
+          : undefined,
       kinds: [...new Set(row.lines.map((l) => l.type))],
       ...profit,
     };
@@ -104,13 +139,20 @@ function subline(row: RowView): {
     return {
       text: `${open.length} due`,
       lateDays: row.lateDays > 0 ? row.lateDays : undefined,
+      kinds: [...new Set(open.map((l) => l.type))],
+      multi: {
+        range: dueRange(open),
+        overdue: open.filter((l) => l.overdue).length,
+        paid: row.lines.length - open.length,
+        total: row.lines.length,
+      },
       ...profit,
     };
   }
   const line = open[0];
   const due = formatShortDate(line.due_date).toLowerCase();
   return {
-    text: due,
+    text: `due ${due}`,
     lateDays: line.overdue ? line.daysOverdue : undefined,
     kinds: [line.type],
     ...profit,
@@ -185,6 +227,7 @@ export function CollectRow({
   const done = isNote ? row.item.is_checked : row.status === "paid";
   const open = openLines(row);
   const multi = !isNote && open.length > 1;
+  const sub = isNote ? null : subline(row);
   // Several schedules on one borrower: the row expands to list every one,
   // paid ones included, so a paid schedule can be tapped to edit it. A row
   // that is all paid expands too, so its schedules can be seen one by one.
@@ -358,6 +401,7 @@ export function CollectRow({
                 done={done}
                 waiting={waiting}
                 onNameClick={onNameClick}
+                paid={partialShown ? paidSoFar(row) : undefined}
               />
               {expandable && (
                 <button
@@ -379,16 +423,15 @@ export function CollectRow({
                 </button>
               )}
               <span className="shrink-0 text-right">
+                {/* Only the figures sit here, so the name keeps the width. What
+                    was paid so far is a badge under the name. */}
                 {partialShown && (
-                  <span className="flex items-center justify-end">
-                    <PaidBadge amount={paidSoFar(row)} />
-                    <span
-                      className="ml-1.5 text-[11px] tabular-nums leading-tight
-                        text-muted-foreground line-through"
-                      aria-label={`Original ${peso(originalTotal(row))}`}
-                    >
-                      {peso(originalTotal(row))}
-                    </span>
+                  <span
+                    className="block text-[11px] leading-tight
+                      text-muted-foreground tabular-nums line-through"
+                    aria-label={`Original ${peso(originalTotal(row))}`}
+                  >
+                    {peso(originalTotal(row))}
                   </span>
                 )}
                 <span
@@ -402,6 +445,15 @@ export function CollectRow({
                 >
                   {peso(done ? row.total : row.left)}
                 </span>
+                {/* Money stays together: the profit sits under the amount. */}
+                <ProfitText
+                  amount={sub?.profit}
+                  expected={sub?.expected}
+                  className={cn(
+                    "block text-[11px] leading-tight",
+                    done && "opacity-55",
+                  )}
+                />
               </span>
               {done ? (
                 <button
@@ -518,12 +570,15 @@ function RowText({
   done,
   waiting,
   onNameClick,
+  paid,
 }: {
   row: RowView;
   name: string;
   done: boolean;
   waiting: boolean;
   onNameClick(event: ReactMouseEvent<HTMLAnchorElement>): void;
+  /** Part-paid: the amount recorded so far, shown as a badge. */
+  paid?: number;
 }) {
   const sub = subline(row);
   const borrowerId = row.model?.borrower?.id ?? null;
@@ -532,9 +587,32 @@ function RowText({
   const hasPayment =
     !!single && (single.state === "paid" || single.recorded > 0);
   const payments = useSchedulePayments(single ? [single.id] : [], hasPayment);
+  const facts: ReactNode[] = [];
+  if (sub.text) facts.push(sub.text);
+  // A parent of several schedules: the span they cover, then how many are
+  // overdue (the oldest by how much), and how many are already paid.
+  if (sub.multi && sub.multi.range) facts.push(sub.multi.range);
+  if (sub.lateDays !== undefined) {
+    facts.push(
+      <LateText
+        days={sub.lateDays}
+        count={sub.multi && sub.multi.overdue > 1 ? sub.multi.overdue : 0}
+      />,
+    );
+  }
+  if (sub.multi && sub.multi.paid > 0 && sub.multi.paid < sub.multi.total) {
+    facts.push(
+      <span className="text-emerald-700 dark:text-emerald-400">
+        {sub.multi.paid} of {sub.multi.total} paid
+      </span>,
+    );
+  }
+  for (const type of sub.kinds ?? []) {
+    facts.push(<KindBadge type={type} compact />);
+  }
   return (
     <div className={cn("min-w-0 flex-1", done && "opacity-55")}>
-      <p className="flex min-w-0 items-center gap-1.5">
+      <p className="flex min-w-0 items-start gap-1.5">
         {borrowerId ? (
           <Link
             href={`/borrowers/${borrowerId}`}
@@ -556,33 +634,51 @@ function RowText({
         )}
         {waiting && <WaitingIcon />}
       </p>
-      <p
-        className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5
-          text-[10px] font-semibold text-muted-foreground"
-      >
-        {sub.text}
-        {sub.lateDays !== undefined && <LatePill days={sub.lateDays} />}
-        {sub.kinds?.map((type) => (
-          <KindBadge key={type} type={type} compact />
-        ))}
-        <ProfitText amount={sub.profit} expected={sub.expected} />
-      </p>
-      {single && hasPayment && (
+      {/* One line, always in the same order: due, how late, kind. */}
+      {facts.length > 0 && (
+        <p
+          className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5
+            text-[10px] font-semibold text-muted-foreground"
+        >
+          {facts.map((fact, i) => (
+            <span key={i} className="flex items-center gap-x-1.5">
+              {i > 0 && (
+                <span aria-hidden="true" className="opacity-50">
+                  ·
+                </span>
+              )}
+              {fact}
+            </span>
+          ))}
+        </p>
+      )}
+      {/* Then what was paid: the payment dates of a single schedule, or the
+          amount so far across several. */}
+      {single && hasPayment ? (
         <PaymentHistory
           payments={payments?.[single.id]}
           dueDate={single.due_date}
         />
+      ) : (
+        paid !== undefined && (
+          <p className="mt-0.5 leading-none">
+            <PaidBadge amount={paid} className="ml-0" />
+          </p>
+        )
       )}
     </div>
   );
 }
 
-/** The old checklist's overdue pill. */
-function LatePill({ days }: { days: number }) {
+/** "14d late" in red: how overdue a row is, as plain text on its line. */
+function LateText({ days, count = 0 }: { days: number; count?: number }) {
   const { short, spoken } = lateLabel(days);
   return (
-    <span className={cn(chipClass("overdue"), "font-bold")} aria-label={spoken}>
-      {short}
+    <span
+      className="font-bold text-rose-600 dark:text-rose-400"
+      aria-label={count > 1 ? `${count} overdue, oldest ${spoken}` : spoken}
+    >
+      {count > 1 ? `${count} overdue · oldest ${short}` : `${short} late`}
     </span>
   );
 }
@@ -619,12 +715,21 @@ export function KindBadge({
 }
 
 /** Part-paid: what has been recorded so far. */
-export function PaidBadge({ amount }: { amount: number }) {
+export function PaidBadge({
+  amount,
+  className,
+}: {
+  amount: number;
+  className?: string;
+}) {
   return (
     <span
-      className="ml-1.5 inline-block rounded-full bg-violet-500/8 px-1
-        align-middle text-[9px] leading-4 font-semibold tracking-wide
-        text-violet-900 lowercase dark:bg-violet-400/10 dark:text-violet-200"
+      className={cn(
+        `ml-1.5 inline-block rounded-full bg-violet-500/8 px-1 align-middle
+        text-[9px] leading-4 font-semibold tracking-wide text-violet-900
+        lowercase dark:bg-violet-400/10 dark:text-violet-200`,
+        className,
+      )}
     >
       {peso(amount)} paid
     </span>
@@ -662,6 +767,7 @@ function LineItem({
 }) {
   const paid = line.state === "paid";
   const due = formatShortDate(line.due_date).toLowerCase();
+  const partPaid = line.state === "partial" && showPartial;
   return (
     <div
       className="flex items-center gap-3 border-b border-border py-2
@@ -680,32 +786,49 @@ function LineItem({
               <KindBadge type={line.type} />
             )}
           </p>
-          <p
-            className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5
-              text-[10px] font-semibold text-muted-foreground"
-          >
-            {!grouped && due}
-            {line.overdue && <LatePill days={line.daysOverdue} />}
-            <ProfitText {...lineProfit(line, showPartial)} />
-          </p>
-          <PaymentHistory payments={payments} dueDate={line.due_date} />
+          {/* The same order as the row above: due, how late, then what was
+              paid. The profit is under the amount. */}
+          {(!grouped || line.overdue) && (
+            <p
+              className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5
+                text-[10px] font-semibold text-muted-foreground"
+            >
+              {!grouped && `due ${due}`}
+              {!grouped && line.overdue && (
+                <span aria-hidden="true" className="opacity-50">
+                  ·
+                </span>
+              )}
+              {line.overdue && <LateText days={line.daysOverdue} />}
+            </p>
+          )}
+          {payments && payments.length > 0 ? (
+            <PaymentHistory payments={payments} dueDate={line.due_date} />
+          ) : (
+            partPaid && (
+              <p className="mt-0.5 leading-none">
+                <PaidBadge amount={line.recorded} className="ml-0" />
+              </p>
+            )
+          )}
         </div>
         <span className="shrink-0 text-right">
-          {line.state === "partial" && showPartial && (
-            <span className="flex items-center justify-end">
-              <PaidBadge amount={line.recorded} />
-              <span
-                className="ml-1.5 text-xs leading-tight font-bold tabular-nums
-                  text-muted-foreground line-through"
-                aria-label={`Original ${peso(line.original)}`}
-              >
-                {peso(line.original)}
-              </span>
+          {partPaid && (
+            <span
+              className="block text-[11px] leading-tight text-muted-foreground
+                tabular-nums line-through"
+              aria-label={`Original ${peso(line.original)}`}
+            >
+              {peso(line.original)}
             </span>
           )}
-          <span className="block text-sm text-zinc-600 font-black tabular-nums">
+          <span className="block text-sm font-black text-zinc-600 tabular-nums">
             {peso(paid ? line.amount : line.left)}
           </span>
+          <ProfitText
+            {...lineProfit(line, showPartial)}
+            className="block text-[11px] leading-tight"
+          />
         </span>
       </button>
       <button

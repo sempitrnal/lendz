@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Undo2 } from "lucide-react";
+import { Check, HandCoins, Landmark, Undo2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { cleanAmount, formatAmount } from "@/components/payment-fields";
 import { cn } from "@/lib/utils";
 import { ProfitText } from "@/components/dashboard/checklist/profit-text";
 import { installmentProfit } from "@/lib/checklist/profit";
@@ -186,16 +187,30 @@ export function AccountSummaryHeader({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <span
-          className={`rounded-full px-2 py-0.5 text-[11px] font-bold lowercase
-            ${
-              summary.isCashAdvance
-                ? `bg-yellow-400/30 text-yellow-800 dark:bg-yellow-400/15
-                  dark:text-yellow-300`
-                : "bg-violet-500/15 text-[#7354a0] dark:text-[#d9cfe6]"
-            }`}
-        >
-          {summary.typeLabel}
+        <span className="flex min-w-0 items-center gap-2">
+          <span
+            aria-hidden="true"
+            className={`flex size-8 shrink-0 items-center justify-center
+              rounded-full ${
+                summary.isCashAdvance
+                  ? `bg-amber-100 text-amber-700 dark:bg-amber-500/20
+                    dark:text-amber-300`
+                  : `bg-violet-100 text-violet-700 dark:bg-violet-500/20
+                    dark:text-violet-300`
+              }`}
+          >
+            {summary.isCashAdvance ? (
+              <HandCoins className="size-4" />
+            ) : (
+              <Landmark className="size-4" />
+            )}
+          </span>
+          <span
+            className="truncate text-sm font-black text-card-foreground/80
+              lowercase"
+          >
+            {summary.typeLabel}
+          </span>
         </span>
         {summary.installmentCount > 0 && (
           <span
@@ -212,7 +227,7 @@ export function AccountSummaryHeader({
         )}
       </div>
       <div
-        className="flex h-2 overflow-hidden rounded-full bg-muted"
+        className="flex h-2.5 overflow-hidden rounded-full bg-muted"
         role="progressbar"
         aria-valuenow={pct}
         aria-valuemin={0}
@@ -464,10 +479,11 @@ export function ScheduleCheckDialog({
       <span
         aria-hidden="true"
         style={{ "--cat": borrowerColor ?? "#94a3b8" } as React.CSSProperties}
-        className="flex size-12 shrink-0 items-center justify-center rounded-2xl
-          bg-[color-mix(in_oklab,var(--cat)_22%,var(--card))] text-base
-          font-black text-[color-mix(in_oklab,var(--cat)_45%,var(--foreground))]
-          ring-1 ring-black/5 ring-inset dark:ring-white/10"
+        className="flex size-12 shrink-0 items-center justify-center
+          rounded-full bg-[color-mix(in_oklab,var(--cat)_22%,var(--card))]
+          text-base font-black
+          text-[color-mix(in_oklab,var(--cat)_45%,var(--foreground))] ring-1
+          ring-black/5 ring-inset dark:ring-white/10"
       >
         {initials || "₱"}
       </span>
@@ -511,7 +527,7 @@ export function ScheduleCheckDialog({
       </>
     );
 
-  /** The left mark for an installment: its state at a glance. */
+  /** A small gradient marker for an installment's state; the words say the rest. */
   const stateMark = (state: ScheduleState, chosen: string | null) => {
     const shown =
       chosen === "undo"
@@ -525,27 +541,16 @@ export function ScheduleCheckDialog({
       <span
         aria-hidden="true"
         className={cn(
-          `flex size-9 shrink-0 items-center justify-center rounded-full text-sm
-          font-black transition-colors duration-200`,
-          shown === "paid" && "bg-emerald-500 text-white",
-          shown === "partial" &&
-            "border-[2.5px] border-[#7f5ead] bg-[#7f5ead]/10 text-[#7f5ead]",
-          shown === "overdue" && "bg-[#d14d5a] text-white",
-          shown === "unpaid" && "border-2 border-border text-muted-foreground",
-          shown === "undo" &&
-            "border-2 border-dashed border-orange-500 text-orange-600",
+          `size-3.5 shrink-0 rounded-full bg-linear-to-br shadow-sm ring-2
+          ring-white/70 transition-colors duration-200 dark:ring-white/10`,
+          shown === "paid" && "from-emerald-300 to-emerald-600",
+          shown === "partial" && "from-violet-300 to-violet-600",
+          shown === "overdue" && "from-rose-300 to-rose-600",
+          shown === "unpaid" &&
+            "from-slate-200 to-slate-400 dark:from-slate-500 dark:to-slate-700",
+          shown === "undo" && "from-orange-300 to-orange-600",
         )}
-      >
-        {shown === "paid" ? (
-          <Check className="size-4.5" strokeWidth={3.5} />
-        ) : shown === "overdue" ? (
-          "!"
-        ) : shown === "undo" ? (
-          <Undo2 className="size-4" />
-        ) : shown === "partial" ? (
-          "½"
-        ) : null}
-      </span>
+      />
     );
   };
 
@@ -566,7 +571,39 @@ export function ScheduleCheckDialog({
       Couldn&apos;t find the linked schedule — it may have been removed.
     </div>
   ) : (
-    <div className="space-y-3">
+    <div className="space-y-3 lowercase">
+      {mode === "check" && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-muted/60 px-3 py-2">
+            <p className="text-[11px] font-semibold text-muted-foreground">
+              to pay
+            </p>
+            <p
+              className="text-base font-black text-card-foreground/80
+                tabular-nums"
+            >
+              {openRows.length} installment{openRows.length === 1 ? "" : "s"}
+            </p>
+          </div>
+          <div
+            className="rounded-xl bg-emerald-50 px-3 py-2
+              dark:bg-emerald-500/10"
+          >
+            <p
+              className="text-[11px] font-semibold text-emerald-700
+                dark:text-emerald-400"
+            >
+              due
+            </p>
+            <p
+              className="text-base font-black text-emerald-700 tabular-nums
+                dark:text-emerald-300"
+            >
+              ₱{dueTotal.toLocaleString()}
+            </p>
+          </div>
+        </div>
+      )}
       {accountGroups.map((group, groupIndex) => {
         const summary = summaries?.[group.accountId] ?? null;
         return (
@@ -584,8 +621,9 @@ export function ScheduleCheckDialog({
                 return;
               router.push(`/accounts/${group.accountId}`);
             }}
-            className={`cursor-pointer overflow-hidden rounded-3xl border
-              border-border bg-card shadow-sm ${ENTER_ANIMATION}`}
+            className={`cursor-pointer overflow-hidden rounded-2xl bg-card
+              shadow-sm ring-1 ring-black/5 dark:ring-white/10
+              ${ENTER_ANIMATION}`}
             style={{ animationDelay: `${groupIndex * 80}ms` }}
           >
             <div className="px-4 pt-3.5 pb-3">
@@ -603,7 +641,7 @@ export function ScheduleCheckDialog({
                 </div>
               ) : null}
             </div>
-            <ul className="divide-y divide-border border-t border-border">
+            <ul className="space-y-2 px-3 pb-3">
               {group.rows.map((row, rowIndex) => {
                 const choice = choices[row.id];
                 const chosen = choice?.status ?? null;
@@ -627,14 +665,17 @@ export function ScheduleCheckDialog({
                     key={row.id}
                     data-schedule-card
                     className={cn(
-                      "px-4 py-3 transition-colors duration-200",
+                      "rounded-2xl p-3 ring-1 transition-colors duration-200",
                       undoing
-                        ? "bg-orange-500/5"
-                        : chosen === "paid"
-                          ? "bg-emerald-500/[0.07]"
-                          : chosen === "partial"
-                            ? "bg-[#7f5ead]/[0.07]"
-                            : "",
+                        ? `bg-orange-50 ring-orange-300/70
+                          dark:bg-orange-500/10`
+                        : chosen === "paid" || isPaid
+                          ? `bg-emerald-50 ring-emerald-300/70
+                            dark:bg-emerald-500/10 dark:ring-emerald-500/30`
+                          : chosen === "partial" || state === "partial"
+                            ? `bg-violet-50 ring-violet-300/70
+                              dark:bg-violet-500/10 dark:ring-violet-500/30`
+                            : "bg-muted/40 ring-transparent",
                       ENTER_ANIMATION,
                     )}
                     style={{
@@ -642,12 +683,12 @@ export function ScheduleCheckDialog({
                     }}
                   >
                     <div className="flex items-center gap-3">
-                      {stateMark(state, chosen)}
                       <div className="min-w-0 flex-1">
                         <p
                           className="flex items-center gap-1.5 text-[15px]
                             font-bold"
                         >
+                          {stateMark(state, chosen)}
                           {formatShortDate(row.due_date)}
                           <span
                             className={cn(
@@ -709,7 +750,7 @@ export function ScheduleCheckDialog({
                       </p>
                     </div>
 
-                    <div className="mt-2.5 flex items-center gap-2 pl-12">
+                    <div className="mt-2.5 flex items-center gap-2">
                       {isPaid ? (
                         <button
                           type="button"
@@ -718,11 +759,15 @@ export function ScheduleCheckDialog({
                           aria-label={`Undo ₱${paidSoFar.toLocaleString()} payment`}
                           className={cn(
                             `flex h-9 flex-1 items-center justify-center gap-1.5
-                              rounded-full text-sm font-bold transition
-                              active:scale-[0.97]`,
+                              rounded-full text-sm font-bold lowercase
+                              transition active:scale-[0.97]`,
                             undoing
-                              ? "bg-orange-500 text-white"
-                              : "bg-muted text-muted-foreground",
+                              ? `bg-linear-to-br from-orange-400 to-orange-500
+                                text-white shadow-sm shadow-orange-500/25`
+                              : `border border-orange-300/70 bg-transparent
+                                text-orange-700/80 hover:bg-orange-500/10
+                                dark:border-orange-400/30
+                                dark:text-orange-300/80`,
                           )}
                         >
                           <Undo2 className="size-3.5" />
@@ -730,22 +775,29 @@ export function ScheduleCheckDialog({
                         </button>
                       ) : (
                         <>
-                          {/* Paid or partial, as one rounded switch. */}
+                          {/* Paid and partial: two separate gradient buttons. */}
                           <div
                             data-tour="pay-schedule-actions"
-                            className="grid h-9 flex-1 grid-cols-2 rounded-full
-                              bg-muted p-1"
+                            className="grid h-10 flex-1 grid-cols-2 gap-2"
                           >
                             {(
                               [
-                                ["paid", "Paid", "bg-emerald-500 text-white"],
+                                [
+                                  "paid",
+                                  "Paid",
+                                  `bg-linear-to-br from-emerald-400 to-emerald-500
+                                    text-white shadow-sm shadow-emerald-500/25`,
+                                  `border border-emerald-300/70 bg-transparent text-emerald-700/80 hover:bg-emerald-500/10 dark:border-emerald-400/30 dark:text-emerald-300/80`,
+                                ],
                                 [
                                   "partial",
                                   "Partial",
-                                  "bg-[#7f5ead] text-white",
+                                  `bg-linear-to-br from-violet-400 to-violet-500
+                                    text-white shadow-sm shadow-violet-500/25`,
+                                  `border border-violet-300/70 bg-transparent text-violet-700/80 hover:bg-violet-500/10 dark:border-violet-400/30 dark:text-violet-300/80`,
                                 ],
                               ] as const
-                            ).map(([value, label, on]) => (
+                            ).map(([value, label, on, idle]) => (
                               <button
                                 key={value}
                                 type="button"
@@ -756,11 +808,10 @@ export function ScheduleCheckDialog({
                                   })
                                 }
                                 className={cn(
-                                  `rounded-full text-sm font-bold transition-all
-                                    duration-200 active:scale-[0.97]`,
-                                  chosen === value
-                                    ? `${on} shadow-sm`
-                                    : "text-muted-foreground",
+                                  `rounded-full text-sm font-bold lowercase
+                                    transition-all duration-200
+                                    active:scale-[0.97]`,
+                                  chosen === value ? on : idle,
                                 )}
                               >
                                 {label}
@@ -778,8 +829,13 @@ export function ScheduleCheckDialog({
                                   justify-center rounded-full transition
                                   active:scale-90`,
                                 undoing
-                                  ? "bg-orange-500 text-white"
-                                  : "bg-muted text-muted-foreground",
+                                  ? `bg-linear-to-br from-orange-400
+                                    to-orange-600 text-white shadow-sm
+                                    shadow-orange-500/25`
+                                  : `border border-orange-300/70 bg-transparent
+                                    text-orange-700/80 hover:bg-orange-500/10
+                                    dark:border-orange-400/30
+                                    dark:text-orange-300/80`,
                               )}
                             >
                               <Undo2 className="size-4" />
@@ -790,49 +846,89 @@ export function ScheduleCheckDialog({
                     </div>
 
                     {chosen === "partial" && (
-                      <label
-                        className="mt-2 ml-12 flex h-11 cursor-text items-center
-                          gap-1.5 rounded-2xl border border-border bg-card
-                          px-3.5 transition focus-within:border-[#7f5ead]
-                          focus-within:ring-4 focus-within:ring-[#7f5ead]/15"
-                      >
-                        <span
-                          className="text-sm font-bold text-muted-foreground"
+                      <>
+                        <label
+                          className="mt-2 flex h-11 cursor-text items-center
+                            gap-1.5 rounded-2xl border border-border bg-card
+                            px-3.5 transition focus-within:border-[#7f5ead]
+                            focus-within:ring-4 focus-within:ring-[#7f5ead]/15"
                         >
-                          ₱
-                        </span>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          min={0}
-                          max={remaining}
-                          step="0.01"
-                          placeholder="0"
-                          aria-label="Amount paid"
-                          autoFocus
-                          onFocus={(e) => e.currentTarget.select()}
-                          value={choice?.amount ?? ""}
-                          onChange={(e) =>
-                            setChoice(row.id, { amount: e.target.value })
-                          }
-                          className="min-w-0 flex-1 bg-transparent text-base
-                            font-bold tabular-nums outline-none
-                            [appearance:textfield]
-                            [&::-webkit-inner-spin-button]:appearance-none
-                            [&::-webkit-outer-spin-button]:appearance-none"
-                        />
-                        <span
-                          className={`shrink-0 text-xs font-semibold
-                            tabular-nums ${
-                              Number.parseFloat(choice?.amount || "0") >
-                              remaining
-                                ? "text-amber-600 dark:text-amber-400"
-                                : "text-muted-foreground"
-                            }`}
-                        >
-                          of ₱{remaining.toLocaleString()}
-                        </span>
-                      </label>
+                          <span
+                            className="text-sm font-bold text-muted-foreground"
+                          >
+                            ₱
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0"
+                            aria-label="Amount paid"
+                            autoFocus
+                            autoComplete="off"
+                            onFocus={(e) => e.currentTarget.select()}
+                            value={formatAmount(choice?.amount ?? "")}
+                            onChange={(e) =>
+                              setChoice(row.id, {
+                                amount: cleanAmount(e.target.value),
+                              })
+                            }
+                            className="min-w-0 flex-1 bg-transparent text-base
+                              font-bold tabular-nums outline-none"
+                          />
+                          <span
+                            className={`shrink-0 text-xs font-semibold
+                              tabular-nums ${
+                                Number.parseFloat(choice?.amount || "0") >
+                                remaining
+                                  ? "text-amber-600 dark:text-amber-400"
+                                  : "text-muted-foreground"
+                              }`}
+                          >
+                            of ₱{remaining.toLocaleString()}
+                          </span>
+                        </label>
+                        {/* Quick amounts, as shares of what is left. */}
+                        <div className="mt-2 grid grid-cols-4 gap-1.5">
+                          {(
+                            [
+                              [25, "25%"],
+                              [50, "half"],
+                              [75, "75%"],
+                              [100, "full"],
+                            ] as const
+                          ).map(([pct, label]) => {
+                            const amount = Math.round(remaining * pct) / 100;
+                            const picked =
+                              Number.parseFloat(choice?.amount || "0") ===
+                              amount;
+                            return (
+                              <button
+                                key={pct}
+                                type="button"
+                                onClick={() =>
+                                  setChoice(row.id, { amount: String(amount) })
+                                }
+                                aria-label={`Pay ${label} of what is left, ₱${amount.toLocaleString()}`}
+                                className={cn(
+                                  `h-8 rounded-full text-xs font-bold lowercase
+                                    transition active:scale-95`,
+                                  picked
+                                    ? `bg-linear-to-br from-violet-400
+                                      to-violet-600 text-white shadow-sm
+                                      shadow-violet-500/25`
+                                    : `border border-violet-300/70
+                                      bg-transparent text-violet-700/80
+                                      hover:bg-violet-500/10
+                                      dark:border-violet-400/30
+                                      dark:text-violet-300/80`,
+                                )}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
                     )}
                   </li>
                 );
@@ -861,9 +957,10 @@ export function ScheduleCheckDialog({
             return next;
           })
         }
-        className="flex h-8 shrink-0 items-center gap-1 rounded-full
-          bg-emerald-500/15 px-3 text-xs font-bold text-emerald-700 transition
-          active:scale-95 dark:text-emerald-300"
+        className="flex h-8 shrink-0 items-center gap-1 rounded-full border
+          border-emerald-300/70 bg-transparent px-3 text-xs font-bold
+          text-emerald-700/80 lowercase transition hover:bg-emerald-500/10
+          active:scale-95 dark:border-emerald-400/30 dark:text-emerald-300/80"
       >
         <Check className="size-3.5" strokeWidth={3} />
         Mark all paid
@@ -878,7 +975,7 @@ export function ScheduleCheckDialog({
         data-tour="pay-cancel"
         onClick={onClose}
         disabled={submitting}
-        className="h-12 rounded-2xl font-bold"
+        className="h-12 rounded-xl font-bold lowercase"
       >
         Cancel
       </Button>
@@ -887,7 +984,12 @@ export function ScheduleCheckDialog({
         onClick={handleConfirm}
         disabled={loading || submitting}
         variant={undoOnly ? "destructive" : "default"}
-        className="h-12 flex-1 rounded-2xl text-base font-bold"
+        className={cn(
+          "h-12 flex-1 rounded-xl text-base font-black lowercase",
+          !undoOnly &&
+            `border-0 bg-linear-to-br from-emerald-500 to-emerald-700 text-white
+            shadow-sm shadow-emerald-700/30 hover:opacity-95`,
+        )}
       >
         {submitting
           ? "Saving…"

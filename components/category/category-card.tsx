@@ -1,3 +1,4 @@
+import { announceNavigation } from "@/lib/nav-splash";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MoreVertical, ChevronRight } from "lucide-react";
@@ -57,12 +58,14 @@ export default function CategoryCard({
         tabIndex={0}
         onClick={() => {
           setIsLoading(true);
-          router.push(`/categories/${category.id}`);
+          (announceNavigation(`/categories/${category.id}`),
+            router.push(`/categories/${category.id}`));
         }}
         onKeyDown={(e) => {
           if (e.key !== "Enter" || e.target !== e.currentTarget) return;
           setIsLoading(true);
-          router.push(`/categories/${category.id}`);
+          (announceNavigation(`/categories/${category.id}`),
+            router.push(`/categories/${category.id}`));
         }}
         style={{ "--cat": color } as React.CSSProperties}
         className="relative flex min-h-44 cursor-pointer flex-col rounded-3xl

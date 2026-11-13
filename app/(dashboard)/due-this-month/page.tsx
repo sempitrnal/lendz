@@ -388,7 +388,7 @@ export default async function DueThisMonthPage({
       </section>
 
       {/* Summary bar */}
-      <section className="mb-4 grid gap-3 lg:mb-6">
+      <section className="mb-4 grid gap-3 lg:mb-6 lg:grid-cols-3 lg:items-start">
         <div
           className="dark:border-border dark:via-card min-w-0 rounded-xl border
             border-slate-400 bg-linear-to-br from-orange-50 via-stone-50

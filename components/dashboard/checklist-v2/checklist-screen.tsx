@@ -1,7 +1,16 @@
 "use client";
 
+import { announceNavigation } from "@/lib/nav-splash";
 import { useDayProfit } from "@/components/dashboard/checklist-v2/use-day-profit";
-import { useDayPaidIds } from "@/components/dashboard/checklist-v2/use-day-paid-ids";
+import {
+  useDayPaidIds,
+  useDayPayments,
+} from "@/components/dashboard/checklist-v2/use-day-paid-ids";
+import {
+  paymentTimingStats,
+  summarizeDay,
+  timingText,
+} from "@/lib/checklist/day-summary";
 import { useMonthProfit } from "@/components/dashboard/checklist-v2/use-month-profit";
 import { cn } from "@/lib/utils";
 import { useWideScreen } from "@/lib/hooks/use-wide-screen";
@@ -108,7 +117,6 @@ import { buildRowView, type RowView } from "@/lib/checklist/row-state";
 import {
   filterCounts,
   matchesSearch,
-  summarizeRows,
   type ChecklistFilter,
 } from "@/lib/checklist/list-view";
 import { tabOf, type ChecklistTab } from "@/lib/checklist/categories";
@@ -399,10 +407,21 @@ function ChecklistDay({ today }: { today: string }) {
     [collectItems, schedules],
   );
   const dayPaidIds = useDayPaidIds(date);
-  const summary = useMemo(
-    () => summarizeRows(rows, dayPaidIds),
-    [rows, dayPaidIds],
-  );
+  const summary = useMemo(() => {
+    const day = summarizeDay(rows, dayPaidIds);
+    return { ...day.all, today: day.today, carried: day.carried };
+  }, [rows, dayPaidIds]);
+  // How the payments made on this day compare with their due dates.
+  const dayPayments = useDayPayments(date);
+  const timing = useMemo(() => {
+    if (!dayPayments) return { early: null, late: null };
+    const ids = new Set(rows.flatMap((r) => r.lines.map((l) => l.id)));
+    const stats = paymentTimingStats(dayPayments, date, ids);
+    return {
+      early: timingText("early", stats.early),
+      late: timingText("late", stats.late),
+    };
+  }, [dayPayments, rows, date]);
   const monthProfit = useMonthProfit(date);
   const dayProfit = useDayProfit(date);
   // What the morning run added: shown once per device per day, in a sheet.
@@ -492,7 +511,7 @@ function ChecklistDay({ today }: { today: string }) {
     if (!id) return;
     closeSheet();
     closeAdd();
-    router.push(`/borrowers/${id}`);
+    (announceNavigation(`/borrowers/${id}`), router.push(`/borrowers/${id}`));
   };
 
   /**
@@ -660,7 +679,7 @@ function ChecklistDay({ today }: { today: string }) {
     const id = extractBorrowerMention(view.item.label)?.id;
     if (!id) return;
     closeRelease();
-    router.push(`/borrowers/${id}`);
+    (announceNavigation(`/borrowers/${id}`), router.push(`/borrowers/${id}`));
   };
   const createViewState = createView
     ? releaseRowState(createView, createMark)
@@ -857,7 +876,16 @@ function ChecklistDay({ today }: { today: string }) {
     paidIds: dayPaidIds,
     onRequest: (row, kind, lineId) => {
       setSwipedId(null);
-      requestSheet(kind, row.item.id, lineId);
+      // The Paid tab shows a borrower's paid schedules only. When just one of
+      // their schedules is there, tapping it opens that schedule alone, not
+      // the borrower's others.
+      const only =
+        !lineId &&
+        (kind === "openPay" || kind === "payRow") &&
+        row.lines.length === 1
+          ? row.lines[0].id
+          : lineId;
+      requestSheet(kind, row.item.id, only);
     },
     onPayAll: (row: RowView) =>
       void quickPay(
@@ -878,7 +906,7 @@ function ChecklistDay({ today }: { today: string }) {
   };
 
   return (
-    <div className={cn("mx-auto pb-32", wide ? "max-w-5xl" : "max-w-md")}>
+    <div className="pb-32">
       <Header
         date={date}
         today={today}
@@ -888,6 +916,7 @@ function ChecklistDay({ today }: { today: string }) {
         collectCount={collectItems.length}
         releaseCount={releaseItems.length}
         summary={summary}
+        timing={timing}
         releaseTotal={releasedTotal}
         filter={filter}
         onFilterChange={setFilter}
@@ -903,85 +932,88 @@ function ChecklistDay({ today }: { today: string }) {
         onMenu={() => openList("menu")}
       />
 
-      <OfflineBanner />
+      {/* The bands run edge to edge; the lists keep their width. */}
+      <div className={cn("mx-auto", wide ? "max-w-7xl" : "max-w-md")}>
+        <OfflineBanner />
 
-      {loading ? (
-        <ListSkeleton />
-      ) : wide ? (
-        // Side by side: no tab switch, each list scrolls with the page.
-        <div className="grid grid-cols-2 divide-x divide-border">
-          <div className="min-w-0">
-            <CollectList
-              rows={rows}
-              filter={filter}
-              search={search}
-              borrowers={borrowers}
-              isToday={date === today}
-              api={rowsApi}
-              populating={populating}
-              onPopulate={() => void populate()}
-            />
+        {loading ? (
+          <ListSkeleton />
+        ) : wide ? (
+          // Side by side: no tab switch, each list scrolls with the page.
+          <div className="grid grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+            <div className="min-w-0">
+              <CollectList
+                rows={rows}
+                filter={filter}
+                search={search}
+                borrowers={borrowers}
+                isToday={date === today}
+                api={rowsApi}
+                populating={populating}
+                onPopulate={() => void populate()}
+              />
+            </div>
+            <div className="min-w-0">
+              <ReleaseList
+                views={releaseViews}
+                borrowers={borrowers}
+                createMarks={createMarks}
+                waitingIds={waitingIds}
+                flashIds={flashIds}
+                disabled={loading}
+                onCreate={openCreate}
+                onCheckOff={(view) => {
+                  if (loading || releaseState(view) !== "check-off") return;
+                  tickCreated(view.item.id);
+                }}
+                onMenu={openReleaseMenu}
+                onNewRelease={() => openAdd("release")}
+              />
+            </div>
           </div>
-          <div className="min-w-0">
-            <ReleaseList
-              views={releaseViews}
-              borrowers={borrowers}
-              createMarks={createMarks}
-              waitingIds={waitingIds}
-              flashIds={flashIds}
-              disabled={loading}
-              onCreate={openCreate}
-              onCheckOff={(view) => {
-                if (loading || releaseState(view) !== "check-off") return;
-                tickCreated(view.item.id);
-              }}
-              onMenu={openReleaseMenu}
-              onNewRelease={() => openAdd("release")}
-            />
-          </div>
-        </div>
-      ) : (
-        // A short fade and slide from the side the other tab is on; the
-        // content swaps at once, so nothing waits on the animation.
-        <m.div
-          key={tab}
-          initial={{
-            opacity: 0,
-            x: reduceMotion ? 0 : tab === "release" ? 14 : -14,
-          }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
-        >
-          {tab === "collect" ? (
-            <CollectList
-              rows={rows}
-              filter={filter}
-              search={search}
-              borrowers={borrowers}
-              isToday={date === today}
-              api={rowsApi}
-              populating={populating}
-              onPopulate={() => void populate()}
-            />
-          ) : (
-            <ReleaseList
-              views={releaseViews}
-              borrowers={borrowers}
-              createMarks={createMarks}
-              waitingIds={waitingIds}
-              flashIds={flashIds}
-              disabled={loading}
-              onCreate={openCreate}
-              onCheckOff={(view) => {
-                if (loading || releaseState(view) !== "check-off") return;
-                tickCreated(view.item.id);
-              }}
-              onMenu={openReleaseMenu}
-              onNewRelease={() => openAdd("release")}
-            />
-          )}
-        </m.div>
-      )}
+        ) : (
+          // A short fade and slide from the side the other tab is on; the
+          // content swaps at once, so nothing waits on the animation.
+          <m.div
+            key={tab}
+            initial={{
+              opacity: 0,
+              x: reduceMotion ? 0 : tab === "release" ? 14 : -14,
+            }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
+          >
+            {tab === "collect" ? (
+              <CollectList
+                rows={rows}
+                filter={filter}
+                search={search}
+                borrowers={borrowers}
+                isToday={date === today}
+                api={rowsApi}
+                populating={populating}
+                onPopulate={() => void populate()}
+              />
+            ) : (
+              <ReleaseList
+                views={releaseViews}
+                borrowers={borrowers}
+                createMarks={createMarks}
+                waitingIds={waitingIds}
+                flashIds={flashIds}
+                disabled={loading}
+                onCreate={openCreate}
+                onCheckOff={(view) => {
+                  if (loading || releaseState(view) !== "check-off") return;
+                  tickCreated(view.item.id);
+                }}
+                onMenu={openReleaseMenu}
+                onNewRelease={() => openAdd("release")}
+              />
+            )}
+          </m.div>
+        )}
+      </div>
 
       <CelebrationHost />
       <Sheet
@@ -1130,7 +1162,8 @@ function ChecklistDay({ today }: { today: string }) {
               if (!createView.parsed) return;
               const id = createView.parsed.borrowerId;
               closeCreate();
-              router.push(`/borrowers/${id}`);
+              (announceNavigation(`/borrowers/${id}`),
+                router.push(`/borrowers/${id}`));
             }}
             onCreated={() => accountCreated(createView)}
             onCheckOff={() => checkOffWithoutAccount(createView)}
@@ -1186,9 +1219,13 @@ function ChecklistDay({ today }: { today: string }) {
 
 function ListSkeleton() {
   return (
-    <div className="mt-3 space-y-3" aria-busy="true">
+    <div className="mt-3 space-y-3 px-2 lg:px-3" aria-busy="true">
       {[1, 2].map((i) => (
-        <div key={i} className="overflow-hidden border-y border-border bg-card">
+        <div
+          key={i}
+          className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1
+            ring-black/5 dark:ring-white/10"
+        >
           <div className="h-8 animate-pulse bg-muted/60" />
           {[1, 2, 3].map((j) => (
             <div

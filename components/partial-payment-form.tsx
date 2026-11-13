@@ -1,16 +1,12 @@
 "use client";
 
-import {
-  useState,
-  useTransition,
-  type ChangeEvent,
-  type FormEvent,
-} from "react";
+import { useState, useTransition, type FormEvent } from "react";
 import { triggerHaptic } from "@/lib/haptics";
 import { toast } from "sonner";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import { Plus } from "lucide-react";
 import type { ScheduleOptimisticAction } from "@/components/account/schedule-optimistic";
+import { AmountField, DateField } from "@/components/payment-fields";
 import {
   Dialog,
   DialogContent,
@@ -19,13 +15,6 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-
-function formatAmount(raw: string) {
-  if (!raw) return "";
-  const [intPart, decPart] = raw.split(".");
-  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return decPart !== undefined ? `${grouped}.${decPart}` : grouped;
-}
 
 const FORM_ID = (scheduleId: string) => `partial-form-${scheduleId}`;
 
@@ -43,6 +32,7 @@ export default function PartialPaymentForm({
   dueDate,
   borrowerId,
   onOptimisticUpdate,
+  remaining,
 }: {
   scheduleId: string;
   applyPartialPayment: (formData: FormData) => Promise<void>;
@@ -50,6 +40,8 @@ export default function PartialPaymentForm({
   dueDate?: string;
   borrowerId?: string;
   onOptimisticUpdate?: (action: ScheduleOptimisticAction) => void;
+  /** What is still owed on the schedule: the amount field offers "full". */
+  remaining?: number;
 }) {
   const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
   const defaultDate = dueDate ?? new Date().toISOString().split("T")[0];
@@ -58,17 +50,6 @@ export default function PartialPaymentForm({
   const [date, setDate] = useState(defaultDate);
   const [note, setNote] = useState("");
   const [isPending, startTransition] = useTransition();
-
-  function handleAmountChange(e: ChangeEvent<HTMLInputElement>) {
-    let cleaned = e.target.value.replace(/[^\d.]/g, "");
-    const firstDot = cleaned.indexOf(".");
-    if (firstDot !== -1) {
-      cleaned =
-        cleaned.slice(0, firstDot + 1) +
-        cleaned.slice(firstDot + 1).replace(/\./g, "");
-    }
-    setAmount(cleaned);
-  }
 
   function handleOpenChange(v: boolean) {
     if (!v) {
@@ -138,49 +119,21 @@ export default function PartialPaymentForm({
         >
           <input type="hidden" name="scheduleId" value={scheduleId} />
           <input type="hidden" name="paymentAmount" value={amount} />
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor={`partial-amt-${scheduleId}`}
-              className={labelClasses}
-            >
-              Amount paid
-            </label>
-            <div className="relative">
-              <span
-                className="absolute top-1/2 left-3 -translate-y-1/2 text-sm
-                  font-bold text-slate-400"
-              >
-                ₱
-              </span>
-              <input
-                id={`partial-amt-${scheduleId}`}
-                type="text"
-                inputMode="decimal"
-                placeholder="0.00"
-                required
-                autoFocus
-                value={formatAmount(amount)}
-                onChange={handleAmountChange}
-                className={`${inputClasses} pl-8 tabular-nums`}
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor={`partial-date-${scheduleId}`}
-              className={labelClasses}
-            >
-              Date
-            </label>
-            <input
-              id={`partial-date-${scheduleId}`}
-              name="paymentDate"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className={`${inputClasses} min-w-0`}
-            />
-          </div>
+          <AmountField
+            id={`partial-amt-${scheduleId}`}
+            value={amount}
+            onChange={setAmount}
+            remaining={remaining}
+            autoFocus
+          />
+          <DateField
+            id={`partial-date-${scheduleId}`}
+            name="paymentDate"
+            label="Date"
+            value={date}
+            onChange={setDate}
+            dueDate={dueDate}
+          />
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor={`partial-note-${scheduleId}`}
@@ -209,9 +162,12 @@ export default function PartialPaymentForm({
             form={FORM_ID(scheduleId)}
             disabled={isPending || !amount}
             aria-busy={isPending}
-            className="w-full rounded-lg bg-violet-500 px-4 py-2.5 text-sm
-              font-bold text-white transition hover:bg-violet-600
-              disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl border border-violet-200 bg-violet-100
+              px-4 py-3 text-sm font-bold text-violet-900 transition
+              hover:bg-violet-200 disabled:cursor-not-allowed
+              disabled:opacity-50 dark:border-violet-400/20
+              dark:bg-violet-400/15 dark:text-violet-100
+              dark:hover:bg-violet-400/25"
           >
             {isPending ? "Recording…" : "Record payment"}
           </button>

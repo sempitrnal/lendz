@@ -594,6 +594,7 @@ export default async function Dashboard({
           }))}
           topOverdue={topOverdueBorrowers}
           payments={payments}
+          profitPerCategory={profitPerCategory}
         />
       </main>
     );

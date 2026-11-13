@@ -1,5 +1,6 @@
 "use client";
 
+import { paidDay } from "@/lib/paid-day";
 import { cn } from "@/lib/utils";
 import { formatShortDate } from "@/lib/checklist/labels";
 import { paymentTiming } from "@/lib/checklist/late-label";
@@ -46,7 +47,7 @@ export function PaymentHistory({
         <span key={i} className="tabular-nums">
           {i > 0 && "· "}
           {p.payment_date
-            ? formatShortDate(p.payment_date).toLowerCase()
+            ? paidDay(p.payment_date, (d) => formatShortDate(d).toLowerCase())
             : "no date"}{" "}
           {peso(p.amount)}
           {p.payment_date && (

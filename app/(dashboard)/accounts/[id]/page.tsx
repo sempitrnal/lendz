@@ -1,3 +1,4 @@
+import { formatDate } from "@/lib/utils";
 import { connection } from "next/server";
 import { getAccountDetailPageData } from "@/lib/cache/accounts";
 import { notFound } from "next/navigation";
@@ -197,40 +198,46 @@ export default async function AccountDetailPage({
     <>
       <NextScheduleScroller />
 
-      <div className="mx-auto max-w-2xl px-4 pb-16">
-        <AccountBand
-          accountId={id}
-          borrowerId={borrower?.id ?? ""}
-          borrowerName={borrowerName}
-          categories={borrowerCategories.map((c) => ({
-            id: c.id,
-            name: c.name,
-            color: c.color ?? null,
-          }))}
-          kind={accountRow.type === "cash_advance" ? "cash advance" : "loan"}
-          principal={principal}
-          terms={terms}
-          releaseDate={accountRow.release_date ?? null}
-          left={amountLeft}
-          collected={amountPaid}
-          profit={profit}
-          pct={progressPct}
-          share={{
-            isManual,
-            borrowerName,
-            accountType: accountRow.type,
-            releaseDate: accountRow.release_date,
-            collected: amountPaid,
-            remaining: amountLeft,
-            progressPct,
-            schedules: shareSchedules,
-          }}
-        />
+      <div className="px-4 pb-16">
+        {/* Laptop and up: the band is a summary panel pinned on the left
+            and the schedule scrolls beside it. Below that the wrapper has no box
+            (`contents`), so the band sticks and docks as it always did. */}
+        <div className="contents">
+          <AccountBand
+            accountId={id}
+            borrowerId={borrower?.id ?? ""}
+            borrowerName={borrowerName}
+            categories={borrowerCategories.map((c) => ({
+              id: c.id,
+              name: c.name,
+              color: c.color ?? null,
+            }))}
+            kind={accountRow.type === "cash_advance" ? "cash advance" : "loan"}
+            principal={principal}
+            terms={terms}
+            releaseDate={accountRow.release_date ?? null}
+            left={amountLeft}
+            collected={amountPaid}
+            profit={profit}
+            pct={progressPct}
+            share={{
+              isManual,
+              borrowerName,
+              accountType: accountRow.type,
+              releaseDate: accountRow.release_date,
+              collected: amountPaid,
+              remaining: amountLeft,
+              progressPct,
+              schedules: shareSchedules,
+            }}
+          />
+        </div>
 
         {/* Floats over the band's lower edge; the band's header caps it on
             scroll (see AccountBand). */}
         <div
-          className="relative z-10 -mt-8 space-y-5 px-1 sm:-mt-12"
+          className="relative z-10 mx-auto -mt-8 max-w-2xl space-y-5 px-1
+            sm:-mt-12 md:max-w-6xl"
           data-settle-group
         >
           {accountRow.status === "pending" ? (
@@ -552,6 +559,59 @@ export default async function AccountDetailPage({
                 </div>
               ) : null;
             })()}
+          {/* Laptop only: the loan's terms, under the schedule. */}
+          <section
+            className="hidden rounded-2xl bg-card p-4 shadow-sm ring-1
+              ring-black/5 lowercase lg:block dark:ring-white/10"
+          >
+            <h2 className="text-sm font-black text-card-foreground/80">
+              terms
+            </h2>
+            <dl className="mt-2 space-y-2 text-xs">
+              {(
+                [
+                  ["principal", formatMoney(principal)],
+                  [
+                    "interest",
+                    accountRow.interest_rate != null
+                      ? `${accountRow.interest_rate}% ${accountRow.interest_type ?? ""}`.trim()
+                      : null,
+                  ],
+                  ["frequency", accountRow.payment_frequency],
+                  [
+                    "term",
+                    accountRow.term_months != null
+                      ? `${accountRow.term_months} month${Number(accountRow.term_months) === 1 ? "" : "s"}`
+                      : null,
+                  ],
+                  ["installments", String(schedules.length)],
+                  [
+                    "released",
+                    accountRow.release_date
+                      ? formatDate(accountRow.release_date)
+                      : null,
+                  ],
+                  [
+                    "first payment",
+                    accountRow.first_payment_date
+                      ? formatDate(accountRow.first_payment_date)
+                      : null,
+                  ],
+                ] as [string, string | null][]
+              )
+                .filter(([, value]) => value)
+                .map(([label, value]) => (
+                  <div key={label} className="flex justify-between gap-3">
+                    <dt className="font-semibold text-muted-foreground">
+                      {label}
+                    </dt>
+                    <dd className="text-right font-bold text-card-foreground/80">
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+            </dl>
+          </section>
         </div>
       </div>
     </>

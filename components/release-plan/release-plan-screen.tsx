@@ -1,5 +1,6 @@
 "use client";
 
+import { announceNavigation } from "@/lib/nav-splash";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -517,7 +518,7 @@ function ReleasePlan({ today }: { today: string }) {
   const slide = reduceMotion ? 0 : 48;
 
   return (
-    <div className="mx-auto max-w-md pb-32 sm:max-w-3xl">
+    <div className="pb-32">
       {/* The band folds into a fixed header under the top bar as the page
           scrolls, as on a borrower's page (see useCollapsingBand). The header
           is just the month and its arrows; it is pinned from the start and
@@ -585,16 +586,15 @@ function ReleasePlan({ today }: { today: string }) {
       <div
         ref={slab}
         data-settle-group="band"
-        className="sticky z-0 overflow-hidden px-4 text-white sm:relative
-          sm:overflow-visible sm:px-5 sm:pt-5"
+        className="sticky z-0 overflow-hidden text-white sm:relative
+          sm:overflow-visible"
         style={{ top: BAR_PX - 300 }}
       >
         <div
           aria-hidden="true"
           data-nav-band
           className="absolute inset-0 rounded-b-3xl
-            bg-[linear-gradient(to_bottom,var(--page-1),var(--page-2))]
-            sm:rounded-3xl"
+            bg-[linear-gradient(to_bottom,var(--page-1),var(--page-2))]"
         />
         <div
           aria-hidden="true"
@@ -604,7 +604,8 @@ function ReleasePlan({ today }: { today: string }) {
         />
         <div
           ref={body}
-          className="relative origin-top pb-14 will-change-transform"
+          className="relative mx-auto max-w-md origin-top px-4 pb-14
+            will-change-transform sm:max-w-3xl sm:px-5 sm:pt-5"
         >
           {/* Wider screens have no top bar to dock into: the month sits here. */}
           <div className="relative z-20 hidden items-center sm:flex">
@@ -742,7 +743,7 @@ function ReleasePlan({ today }: { today: string }) {
         </div>
       </div>
 
-      <div className="relative z-20 -mt-8 px-3">
+      <div className="relative z-20 mx-auto -mt-8 max-w-md px-3 sm:max-w-3xl">
         {failed && (
           <p
             className="mb-2 rounded-2xl bg-card p-3 text-center text-sm
@@ -915,7 +916,9 @@ function ReleasePlan({ today }: { today: string }) {
             setLabel={setLabel}
             onOpenBorrower={() => {
               const id = buildReleaseView(sheetItem).borrowerId;
-              if (id) router.push(`/borrowers/${id}`);
+              if (id)
+                (announceNavigation(`/borrowers/${id}`),
+                  router.push(`/borrowers/${id}`));
             }}
             onClose={closeSheet}
           />
@@ -1559,7 +1562,10 @@ function PlanMenuSheet({
           <MenuEntry
             icon={<ExternalLink className="size-4" />}
             title="Open borrower page"
-            onClick={() => router.push(`/borrowers/${view.borrowerId}`)}
+            onClick={() => (
+              announceNavigation(`/borrowers/${view.borrowerId}`),
+              router.push(`/borrowers/${view.borrowerId}`)
+            )}
           />
         )}
         <MenuEntry

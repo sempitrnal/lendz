@@ -1,5 +1,6 @@
 "use client";
 
+import { announceNavigation } from "@/lib/nav-splash";
 import { Wallet, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import {
   useCallback,
@@ -48,6 +49,8 @@ import {
   type SwipeableListValue,
 } from "@/components/motion/swipeable-list";
 import { BorrowerBand } from "./borrower-band";
+import { AccountsTable } from "./accounts-table";
+import { TABLET_PX, useMinWidth } from "@/lib/hooks/use-min-width";
 import { GROUP_STYLES } from "./group-styles";
 import { bandFigures } from "@/lib/borrower/band-figures";
 import { HIDDEN_AMOUNT, useHideAmounts } from "@/lib/hide-amounts";
@@ -361,7 +364,7 @@ export default function BorrowerAccountsSection({
       // History unavailable — back just opens at the top
     }
     setOpeningAccountId(id);
-    router.push(`/accounts/${id}`);
+    (announceNavigation(`/accounts/${id}`), router.push(`/accounts/${id}`));
   };
 
   // Back from an account page, return to where this history entry was left
@@ -697,6 +700,27 @@ export default function BorrowerAccountsSection({
   );
 
   const peso = (n: number) => `₱${Math.round(n).toLocaleString("en-US")}`;
+  // A tablet or a laptop lists the accounts as a table, not swipeable rows.
+  const roomy = useMinWidth(TABLET_PX);
+  const tableGroups = [
+    ["loans", groupedAccounts.activeAutoLoans],
+    ["manual flat loans", groupedAccounts.activeManualFlatLoans],
+    ["manual rolling loans", groupedAccounts.activeManualRollingLoans],
+    ["cash advances", groupedAccounts.activeAutoCashAdvances],
+    ["manual flat cash advances", groupedAccounts.activeManualFlatCashAdvances],
+    [
+      "manual rolling cash advances",
+      groupedAccounts.activeManualRollingCashAdvances,
+    ],
+    ["pending", groupedAccounts.pendingAutoAll],
+    ["manual flat pending", groupedAccounts.pendingManualFlatAll],
+    ["manual rolling pending", groupedAccounts.pendingManualRollingAll],
+  ]
+    .filter(([, list]) => (list as AccountRow[]).length > 0)
+    .map(([label, list]) => ({
+      label: label as string,
+      accounts: list as AccountRow[],
+    }));
   const renderGroup = (group: AccountRow[], label: string) =>
     group.length === 0 ? null : (
       <div key={label}>
@@ -770,28 +794,33 @@ export default function BorrowerAccountsSection({
 
   return (
     <>
-      <div className="mx-auto max-w-2xl px-4 pb-16">
-        {borrower && (
-          <BorrowerBand
-            borrower={borrower}
-            figures={figures}
-            loaned={summaryStats?.totalLoaned ?? 0}
-            hide={hide}
-            onToggleHide={toggleHide}
-            stats={{
-              profitExpected: Math.max(0, summaryStats?.totalExpected ?? 0),
-              profitCollected: Math.max(0, summaryStats?.totalCollected ?? 0),
-              toPayThisMonth: summaryStats?.amountToPayThisMonth ?? 0,
-              paidThisMonth: summaryStats?.amountPaidThisMonth ?? 0,
-            }}
-          />
-        )}
+      <div className="px-4 pb-16">
+        {/* Laptop and up: the band is a summary panel pinned on the left
+            and the cards scroll beside it. Below that the wrapper has no box
+            (`contents`), so the band sticks and docks as it always did. */}
+        <div className="contents">
+          {borrower && (
+            <BorrowerBand
+              borrower={borrower}
+              figures={figures}
+              loaned={summaryStats?.totalLoaned ?? 0}
+              hide={hide}
+              onToggleHide={toggleHide}
+              stats={{
+                profitExpected: Math.max(0, summaryStats?.totalExpected ?? 0),
+                profitCollected: Math.max(0, summaryStats?.totalCollected ?? 0),
+                toPayThisMonth: summaryStats?.amountToPayThisMonth ?? 0,
+                paidThisMonth: summaryStats?.amountPaidThisMonth ?? 0,
+              }}
+            />
+          )}
+        </div>
 
         {/* Floats over the band's lower edge; the band's header caps it on
             scroll (see BorrowerBand). */}
         <div
           className={cn(
-            "relative z-10 space-y-5 px-1",
+            "relative z-10 mx-auto max-w-2xl space-y-5 px-1 md:max-w-6xl",
             borrower ? "-mt-8 sm:-mt-12" : "mt-6",
           )}
           data-settle-group
@@ -913,35 +942,50 @@ export default function BorrowerAccountsSection({
                 </button>
               </div>
             )}
-            {renderGroup(groupedAccounts.activeAutoLoans, "loans")}
-            {renderGroup(
-              groupedAccounts.activeManualFlatLoans,
-              "manual flat loans",
-            )}
-            {renderGroup(
-              groupedAccounts.activeManualRollingLoans,
-              "manual rolling loans",
-            )}
-            {renderGroup(
-              groupedAccounts.activeAutoCashAdvances,
-              "cash advances",
-            )}
-            {renderGroup(
-              groupedAccounts.activeManualFlatCashAdvances,
-              "manual flat cash advances",
-            )}
-            {renderGroup(
-              groupedAccounts.activeManualRollingCashAdvances,
-              "manual rolling cash advances",
-            )}
-            {renderGroup(groupedAccounts.pendingAutoAll, "pending")}
-            {renderGroup(
-              groupedAccounts.pendingManualFlatAll,
-              "manual flat pending",
-            )}
-            {renderGroup(
-              groupedAccounts.pendingManualRollingAll,
-              "manual rolling pending",
+            {roomy ? (
+              <AccountsTable
+                groups={tableGroups}
+                metrics={accountMetricsById}
+                hide={hide}
+                openingId={openingAccountId}
+                onOpen={stableOpenAccount}
+                onPrefetch={stablePrefetchAccount}
+                onEdit={stableEditAccount}
+                onActivate={setActivatingAccount}
+              />
+            ) : (
+              <>
+                {renderGroup(groupedAccounts.activeAutoLoans, "loans")}
+                {renderGroup(
+                  groupedAccounts.activeManualFlatLoans,
+                  "manual flat loans",
+                )}
+                {renderGroup(
+                  groupedAccounts.activeManualRollingLoans,
+                  "manual rolling loans",
+                )}
+                {renderGroup(
+                  groupedAccounts.activeAutoCashAdvances,
+                  "cash advances",
+                )}
+                {renderGroup(
+                  groupedAccounts.activeManualFlatCashAdvances,
+                  "manual flat cash advances",
+                )}
+                {renderGroup(
+                  groupedAccounts.activeManualRollingCashAdvances,
+                  "manual rolling cash advances",
+                )}
+                {renderGroup(groupedAccounts.pendingAutoAll, "pending")}
+                {renderGroup(
+                  groupedAccounts.pendingManualFlatAll,
+                  "manual flat pending",
+                )}
+                {renderGroup(
+                  groupedAccounts.pendingManualRollingAll,
+                  "manual rolling pending",
+                )}
+              </>
             )}
           </div>
 

@@ -19,6 +19,8 @@ import {
 import type { RowView } from "@/lib/checklist/row-state";
 import { peso } from "@/components/dashboard/checklist-v2/header";
 import { CollectRow } from "@/components/dashboard/checklist-v2/collect-row";
+import { CollectTable } from "@/components/dashboard/checklist-v2/collect-table";
+import { useMinWidth } from "@/lib/hooks/use-min-width";
 
 /** What a row asks the screen to open; the sheets render from it. */
 export type RowRequest =
@@ -46,7 +48,7 @@ export type CollectRowsApi = {
 
 const CARRY_KEY = "carry";
 
-type Group = {
+export type RowGroup = {
   key: string;
   name: string;
   color: string | null;
@@ -56,7 +58,7 @@ type Group = {
 function buildGroups(
   rows: RowView[],
   borrowers: BorrowerSearchItem[],
-): Group[] {
+): RowGroup[] {
   return groupByBorrowerCategory(rows, (r) => r.item.label, borrowers).map(
     (g) => ({ ...g, rows: sortSettledLast(g.rows) }),
   );
@@ -124,6 +126,8 @@ export function CollectList({
   // A search opens and closes groups on every keystroke: skip the motion.
   const still = useReducedMotion() || searching;
   const fold = { height: 0, opacity: 0 };
+  // A laptop gets a table to scan and sort; the phone keeps its swipe rows.
+  const asTable = useMinWidth(1024);
 
   if (rows.length === 0) {
     return (
@@ -152,13 +156,31 @@ export function CollectList({
     );
   }
 
-  const renderGroup = (g: Group, section: string) => {
+  if (asTable && (todayGroups.length > 0 || carriedGroups.length > 0)) {
+    return (
+      <div data-settle-group="list" className="mt-3 px-2 lg:px-3">
+        <CollectTable
+          todayGroups={todayGroups}
+          carriedGroups={carriedGroups}
+          api={api}
+        />
+      </div>
+    );
+  }
+
+  const renderGroup = (g: RowGroup, section: string) => {
     const key = `${section}:${g.key}`;
     // A search opens every group: a match inside a folded one would hide.
     const isCollapsed = !searching && foldedByDefault(key) !== flipped.has(key);
     const totals = summarizeRows(g.rows, api.paidIds);
     return (
-      <div key={key} style={groupColorStyle(g.color)}>
+      // Each group is its own rounded card, like the dashboard's.
+      <div
+        key={key}
+        style={groupColorStyle(g.color)}
+        className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1
+          ring-black/5 dark:ring-white/10"
+      >
         <button
           type="button"
           data-tour="checklist-group"
@@ -260,22 +282,26 @@ export function CollectList({
   const carryCollapsed = !searching && flipped.has(CARRY_KEY);
 
   return (
-    <div data-settle-group="list" className="mt-3 space-y-3">
+    <div data-settle-group="list" className="mt-3 space-y-3 px-2 lg:px-3">
       {todayGroups.length > 0 && (
-        <section className="overflow-hidden border-y border-border bg-card">
+        <section className="space-y-3">
           {todayGroups.map((g) => renderGroup(g, "t"))}
         </section>
       )}
       {carriedGroups.length > 0 && (
-        <section className="overflow-hidden border-y border-border bg-card">
+        // Extra room above, so carried-over reads as its own part of the list.
+        <section className="space-y-3 pt-4">
           <button
             type="button"
             data-tour="checklist-carried"
             onClick={() => toggle(CARRY_KEY)}
             aria-expanded={!carryCollapsed}
-            className="flex w-full items-center gap-2 bg-amber-500/10 px-4
-              py-2.5 text-left text-xs font-semibold text-amber-800 lowercase
-              dark:bg-amber-500/15 dark:text-amber-300"
+            className="flex w-full items-center gap-2 rounded-2xl
+              bg-[color-mix(in_oklch,var(--color-amber-500)_10%,var(--card))]
+              px-4 py-2.5 text-left text-xs font-semibold text-amber-800
+              lowercase shadow-sm ring-1 ring-black/5
+              dark:bg-[color-mix(in_oklch,var(--color-amber-500)_15%,var(--card))]
+              dark:text-amber-300 dark:ring-white/10"
           >
             <Undo2 className="size-3.5 shrink-0" aria-hidden="true" />
             <span>carried over</span>
@@ -292,7 +318,7 @@ export function CollectList({
             </span>
           </button>
           {!carryCollapsed && (
-            <div data-tour="checklist-carried-groups">
+            <div data-tour="checklist-carried-groups" className="space-y-3">
               {carriedGroups.map((g) => renderGroup(g, "c"))}
             </div>
           )}

@@ -13,6 +13,7 @@ import { triggerHaptic } from "@/lib/haptics";
 import { toast } from "sonner";
 import { useInvalidateBorrowerDetails } from "@/lib/hooks/use-borrower-details";
 import type { ScheduleOptimisticAction } from "@/components/account/schedule-optimistic";
+import { AmountField, DateField } from "@/components/payment-fields";
 
 const scheduleStatuses = ["pending", "paid", "overdue", "partial"] as const;
 
@@ -32,6 +33,8 @@ type Props = {
   applyPartialPayment?: (formData: FormData) => Promise<void>;
   borrowerId?: string;
   onOptimisticUpdate?: (action: ScheduleOptimisticAction) => void;
+  /** What is still owed on the schedule: the amount field offers "full". */
+  remaining?: number;
 };
 
 export default function ScheduleStatusForm({
@@ -43,6 +46,7 @@ export default function ScheduleStatusForm({
   applyPartialPayment,
   borrowerId,
   onOptimisticUpdate,
+  remaining,
 }: Props) {
   const router = useRouter();
   const invalidateBorrowerDetails = useInvalidateBorrowerDetails();
@@ -225,49 +229,24 @@ export default function ScheduleStatusForm({
 
       {showDatePicker && (
         <div
-          className="dark:border-border dark:bg-card flex flex-col gap-2
-            rounded-lg border shadow-sm border-slate-300 bg-white p-3"
+          className="dark:border-border dark:bg-card flex flex-col gap-4
+            rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
         >
           {isRollingManual && (
-            <>
-              <label
-                className="dark:text-muted-foreground text-[10px] font-black
-                  tracking-wide text-slate-600 uppercase"
-              >
-                Amount paid
-              </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                step="0.01"
-                placeholder="0"
-                required
-                value={paidAmount}
-                onChange={(e) => setPaidAmount(e.target.value)}
-                className="dark:border-border dark:bg-card dark:text-foreground
-                  dark:focus-visible:ring-border w-full min-w-0 rounded-md
-                  border shadow-sm border-slate-900 bg-white px-2 py-1.5 text-sm
-                  font-semibold text-slate-600 tabular-nums outline-none
-                  focus-visible:ring-2 focus-visible:ring-slate-900"
-              />
-            </>
+            <AmountField
+              id={`status-amt-${scheduleId}`}
+              value={paidAmount}
+              onChange={setPaidAmount}
+              remaining={remaining}
+              autoFocus
+            />
           )}
-          <label
-            className="dark:text-muted-foreground text-[10px] font-black
-              tracking-wide text-slate-600 uppercase"
-          >
-            {isRollingManual ? "Date paid" : "Payment date (optional)"}
-          </label>
-          <input
-            type="date"
+          <DateField
+            id={`status-date-${scheduleId}`}
+            label={isRollingManual ? "Date paid" : "Payment date (optional)"}
             value={paidDate}
-            onChange={(e) => setPaidDate(e.target.value)}
-            className="dark:border-border dark:bg-card dark:text-foreground
-              dark:focus-visible:ring-border w-full min-w-0 rounded-md shadow-sm
-              border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold
-              text-slate-600 outline-none focus-visible:ring-2
-              focus-visible:ring-slate-900"
+            onChange={setPaidDate}
+            dueDate={dueDate}
           />
           <div className="flex gap-2">
             <button
@@ -279,12 +258,10 @@ export default function ScheduleStatusForm({
                   ? !paidAmount || Number(paidAmount) <= 0
                   : false)
               }
-              className="dark:border-border flex-1 cursor-pointer rounded-lg
-                border border-slate-100 bg-primary px-3 py-1.5 text-xs
-                font-black tracking-wide text-background uppercase transition
-                hover:bg-primary/80 disabled:cursor-not-allowed
-                disabled:opacity-70 dark:bg-emerald-800/40 dark:text-emerald-100
-                dark:hover:bg-emerald-800/60"
+              className="h-11 flex-1 cursor-pointer rounded-xl bg-primary px-3
+                text-sm font-black tracking-wide text-primary-foreground
+                transition hover:bg-primary/85 disabled:cursor-not-allowed
+                disabled:opacity-60"
             >
               {isPending ? "…" : "Confirm"}
             </button>
@@ -293,10 +270,10 @@ export default function ScheduleStatusForm({
               onClick={handleDateCancel}
               disabled={isPending}
               className="dark:border-border dark:bg-card dark:text-foreground
-                dark:hover:bg-muted flex-1 cursor-pointer rounded-lg border
-                border-slate-300 bg-white px-3 py-1.5 text-xs font-black
-                tracking-wide text-slate-600 uppercase transition
-                hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70"
+                dark:hover:bg-muted h-11 flex-1 cursor-pointer rounded-xl border
+                border-slate-200 bg-white px-3 text-sm font-bold text-slate-600
+                transition hover:bg-slate-50 disabled:cursor-wait
+                disabled:opacity-70"
             >
               Cancel
             </button>

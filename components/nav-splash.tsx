@@ -96,8 +96,8 @@ function transformFor(shape: Shape, bandPx: number) {
  * Every in-app navigation plays the splash (a tap on a link, or a tab that
  * announces itself): the green band swells to fill
  * the screen, waits for the new page, then shrinks into that page's band (or
- * sweeps off the top when it has none). Phones only, and not with reduced
- * motion.
+ * sweeps off the top when it has none). On a laptop it covers the page beside
+ * the side nav and under the header, which stay put. Not with reduced motion.
  */
 export function NavSplash() {
   const pathname = usePathname();
@@ -117,7 +117,6 @@ export function NavSplash() {
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const phone = window.matchMedia("(max-width: 639px)");
     let alive = true;
     // Where the splash is: "cover" from the first tap until the slab lifts,
     // "release" while it lifts, null once it is gone.
@@ -213,7 +212,7 @@ export function NavSplash() {
     };
 
     const begin = (to: string) => {
-      if (reduce.matches || !phone.matches) return;
+      if (reduce.matches) return;
       if (stage === "cover") {
         // Still covered: wait for this page instead, and say so.
         if (to === target) return;
@@ -274,9 +273,10 @@ export function NavSplash() {
     <div
       aria-hidden="true"
       className={cn(
-        "fixed inset-0 sm:hidden",
-        // Over the page but under the top bar (z-40) and the tabs (z-50), so
-        // those never blink; under the page itself while its cards rise.
+        "fixed inset-0",
+        // Over the page but under the top bar and the side nav (z-40) and the
+        // tabs (z-50), so those never blink; under the page itself while its
+        // cards rise.
         view.behind ? "pointer-events-none z-0" : "z-[39]",
         view.phase === "idle" ? "pointer-events-none invisible" : "visible",
       )}
@@ -302,7 +302,9 @@ export function NavSplash() {
       />
       <div
         className={cn(
-          "absolute inset-0 flex items-center justify-center",
+          // Centred on the page, not under the side nav.
+          `absolute inset-0 flex items-center justify-center
+          md:pl-(--sidebar-width)`,
           "transition-opacity",
           view.phase === "cover"
             ? "opacity-100 delay-[260ms] duration-300"

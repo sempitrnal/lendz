@@ -64,6 +64,9 @@ function useRestoreScroll(open: boolean) {
 /**
  * A bottom sheet on the shadcn drawer (vaul): backdrop, grab handle, drag
  * down to dismiss, rounded top, capped at 88dvh with its content scrolling.
+ * On a laptop or desktop (wide screen with a mouse) the same sheet sits in the
+ * middle of the screen as a dialog. It is centred with `translate`, which
+ * leaves vaul's own `transform` free for the slide and the drag.
  *
  * The screen owns a counter it bumps on every open and keys the children with
  * it, so each open starts from a clean state even while the previous sheet is
@@ -116,12 +119,15 @@ export function Sheet({
         className="z-[9999] mx-auto max-h-[88dvh] max-w-md overflow-hidden
           rounded-t-3xl border-t border-border bg-card
           pb-[env(safe-area-inset-bottom)] outline-none
-          shadow-[0_-8px_40px_rgba(0,0,0,0.4)]"
+          shadow-[0_-8px_40px_rgba(0,0,0,0.4)] lg:pointer-fine:bottom-1/2
+          lg:pointer-fine:translate-y-1/2 lg:pointer-fine:rounded-3xl
+          lg:pointer-fine:border lg:pointer-fine:[--initial-transform:100dvh]"
       >
         <DrawerTitle className="sr-only">{label ?? "Sheet"}</DrawerTitle>
         <div className="flex shrink-0 justify-center pt-3 pb-1">
           <span
-            className="h-1.5 w-10 rounded-full bg-border"
+            className="h-1.5 w-10 rounded-full bg-border
+              lg:pointer-fine:invisible"
             aria-hidden="true"
           />
         </div>

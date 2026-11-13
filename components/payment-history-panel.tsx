@@ -1,5 +1,6 @@
 "use client";
 
+import { paidDay } from "@/lib/paid-day";
 import { useState, useTransition } from "react";
 import { Banknote, ChevronRight } from "lucide-react";
 import {
@@ -98,7 +99,9 @@ function PaymentRow({
               className="block truncate text-xs font-semibold
                 text-muted-foreground"
             >
-              {formatDate(payment.payment_date)}
+              {payment.payment_date
+                ? paidDay(payment.payment_date, formatDate, { capital: true })
+                : formatDate(payment.payment_date)}
               {payment.note ? ` · ${payment.note}` : ""}
             </span>
           </span>
