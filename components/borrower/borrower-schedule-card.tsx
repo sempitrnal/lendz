@@ -366,8 +366,8 @@ export default function BorrowerScheduleCard({
           {notesCount > 0 && (
             <span
               className="inline-flex shrink-0 items-center gap-1 rounded-full
-                border border-amber-300/70 bg-amber-50 px-1.5 py-0.5
-                text-[10px] font-bold text-amber-700 dark:border-amber-500/30
+                border border-amber-300/70 bg-amber-50 px-1.5 py-0.5 text-[10px]
+                font-bold text-amber-700 dark:border-amber-500/30
                 dark:bg-amber-950/40 dark:text-amber-300"
               aria-label={`${notesCount} note${notesCount === 1 ? "" : "s"}`}
             >

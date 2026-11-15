@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, MessageCircle } from "lucide-react";
+import { messengerLink } from "@/lib/messenger";
 import { cn, isDarkColor } from "@/lib/utils";
 import { HIDDEN_AMOUNT } from "@/lib/hide-amounts";
 import { formatAmount, shortDate } from "@/lib/account-card/summary";
@@ -251,11 +252,30 @@ export function BorrowerBand({
           first_name: borrower.first_name,
           last_name: borrower.last_name,
           contact: borrower.contact,
+          messenger_username: borrower.messenger_username ?? null,
         },
         initialCategoryIds: borrower.category?.map((c) => c.id) ?? [],
       }}
     />
   );
+
+  // Opens a chat with them in Messenger, when their username is saved.
+  const username = borrower.messenger_username;
+  const message = username ? (
+    <a
+      href={messengerLink(username)}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Message ${name} on Messenger`}
+      className="flex h-8 shrink-0 items-center gap-1.5 rounded-full
+        bg-onpage/20 px-3 text-xs font-bold text-onpage lowercase
+        transition-colors outline-none hover:bg-onpage/30 focus-visible:ring-2
+        focus-visible:ring-onpage/70 active:scale-95"
+    >
+      <MessageCircle className="size-4" aria-hidden="true" />
+      message
+    </a>
+  ) : null;
 
   return (
     <>
@@ -322,6 +342,7 @@ export function BorrowerBand({
                   {name}
                 </p>
               </div>
+              {message}
               {menu}
             </div>
             <CategoryChips borrower={borrower} />
@@ -360,6 +381,7 @@ export function BorrowerBand({
               >
                 {name}
               </p>
+              {message}
               {menu}
             </div>
             <CategoryChips borrower={borrower} />

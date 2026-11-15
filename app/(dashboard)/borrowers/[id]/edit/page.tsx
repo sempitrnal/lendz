@@ -16,7 +16,7 @@ export default async function EditBorrowerPage({
     await Promise.all([
       supabase
         .from("borrowers")
-        .select("id, first_name, last_name, contact")
+        .select("id, first_name, last_name, contact, messenger_username")
         .eq("id", id)
         .is("deleted_at", null)
         .single(),
@@ -37,6 +37,7 @@ export default async function EditBorrowerPage({
         first_name: borrower.first_name,
         last_name: borrower.last_name,
         contact: borrower.contact,
+        messenger_username: borrower.messenger_username,
       }}
       initialCategoryIds={(categoryLinks ?? []).map((row) => row.category_id)}
     />

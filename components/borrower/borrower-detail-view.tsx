@@ -18,6 +18,7 @@ export type BorrowerSummary = {
   first_name: string;
   last_name: string;
   contact: string | null;
+  messenger_username?: string | null;
   category: Category[];
   notes_canvas: any;
 };

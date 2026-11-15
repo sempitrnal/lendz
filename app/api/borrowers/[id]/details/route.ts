@@ -46,7 +46,9 @@ export async function GET(
   const [borrowerRes, accountsRes, notes] = await Promise.all([
     supabase
       .from("borrowers")
-      .select("id, first_name, last_name, contact, created_at")
+      .select(
+        "id, first_name, last_name, contact, messenger_username, created_at",
+      )
       .eq("id", borrowerId)
       .single(),
     supabase

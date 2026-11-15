@@ -8,6 +8,7 @@ export type BorrowerDetailsResponse = {
     first_name: string;
     last_name: string;
     contact: string | null;
+    messenger_username?: string | null;
     created_at: string;
   };
   accounts: Record<string, unknown>[];

@@ -1,5 +1,6 @@
 "use client";
 
+import { cleanMessengerUsername } from "@/lib/messenger";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,7 +41,10 @@ export default function BorrowerForm({
   const onSubmit = async (values: BorrowerFormValues) => {
     const { data, error } = await supabase
       .from("borrowers")
-      .insert(values)
+      .insert({
+        ...values,
+        messenger_username: cleanMessengerUsername(values.messenger_username),
+      })
       .select()
       .single();
 

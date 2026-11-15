@@ -14,6 +14,7 @@ import {
   type BorrowerFormValues,
 } from "@/lib/validations/borrower";
 import { formatContactNumber } from "@/lib/format-contact-number";
+import { cleanMessengerUsername } from "@/lib/messenger";
 import { supabase } from "@/lib/supabase/client";
 import { revalidateBorrowerDetailPage } from "@/lib/actions/borrowers";
 import { triggerHaptic } from "@/lib/haptics";
@@ -31,6 +32,7 @@ export type BorrowerEditFormProps = {
     first_name: string;
     last_name: string;
     contact: string | null;
+    messenger_username?: string | null;
   };
   initialCategoryIds: string[];
   onCancel?: () => void;
@@ -57,6 +59,7 @@ export default function BorrowerEditForm({
       first_name: initial.first_name,
       last_name: initial.last_name,
       contact: initial.contact ? formatContactNumber(initial.contact) : "",
+      messenger_username: initial.messenger_username ?? "",
     },
   });
   const {
@@ -76,6 +79,7 @@ export default function BorrowerEditForm({
         first_name: values.first_name,
         last_name: values.last_name,
         contact: values.contact?.trim() ? values.contact.trim() : null,
+        messenger_username: cleanMessengerUsername(values.messenger_username),
       })
       .eq("id", borrowerId);
 

@@ -226,6 +226,7 @@ export default function BorrowerAccountsSection({
             first_name: borrower.first_name,
             last_name: borrower.last_name,
             contact: borrower.contact,
+            messenger_username: borrower.messenger_username ?? null,
             created_at: (borrower as any).created_at ?? "",
           },
           accounts: (serverAccounts as any[]) ?? [],

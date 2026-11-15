@@ -178,6 +178,27 @@ export function BorrowerFields({
           />
         </div>
       </Field>
+      <Field id={`${idPrefix}_messenger`} label="Messenger username">
+        <div className="relative">
+          <span
+            className="pointer-events-none absolute top-1/2 left-4
+              -translate-y-1/2 text-[15px] font-bold text-muted-foreground"
+            aria-hidden="true"
+          >
+            @
+          </span>
+          <input
+            id={`${idPrefix}_messenger`}
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="juan.delacruz"
+            {...register("messenger_username")}
+            className={cn(inputClass, "pl-9")}
+          />
+        </div>
+      </Field>
     </div>
   );
 }
