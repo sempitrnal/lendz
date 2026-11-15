@@ -31,6 +31,7 @@ const HIDE_BACK_PATHS = [
   "/daily-checklist",
   "/due-this-month",
   "/daily-payments",
+  "/renewals",
   "/word-game",
 ];
 

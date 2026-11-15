@@ -36,6 +36,7 @@ export function usePageOwnsMobileHeader() {
     pathname === "/releases" ||
     pathname === "/borrowers" ||
     pathname === "/daily-payments" ||
+    pathname === "/renewals" ||
     pathname === "/word-game" ||
     pathname === "/categories" ||
     pathname.startsWith("/categories/") ||

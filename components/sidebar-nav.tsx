@@ -10,6 +10,7 @@ import {
   CalendarClock,
   HandCoins,
   Puzzle,
+  RefreshCw,
   CalendarDays,
   Tag,
   ClipboardCheck,
@@ -54,6 +55,7 @@ const NAV_GROUPS: NavGroup[] = [
         Icon: CalendarClock,
       },
       { href: "/daily-payments", label: "Daily payments", Icon: HandCoins },
+      { href: "/renewals", label: "Renewals", Icon: RefreshCw },
     ],
   },
   {

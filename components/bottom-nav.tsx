@@ -17,6 +17,7 @@ import {
   CalendarClock,
   HandCoins,
   Puzzle,
+  RefreshCw,
   X,
   Settings,
   Sparkles,
@@ -48,6 +49,7 @@ const ALL_ITEMS: NavItem[] = [
   { href: "/daily-payments", label: "daily payments", Icon: HandCoins },
   { href: "/word-game", label: "daily word", Icon: Puzzle },
   { href: "/due-this-month", label: "due this month", Icon: CalendarClock },
+  { href: "/renewals", label: "renewals", Icon: RefreshCw },
   { href: "/categories", label: "categories", Icon: Tag },
   { href: "/deleted", label: "trash", Icon: Trash2 },
   { href: "/whats-new", label: "what's new", Icon: Sparkles },
@@ -94,9 +96,9 @@ export default function BottomNav() {
             pair; the bar's own colours come from `--nav-*`, which it never
             redefines, so nothing refers to itself. */}
         <div
-          className="flex w-full max-w-md items-center gap-1.5 rounded-2xl border
-            border-onpage/15 bg-(--nav-bg) p-1.5 shadow-lg shadow-black/25
-            [--nav-bg:var(--page-1)] [--nav-fg:var(--page-fg)]
+          className="flex w-full max-w-md items-center gap-1.5 rounded-2xl
+            border border-onpage/15 bg-(--nav-bg) p-1.5 shadow-lg
+            shadow-black/25 [--nav-bg:var(--page-1)] [--nav-fg:var(--page-fg)]
             [--nav-on:var(--page-on)]"
         >
           <div

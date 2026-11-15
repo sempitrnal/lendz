@@ -44,7 +44,7 @@ export default async function DashboardLayout({
         <TourProvider />
       </Suspense>
       <main
-        className="mt-10 flex-1 py-6 sm:mt-0 md:py-0
+        className="mt-10 flex-1 py-6 sm:mt-0 sm:pt-0 md:py-0
           md:pl-[calc(var(--sidebar-width))] lg:pl-[calc(var(--sidebar-width))]"
       >
         <RealtimeProvider>
