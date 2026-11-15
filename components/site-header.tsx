@@ -36,7 +36,8 @@ export default function SiteHeader({
   // phone's top bar is.
   const green = usePageOwnsMobileHeader();
 
-  if (pathname === "/login") return null;
+  // The login page has none, and the word game is full screen.
+  if (pathname === "/login" || pathname === "/word-game") return null;
 
   function openModal() {
     setIsLogoutModalOpen(true);

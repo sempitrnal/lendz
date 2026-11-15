@@ -14,6 +14,9 @@ export type Lists = {
 
 export class NoPuzzleError extends Error {}
 
+/** A word's letters in order: anagrams ("race", "care") share one. */
+const letterSet = (word: string) => [...word].sort().join("");
+
 const LAYOUT_ATTEMPTS = 30;
 
 const bit = (ch: string) => 1 << (ch.charCodeAt(0) - 97);
@@ -54,13 +57,30 @@ function indexOf(valid: Set<string>): Indexed[] {
  * puzzle. Throws `NoPuzzleError` when the lists cannot make one.
  */
 export function buildPuzzle(date: string, lists: Lists): Puzzle {
-  const { letters: size, gridWords } = sizeForDate(date);
-  const random = mulberry32(hashString(date));
+  return buildSizedPuzzle(date, sizeForDate(date), lists);
+}
+
+/**
+ * A puzzle of a given size, seeded by `seed` (a date, or "level-12"). Bases in
+ * `avoid` are skipped, so a run of levels doesn't repeat a wheel; the base
+ * used is added to it.
+ */
+export function buildSizedPuzzle(
+  seed: string,
+  { letters: size, gridWords }: { letters: number; gridWords: number },
+  lists: Lists,
+  avoid?: Set<string>,
+): Puzzle {
+  const random = mulberry32(hashString(seed));
   const ok = (w: string) => !lists.blocked.has(w);
 
   const bases = shuffled(
     lists.common.filter(
-      (w) => w.length === size && ok(w) && lists.valid.has(w),
+      (w) =>
+        w.length === size &&
+        ok(w) &&
+        lists.valid.has(w) &&
+        !avoid?.has(letterSet(w)),
     ),
     random,
   );
@@ -98,8 +118,9 @@ export function buildPuzzle(date: string, lists: Lists): Puzzle {
         .map(({ word }) => word.toUpperCase())
         .filter((w) => !inGrid.has(w))
         .sort();
+      avoid?.add(letterSet(base));
       return { letters: wheel, grid: layout.grid, words: layout.words, bonus };
     }
   }
-  throw new NoPuzzleError(`No puzzle could be built for ${date}`);
+  throw new NoPuzzleError(`No puzzle could be built for ${seed}`);
 }

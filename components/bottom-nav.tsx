@@ -81,6 +81,9 @@ export default function BottomNav() {
     };
   }, [open]);
 
+  // The word game is full screen: no tab bar.
+  if (pathname === "/word-game") return null;
+
   return (
     <>
       {/* Floating bottom bar */}

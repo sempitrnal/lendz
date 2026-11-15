@@ -22,7 +22,8 @@ const THEME_DARK = "#022c22";
 /** Scroll distance (px) over which the bar's shadow fades in. */
 const SHADOW_DISTANCE = 56;
 
-const HIDE_ALL_PATHS = ["/login"];
+/** No top bar: the login page, and the word game (full screen). */
+const HIDE_ALL_PATHS = ["/login", "/word-game"];
 const HIDE_BACK_PATHS = [
   "/",
   "/dashboard",

@@ -27,6 +27,7 @@ export function LetterWheel({
   onChange,
   shakeKey,
   children,
+  golden,
 }: {
   letters: string[];
   onSubmit(word: string): void;
@@ -34,6 +35,8 @@ export function LetterWheel({
   shakeKey: number;
   /** Shown in the empty middle of the wheel (the shuffle button). */
   children?: ReactNode;
+  /** A letter whose tiles show gold (words using it are worth double). */
+  golden?: string | null;
 }) {
   const reduceMotion = useReducedMotion();
   const positions = letterPositions(letters.length, RADIUS);
@@ -126,8 +129,8 @@ export function LetterWheel({
         onPointerUp={onUp}
         onPointerCancel={onUp}
         style={{ containerType: "inline-size" }}
-        className="relative size-full touch-none rounded-full bg-card shadow-sm
-          ring-1 ring-black/5 select-none dark:ring-white/10"
+        className="relative size-full touch-none rounded-full wg-wheel
+          select-none"
       >
         <svg
           aria-hidden="true"
@@ -141,7 +144,7 @@ export function LetterWheel({
             strokeWidth={10}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="text-emerald-500/60"
+            className="wg-line"
           />
         </svg>
         {children ? (
@@ -152,29 +155,51 @@ export function LetterWheel({
             <div className="pointer-events-auto">{children}</div>
           </div>
         ) : null}
-        {letters.map((letter, i) => (
-          <span
-            key={i}
-            aria-hidden="true"
-            className={cn(
-              `pointer-events-none absolute flex items-center justify-center
-              rounded-full font-black uppercase transition-colors`,
-              chain.includes(i)
-                ? "bg-emerald-600 text-white"
-                : `bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15
-                  dark:text-emerald-200`,
-            )}
-            style={{
-              width: `${(TILE / SIZE) * 100}%`,
-              height: `${(TILE / SIZE) * 100}%`,
-              left: `${((SIZE / 2 + positions[i].x - TILE / 2) / SIZE) * 100}%`,
-              top: `${((SIZE / 2 + positions[i].y - TILE / 2) / SIZE) * 100}%`,
-              fontSize: "9cqw",
-            }}
-          >
-            {letter}
-          </span>
-        ))}
+        {letters.map((letter, i) => {
+          // Keyed by the letter (and which copy of it), not its spot, so a
+          // shuffle glides each tile to its new place.
+          const copy = letters.slice(0, i).filter((l) => l === letter).length;
+          const left = `${((SIZE / 2 + positions[i].x - TILE / 2) / SIZE) * 100}%`;
+          const top = `${((SIZE / 2 + positions[i].y - TILE / 2) / SIZE) * 100}%`;
+          const chained = chain.includes(i);
+          return (
+            <m.span
+              key={`${letter}${copy}`}
+              aria-hidden="true"
+              initial={
+                reduceMotion ? false : { scale: 0.3, opacity: 0, left, top }
+              }
+              animate={{ left, top, scale: chained ? 1.14 : 1, opacity: 1 }}
+              transition={{
+                left: { type: "spring", stiffness: 260, damping: 24 },
+                top: { type: "spring", stiffness: 260, damping: 24 },
+                scale: { type: "spring", stiffness: 520, damping: 20 },
+                opacity: { duration: 0.2, delay: i * 0.035 },
+              }}
+              className={cn(
+                `pointer-events-none absolute flex items-center justify-center
+                rounded-full font-black lowercase transition-colors`,
+                chained
+                  ? golden && letter === golden
+                    ? "bg-amber-500 text-white shadow-md shadow-amber-500/30"
+                    : "wg-tile-on shadow-md"
+                  : golden && letter === golden
+                    ? `bg-linear-to-br from-amber-200 to-amber-400
+                      text-amber-900 shadow-sm ring-2 ring-amber-300
+                      dark:from-amber-400/40 dark:to-amber-500/40
+                      dark:text-amber-100`
+                    : "wg-tile",
+              )}
+              style={{
+                width: `${(TILE / SIZE) * 100}%`,
+                height: `${(TILE / SIZE) * 100}%`,
+                fontSize: "9cqw",
+              }}
+            >
+              {letter}
+            </m.span>
+          );
+        })}
       </div>
     </m.div>
   );

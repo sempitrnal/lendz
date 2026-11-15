@@ -1,6 +1,6 @@
 "use client";
 
-import { m } from "motion/react";
+import { m, useReducedMotion } from "motion/react";
 
 import { cn } from "@/lib/utils";
 import { gridCells, wordCells, type Puzzle } from "@/lib/word-game/puzzle";
@@ -26,9 +26,11 @@ export function CrosswordGrid({
 }) {
   const cells = gridCells(puzzle);
   const found = puzzle.words.find((w) => w.word === justFound);
-  const popping = new Set(
-    (found ? wordCells(found) : []).map(([r, c]) => `${r},${c}`),
+  // The found word's squares, in spelling order, so they flip in one by one.
+  const popping = new Map(
+    (found ? wordCells(found) : []).map(([r, c], i) => [`${r},${c}`, i]),
   );
+  const reduceMotion = useReducedMotion();
   const { rows, cols } = puzzle.grid;
 
   return (
@@ -58,22 +60,43 @@ export function CrosswordGrid({
             return <span key={key} aria-hidden="true" />;
           }
           const shown = revealed.has(key);
+          const order = popping.get(key);
           return (
             <m.span
-              key={popping.has(key) ? `${key}-${justFound}` : key}
-              initial={popping.has(key) ? { scale: 0.6 } : false}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 500, damping: 18 }}
+              key={order !== undefined ? `${key}-${justFound}` : key}
+              initial={
+                reduceMotion
+                  ? false
+                  : order !== undefined
+                    ? { scale: 0.4, rotateX: 90 }
+                    : { scale: 0.5, opacity: 0 }
+              }
+              animate={{ scale: 1, rotateX: 0, opacity: 1 }}
+              transition={{
+                type: "spring",
+                stiffness: 460,
+                damping: 20,
+                // A found word flips in letter by letter; on load the grid
+                // ripples in from the top left.
+                delay: order !== undefined ? order * 0.06 : (row + col) * 0.025,
+              }}
               className={cn(
                 `flex items-center justify-center rounded-md leading-none
-                font-black uppercase`,
-                shown
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : `bg-emerald-100/70 ring-1 ring-emerald-200
-                    dark:bg-emerald-500/10 dark:ring-emerald-500/25`,
+                font-black lowercase`,
+                shown ? "wg-fill shadow-sm" : "wg-cell",
               )}
             >
-              {shown ? letter : ""}
+              {shown ? (
+                <m.span
+                  initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 600, damping: 22 }}
+                >
+                  {letter}
+                </m.span>
+              ) : (
+                ""
+              )}
             </m.span>
           );
         })}

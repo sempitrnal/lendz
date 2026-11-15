@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "postinstall": "patch-package",
-    "words:generate": "tsx scripts/word-puzzles/generate.ts"
+    "words:generate": "tsx scripts/word-puzzles/generate.ts",
+    "words:levels": "tsx scripts/word-puzzles/levels.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

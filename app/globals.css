@@ -533,3 +533,222 @@ html[data-nav-splash="release"]
     display: none;
   }
 }
+
+/*
+ * Word game looks. The game's root carries `data-wg="<look>"`; every piece
+ * reads its colours from these variables through the `wg-*` classes below.
+ * Dark mode has one look for all of them (`.dark [data-wg]` wins on
+ * specificity).
+ */
+[data-wg] {
+  --wg-screen: var(--background);
+  --wg-band: linear-gradient(to bottom, var(--page-1), var(--page-2));
+  --wg-card: var(--card);
+  --wg-card-ring: rgb(0 0 0 / 0.05);
+  --wg-card-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  --wg-ink: var(--card-foreground);
+  --wg-muted: var(--muted-foreground);
+  --wg-out: var(--muted-foreground);
+  --wg-cell: rgb(209 250 229 / 0.7);
+  --wg-cell-ring: #a7f3d0;
+  --wg-fill: #059669;
+  --wg-fill-ink: #fff;
+  --wg-tile: #ecfdf5;
+  --wg-tile-ink: #047857;
+  --wg-tile-on: #059669;
+  --wg-tile-on-ink: #fff;
+  --wg-wheel: var(--card);
+  --wg-wheel-ring: rgb(0 0 0 / 0.05);
+  --wg-line: rgb(16 185 129 / 0.6);
+  --wg-chip: #d1fae5;
+  --wg-chip-ink: #065f46;
+  --wg-hint: var(--card);
+  --wg-hint-ink: #d97706;
+  --wg-accent: #ecfdf5;
+  --wg-accent-ink: #047857;
+  --wg-accent-ring: #a7f3d0;
+}
+[data-wg="mint"] {
+  --wg-screen: linear-gradient(to bottom, #ecfdf5, #eef7f0 45%, #e3f1e7);
+  --wg-card: #fbfdf9;
+  --wg-card-ring: rgb(6 78 59 / 0.06);
+  --wg-card-shadow: 0 6px 18px rgb(6 78 59 / 0.07);
+  --wg-ink: rgb(2 44 34 / 0.8);
+  --wg-out: #3f6f5c;
+  --wg-cell: rgb(209 250 229 / 0.85);
+  --wg-tile: #d1fae5;
+  --wg-tile-ink: #065f46;
+  --wg-wheel: #fbfdf9;
+  --wg-wheel-ring: rgb(6 78 59 / 0.06);
+  --wg-chip: rgb(5 150 105 / 0.12);
+  --wg-hint: #fbfdf9;
+}
+[data-wg="paper"] {
+  --wg-screen: linear-gradient(to bottom, #f6efe3, #efe4d2);
+  --wg-band: linear-gradient(to bottom, #047857, #059669);
+  --wg-card: #fdf8ef;
+  --wg-card-ring: #e2d2b4;
+  --wg-card-shadow: 0 6px 18px rgb(138 109 59 / 0.12);
+  --wg-ink: #5b4426;
+  --wg-muted: #8a7356;
+  --wg-out: #7a6346;
+  --wg-cell: #f1e6d2;
+  --wg-cell-ring: #e0cfb0;
+  --wg-fill: #c7663f;
+  --wg-tile: #f1e6d2;
+  --wg-tile-ink: #7a4a2a;
+  --wg-tile-on: #c7663f;
+  --wg-wheel: #fdf8ef;
+  --wg-wheel-ring: #e0cfb0;
+  --wg-line: rgb(199 102 63 / 0.5);
+  --wg-chip: rgb(199 102 63 / 0.12);
+  --wg-chip-ink: #9a4a2a;
+  --wg-hint: #fdf8ef;
+  --wg-hint-ink: #c7663f;
+  --wg-accent: #f1e6d2;
+  --wg-accent-ink: #9a4a2a;
+  --wg-accent-ring: #e0cfb0;
+}
+[data-wg="green"] {
+  --wg-screen: linear-gradient(to bottom, #059669, #059669 35%, #0f766e);
+  --wg-band: transparent;
+  --wg-card: rgb(255 255 255 / 0.96);
+  --wg-card-ring: transparent;
+  --wg-card-shadow: 0 14px 32px rgb(2 44 34 / 0.25);
+  --wg-ink: rgb(2 44 34 / 0.85);
+  --wg-muted: #64748b;
+  --wg-out: rgb(255 255 255 / 0.85);
+  --wg-cell: #ecfdf5;
+  --wg-tile: #fff;
+  --wg-tile-ink: #047857;
+  --wg-tile-on: #fcd34d;
+  --wg-tile-on-ink: #022c22;
+  --wg-wheel: rgb(255 255 255 / 0.12);
+  --wg-wheel-ring: rgb(255 255 255 / 0.25);
+  --wg-line: rgb(253 230 138 / 0.85);
+  --wg-chip: rgb(255 255 255 / 0.2);
+  --wg-chip-ink: #fff;
+  --wg-hint: rgb(255 255 255 / 0.2);
+  --wg-hint-ink: #fde68a;
+  --wg-accent: rgb(255 255 255 / 0.2);
+  --wg-accent-ink: #fff;
+  --wg-accent-ring: rgb(255 255 255 / 0.3);
+}
+[data-wg="sunset"] {
+  --wg-screen: linear-gradient(135deg, #ffe6d5, #f7dcef 50%, #dcd8fb);
+  --wg-band: linear-gradient(to right, #059669, #14b8a6);
+  --wg-card: rgb(255 255 255 / 0.72);
+  --wg-card-ring: rgb(255 255 255 / 0.7);
+  --wg-card-shadow: 0 10px 26px rgb(76 29 149 / 0.1);
+  --wg-ink: rgb(46 16 101 / 0.75);
+  --wg-muted: #6b5b8a;
+  --wg-out: #6b5b8a;
+  --wg-cell: rgb(255 255 255 / 0.7);
+  --wg-cell-ring: #ddd6fe;
+  --wg-fill: linear-gradient(135deg, #14b8a6, #059669);
+  --wg-tile: rgb(255 255 255 / 0.8);
+  --wg-tile-ink: #5b21b6;
+  --wg-tile-on: linear-gradient(135deg, #fb923c, #ec4899);
+  --wg-wheel: rgb(255 255 255 / 0.5);
+  --wg-wheel-ring: rgb(255 255 255 / 0.85);
+  --wg-line: rgb(244 114 182 / 0.6);
+  --wg-chip: rgb(255 255 255 / 0.6);
+  --wg-chip-ink: #5b21b6;
+  --wg-hint: rgb(255 255 255 / 0.6);
+  --wg-hint-ink: #f97316;
+  --wg-accent: rgb(255 255 255 / 0.7);
+  --wg-accent-ink: #6d28d9;
+  --wg-accent-ring: #fff;
+}
+.dark [data-wg] {
+  --wg-screen: var(--background);
+  --wg-band: linear-gradient(to bottom, var(--page-1), var(--page-2));
+  --wg-card: var(--card);
+  --wg-card-ring: rgb(255 255 255 / 0.1);
+  --wg-card-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+  --wg-ink: var(--card-foreground);
+  --wg-muted: var(--muted-foreground);
+  --wg-out: var(--muted-foreground);
+  --wg-cell: rgb(16 185 129 / 0.1);
+  --wg-cell-ring: rgb(16 185 129 / 0.25);
+  --wg-fill: #059669;
+  --wg-fill-ink: #fff;
+  --wg-tile: rgb(16 185 129 / 0.15);
+  --wg-tile-ink: #a7f3d0;
+  --wg-tile-on: #059669;
+  --wg-tile-on-ink: #fff;
+  --wg-wheel: var(--card);
+  --wg-wheel-ring: rgb(255 255 255 / 0.1);
+  --wg-line: rgb(16 185 129 / 0.6);
+  --wg-chip: rgb(16 185 129 / 0.15);
+  --wg-chip-ink: #6ee7b7;
+  --wg-hint: var(--card);
+  --wg-hint-ink: #fcd34d;
+  --wg-accent: rgb(16 185 129 / 0.15);
+  --wg-accent-ink: #6ee7b7;
+  --wg-accent-ring: rgb(16 185 129 / 0.3);
+}
+.wg-screen {
+  background: var(--wg-screen);
+}
+.wg-band {
+  background: var(--wg-band);
+}
+.wg-card {
+  background: var(--wg-card);
+  color: var(--wg-ink);
+  box-shadow:
+    0 0 0 1px var(--wg-card-ring),
+    var(--wg-card-shadow);
+}
+[data-wg="sunset"] .wg-card,
+[data-wg="sunset"] .wg-wheel {
+  backdrop-filter: blur(12px);
+}
+.wg-muted {
+  color: var(--wg-muted);
+}
+.wg-out {
+  color: var(--wg-out);
+}
+.wg-cell {
+  background: var(--wg-cell);
+  box-shadow: inset 0 0 0 1px var(--wg-cell-ring);
+}
+.wg-fill {
+  background: var(--wg-fill);
+  color: var(--wg-fill-ink);
+}
+.wg-tile {
+  background: var(--wg-tile);
+  color: var(--wg-tile-ink);
+}
+.wg-tile-on {
+  background: var(--wg-tile-on);
+  color: var(--wg-tile-on-ink);
+}
+.wg-wheel {
+  background: var(--wg-wheel);
+  box-shadow:
+    0 0 0 1px var(--wg-wheel-ring),
+    var(--wg-card-shadow);
+}
+.wg-line {
+  color: var(--wg-line);
+}
+.wg-chip {
+  background: var(--wg-chip);
+  color: var(--wg-chip-ink);
+}
+.wg-hint {
+  background: var(--wg-hint);
+  color: var(--wg-hint-ink);
+  box-shadow:
+    0 0 0 1px var(--wg-card-ring),
+    var(--wg-card-shadow);
+}
+.wg-accent {
+  background: var(--wg-accent);
+  color: var(--wg-accent-ink);
+  box-shadow: 0 0 0 1px var(--wg-accent-ring);
+}

@@ -108,6 +108,9 @@ export default function SidebarNav() {
     );
   }, [collapsed]);
 
+  // The word game is full screen: no sidebar.
+  if (pathname === "/word-game") return null;
+
   return (
     <aside
       data-collapsed={collapsed}

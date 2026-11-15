@@ -11,55 +11,14 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import wordListPath from "word-list";
-import { words as popular } from "popular-english-words";
-import { array as badWords } from "badwords-list";
 import { manilaToday, monthOf, shiftDate } from "../../lib/word-game/date";
 import type { MonthFile } from "../../lib/word-game/puzzle";
-import { buildPuzzle, NoPuzzleError, type Lists } from "./build";
+import { buildPuzzle, NoPuzzleError } from "./build";
+import { buildLists } from "./lists";
 import { END_DATE, START_DATE } from "./config";
 import { shouldKeep } from "./keep";
 
-const POPULAR_COUNT = 20000;
-/**
- * How popular a word must be to go in the grid, by length. The popularity
- * list comes from Wikipedia, so rare short words are mostly names and
- * abbreviations; short words are held to a much higher bar.
- */
-const MAX_RANK_BY_LENGTH: Record<number, number> = { 3: 1500, 4: 4000 };
-const MAX_RANK_LONGER = 9000;
 const OUT = join("public", "word-puzzles");
-const WORD = /^[a-z]{3,7}$/;
-
-function buildLists(): Lists {
-  const valid = new Set(
-    readFileSync(wordListPath, "utf8")
-      .split("\n")
-      .map((w) => w.trim().toLowerCase())
-      .filter((w) => WORD.test(w)),
-  );
-  const extra = readFileSync(
-    join("scripts", "word-puzzles", "blocklist.txt"),
-    "utf8",
-  )
-    .split("\n")
-    .filter((line) => line.trim() && !line.startsWith("#"));
-  const blocked = new Set(
-    [...badWords, ...extra].map((w) => w.trim().toLowerCase()),
-  );
-  const common = popular
-    .getMostPopular(POPULAR_COUNT)
-    .map((w: string) => w.toLowerCase())
-    .filter(
-      (w: string, rank: number) =>
-        WORD.test(w) &&
-        valid.has(w) &&
-        !blocked.has(w) &&
-        rank < (MAX_RANK_BY_LENGTH[w.length] ?? MAX_RANK_LONGER),
-    );
-  return { common, valid, blocked };
-}
-
 const lists = buildLists();
 console.log(
   `Lists: ${lists.valid.size} valid, ${lists.common.length} common, ${lists.blocked.size} blocked`,
