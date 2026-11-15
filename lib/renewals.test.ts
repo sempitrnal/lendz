@@ -141,6 +141,17 @@ describe("short accounts", () => {
   });
 });
 
+describe("1-month accounts", () => {
+  it("a 2-installment account qualifies only with 1 left", () => {
+    expect(
+      renewalAccount(account(), schedules(2, 0), [], "2027-01-01"),
+    ).toBeNull();
+    expect(
+      renewalAccount(account(), schedules(2, 1), [], "2027-01-01")?.left,
+    ).toBe(1);
+  });
+});
+
 describe("3-month accounts", () => {
   it("a 6-installment account qualifies only with 2 or 1 left", () => {
     expect(

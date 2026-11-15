@@ -46,8 +46,9 @@ export function renewalWindow(
   /** How many installments the account has in all, when known. */
   total?: number,
 ): number {
-  // A short account has its own window: one with only 4 or 6 installments
-  // (2 or 3 months bimonthly) qualifies with 2 or fewer left, not from day one.
+  // A short account has its own window, so it doesn't qualify from day one:
+  // bimonthly, 1 month (2 installments) at 1 left, 2 or 3 months (4 or 6)
+  // at 2 or fewer.
   const short = total !== undefined ? SHORT_ACCOUNT_WINDOW[total] : undefined;
   if (short !== undefined) return short;
   // The small nudge keeps 3 / 0.5 = 5.999… from rounding down to 5.
@@ -56,6 +57,7 @@ export function renewalWindow(
 
 /** Installments in all → most left to qualify, for accounts this short. */
 export const SHORT_ACCOUNT_WINDOW: Record<number, number> = {
+  2: 1,
   4: 2,
   6: 2,
 };
