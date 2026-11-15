@@ -45,7 +45,7 @@ const SPRING = { type: "spring", stiffness: 500, damping: 40 } as const;
 export const namePillClass = `inline-block max-w-full min-w-0 break-words
   rounded-md border border-[var(--grp-border,color-mix(in_srgb,var(--grp,#0ea5e9)_30%,transparent))]
   dark:border-[color-mix(in_srgb,var(--grp,#0ea5e9)_30%,transparent)]
-  bg-[color-mix(in_srgb,var(--grp,#0ea5e9)_12%,transparent)] px-2.5 py-1
+  bg-[color-mix(in_srgb,var(--grp,#0ea5e9)_12%,var(--cat-base))] px-2.5 py-1
   text-sm leading-[1.15] font-extrabold text-slate-600 lowercase
   dark:text-slate-200 mb-1`;
 
@@ -381,7 +381,7 @@ export function CollectRow({
           motion-reduce:transition-none`,
           highlight
             ? "bg-primary/15"
-            : "bg-[color-mix(in_srgb,var(--grp,var(--card))_6%,var(--card))]",
+            : "bg-[color-mix(in_srgb,var(--grp,var(--cat-base))_6%,var(--cat-base))]",
         )}
       >
         {isNote ? (

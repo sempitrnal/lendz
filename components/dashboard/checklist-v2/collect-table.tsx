@@ -325,7 +325,7 @@ export function CollectTable({
           className={cn(
             "px-3 py-2 text-xs font-black",
             g.color
-              ? `bg-[color-mix(in_oklch,var(--hdr)_55%,var(--card))]
+              ? `bg-[color-mix(in_oklch,var(--hdr)_55%,var(--cat-base))]
                 text-(--hdr-name) dark:text-(--hdr-name-dark)`
               : "bg-muted/60",
           )}

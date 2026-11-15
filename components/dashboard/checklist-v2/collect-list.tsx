@@ -191,7 +191,7 @@ export function CollectList({
             `flex w-full items-center gap-2 px-4 py-3.5 text-left text-xs
             font-semibold lowercase`,
             g.color
-              ? `bg-[color-mix(in_oklch,var(--hdr)_55%,var(--card))]
+              ? `bg-[color-mix(in_oklch,var(--hdr)_55%,var(--cat-base))]
                 text-(--hdr-fg) dark:text-(--hdr-fg-dark)`
               : "bg-card",
           )}

@@ -11,6 +11,7 @@ import { Suspense } from "react";
 import { TourProvider } from "@/components/tours/tour-provider";
 import { NavSplash } from "@/components/nav-splash";
 import { WordGamePrompt } from "@/components/word-game/word-game-prompt";
+import { AppLookPrompt } from "@/components/app-look-prompt";
 
 export default async function DashboardLayout({
   children,
@@ -39,6 +40,7 @@ export default async function DashboardLayout({
       <SiteHeader isLoggedIn logoutAction={logout} />
       <BottomNav />
       <NavSplash />
+      <AppLookPrompt />
       <WordGamePrompt />
       <Suspense fallback={null}>
         <TourProvider />

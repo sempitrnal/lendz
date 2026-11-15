@@ -20,6 +20,7 @@ import {
   writePrompted,
 } from "@/lib/word-game/prompt";
 import { readAll } from "@/lib/word-game/storage";
+import { lookPromptPending } from "@/lib/app-look-prompt";
 
 /** The pages that ask: the dashboard and the checklist. */
 const PAGES = new Set(["/dashboard", "/daily-checklist"]);
@@ -44,6 +45,8 @@ export function WordGamePrompt() {
     const timer = setTimeout(() => {
       // A walkthrough is on screen: don't pile a dialog on top of it.
       if (document.querySelector("[data-tour-overlay]")) return;
+      // The one-time look picker goes first; this can wait for another day.
+      if (lookPromptPending()) return;
       const today = manilaToday();
       if (!shouldPrompt(readAll(), today, askedToday())) return;
       remember(today);

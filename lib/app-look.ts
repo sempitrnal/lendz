@@ -21,7 +21,7 @@ export type AppLook =
 
 export const APP_LOOK_KEY = "app-look";
 export const APP_LOOK_EVENT = "app-look-changed";
-export const DEFAULT_APP_LOOK: AppLook = "lavender-paper";
+export const DEFAULT_APP_LOOK: AppLook = "plum-gold";
 
 export const APP_LOOKS: {
   id: AppLook;

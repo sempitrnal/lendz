@@ -1393,3 +1393,29 @@ html[data-look="plum-gold"].dark {
   --input: oklch(1 0 0 / 15%);
   --sidebar: oklch(0.21 0.025 302.3);
 }
+
+/*
+ * What category colours are mixed with (group headers, name pills, rows): a
+ * plain white, or the plain dark card, whatever the app look. A look's tinted
+ * cards would otherwise shift every category's colour in the checklist.
+ */
+:root {
+  --cat-base: #ffffff;
+}
+.dark {
+  --cat-base: oklch(0.205 0 0);
+}
+
+/*
+ * Changing the app look (components/use-app-look.ts): every colour eases
+ * from the old look to the new while `look-easing` is on <html>.
+ */
+html.look-easing *,
+html.look-easing *::before,
+html.look-easing *::after {
+  transition:
+    background-color 450ms ease,
+    border-color 450ms ease,
+    color 450ms ease,
+    fill 450ms ease !important;
+}

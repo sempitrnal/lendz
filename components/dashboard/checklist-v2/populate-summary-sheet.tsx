@@ -109,7 +109,7 @@ function Section({
               className={`flex items-center gap-2 px-3 py-1.5 text-[11px]
               font-semibold lowercase ${
                 g.color
-                  ? "bg-[color:color-mix(in_oklab,var(--grp)_8%,var(--card))]"
+                  ? "bg-[color:color-mix(in_oklab,var(--grp)_8%,var(--cat-base))]"
                   : "bg-card"
               }`}
             >

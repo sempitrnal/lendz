@@ -100,7 +100,7 @@ export function ReleaseList({
                     `flex w-full items-center gap-2 px-4 py-3.5 text-left
                       text-xs font-semibold lowercase`,
                     g.color
-                      ? `bg-[color-mix(in_oklch,var(--hdr)_55%,var(--card))]
+                      ? `bg-[color-mix(in_oklch,var(--hdr)_55%,var(--cat-base))]
                         text-(--hdr-fg) dark:text-(--hdr-fg-dark)`
                       : "bg-card",
                   )}
@@ -256,7 +256,7 @@ function ReleaseRow({
         last:border-b-0`,
         highlight
           ? "bg-primary/5"
-          : "bg-[color-mix(in_srgb,var(--grp,var(--card))_6%,var(--card))]",
+          : "bg-[color-mix(in_srgb,var(--grp,var(--cat-base))_6%,var(--cat-base))]",
       )}
     >
       <div className="min-w-0 flex-1" data-tour="release-row">
