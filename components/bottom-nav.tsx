@@ -52,6 +52,7 @@ const ALL_ITEMS: NavItem[] = [
   { href: "/renewals", label: "renewals", Icon: RefreshCw },
   { href: "/categories", label: "categories", Icon: Tag },
   { href: "/deleted", label: "trash", Icon: Trash2 },
+  { href: "/settings", label: "settings", Icon: Settings },
   { href: "/whats-new", label: "what's new", Icon: Sparkles },
 ];
 
@@ -147,6 +148,7 @@ export default function BottomNav() {
             <button
               type="button"
               onClick={() => setOpen(true)}
+              data-tour="nav-more"
               aria-label="Open full menu"
               aria-expanded={open}
               className="min-w-10 shrink-0 grow rounded-xl px-1.5 py-2.5 text-xs

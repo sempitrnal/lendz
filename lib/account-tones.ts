@@ -26,9 +26,9 @@ export const TILE_TONES = {
     value: "text-[#556477] dark:text-yellow-100",
   },
   emerald: {
-    box: "border-emerald-200/80 bg-emerald-100/80 dark:border-emerald-900/40 dark:bg-emerald-900/25",
-    label: "text-emerald-800/80 dark:text-emerald-200/70",
-    value: "text-[#048863] dark:text-emerald-200",
+    box: "border-money-200/80 bg-money-100/80 dark:border-money-900/40 dark:bg-money-900/25",
+    label: "text-money-800/80 dark:text-money-200/70",
+    value: "text-[#048863] dark:text-money-200",
   },
   teal: {
     box: "border-teal-200/80 bg-teal-100/80 dark:border-teal-900/40 dark:bg-teal-900/25",
@@ -47,8 +47,8 @@ export const SWIPE_TILE_TONES = [
     label: "text-yellow-800/70 dark:text-yellow-200/60",
   },
   {
-    box: "border-emerald-100 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-900/15",
-    label: "text-emerald-800/70 dark:text-emerald-200/60",
+    box: "border-money-100 bg-money-50 dark:border-money-900/30 dark:bg-money-900/15",
+    label: "text-money-800/70 dark:text-money-200/60",
   },
   {
     box: "border-teal-100 bg-teal-50 dark:border-teal-900/30 dark:bg-teal-900/15",

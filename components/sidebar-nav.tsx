@@ -165,6 +165,13 @@ export default function SidebarNav() {
                   <li key={href}>
                     <Link
                       href={href}
+                      data-tour={
+                        href === "/settings"
+                          ? "sidebar-settings"
+                          : href === "/word-game"
+                            ? "sidebar-word-game"
+                            : undefined
+                      }
                       aria-current={isActive ? "page" : undefined}
                       title={collapsed ? label : undefined}
                       className={`group/item relative flex w-full items-center

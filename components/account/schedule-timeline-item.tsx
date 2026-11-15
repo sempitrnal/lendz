@@ -18,7 +18,7 @@ export type ScheduleState = "paid" | "partial" | "overdue" | "pending";
 
 /** The dot on the rail, one look per state; the next one is yellow. */
 const DOT: Record<ScheduleState, string> = {
-  paid: "border-emerald-500 bg-emerald-500 text-white",
+  paid: "border-money-500 bg-money-500 text-white",
   partial:
     "border-violet-400 bg-violet-100 dark:border-violet-500 dark:bg-violet-900/50",
   overdue:
@@ -34,7 +34,7 @@ const STATE_LABEL: Record<ScheduleState, string> = {
 };
 
 const LABEL_TONE: Record<ScheduleState, string> = {
-  paid: "text-emerald-700 dark:text-emerald-300",
+  paid: "text-money-700 dark:text-money-300",
   partial: "text-violet-600 dark:text-violet-300",
   overdue: "text-rose-600 dark:text-rose-300",
   pending: "text-sky-700 dark:text-sky-300",
@@ -66,7 +66,7 @@ const SNAP = { type: "spring", stiffness: 500, damping: 40 } as const;
 
 const SUB_TONES = {
   slate: "text-slate-500 dark:text-slate-400",
-  emerald: "text-emerald-700 dark:text-emerald-300",
+  emerald: "text-money-700 dark:text-money-300",
   amber: "text-amber-700 dark:text-amber-300",
   rose: "text-rose-600 dark:text-rose-300",
 } as const;
@@ -186,7 +186,7 @@ export function ScheduleTimelineItem({
           className={cn(
             "absolute top-7 -bottom-2 left-[11px] w-0.5",
             state === "paid"
-              ? "bg-emerald-300 dark:bg-emerald-800"
+              ? "bg-money-300 dark:bg-money-800"
               : "bg-slate-200 dark:bg-white/10",
           )}
         />

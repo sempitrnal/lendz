@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { cleanMessengerUsername, messengerLink } from "@/lib/messenger";
+import {
+  cleanMessengerUsername,
+  isIOS,
+  messengerAppLink,
+  messengerLink,
+} from "@/lib/messenger";
 
 describe("cleanMessengerUsername", () => {
   it.each([
@@ -22,5 +27,28 @@ describe("cleanMessengerUsername", () => {
 describe("messengerLink", () => {
   it("opens m.me with the username", () => {
     expect(messengerLink("juan.dc")).toBe("https://m.me/juan.dc");
+  });
+});
+
+describe("messengerAppLink", () => {
+  it("asks the Messenger app for the chat", () => {
+    expect(messengerAppLink("juan.dc")).toBe(
+      "fb-messenger://user-thread/juan.dc",
+    );
+  });
+});
+
+describe("isIOS", () => {
+  it("knows iPhones and touch iPads, not Macs or Android", () => {
+    expect(
+      isIOS("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)"),
+    ).toBe(true);
+    expect(isIOS("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", 5)).toBe(
+      true,
+    );
+    expect(isIOS("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", 0)).toBe(
+      false,
+    );
+    expect(isIOS("Mozilla/5.0 (Linux; Android 14)")).toBe(false);
   });
 });

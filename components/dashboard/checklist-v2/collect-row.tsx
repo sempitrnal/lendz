@@ -602,7 +602,7 @@ function RowText({
   }
   if (sub.multi && sub.multi.paid > 0 && sub.multi.paid < sub.multi.total) {
     facts.push(
-      <span className="text-emerald-700 dark:text-emerald-400">
+      <span className="text-money-700 dark:text-money-400">
         {sub.multi.paid} of {sub.multi.total} paid
       </span>,
     );

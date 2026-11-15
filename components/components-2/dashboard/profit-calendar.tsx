@@ -38,10 +38,10 @@ const WEEKDAYS = ["s", "m", "t", "w", "t", "f", "s"];
 
 /** Cell shading from a quiet day to the month's best, lightest first. */
 const HEAT = [
-  "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
-  "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200",
-  "bg-emerald-200 text-emerald-900 dark:bg-emerald-500/35 dark:text-emerald-100",
-  "bg-emerald-300 text-emerald-950 dark:bg-emerald-500/55 dark:text-white",
+  "bg-money-50 text-money-700 dark:bg-money-500/10 dark:text-money-300",
+  "bg-money-100 text-money-800 dark:bg-money-500/20 dark:text-money-200",
+  "bg-money-200 text-money-900 dark:bg-money-500/35 dark:text-money-100",
+  "bg-money-300 text-money-950 dark:bg-money-500/55 dark:text-white",
 ];
 
 function monthLabel(month: string) {
@@ -153,8 +153,8 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
       <div className="flex items-center gap-2 px-4 pt-3 pb-2">
         <span
           className="flex size-8 shrink-0 items-center justify-center
-            rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20
-            dark:text-emerald-300"
+            rounded-full bg-money-100 text-money-700 dark:bg-money-500/20
+            dark:text-money-300"
         >
           <CalendarHeart className="size-4" aria-hidden="true" />
         </span>
@@ -355,7 +355,7 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
                           : "bg-muted/40 text-muted-foreground",
                         future && "bg-transparent opacity-35",
                         on &&
-                          `ring-2 ring-emerald-500 ring-offset-1
+                          `ring-2 ring-money-500 ring-offset-1
                           ring-offset-card`,
                       )}
                     >
@@ -370,7 +370,7 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
                         className={cn(
                           "text-[10px] leading-none font-bold opacity-70",
                           date === today &&
-                            `rounded-full bg-emerald-600 px-1.5 py-0.5
+                            `rounded-full bg-money-600 px-1.5 py-0.5
                             text-white opacity-100`,
                         )}
                       >
@@ -432,8 +432,8 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
             </div>
             <div className="flex shrink-0 flex-col items-end">
               <p
-                className="text-lg font-bold text-emerald-600 tabular-nums
-                  dark:text-emerald-300"
+                className="text-lg font-bold text-money-600 tabular-nums
+                  dark:text-money-300"
               >
                 {mask(`+${formatPeso(pickedFigure?.profit ?? 0)}`)}
               </p>
@@ -441,7 +441,7 @@ export function ProfitCalendar({ hide }: { hide: boolean }) {
                 <Link
                   href={`/daily-payments?date=${picked}`}
                   className="flex items-center text-[11px] font-bold
-                    text-emerald-700 active:opacity-60 dark:text-emerald-300"
+                    text-money-700 active:opacity-60 dark:text-money-300"
                 >
                   see payments
                   <ChevronRight className="size-3" aria-hidden="true" />

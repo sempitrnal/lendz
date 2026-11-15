@@ -71,7 +71,7 @@ const hasPayment = (row: ScheduleDialogRow) =>
 /** Each schedule is its own card; paid/part-paid ones get a soft glow. */
 export const SCHEDULE_CARD = {
   plain: "border-slate-200 bg-white dark:border-border dark:bg-card",
-  paid: "border-emerald-300/70 bg-emerald-50/80 shadow-[inset_0_0_18px_-6px_rgba(16,185,129,0.55)] dark:border-emerald-700/60 dark:bg-emerald-400/[0.07] dark:shadow-[inset_0_0_18px_-6px_rgba(52,211,153,0.45)]",
+  paid: "border-money-300/70 bg-money-50/80 shadow-[inset_0_0_18px_-6px_rgba(16,185,129,0.55)] dark:border-money-700/60 dark:bg-money-400/[0.07] dark:shadow-[inset_0_0_18px_-6px_rgba(52,211,153,0.45)]",
   partial:
     "border-violet-300/70 bg-violet-50/80 shadow-[inset_0_0_18px_-6px_rgba(139,92,246,0.5)] dark:border-violet-700/60 dark:bg-violet-400/[0.07] dark:shadow-[inset_0_0_18px_-6px_rgba(167,139,250,0.45)]",
   undo: "border-dashed border-orange-300 bg-orange-50/50 dark:border-orange-700 dark:bg-orange-400/[0.05]",
@@ -90,7 +90,7 @@ export const ACTION_BUTTON =
   "cursor-pointer rounded-md border px-2 py-1.5 text-sm font-semibold lowercase transition";
 
 export const PAID_TEXT = {
-  paid: "font-semibold text-emerald-700 dark:text-emerald-300",
+  paid: "font-semibold text-money-700 dark:text-money-300",
   partial: "font-semibold text-violet-700 dark:text-violet-300",
 } as const;
 
@@ -186,7 +186,7 @@ export function AccountSummaryHeader({
   const highlight = !changed
     ? ""
     : added >= undone
-      ? "font-semibold text-emerald-600 dark:text-emerald-400"
+      ? "font-semibold text-money-600 dark:text-money-400"
       : "font-semibold text-orange-600 dark:text-orange-400";
 
   return (
@@ -223,7 +223,7 @@ export function AccountSummaryHeader({
               pending.undoInstallments > 0
                 ? "text-orange-600 dark:text-orange-400"
                 : pending.installments > 0
-                  ? "text-emerald-600 dark:text-emerald-400"
+                  ? "text-money-600 dark:text-money-400"
                   : "text-muted-foreground"
             }`}
           >
@@ -240,11 +240,11 @@ export function AccountSummaryHeader({
         aria-label={`${pct}% paid`}
       >
         <div
-          className="h-full bg-emerald-500 transition-[width] duration-500"
+          className="h-full bg-money-500 transition-[width] duration-500"
           style={{ width: width(basePaid) }}
         />
         <div
-          className="h-full bg-emerald-500/35 transition-[width] duration-300"
+          className="h-full bg-money-500/35 transition-[width] duration-300"
           style={{ width: width(paidAdded) }}
         />
         <div
@@ -654,7 +654,7 @@ export function ScheduleCheckDialog({
         className={cn(
           `size-3.5 shrink-0 rounded-full bg-linear-to-br shadow-sm ring-2
           ring-white/70 transition-colors duration-200 dark:ring-white/10`,
-          shown === "paid" && "from-emerald-300 to-emerald-600",
+          shown === "paid" && "from-money-300 to-money-600",
           shown === "partial" && "from-violet-300 to-violet-600",
           shown === "overdue" && "from-rose-300 to-rose-600",
           shown === "unpaid" &&
@@ -697,18 +697,18 @@ export function ScheduleCheckDialog({
             </p>
           </div>
           <div
-            className="rounded-xl bg-emerald-50 px-3 py-2
-              dark:bg-emerald-500/10"
+            className="rounded-xl bg-money-50 px-3 py-2
+              dark:bg-money-500/10"
           >
             <p
-              className="text-[11px] font-semibold text-emerald-700
-                dark:text-emerald-400"
+              className="text-[11px] font-semibold text-money-700
+                dark:text-money-400"
             >
               due
             </p>
             <p
-              className="text-base font-black text-emerald-700 tabular-nums
-                dark:text-emerald-300"
+              className="text-base font-black text-money-700 tabular-nums
+                dark:text-money-300"
             >
               ₱{dueTotal.toLocaleString()}
             </p>
@@ -781,8 +781,8 @@ export function ScheduleCheckDialog({
                         ? `bg-orange-50 ring-orange-300/70
                           dark:bg-orange-500/10`
                         : chosen === "paid" || isPaid
-                          ? `bg-emerald-50 ring-emerald-300/70
-                            dark:bg-emerald-500/10 dark:ring-emerald-500/30`
+                          ? `bg-money-50 ring-money-300/70
+                            dark:bg-money-500/10 dark:ring-money-500/30`
                           : chosen === "partial" || state === "partial"
                             ? `bg-violet-50 ring-violet-300/70
                               dark:bg-violet-500/10 dark:ring-violet-500/30`
@@ -811,7 +811,7 @@ export function ScheduleCheckDialog({
                                   : state === "partial"
                                     ? "text-[#7f5ead]"
                                     : state === "paid"
-                                      ? "text-emerald-600 dark:text-emerald-300"
+                                      ? "text-money-600 dark:text-money-300"
                                       : "text-muted-foreground",
                             )}
                           >
@@ -843,7 +843,7 @@ export function ScheduleCheckDialog({
                         className={cn(
                           "shrink-0 text-lg font-black tabular-nums",
                           isPaid && !undoing
-                            ? "text-emerald-600 dark:text-emerald-300"
+                            ? "text-money-600 dark:text-money-300"
                             : "text-foreground/75",
                         )}
                       >
@@ -951,8 +951,8 @@ export function ScheduleCheckDialog({
                                             timing.tone === "late" &&
                                               "text-rose-600 dark:text-rose-400",
                                             timing.tone === "early" &&
-                                              `text-emerald-600
-                                                dark:text-emerald-400`,
+                                              `text-money-600
+                                                dark:text-money-400`,
                                           )}
                                         >
                                           {timing.text}
@@ -1048,9 +1048,9 @@ export function ScheduleCheckDialog({
                                 [
                                   "paid",
                                   "Paid",
-                                  `bg-linear-to-br from-emerald-400 to-emerald-500
-                                    text-white shadow-sm shadow-emerald-500/25`,
-                                  `border border-emerald-300/70 bg-transparent text-emerald-700/80 hover:bg-emerald-500/10 dark:border-emerald-400/30 dark:text-emerald-300/80`,
+                                  `bg-linear-to-br from-money-400 to-money-500
+                                    text-white shadow-sm shadow-money-500/25`,
+                                  `border border-money-300/70 bg-transparent text-money-700/80 hover:bg-money-500/10 dark:border-money-400/30 dark:text-money-300/80`,
                                 ],
                                 [
                                   "partial",
@@ -1181,14 +1181,14 @@ export function ScheduleCheckDialog({
                                     transition active:scale-95`,
                                   pct === 100
                                     ? picked
-                                      ? `bg-linear-to-br from-emerald-400
-                                        to-emerald-500 text-white shadow-sm
-                                        shadow-emerald-500/25`
-                                      : `border border-emerald-300/70
-                                        bg-transparent text-emerald-700/80
-                                        hover:bg-emerald-500/10
-                                        dark:border-emerald-400/30
-                                        dark:text-emerald-300/80`
+                                      ? `bg-linear-to-br from-money-400
+                                        to-money-500 text-white shadow-sm
+                                        shadow-money-500/25`
+                                      : `border border-money-300/70
+                                        bg-transparent text-money-700/80
+                                        hover:bg-money-500/10
+                                        dark:border-money-400/30
+                                        dark:text-money-300/80`
                                     : picked
                                       ? `bg-linear-to-br from-[#9784d8]
                                         to-[#7a66c0] text-white shadow-sm
@@ -1227,7 +1227,7 @@ export function ScheduleCheckDialog({
                                   text-sm font-bold text-white lowercase shadow-sm
                                   transition active:scale-[0.98] disabled:opacity-40`,
                                 isFull
-                                  ? "from-emerald-400 to-emerald-500 shadow-emerald-500/25"
+                                  ? "from-money-400 to-money-500 shadow-money-500/25"
                                   : "from-[#9784d8] to-[#7a66c0] shadow-[#7a66c0]/25",
                               )}
                             >
@@ -1278,9 +1278,9 @@ export function ScheduleCheckDialog({
           })
         }
         className="flex h-8 shrink-0 items-center gap-1 rounded-full border
-          border-emerald-300/70 bg-transparent px-3 text-xs font-bold
-          text-emerald-700/80 lowercase transition hover:bg-emerald-500/10
-          active:scale-95 dark:border-emerald-400/30 dark:text-emerald-300/80"
+          border-money-300/70 bg-transparent px-3 text-xs font-bold
+          text-money-700/80 lowercase transition hover:bg-money-500/10
+          active:scale-95 dark:border-money-400/30 dark:text-money-300/80"
       >
         <Check className="size-3.5" strokeWidth={3} />
         Mark all paid
@@ -1307,8 +1307,8 @@ export function ScheduleCheckDialog({
         className={cn(
           "h-12 flex-1 rounded-xl text-base font-black lowercase",
           !undoOnly &&
-            `border-0 bg-linear-to-br from-emerald-500 to-emerald-700 text-white
-            shadow-sm shadow-emerald-700/30 hover:opacity-95`,
+            `border-0 bg-linear-to-br from-money-500 to-money-700 text-white
+            shadow-sm shadow-money-700/30 hover:opacity-95`,
         )}
       >
         {submitting
@@ -1475,8 +1475,8 @@ export function BulkPaidDialog({
         <DialogHeader className="gap-3 pb-2">
           <div
             className="flex h-10 w-10 items-center justify-center rounded-full
-              bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40
-              dark:text-emerald-300"
+              bg-money-100 text-money-700 dark:bg-money-900/40
+              dark:text-money-300"
           >
             <Check className="h-5 w-5" />
           </div>

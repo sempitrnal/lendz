@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Eye, EyeOff, MessageCircle } from "lucide-react";
-import { messengerLink } from "@/lib/messenger";
+import { messengerLink, openMessenger } from "@/lib/messenger";
 import { cn, isDarkColor } from "@/lib/utils";
 import { HIDDEN_AMOUNT } from "@/lib/hide-amounts";
 import { formatAmount, shortDate } from "@/lib/account-card/summary";
@@ -266,6 +266,11 @@ export function BorrowerBand({
       href={messengerLink(username)}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={(e) => {
+        // On iPhone, open the Messenger app itself (see openMessenger).
+        e.preventDefault();
+        openMessenger(username);
+      }}
       aria-label={`Message ${name} on Messenger`}
       className="flex h-8 shrink-0 items-center gap-1.5 rounded-full
         bg-onpage/20 px-3 text-xs font-bold text-onpage lowercase

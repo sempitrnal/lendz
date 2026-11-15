@@ -36,7 +36,7 @@ export type LedgerRow = {
 };
 
 const PILL: Record<ScheduleState | "next", string> = {
-  paid: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300",
+  paid: "bg-money-100 text-money-800 dark:bg-money-500/15 dark:text-money-300",
   partial:
     "bg-violet-100 text-violet-800 dark:bg-violet-500/15 dark:text-violet-300",
   overdue: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300",
@@ -46,7 +46,7 @@ const PILL: Record<ScheduleState | "next", string> = {
 
 const SUB_TONES = {
   slate: "text-muted-foreground",
-  emerald: "text-emerald-700 dark:text-emerald-300",
+  emerald: "text-money-700 dark:text-money-300",
   amber: "text-amber-700 dark:text-amber-300",
   rose: "text-rose-600 dark:text-rose-300",
 } as const;
@@ -111,8 +111,8 @@ export function ScheduleLedger({
                 `rounded-full border px-2.5 py-1 text-xs font-semibold
                 transition-colors`,
                 filter === f
-                  ? `border-emerald-500/40 bg-emerald-500/10 text-emerald-600
-                    dark:text-emerald-400`
+                  ? `border-money-500/40 bg-money-500/10 text-money-600
+                    dark:text-money-400`
                   : "border-border text-muted-foreground hover:bg-muted",
               )}
             >
@@ -236,7 +236,7 @@ export function ScheduleLedger({
                     className={cn(
                       "px-3 py-3 text-right font-bold tabular-nums",
                       r.paid > 0
-                        ? "text-emerald-700 dark:text-emerald-400"
+                        ? "text-money-700 dark:text-money-400"
                         : "text-muted-foreground/60",
                     )}
                   >
@@ -308,8 +308,8 @@ export function ScheduleLedger({
               {mask(money(totals.due))}
             </td>
             <td
-              className="px-3 py-3 text-right text-emerald-700 tabular-nums
-                dark:text-emerald-400"
+              className="px-3 py-3 text-right text-money-700 tabular-nums
+                dark:text-money-400"
             >
               {mask(money(totals.paid))}
             </td>

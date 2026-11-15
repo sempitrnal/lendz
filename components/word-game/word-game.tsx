@@ -195,6 +195,7 @@ export function WordGame({
             <button
               type="button"
               onClick={() => setPicking(true)}
+              data-tour="game-look"
               aria-label="Game look"
               className="flex size-9 shrink-0 items-center justify-center
                 rounded-full bg-onpage/20 text-onpage transition
@@ -209,6 +210,7 @@ export function WordGame({
         <div
           role="tablist"
           aria-label="Game modes"
+          data-tour="game-modes"
           className="relative z-20 mx-auto mt-3 grid max-w-xl grid-cols-4 gap-1
             rounded-full bg-white/15 p-1"
         >
@@ -298,6 +300,7 @@ function CoinCount({ coins }: { coins: number }) {
   }
   return (
     <p
+      data-tour="game-coins"
       className="relative flex items-center gap-1 rounded-full bg-white/15
         px-2.5 py-1 text-xs font-bold tabular-nums"
       aria-label={`${coins} coins`}

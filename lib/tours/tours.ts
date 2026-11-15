@@ -321,4 +321,78 @@ export const TOURS: Tour[] = [
       },
     ],
   },
+  {
+    id: "2026-11-16-looks-and-word-game",
+    title: "App looks and the word game",
+    date: "2026-11-16",
+    page: "/dashboard",
+    steps: [
+      {
+        target: '[data-tour="nav-more"]',
+        title: "New in More",
+        body: "Settings now lets you pick the app's look, and the daily word is a full game. Both are in More.",
+      },
+      {
+        target: '[data-tour="sidebar-settings"]',
+        title: "Pick a look",
+        body: "Settings now has app looks: grape paper, warm paper, mint and more.",
+      },
+      {
+        target: '[data-tour="sidebar-word-game"]',
+        title: "The word game",
+        body: "The daily word is now an unlimited game with levels, coins and time attack.",
+      },
+    ],
+  },
+  {
+    id: "2026-11-16-app-looks",
+    title: "App looks",
+    date: "2026-11-16",
+    page: "/settings",
+    steps: [
+      {
+        target: '[data-tour="app-look"]',
+        title: "Pick a look",
+        body: "Changes the colour of the bands, bars and pages, right away. Money and paid stay green. It's saved on this device.",
+      },
+      {
+        target: '[data-tour="text-size"]',
+        title: "Text size",
+        body: "Make everything in the app bigger or smaller.",
+      },
+    ],
+  },
+  {
+    id: "2026-11-16-word-game",
+    title: "The new word game",
+    date: "2026-11-16",
+    page: "/word-game",
+    steps: [
+      {
+        target: '[data-tour="game-modes"]',
+        title: "Four ways to play",
+        body: "Levels go on and on. Daily is the puzzle of the day with your streak. Time attack is 2 minutes. Stats has your records.",
+      },
+      {
+        target: '[data-tour="game-coins"]',
+        title: "Coins",
+        body: "Words and solved levels earn coins. Coins you don't spend earn a little interest every day.",
+      },
+      {
+        target: '[data-tour="game-wheel"]',
+        title: "Spell words",
+        body: "Drag across the letters. Quick words in a row build a combo, and a gold letter doubles the coins.",
+      },
+      {
+        target: '[data-tour="game-hints"]',
+        title: "Hints cost coins",
+        body: "Reveal one letter, or the squares of the shortest word you haven't found.",
+      },
+      {
+        target: '[data-tour="game-look"]',
+        title: "Game look",
+        body: "Pick the game's colours here.",
+      },
+    ],
+  },
 ];

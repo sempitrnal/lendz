@@ -12,6 +12,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
 import { getSignedInUserId } from "@/lib/supabase/session";
 import { FONT_SCALE_INIT_SCRIPT } from "@/lib/font-scale";
+import { APP_LOOK_INIT_SCRIPT } from "@/lib/app-look";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -60,6 +61,7 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: FONT_SCALE_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: APP_LOOK_INIT_SCRIPT }} />
       </head>
       <body className="bg-background text-foreground flex min-h-full flex-col">
         <ThemeProvider>

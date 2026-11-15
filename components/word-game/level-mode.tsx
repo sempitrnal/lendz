@@ -338,25 +338,27 @@ function LevelBoard({ puzzle, level }: { puzzle: Puzzle; level: number }) {
             {line}
           </AnimatedLine>
         </div>
-        <HintButton
-          label="Hint: reveal a letter"
-          cost={LETTER_HINT_COST}
-          disabled={!letterCell || progress.solved}
-          onClick={hintLetter}
-        >
-          <Lightbulb className="size-4" />
-        </HintButton>
-        <HintButton
-          label="Hint: reveal the shortest word"
-          cost={WORD_HINT_COST}
-          disabled={!wordTarget || progress.solved}
-          onClick={hintWord}
-        >
-          <WholeWord className="size-4" />
-        </HintButton>
+        <span data-tour="game-hints" className="flex shrink-0 gap-2">
+          <HintButton
+            label="Hint: reveal a letter"
+            cost={LETTER_HINT_COST}
+            disabled={!letterCell || progress.solved}
+            onClick={hintLetter}
+          >
+            <Lightbulb className="size-4" />
+          </HintButton>
+          <HintButton
+            label="Hint: reveal the shortest word"
+            cost={WORD_HINT_COST}
+            disabled={!wordTarget || progress.solved}
+            onClick={hintWord}
+          >
+            <WholeWord className="size-4" />
+          </HintButton>
+        </span>
       </div>
 
-      <div className="shrink-0">
+      <div className="shrink-0" data-tour="game-wheel">
         <LetterWheel
           letters={letters}
           onSubmit={onSubmit}

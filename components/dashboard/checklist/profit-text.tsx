@@ -27,7 +27,7 @@ export function ProfitText({
         "font-semibold tabular-nums",
         expected
           ? "text-muted-foreground/70"
-          : "text-emerald-700 dark:text-emerald-400",
+          : "text-money-700 dark:text-money-400",
         className,
       )}
     >

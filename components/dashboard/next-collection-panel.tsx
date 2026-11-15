@@ -127,7 +127,7 @@ export default function NextCollectionPanel({
   return (
     <article
       className="min-w-0 rounded-xl border-2 border-slate-900 bg-linear-to-br
-        from-emerald-50 via-white to-lime-100 p-4
+        from-money-50 via-white to-lime-100 p-4
         shadow-[4px_4px_0px_0px_#0f172a] sm:p-5"
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -141,9 +141,9 @@ export default function NextCollectionPanel({
             onClick={() => {
               void markAllNextPaid();
             }}
-            className="rounded-md border-2 border-slate-900 bg-emerald-200 px-4
+            className="rounded-md border-2 border-slate-900 bg-money-200 px-4
               py-1 text-[12px] font-black uppercase text-slate-600
-              shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-emerald-300
+              shadow-[2px_2px_0px_0px_#0f172a] transition hover:bg-money-300
               disabled:cursor-wait disabled:opacity-70"
           >
             {isMarkingAll ? "..." : "Mark all next paid"}

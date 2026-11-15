@@ -20,7 +20,17 @@ const GIVE_UP_MS = 3000;
 
 type Active = { tour: Tour; steps: TourStep[]; replay: boolean };
 
-const exists = (selector: string) => !!document.querySelector(selector);
+/**
+ * The target is on screen: present and not hidden. A step aimed at the
+ * phone's tab bar is skipped on a laptop, and one aimed at the sidebar on a
+ * phone.
+ */
+const exists = (selector: string) => {
+  const el = document.querySelector(selector);
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+};
 /** A sheet or dialog is open (the nav drawers stay in the DOM, closed). */
 const blocked = () =>
   !!document.querySelector('[role="dialog"][data-state="open"]');

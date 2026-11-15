@@ -1,5 +1,7 @@
 "use client";
 
+import { APP_LOOK_EVENT } from "@/lib/app-look";
+import { rootColor } from "@/components/use-app-look";
 import { ACCENT_EVENT, getPageAccent } from "@/lib/accent-palette";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -59,15 +61,16 @@ export default function MobileTopBar({ isLoggedIn }: { isLoggedIn: boolean }) {
         ? dark
           ? accent.dark.top
           : accent.light.top
-        : dark
-          ? THEME_DARK
-          : THEME_LIGHT;
+        : rootColor("--page-1") || (dark ? THEME_DARK : THEME_LIGHT);
     };
     sync();
     document.head.appendChild(meta);
     window.addEventListener(ACCENT_EVENT, sync);
+    // A new app look recolours the bands: the strip follows.
+    window.addEventListener(APP_LOOK_EVENT, sync);
     return () => {
       window.removeEventListener(ACCENT_EVENT, sync);
+      window.removeEventListener(APP_LOOK_EVENT, sync);
       meta.remove();
     };
   }, [ownsHeader, resolvedTheme]);

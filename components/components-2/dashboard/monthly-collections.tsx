@@ -55,9 +55,9 @@ export function MonthlyCollections({
   return (
     <DashCard
       className="relative overflow-hidden rounded-xl border border-amber-200/70
-        bg-linear-to-br from-amber-50 via-card to-emerald-50 p-6
+        bg-linear-to-br from-amber-50 via-card to-money-50 p-6
         dark:border-border dark:from-amber-500/10 dark:via-card
-        dark:to-emerald-500/10"
+        dark:to-money-500/10"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SectionHeading
@@ -92,8 +92,8 @@ export function MonthlyCollections({
             className={cn(
               "shrink-0 rounded-full px-2.5 py-1 text-sm font-semibold",
               collectedPct >= 100
-                ? "bg-emerald-600 text-white"
-                : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+                ? "bg-money-600 text-white"
+                : "bg-money-500/15 text-money-700 dark:text-money-400",
             )}
           >
             {collectedPct >= 100 ? "🎉 " : ""}
@@ -121,7 +121,7 @@ export function MonthlyCollections({
           />
           <div
             className="dash-grow absolute inset-y-0 left-0 rounded-full
-              bg-linear-to-r from-emerald-400 to-emerald-600"
+              bg-linear-to-r from-money-400 to-money-600"
             style={{ width: `${collectedWidth}%` }}
           />
         </div>
@@ -131,7 +131,7 @@ export function MonthlyCollections({
         >
           <span className="flex items-center gap-1.5">
             <span
-              className="size-2.5 rounded-full bg-emerald-500"
+              className="size-2.5 rounded-full bg-money-500"
               aria-hidden="true"
             />
             collected
@@ -162,8 +162,8 @@ export function MonthlyCollections({
             className={cn(
               "rounded-lg border p-3",
               stat.tone === "primary"
-                ? `border-emerald-500/25 bg-emerald-50/80
-                  dark:bg-emerald-500/10`
+                ? `border-money-500/25 bg-money-50/80
+                  dark:bg-money-500/10`
                 : stat.tone === "accent"
                   ? "border-amber-500/25 bg-amber-50/80 dark:bg-amber-500/10"
                   : `border-black/5 bg-white/70 dark:border-white/5
@@ -177,7 +177,7 @@ export function MonthlyCollections({
               className={
                 "mt-1 text-lg font-semibold tracking-tight " +
                 (stat.tone === "primary"
-                  ? "text-emerald-700 dark:text-emerald-400"
+                  ? "text-money-700 dark:text-money-400"
                   : stat.tone === "accent"
                     ? "text-amber-700 dark:text-amber-400"
                     : "text-card-foreground")

@@ -104,8 +104,8 @@ function Amounts({
         {mask(formatPeso(amount))}
       </span>
       <span
-        className="block text-xs font-bold text-emerald-600 tabular-nums
-          dark:text-emerald-300"
+        className="block text-xs font-bold text-money-600 tabular-nums
+          dark:text-money-300"
       >
         {mask(`+${formatPeso(profit)}`)}
       </span>

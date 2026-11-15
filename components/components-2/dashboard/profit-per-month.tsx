@@ -81,7 +81,7 @@ function percentTone(m: MonthlyProfit) {
   if (m.isCurrent)
     return "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300";
   if (m.percent >= 80)
-    return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    return "border-money-500/25 bg-money-500/10 text-money-700 dark:text-money-300";
   if (m.percent >= 60)
     return "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300";
   return "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300";
@@ -109,9 +109,9 @@ export function ProfitPerMonth({ profitPerMonth }: ProfitPerMonthProps) {
 
   return (
     <DashCard
-      className="rounded-xl border border-emerald-100 bg-linear-to-br
-        from-emerald-50/60 via-card to-teal-50/60 p-6 dark:border-border
-        dark:from-emerald-500/5 dark:via-card dark:to-teal-500/5"
+      className="rounded-xl border border-money-100 bg-linear-to-br
+        from-money-50/60 via-card to-teal-50/60 p-6 dark:border-border
+        dark:from-money-500/5 dark:via-card dark:to-teal-500/5"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <SectionHeading

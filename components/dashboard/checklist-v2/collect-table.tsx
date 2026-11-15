@@ -181,7 +181,7 @@ export function CollectTable({
         }}
         className={cn(
           "cursor-pointer border-b transition-colors",
-          active ? "bg-emerald-500/10" : "hover:bg-muted/50",
+          active ? "bg-money-500/10" : "hover:bg-muted/50",
           api.flashIds.has(id) && "bg-primary/10",
         )}
       >
@@ -189,7 +189,7 @@ export function CollectTable({
           {active && (
             <span
               aria-hidden="true"
-              className="absolute inset-y-0 left-0 w-1 bg-emerald-500"
+              className="absolute inset-y-0 left-0 w-1 bg-money-500"
             />
           )}
           <div className={cn("flex items-center gap-2", done && "opacity-55")}>
@@ -274,7 +274,7 @@ export function CollectTable({
           className={cn(
             "px-3 py-2.5 text-right text-xs font-bold tabular-nums",
             row.profit > 0
-              ? "text-emerald-700 dark:text-emerald-400"
+              ? "text-money-700 dark:text-money-400"
               : "text-muted-foreground/50",
           )}
         >
